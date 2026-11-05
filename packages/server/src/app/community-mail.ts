@@ -9,9 +9,13 @@ import type {
 import type { EntitlementsService } from '@headless-lms/core/entitlements';
 import type { IdentityService } from '@headless-lms/core/identity';
 import type { OrganizationService } from '@headless-lms/core/organizations';
+import { NotFoundError } from '@headless-lms/core/shared/errors';
 
 export type CommunityMailDeps = {
-  content: Pick<ContentService, 'getCommunity' | 'getSpace' | 'listCommunitiesById'>;
+  content: Pick<
+    ContentService,
+    'getCommunity' | 'getSpace' | 'listCommunitiesById' | 'getCourse' | 'getDownload' | 'getBundle'
+  >;
   entitlements: Pick<
     EntitlementsService,
     | 'openSpacesFor'
@@ -19,12 +23,14 @@ export type CommunityMailDeps = {
     | 'communityMembersAmong'
     | 'spaceOpenersAmong'
     | 'spaceOpeners'
-    | 'communityModeratorIds'
     | 'countActiveSpaceMembers'
     | 'communityIdsOpenedFor'
     | 'ensureGrant'
   >;
-  organizations: Pick<OrganizationService, 'getOrgUserById' | 'staffOrgUserIds'>;
+  organizations: Pick<
+    OrganizationService,
+    'getById' | 'getOrgUserById' | 'actorFor' | 'systemActor' | 'holders' | 'getRole'
+  >;
   identity: Pick<IdentityService, 'displayName'>;
   posts: Pick<PostService, 'find'>;
   subscriptions: Pick<SubscriptionService, 'followerIds' | 'itemSubscriptions'>;
@@ -36,26 +42,23 @@ export function communityMail(deps: CommunityMailDeps): {
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
 } {
+  const system = (orgId: string) => deps.organizations.systemActor(orgId);
   const mail: Omit<CommunityMailReads, 'recentMessageRecipients'> = {
     async communityTitle(orgId, communityId) {
-      return (await deps.content.getCommunity(orgId, communityId))?.title ?? null;
+      return (await deps.content.getCommunity(communityId, system(orgId)))?.title ?? null;
     },
     async space(orgId, spaceId) {
-      const space = await deps.content.getSpace(orgId, spaceId);
+      const space = await deps.content.getSpace(spaceId, system(orgId));
       return space
         ? { name: space.name, communityId: space.communityId, capacity: space.capacity }
         : null;
     },
     async openSpaceNames(orgId, orgUserId, communityId) {
-      const orgUser = await deps.organizations.getOrgUserById(orgId, orgUserId);
-      if (!orgUser) {
+      const person = await deps.organizations.actorFor(orgId, orgUserId);
+      if (!person) {
         return [];
       }
-      const spaces = await deps.entitlements.openSpacesFor(
-        orgId,
-        { id: orgUser.id, role: orgUser.role },
-        communityId,
-      );
+      const spaces = await deps.entitlements.openSpacesFor(communityId, person);
       return spaces.map((space) => space.name);
     },
     communitiesOpenedBy: (orgId, grant) => deps.entitlements.communitiesOpenedBy(orgId, grant),
@@ -64,9 +67,38 @@ export function communityMail(deps: CommunityMailDeps): {
     spaceOpenersAmong: (orgId, spaceId, ids) =>
       deps.entitlements.spaceOpenersAmong(orgId, spaceId, ids),
     spaceOpeners: (orgId, spaceId) => deps.entitlements.spaceOpeners(orgId, spaceId),
-    moderationAudience: (orgId, communityId) =>
-      deps.entitlements.communityModeratorIds(orgId, communityId),
-    staffIds: (orgId) => deps.organizations.staffOrgUserIds(orgId),
+    holders: (orgId, permission, on) => deps.organizations.holders(orgId, permission, on),
+    async role(orgId, roleKey) {
+      try {
+        const role = await deps.organizations.getRole(roleKey, system(orgId));
+        return { name: role.name, permissions: role.permissions };
+      } catch (err) {
+        if (err instanceof NotFoundError) {
+          return null;
+        }
+        throw err;
+      }
+    },
+    async orgName(orgId) {
+      return (await deps.organizations.getById(orgId))?.name ?? null;
+    },
+    async contentInfo(orgId, item) {
+      const actor = system(orgId);
+      if ('bundleId' in item) {
+        const bundle = await deps.content.getBundle(item.bundleId, actor);
+        return bundle ? { title: bundle.name, type: 'bundle' } : null;
+      }
+      const course = await deps.content.getCourse(item.contentId, actor);
+      if (course) {
+        return { title: course.title, type: course.type };
+      }
+      const download = await deps.content.getDownload(item.contentId, actor);
+      if (download) {
+        return { title: download.title, type: download.type };
+      }
+      const community = await deps.content.getCommunity(item.contentId, actor);
+      return community ? { title: community.title, type: community.type } : null;
+    },
     async displayName(orgId, orgUserId) {
       const orgUser = await deps.organizations.getOrgUserById(orgId, orgUserId);
       return deps.identity.displayName(orgUser?.userId ?? null);
@@ -125,14 +157,14 @@ export function communityMail(deps: CommunityMailDeps): {
       deps.entitlements.countActiveSpaceMembers(orgId, spaceId),
     async memberCommunityTitles(orgId, orgUserId) {
       const ids = await deps.entitlements.communityIdsOpenedFor(orgId, orgUserId);
-      const communities = await deps.content.listCommunitiesById(orgId, ids);
+      const communities = await deps.content.listCommunitiesById(ids, system(orgId));
       return communities.map((community) => ({ id: community.id, title: community.title }));
     },
   };
   return {
     mail,
     grants: {
-      grant: (orgId, input) => deps.entitlements.ensureGrant(orgId, input),
+      grant: (orgId, input) => deps.entitlements.ensureGrant(input, system(orgId)),
     },
   };
 }

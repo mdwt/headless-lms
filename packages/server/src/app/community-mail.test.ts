@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Community, OrgUser } from '@headless-lms/core/types';
+import type { Community } from '@headless-lms/core/types';
+import { actorWith } from '@headless-lms/core/organizations';
+import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { communityMail, type CommunityMailDeps } from './community-mail.js';
 
-const orgUser = { id: 'ou_sarah', userId: 'usr_sarah', role: 'student' } as OrgUser;
+const SYSTEM = actorWith({ id: 'system', orgId: 'org_1', owner: true });
+const SARAH = actorWith({ id: 'ou_sarah', orgId: 'org_1' });
 
 const reject = async (): Promise<never> => {
   throw new Error('not expected');
@@ -10,19 +13,32 @@ const reject = async (): Promise<never> => {
 
 function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
   return {
-    content: { getCommunity: reject, getSpace: reject, listCommunitiesById: reject },
+    content: {
+      getCommunity: reject,
+      getSpace: reject,
+      listCommunitiesById: reject,
+      getCourse: reject,
+      getDownload: reject,
+      getBundle: reject,
+    },
     entitlements: {
       openSpacesFor: reject,
       communitiesOpenedBy: reject,
       communityMembersAmong: reject,
       spaceOpenersAmong: reject,
       spaceOpeners: reject,
-      communityModeratorIds: reject,
       countActiveSpaceMembers: reject,
       communityIdsOpenedFor: reject,
       ensureGrant: reject,
     },
-    organizations: { getOrgUserById: reject, staffOrgUserIds: reject },
+    organizations: {
+      getById: reject,
+      getOrgUserById: reject,
+      actorFor: reject,
+      systemActor: () => SYSTEM,
+      holders: reject,
+      getRole: reject,
+    },
     identity: { displayName: reject },
     posts: { find: reject },
     subscriptions: { followerIds: reject, itemSubscriptions: reject },
@@ -30,6 +46,16 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
     chats: { chatSummary: reject, latestMessageBody: reject, isBlocked: reject },
     ...over,
   };
+}
+
+function organizations(
+  over: Partial<CommunityMailDeps['organizations']>,
+): CommunityMailDeps['organizations'] {
+  return { ...deps().organizations, ...over };
+}
+
+function content(over: Partial<CommunityMailDeps['content']>): CommunityMailDeps['content'] {
+  return { ...deps().content, ...over };
 }
 
 function entitlements(
@@ -43,7 +69,7 @@ describe('communityMail', () => {
     const openSpacesFor = vi.fn(async () => [{ name: 'SaaS founders' }] as never);
     const { mail } = communityMail(
       deps({
-        organizations: { getOrgUserById: async () => orgUser, staffOrgUserIds: reject },
+        organizations: organizations({ actorFor: async () => SARAH }),
         entitlements: entitlements({ openSpacesFor }),
       }),
     );
@@ -51,16 +77,12 @@ describe('communityMail', () => {
     await expect(mail.openSpaceNames('org_1', 'ou_sarah', 'cmy_1')).resolves.toEqual([
       'SaaS founders',
     ]);
-    expect(openSpacesFor).toHaveBeenCalledWith(
-      'org_1',
-      { id: 'ou_sarah', role: 'student' },
-      'cmy_1',
-    );
+    expect(openSpacesFor).toHaveBeenCalledWith('cmy_1', SARAH);
   });
 
   it('opens no space for an org user that does not exist', async () => {
     const { mail } = communityMail(
-      deps({ organizations: { getOrgUserById: async () => null, staffOrgUserIds: reject } }),
+      deps({ organizations: organizations({ actorFor: async () => null }) }),
     );
 
     await expect(mail.openSpaceNames('org_1', 'ou_gone', 'cmy_1')).resolves.toEqual([]);
@@ -70,7 +92,7 @@ describe('communityMail', () => {
     const displayName = vi.fn(async (userId: string | null) => (userId ? 'Sarah' : 'A member'));
     const { mail } = communityMail(
       deps({
-        organizations: { getOrgUserById: async () => null, staffOrgUserIds: reject },
+        organizations: organizations({ getOrgUserById: async () => null }),
         identity: { displayName },
       }),
     );
@@ -85,7 +107,7 @@ describe('communityMail', () => {
     ]);
     const { mail } = communityMail(
       deps({
-        content: { getCommunity: reject, getSpace: reject, listCommunitiesById },
+        content: content({ listCommunitiesById }),
         entitlements: entitlements({ communityIdsOpenedFor: async () => ['cmy_1'] }),
       }),
     );
@@ -93,7 +115,7 @@ describe('communityMail', () => {
     await expect(mail.memberCommunityTitles('org_1', 'ou_sarah')).resolves.toEqual([
       { id: 'cmy_1', title: 'Founder Collab' },
     ]);
-    expect(listCommunitiesById).toHaveBeenCalledWith('org_1', ['cmy_1']);
+    expect(listCommunitiesById).toHaveBeenCalledWith(['cmy_1'], SYSTEM);
   });
 
   it('reads followers from the post subscriptions', async () => {
@@ -169,6 +191,72 @@ describe('communityMail', () => {
 
     await grants.grant('org_1', input);
 
-    expect(ensureGrant).toHaveBeenCalledWith('org_1', input);
+    expect(ensureGrant).toHaveBeenCalledWith(input, SYSTEM);
+  });
+
+  it('reads content titles as the system actor', async () => {
+    const getCommunity = vi.fn(async () => ({ title: 'Spring cohort' }) as never);
+    const getSpace = vi.fn(
+      async () => ({ name: 'Practice', communityId: 'cmy_1', capacity: null }) as never,
+    );
+    const { mail } = communityMail(deps({ content: content({ getCommunity, getSpace }) }));
+
+    await expect(mail.communityTitle('org_1', 'cmy_1')).resolves.toBe('Spring cohort');
+    await expect(mail.space('org_1', 'spc_1')).resolves.toEqual({
+      name: 'Practice',
+      communityId: 'cmy_1',
+      capacity: null,
+    });
+    expect(getCommunity).toHaveBeenCalledWith('cmy_1', SYSTEM);
+    expect(getSpace).toHaveBeenCalledWith('spc_1', SYSTEM);
+  });
+
+  it('names the content item or bundle', async () => {
+    const { mail } = communityMail(
+      deps({
+        content: content({
+          getBundle: async () => ({ name: 'All access' }) as never,
+          getCourse: async () => null,
+          getDownload: async () => null,
+          getCommunity: async () => ({ title: 'Spring cohort', type: 'community' }) as never,
+        }),
+      }),
+    );
+
+    await expect(mail.contentInfo('org_1', { bundleId: 'bnd_1' })).resolves.toEqual({
+      title: 'All access',
+      type: 'bundle',
+    });
+    await expect(mail.contentInfo('org_1', { contentId: 'cmy_1' })).resolves.toEqual({
+      title: 'Spring cohort',
+      type: 'community',
+    });
+  });
+
+  it('reads a role as the system actor and answers null for a role the org lacks', async () => {
+    const getRole = vi.fn(async (key: string) => {
+      if (key === 'gone') {
+        throw new NotFoundError('Role', key);
+      }
+      return { name: 'Tutor', permissions: ['courses:write'] } as never;
+    });
+    const { mail } = communityMail(deps({ organizations: organizations({ getRole }) }));
+
+    await expect(mail.role('org_1', 'instructor')).resolves.toEqual({
+      name: 'Tutor',
+      permissions: ['courses:write'],
+    });
+    await expect(mail.role('org_1', 'gone')).resolves.toBeNull();
+    expect(getRole).toHaveBeenCalledWith('instructor', SYSTEM);
+  });
+
+  it('asks organizations for the holders of a permission', async () => {
+    const holders = vi.fn(async () => ['ou_emma']);
+    const { mail } = communityMail(deps({ organizations: organizations({ holders }) }));
+
+    await expect(mail.holders('org_1', 'communities:moderate', 'cmy_1')).resolves.toEqual([
+      'ou_emma',
+    ]);
+    expect(holders).toHaveBeenCalledWith('org_1', 'communities:moderate', 'cmy_1');
   });
 });

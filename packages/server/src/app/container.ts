@@ -63,6 +63,7 @@ import {
   DigestServiceImpl,
   DiscussionItemTitles,
   DiscussionServiceImpl,
+  type AuthorPermissionReader,
   PostServiceImpl,
   SubscriptionServiceImpl,
   discussionJobs,
@@ -440,16 +441,7 @@ export async function buildContainer(
     spaces: new DrizzleContentRepository(tx, contentLogger),
     outbox: new DrizzleOutboxAppender(tx, outboxLogger),
   }));
-  const authors = {
-    roleOf: async (orgId: string, orgUserId: string) => {
-      const row = await organizationsRepo.findOrgUserById(orgId, orgUserId);
-      return row?.role ?? null;
-    },
-    rolesOf: async (orgId: string, orgUserIds: string[]) => {
-      const rows = await organizationsRepo.findOrgUsersByIds(orgId, orgUserIds);
-      return Object.fromEntries(rows.map((row) => [row.id, row.role]));
-    },
-  };
+  const authors: AuthorPermissionReader = organizations;
   const entitlementsRepo = new DrizzleEntitlementsRepository(db, entitlementsLogger);
   const entitlements = new EntitlementsServiceImpl({
     repo: entitlementsRepo,
@@ -541,6 +533,7 @@ export async function buildContainer(
     mentions: mentionReads,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
+    authors,
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       mentions: new DrizzleMentionsRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -584,6 +577,7 @@ export async function buildContainer(
     }),
     content: new ContentItemTitles({ content, access: entitlements, organizations }),
   };
+      actors: organizations,
 
   const reporting = {
     admin: new AdminReportServiceImpl({
