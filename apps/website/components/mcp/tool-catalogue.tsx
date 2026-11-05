@@ -8,16 +8,42 @@ import {
   ROLES,
   catalogue,
   resources,
-  type Role,
+  toolResources,
   type Tool,
 } from "./catalogue";
 import { KindMark } from "./kind-mark";
 
-const ALL_SCOPES = catalogue.scopes.map((scope) => scope.scope);
-const READ_SCOPES = ALL_SCOPES.filter((scope) => scope.endsWith(":read"));
+const ALL_PERMISSIONS = catalogue.permissions.map((entry) => entry.permission);
+const READ_PERMISSIONS = ALL_PERMISSIONS.filter((permission) => permission.endsWith(":read"));
 
-function holds(role: Role, scope: string): boolean {
-  return catalogue.scopes.find((entry) => entry.scope === scope)?.roles.includes(role) ?? false;
+function holds(role: string, permission: string): boolean {
+  return (
+    catalogue.permissions.find((entry) => entry.permission === permission)?.roles.includes(role) ??
+    false
+  );
+}
+
+function effective(role: string, granted: Set<string>): Set<string> {
+  const out = new Set<string>();
+  for (const permission of granted) {
+    if (!holds(role, permission)) {
+      continue;
+    }
+    out.add(permission);
+    const [resource, action] = permission.split(":");
+    const read = `${resource}:read`;
+    if ((action === "write" || action === "delete") && holds(role, read)) {
+      out.add(read);
+    }
+  }
+  return out;
+}
+
+function listed(tool: Tool, held: Set<string>): boolean {
+  if (tool.permissions.length === 0) {
+    return held.size > 0;
+  }
+  return tool.permissions.some((permission) => held.has(permission));
 }
 
 function matches(tool: Tool, query: string): boolean {
@@ -28,7 +54,8 @@ function matches(tool: Tool, query: string): boolean {
     tool.name,
     tool.title,
     tool.description,
-    tool.scope,
+    tool.operation,
+    ...tool.permissions,
     RESOURCE_LABELS[tool.resource] ?? tool.resource,
   ]
     .join(" ")
@@ -41,24 +68,21 @@ function matches(tool: Tool, query: string): boolean {
 
 export function ToolCatalogue() {
   const searchId = useId();
-  const scopesId = useId();
+  const permissionsId = useId();
   const [choosing, setChoosing] = useState(false);
   const [custom, setCustom] = useState(false);
   const [query, setQuery] = useState("");
-  const [role, setRole] = useState<Role>("owner");
-  const [granted, setGranted] = useState<Set<string>>(() => new Set(ALL_SCOPES));
+  const [role, setRole] = useState<string>(ROLES[0] ?? "");
+  const [granted, setGranted] = useState<Set<string>>(() => new Set(ALL_PERMISSIONS));
 
-  const visible = useMemo(
-    () =>
-      catalogue.tools.filter(
-        (tool) => granted.has(tool.scope) && holds(role, tool.scope) && matches(tool, query.trim()),
-      ),
-    [granted, role, query],
-  );
+  const visible = useMemo(() => {
+    const held = effective(role, granted);
+    return catalogue.tools.filter((tool) => listed(tool, held) && matches(tool, query.trim()));
+  }, [granted, role, query]);
 
   const groups = useMemo(
     () =>
-      resources()
+      toolResources()
         .map((resource) => ({
           resource,
           tools: visible.filter((tool) => tool.resource === resource),
@@ -68,20 +92,21 @@ export function ToolCatalogue() {
   );
 
   const preset =
-    granted.size === ALL_SCOPES.length
+    granted.size === ALL_PERMISSIONS.length
       ? "all"
-      : granted.size === READ_SCOPES.length && READ_SCOPES.every((scope) => granted.has(scope))
+      : granted.size === READ_PERMISSIONS.length &&
+          READ_PERMISSIONS.every((permission) => granted.has(permission))
         ? "defaults"
         : "custom";
 
-  const toggle = (scope: string) => {
+  const toggle = (permission: string) => {
     setCustom(true);
     setGranted((current) => {
       const next = new Set(current);
-      if (next.has(scope)) {
-        next.delete(scope);
+      if (next.has(permission)) {
+        next.delete(permission);
       } else {
-        next.add(scope);
+        next.add(permission);
       }
       return next;
     });
@@ -107,12 +132,12 @@ export function ToolCatalogue() {
             legend="Signed in as"
             name="mcp-role"
             value={role}
-            options={ROLES.map((entry) => ({ value: entry.role, label: entry.label }))}
-            onChange={(value) => setRole(value as Role)}
+            options={ROLES.map((entry) => ({ value: entry, label: entry }))}
+            onChange={setRole}
           />
           <Segmented
-            legend="Scopes granted"
-            name="mcp-scopes"
+            legend="Permissions granted"
+            name="mcp-permissions"
             value={custom ? "custom" : preset}
             options={[
               { value: "all", label: "All" },
@@ -121,10 +146,10 @@ export function ToolCatalogue() {
             ]}
             onChange={(value) => {
               if (value === "all") {
-                setGranted(new Set(ALL_SCOPES));
+                setGranted(new Set(ALL_PERMISSIONS));
               }
               if (value === "defaults") {
-                setGranted(new Set(READ_SCOPES));
+                setGranted(new Set(READ_PERMISSIONS));
               }
               setCustom(value === "custom");
               if (value === "custom") {
@@ -135,16 +160,16 @@ export function ToolCatalogue() {
           <button
             type="button"
             aria-expanded={choosing}
-            aria-controls={scopesId}
+            aria-controls={permissionsId}
             onClick={() => setChoosing((open) => !open)}
             className="h-[42px] rounded-[8px] px-1 text-[13px] text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {choosing ? "Hide scopes" : "Choose scopes"}
+            {choosing ? "Hide permissions" : "Choose permissions"}
           </button>
         </div>
 
-        <fieldset id={scopesId} hidden={!choosing} className="mt-5 border-t border-line pt-4">
-          <legend className="sr-only">Scopes granted to the connection</legend>
+        <fieldset id={permissionsId} hidden={!choosing} className="mt-5 border-t border-line pt-4">
+          <legend className="sr-only">Permissions granted to the connection</legend>
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             {resources().map((resource) => (
               <div key={resource}>
@@ -152,27 +177,31 @@ export function ToolCatalogue() {
                   {RESOURCE_LABELS[resource] ?? resource}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                  {catalogue.scopes
-                    .filter((scope) => scope.resource === resource)
-                    .map((scope) => {
-                      const allowed = holds(role, scope.scope);
+                  {catalogue.permissions
+                    .filter((entry) => entry.resource === resource)
+                    .map((entry) => {
+                      const allowed = holds(role, entry.permission);
                       return (
                         <label
-                          key={scope.scope}
+                          key={entry.permission}
                           className={cn(
                             "inline-flex items-center gap-1.5 text-[13px]",
                             allowed ? "cursor-pointer text-body" : "text-faint",
                           )}
-                          title={allowed ? scope.scope : `${scope.scope} is not for this role`}
+                          title={
+                            allowed
+                              ? `${entry.permission}: ${entry.label}`
+                              : `${role} doesn't hold ${entry.permission}`
+                          }
                         >
                           <input
                             type="checkbox"
-                            checked={allowed && granted.has(scope.scope)}
+                            checked={allowed && granted.has(entry.permission)}
                             disabled={!allowed}
-                            onChange={() => toggle(scope.scope)}
+                            onChange={() => toggle(entry.permission)}
                             className="size-3.5 accent-[var(--ink)] dark:accent-[var(--paper)]"
                           />
-                          {ACTION_LABELS[scope.action] ?? scope.action}
+                          {ACTION_LABELS[entry.action] ?? entry.action}
                         </label>
                       );
                     })}
@@ -198,7 +227,7 @@ export function ToolCatalogue() {
 
       {groups.length === 0 ? (
         <p className="mt-6 rounded-[12px] px-4 py-6 text-center text-[14px] text-body ring-1 ring-line">
-          No tool matches. Clear the search or grant more scopes.
+          No tool matches. Clear the search or grant more permissions.
         </p>
       ) : (
         groups.map((group) => (
@@ -228,9 +257,9 @@ function ToolRow({ tool }: { tool: Tool }) {
             {tool.description}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-4 md:grid md:w-[300px] md:grid-cols-[88px_minmax(0,1fr)] md:pt-0.5">
+        <div className="flex shrink-0 items-start gap-4 md:grid md:w-[300px] md:grid-cols-[88px_minmax(0,1fr)] md:pt-0.5">
           <KindMark kind={tool.kind} />
-          <code className="font-mono text-[12px] text-muted-foreground">{tool.scope}</code>
+          <ToolPermissions permissions={tool.permissions} />
         </div>
       </div>
 
@@ -291,6 +320,22 @@ function ToolRow({ tool }: { tool: Tool }) {
         </div>
       )}
     </li>
+  );
+}
+
+function ToolPermissions({ permissions }: { permissions: string[] }) {
+  if (permissions.length === 0) {
+    return <span className="text-[12.5px] text-muted-foreground">Any member</span>;
+  }
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      {permissions.length > 1 && <span className="text-[12px] text-muted-foreground">Any of</span>}
+      {permissions.map((permission) => (
+        <code key={permission} className="font-mono text-[12px] text-muted-foreground">
+          {permission}
+        </code>
+      ))}
+    </div>
   );
 }
 

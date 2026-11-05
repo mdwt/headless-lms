@@ -21,29 +21,33 @@ implements these ports.
 Adapters implement the outbound ports: Postgres for persistence, Better Auth for identity, S3-compatible storage for files, Resend for email, Hatchet for durable workflows.
 Because the core only knows the port interfaces, any adapter can be replaced without touching business logic.
 
-The inbound entry point is the HTTP layer. It calls into the core's services and owns no business logic of its own.
+The inbound entry point is the HTTP layer. It calls into the core's services and owns no business logic and no permission checks of its own.
 
 ## Bounded contexts
 
 The core is split into nine self-contained contexts. Each exposes one public surface, and contexts talk to each other only through those surfaces — never by reaching into another context's internals. A use case that spans contexts lives in the context whose responsibility it is; there is no orchestration tier above them.
 
-| Context           | Owns                                                                                                                                |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **identity**      | Everyone in the system: the staff **User** and the learner **Student**, two separate identity models other contexts reference by id |
-| **organizations** | The tenant root: the organization, its staff memberships and roles, and invitations                                                 |
-| **content**       | Authored content — courses, modules, activities, drip rules, downloads, and bundles of them                                         |
-| **entitlements**  | Access grants: who can access what, and why. The only place access is checked; a grant to a bundle covers every item in it          |
-| **progress**      | Per-student completion and derived progress                                                                                         |
-| **assets**        | The org media library; every file is served through a stable URL that checks access on each request                                 |
-| **integrations**  | Which third-party integrations an org has connected                                                                                 |
-| **automations**   | Workflows and webhooks that react to domain events                                                                                  |
-| **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                            |
+| Context           | Owns                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **identity**      | Everyone in the system: the person, their profile and their sign-in, one model for learners and team alike                            |
+| **organizations** | The tenant root: the organization, its people and invitations, the permission list, roles and assignments, and every permission check |
+| **content**       | Authored content — courses, modules, activities, drip rules, downloads, and bundles of them                                           |
+| **entitlements**  | Access grants: who can access what, and why. The only place access is checked; a grant to a bundle covers every item in it            |
+| **progress**      | Per-student completion and derived progress                                                                                           |
+| **assets**        | The org media library; every file is served through a stable URL that checks access on each request                                   |
+| **integrations**  | Which third-party integrations an org has connected                                                                                   |
+| **automations**   | Workflows and webhooks that react to domain events                                                                                    |
+| **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                              |
 
 Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.
 
-## Staff and learners
+## Roles and permissions
 
-Staff and learners are different populations, modelled separately. Staff hold an org **membership** carrying a role — `owner`, `admin`, or `instructor`, with instructors scoped to the courses assigned to them. Learners never hold memberships or roles: a learner is a **Student**, and what they can access is governed entirely by their entitlements.
+Everyone in an organization is an **org user**, learners and team alike. What a person can open is decided by their grants. What they can do is decided by **permissions**, such as `courses:write` or `communities:moderate`.
+
+A **role** is a named set of permissions. It is given on the whole organization, where it covers everything, or on one course, download or community, where it covers that item. A person's permissions on an item are their organization role's plus the role given to them there. The product ships Owner, Admin, Instructor, Moderator and Member; an organization can rename them, and change them or add its own through the API. A deployment can replace the set.
+
+Every check is a permission check at the top of the core service method that owns the action. Routes and MCP tools carry none, so the REST API, an MCP tool and a background job that reach the same method get the same answer. API keys and connected apps carry permissions as scopes, and each call is limited to what their creator holds at that moment. See [Permissions](/docs/mcp/permissions) for the list.
 
 ## Reporting
 
@@ -55,9 +59,9 @@ Cross-context reads live in a dedicated reporting layer alongside the contexts, 
 
 ## Multi-tenancy
 
-The organization is the tenant root: every org-scoped record belongs to exactly one organization. Users are global — the link between a user and an org is their membership — while a student belongs to exactly one org. Authentication is a single global account; the boundary a request comes through determines which organization it operates in.
+The organization is the tenant root: every org-scoped record belongs to exactly one organization. People are global; the link between a person and an organization is their org user, and every active org user holds a membership. Authentication is a single global account; the boundary a request comes through determines which organization it operates in.
 
-Better Auth is the **system of record** for accounts, organizations, and memberships. The core holds a read-only mirror and reacts to changes; every member write goes through Better Auth. Swapping it for another provider is a data migration, not an adapter swap.
+Better Auth is the **system of record** for accounts, sessions, organizations and memberships. The core holds a mirror, and makes membership writes through Better Auth after its own checks. Roles, assignments and every permission check are the core's. Swapping Better Auth for another provider is a data migration, not an adapter swap.
 
 ## API surface
 

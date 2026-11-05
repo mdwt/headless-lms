@@ -17,19 +17,28 @@ The API decides what a member can open. A member can open a course, a download o
 
 Member routes return only what the member can open and answer `404` for everything else, never `403`, so a response never confirms that something exists. List with [`GET /api/member/courses`](/docs/api/content/listMemberCourses) and [`GET /api/member/downloads`](/docs/api/content/listMemberDownloads), and treat `404` as "not available to this member".
 
+## Showing actions
+
+The server checks every action against the person's permissions. A frontend reads those permissions to show only the actions the person can take, such as moderating a post or opening a draft course:
+
+- [`GET /api/member/viewer`](/docs/api/organizations/getMemberViewer) returns the member's org role, the permissions they hold anywhere, and those they hold on the whole organization.
+- [`GET /api/access/permissions`](/docs/api/access/getMyPermissions) adds the permissions they hold on each content item. On one item, a person holds their organization permissions plus that item's.
+
+Decide from permissions, never from a role's key or name. An organization can rename its roles and change what they hold.
+
 ## Files
 
 Every file has a stable URL on the API. Each request to it checks access, then answers with a `302` redirect to a signed storage URL. Responses carry these URLs in their file fields, so a frontend puts them straight into `src` or `href` and never asks for a file by asset id.
 
-| File                                    | Field                                                                                                 | Who may fetch it                                                                                                     |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Course, download or community thumbnail | `thumbnailUrl`                                                                                        | Any org user, when the item is published; staff always                                                               |
-| File in a lesson                        | `assetUrls[assetId]` on each activity                                                                 | The member can open the course, the course and lesson are published, and the lesson lists the file; staff always     |
-| File in a download                      | `url` on each file of [`GET /api/member/downloads/{downloadId}`](/docs/api/content/getMemberDownload) | The member can open the download, it is published, and it lists the file; staff always. Saved under its display name |
-| Post cover                              | `coverUrl`                                                                                            | Whoever can read the post                                                                                            |
-| Message attachment                      | `url` on each of `attachments`                                                                        | The chat's participants while the message stands; moderators while it is flagged                                     |
-| Profile photo                           | `imageUrl` on authors, senders, directory entries and notifications                                   | Org users of the photo's organization                                                                                |
-| Your own upload                         | `url` on a finalized upload, and `imageUrl` on your own profile                                       | Only the person who uploaded it                                                                                      |
+| File                                    | Field                                                                                                 | Who may fetch it                                                                                                                                                                  |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Course, download or community thumbnail | `thumbnailUrl`                                                                                        | Any org user, when the item is published; a holder of the item's read permission, published or not                                                                                |
+| File in a lesson                        | `assetUrls[assetId]` on each activity                                                                 | The member can open the course, the course and lesson are published, and the lesson lists the file; with `courses:read` on the course, published or not, when the lesson lists it |
+| File in a download                      | `url` on each file of [`GET /api/member/downloads/{downloadId}`](/docs/api/content/getMemberDownload) | The member can open the download, it is published, and it lists the file; with `downloads:read`, published or not. Saved under its display name                                   |
+| Post cover                              | `coverUrl`                                                                                            | Whoever can read the post                                                                                                                                                         |
+| Message attachment                      | `url` on each of `attachments`                                                                        | The chat's participants while the message stands; holders of `communities:moderate` while it is flagged                                                                           |
+| Profile photo                           | `imageUrl` on authors, senders, directory entries and notifications                                   | Org users of the photo's organization                                                                                                                                             |
+| Your own upload                         | `url` on a finalized upload, and `imageUrl` on your own profile                                       | Only the person who uploaded it                                                                                                                                                   |
 
 Anything else is a `404`. The Files section of the [API reference](/docs/api) lists every route.
 

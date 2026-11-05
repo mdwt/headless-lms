@@ -1,11 +1,11 @@
 ---
 title: Tools
-description: Every tool an assistant can use, the scope it needs and the input it takes.
+description: Every tool an assistant can use, the permissions it needs and the input it takes.
 ---
 
 Each tool is one call to a domain service, with the same validation and errors as the REST API. Lists that take `page` and `pageSize` are paginated. Ids come from the matching list tool, such as `list_courses` or `list_spaces`.
 
-Pick a role and a set of scopes to see exactly which tools that connection gets. Reads never change anything. Changes create, update, reorder or publish. Removes deletes, revokes or takes something down, so your assistant should ask before running one.
+Pick a role and a set of [permissions](/docs/mcp/permissions) to see which tools that connection gets. A tool that names several permissions needs any one of them. A tool marked **Any member** checks the item itself, such as removing a post, which its author or a moderator may do; it is listed to connections that hold the moderation permission it serves. Reads never change anything. Changes create, update, reorder or publish. Removes deletes, revokes or takes something down, so your assistant should ask before running one.
 
 <ToolCatalogue />
 

@@ -19,17 +19,18 @@ The adapter needs no configuration of its own — branding comes from the server
 
 The catalog is closed and typed: every template id in `EmailTemplateParams` (from `@headless-lms/core/types`) must have an entry, or the adapter fails to typecheck. The server ships these templates:
 
-| Template            | Sent when                                    |
-| ------------------- | -------------------------------------------- |
-| `magicLink`         | A user signs in with a magic link            |
-| `emailVerification` | A user must verify their email address       |
-| `passwordReset`     | A user requests a password reset             |
-| `passwordChanged`   | A user's password has been reset             |
-| `studentInvite`     | A student is invited to the student portal   |
-| `memberInvite`      | A staff member is invited to an organization |
-| `accessGranted`     | A student is granted access to content       |
-| `accessRevoked`     | A student's access to content is revoked     |
-| `courseCompleted`   | A student completes a course                 |
+| Template            | Sent when                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| `magicLink`         | A user signs in with a magic link                                                        |
+| `emailVerification` | A user must verify their email address                                                   |
+| `passwordReset`     | A user requests a password reset                                                         |
+| `passwordChanged`   | A user's password has been reset                                                         |
+| `studentInvite`     | A person is invited with a role that holds no permissions, to the student portal         |
+| `memberInvite`      | A person is invited with a role that holds permissions, to the admin app; names the role |
+| `roleAssigned`      | A person is given a role that adds permissions, on the organization or on one item       |
+| `accessGranted`     | A student is granted access to content                                                   |
+| `accessRevoked`     | A student's access to content is revoked                                                 |
+| `courseCompleted`   | A student completes a course                                                             |
 
 ## Branding
 
@@ -38,7 +39,7 @@ Every template receives a `TemplateContext` — brand name, base URL, and studen
 | Variable             | Maps to            | Notes                                             |
 | -------------------- | ------------------ | ------------------------------------------------- |
 | `BRAND_NAME`         | `brandName`        | Shown in every email. Defaults to `Headless LMS`. |
-| `ADMIN_APP_URL`      | `baseUrl`          | Origin staff-facing links resolve against.        |
+| `ADMIN_APP_URL`      | `baseUrl`          | Origin admin-app links resolve against.           |
 | `STUDENT_PORTAL_URL` | `studentPortalUrl` | Origin student-facing links resolve against.      |
 
 ## Previewing templates
