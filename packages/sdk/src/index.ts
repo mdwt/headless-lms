@@ -21,10 +21,12 @@ import {
   Integrations as IntegrationsGen,
   Notifications as NotificationsGen,
   Organizations as OrganizationsGen,
+  People as PeopleGen,
   Posts as PostsGen,
   Profile as ProfileGen,
   Progress as ProgressGen,
   Reporting as ReportingGen,
+  Roles as RolesGen,
 } from "./generated/sdk.gen";
 
 /**
@@ -52,10 +54,12 @@ export const Files = FilesGen as Throwing<typeof FilesGen>;
 export const Integrations = IntegrationsGen as Throwing<typeof IntegrationsGen>;
 export const Notifications = NotificationsGen as Throwing<typeof NotificationsGen>;
 export const Organizations = OrganizationsGen as Throwing<typeof OrganizationsGen>;
+export const People = PeopleGen as Throwing<typeof PeopleGen>;
 export const Posts = PostsGen as Throwing<typeof PostsGen>;
 export const Profile = ProfileGen as Throwing<typeof ProfileGen>;
 export const Progress = ProgressGen as Throwing<typeof ProgressGen>;
 export const Reporting = ReportingGen as Throwing<typeof ReportingGen>;
+export const Roles = RolesGen as Throwing<typeof RolesGen>;
 
 export interface ConfigureSdkOptions {
   /** API origin, e.g. `https://api.example.com` or `http://localhost:8000`. */

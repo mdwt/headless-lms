@@ -10,6 +10,7 @@ export const organizationsDeclarations = {
   getByExternalId: 'system',
   getBySlug: 'system',
   getById: 'system',
+  portalIdentity: 'public',
   getOrgUser: 'system',
   getOrgUserById: 'system',
   getOrgUsersByIds: 'system',

@@ -268,6 +268,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findById(id);
   }
 
+  async portalIdentity(id: string): Promise<Pick<Organization, 'id' | 'name' | 'slug'> | null> {
+    const org = await this.repo.findById(id);
+    return org ? { id: org.id, name: org.name, slug: org.slug } : null;
+  }
+
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null> {
     return this.repo.findOrgUser(orgId, userId);
   }

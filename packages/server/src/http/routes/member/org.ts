@@ -11,7 +11,7 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
   r.route({
     method: 'GET',
     url: '/api/member/org',
-    config: { operation: 'organizations.getById' },
+    config: { operation: 'organizations.portalIdentity' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberOrg',
@@ -22,13 +22,11 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
       response: { 200: MemberOrg },
     },
     handler: async (req) => {
-      // The session's org (from `activeOrganizationId`) — surface its display
-      // identity for the portal brand.
-      const org = await container.organizations.getById(req.orgId);
+      const org = await container.organizations.portalIdentity(req.orgId);
       if (!org) {
         throw new UnauthorizedError('Your session points to an organization that no longer exists');
       }
-      return { id: org.id, name: org.name, slug: org.slug };
+      return org;
     },
   });
 

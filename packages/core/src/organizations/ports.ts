@@ -56,6 +56,7 @@ export interface OrganizationService {
   getByExternalId(externalId: string): Promise<Organization | null>;
   getBySlug(slug: string): Promise<Organization | null>;
   getById(id: string): Promise<Organization | null>;
+  portalIdentity(id: string): Promise<Pick<Organization, 'id' | 'name' | 'slug'> | null>;
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
