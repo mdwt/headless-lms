@@ -80,6 +80,12 @@ export interface ViewerPermissions {
   content: Record<string, Permission[]>;
 }
 
+export interface InviteDetails {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 export class OrganizationRuleError extends Error {}
 export class InviteError extends Error {
   constructor(message: string) {

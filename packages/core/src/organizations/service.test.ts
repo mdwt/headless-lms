@@ -109,12 +109,12 @@ function store() {
       invites.set(id, updated);
       return updated;
     },
-    setInviteRole: async (_orgId, id, roleKey) => {
+    setInviteRole: async (_orgId, id, roleKey, invitedBy) => {
       const invite = invites.get(id);
       if (!invite) {
         return null;
       }
-      const updated = { ...invite, roleKey };
+      const updated = { ...invite, roleKey, invitedBy };
       invites.set(id, updated);
       return updated;
     },
@@ -314,6 +314,8 @@ function store() {
 
   const identity = {
     getUserById: async (id: string) => people.get(id) ?? null,
+    getUserByExternalId: async (id: string) =>
+      [...people.values()].find((p) => p.externalId === id) ?? null,
     getUserByEmail: async (email: string) =>
       [...people.values()].find((p) => p.email === email) ?? null,
     createUser: async (input: { email: string; firstName?: string; lastName?: string }) => {
@@ -806,7 +808,11 @@ describe('invites', () => {
       tokenHash: hashInviteToken('tok'),
       expiresAt: new Date(Date.now() + 60_000),
     });
-    await w.service.acceptInvite({ token: 'tok', userId: ivy.person.id, email: ivy.person.email });
+    await w.service.acceptInvite({
+      token: 'tok',
+      authUserId: ivy.person.externalId!,
+      email: ivy.person.email,
+    });
     expect(w.orgUsers.get(ivy.orgUser.id)!.status).toBe('active');
     expect(
       w.assignments.filter((a) => a.orgUserId === ivy.orgUser.id).map((a) => a.roleKey),
@@ -824,7 +830,11 @@ describe('invites', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
     await expect(
-      w.service.acceptInvite({ token: 'tok', userId: ivy.person.id, email: ivy.person.email }),
+      w.service.acceptInvite({
+        token: 'tok',
+        authUserId: ivy.person.externalId!,
+        email: ivy.person.email,
+      }),
     ).rejects.toBeInstanceOf(InviteError);
     await w.service.resendInvite(
       ivy.orgUser.id,
@@ -840,7 +850,11 @@ describe('invites', () => {
       new Date(Date.now() + 60_000),
       s.liam.person.id,
     );
-    await w.service.acceptInvite({ token: 'tok2', userId: ivy.person.id, email: ivy.person.email });
+    await w.service.acceptInvite({
+      token: 'tok2',
+      authUserId: ivy.person.externalId!,
+      email: ivy.person.email,
+    });
     expect(w.orgUsers.get(ivy.orgUser.id)!.status).toBe('active');
   });
 
@@ -860,6 +874,113 @@ describe('invites', () => {
     expect(w.orgUsers.has(ivy.id)).toBe(true);
     expect(w.orgUsers.has(zoe.id)).toBe(true);
     expect(w.orgUsers.has(max.id)).toBe(false);
+  });
+});
+
+describe('review fixes', () => {
+  it("checks a pending invite's own role and makes the editor the inviter", async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await w.service.createInvite(
+      { email: 'ben@example.com', roleKey: 'admin', sendEmail: false },
+      owner,
+      s.sarah.person.id,
+    );
+    const ben = w.findByEmail('ben@example.com');
+    const manager = await roleWith(w, owner, 'Manager', ['people:read', 'people:write']);
+    await w.service.setOrgRole(s.emma.orgUser.id, manager.key, owner);
+    const emma = await w.actor(s.emma.orgUser.id);
+    await expect(w.service.setOrgRole(ben.id, 'member', emma)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await w.service.setOrgRole(ben.id, 'instructor', await w.actor(s.liam.orgUser.id));
+    const invite = [...w.invites.values()].find((i) => i.email === 'ben@example.com')!;
+    expect(invite.roleKey).toBe('instructor');
+    expect(invite.invitedBy).toBe(s.liam.person.id);
+  });
+
+  it('answers 404 when an invited person has no pending invite', async () => {
+    const ivy = await w.person('Ivy', { status: 'invited' });
+    await expect(
+      w.service.setOrgRole(ivy.orgUser.id, 'instructor', await w.actor(s.sarah.orgUser.id)),
+    ).rejects.toThrow(/not found/);
+  });
+
+  it('refuses inviting yourself', async () => {
+    await expect(
+      w.service.createInvite(
+        { email: 'liam@example.com', roleKey: 'instructor' },
+        await w.actor(s.liam.orgUser.id),
+        s.liam.person.id,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('creates no person for a refused invite', async () => {
+    const before = w.people.size;
+    await expect(
+      w.service.createInvite(
+        { email: 'new@example.com', roleKey: 'admin' },
+        await w.actor(s.oliver.orgUser.id),
+        s.oliver.person.id,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(w.people.size).toBe(before);
+  });
+
+  it('refuses a reset that would repeat a name', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await w.service.updateRole('instructor', { name: 'Tutor' }, owner);
+    await w.service.updateRole('moderator', { name: 'Instructor' }, owner);
+    await expect(w.service.resetRole('instructor', owner)).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+  });
+
+  it('still removes a person when the cleanup afterwards fails', async () => {
+    w.apiKeys.revokeAllFor.mockRejectedValue(new Error('auth down'));
+    await expect(
+      w.service.removePerson(s.oliver.orgUser.id, await w.actor(s.liam.orgUser.id)),
+    ).resolves.toBeUndefined();
+    expect(w.orgUsers.has(s.oliver.orgUser.id)).toBe(false);
+    expect(w.apiKeys.revokeAllFor).toHaveBeenCalledTimes(3);
+  });
+
+  it('refuses an acceptance when the inviter lost people:write', async () => {
+    const ivy = await w.person('Ivy', { status: 'invited' });
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const reader = await roleWith(w, owner, 'Reader', ['people:read']);
+    await w.service.setOrgRole(s.emma.orgUser.id, reader.key, owner);
+    await w.repo.upsertPendingInvite(ORG, {
+      email: ivy.person.email,
+      roleKey: 'member',
+      invitedBy: s.emma.person.id,
+      tokenHash: hashInviteToken('tok'),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await expect(
+      w.service.acceptInvite({
+        token: 'tok',
+        authUserId: ivy.person.externalId!,
+        email: ivy.person.email,
+      }),
+    ).rejects.toBeInstanceOf(InviteError);
+  });
+
+  it('emits organization.user.updated when an acceptance activates a person', async () => {
+    const ivy = await w.person('Ivy', { status: 'invited' });
+    await w.repo.upsertPendingInvite(ORG, {
+      email: ivy.person.email,
+      roleKey: 'member',
+      invitedBy: s.liam.person.id,
+      tokenHash: hashInviteToken('tok'),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await w.service.acceptInvite({
+      token: 'tok',
+      authUserId: ivy.person.externalId!,
+      email: ivy.person.email,
+    });
+    expect(w.events.map((e) => e.type)).toContain('organization.user.updated');
   });
 });
 

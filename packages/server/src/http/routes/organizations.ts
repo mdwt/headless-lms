@@ -33,7 +33,6 @@ import {
   refusals,
 } from '../schemas/index.js';
 import type { Invite as InviteRecord } from '@headless-lms/core/organizations';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -432,7 +431,7 @@ export async function organizationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/organizations/invites/:token',
-    config: { operation: 'organizations.peekInvite' },
+    config: { operation: 'organizations.describeInvite' },
     schema: {
       operationId: 'getInvite',
       tags: peopleTags,
@@ -442,18 +441,7 @@ export async function organizationsRoutes(
       params: InviteTokenParam,
       response: { 200: GetInviteResult, ...refusals(404) },
     },
-    handler: async (req) => {
-      const invite = await organizations.peekInvite(req.params.token);
-      if (!invite) {
-        throw new NotFoundError('Invite', 'token');
-      }
-      const person = await container.identity.getUserByEmail(invite.email);
-      return {
-        email: invite.email,
-        firstName: person?.firstName ?? null,
-        lastName: person?.lastName ?? null,
-      };
-    },
+    handler: async (req) => organizations.describeInvite(req.params.token),
   });
 
   r.route({
@@ -471,20 +459,12 @@ export async function organizationsRoutes(
       response: { 200: AcceptInviteResult, ...refusals(400, 404) },
     },
     handler: async (req) => {
-      const user = await container.identity.getUserByExternalId(req.authUser.id);
-      if (!user) {
-        throw new NotFoundError('User', req.authUser.id);
-      }
       const accepted = await organizations.acceptInvite({
         token: req.body.token,
-        userId: user.id,
+        authUserId: req.authUser.id,
         email: req.authUser.email,
       });
-      const org = await organizations.getById(accepted.orgId);
-      if (!org) {
-        throw new NotFoundError('Organization', accepted.orgId);
-      }
-      await container.sessions.stampActiveOrganization(req.headers, org.id);
+      await container.sessions.stampActiveOrganization(req.headers, accepted.orgId);
       return {};
     },
   });

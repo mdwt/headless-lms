@@ -2,6 +2,7 @@ import type { Invite, Organization, OrgUser } from './model.js';
 import type {
   AssignmentView,
   CreateRoleInput,
+  InviteDetails,
   Member,
   MembersQuery,
   Page,
@@ -102,6 +103,7 @@ export interface OrganizationService {
   resendInvite(orgUserId: string, actor: Actor, inviterUserId: string): Promise<void>;
   cancelInvite(orgUserId: string, actor: Actor): Promise<void>;
   peekInvite(token: string): Promise<Invite | null>;
+  describeInvite(token: string): Promise<InviteDetails>;
   acceptInvite(input: AcceptInviteInput): Promise<OrgUser>;
 
   listApiKeys(actor: Actor): Promise<ApiKeySummary[]>;
@@ -186,7 +188,12 @@ export interface OrganizationsRepository {
   findBySlug(slug: string): Promise<Organization | null>;
   upsertPendingInvite(orgId: string, input: NewInviteRow): Promise<Invite>;
   setInviteStatus(orgId: string, id: string, status: string): Promise<Invite | null>;
-  setInviteRole(orgId: string, id: string, roleKey: string): Promise<Invite | null>;
+  setInviteRole(
+    orgId: string,
+    id: string,
+    roleKey: string,
+    invitedBy: string,
+  ): Promise<Invite | null>;
   findInviteByTokenHash(tokenHash: string): Promise<Invite | null>;
   findPendingInvite(orgId: string, email: string): Promise<Invite | null>;
   setInviteToken(

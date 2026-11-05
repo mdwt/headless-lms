@@ -18,6 +18,7 @@ import {
   OrganizationRuleError,
   type AssignmentView,
   type CreateRoleInput,
+  type InviteDetails,
   type Member,
   type MembersQuery,
   type Page,
@@ -398,8 +399,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     const orgId = actor.orgId;
     const changesAccess =
       input.levels !== undefined || input.team !== undefined || input.permissions !== undefined;
-    const result = await this.uow.run(async ({ roles, outbox }) => {
+    const result = await this.uow.run(async (scope) => {
+      const { roles, outbox } = scope;
       await roles.lock(lockKeys(orgId, [key], [actor.id]));
+      const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('roles:write');
       const stored = await roles.storedRoles(orgId);
       const current = stored.find((row) => row.key === key);
       const before = this.resolveIn(stored, key);
@@ -427,7 +431,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       }
       if (changesAccess) {
         this.assertFits(next);
-        await this.assertHoldsOnOrg(actor, [...before.permissions, ...after.permissions]);
+        this.assertHolds(editor, [...before.permissions, ...after.permissions]);
         await this.assertLevelsNotInUse(roles, orgId, before, after);
       }
       await roles.saveStoredRole(orgId, next);
@@ -452,8 +456,13 @@ export class OrganizationServiceImpl implements OrganizationService {
       throw new OrganizationRuleError('A role is added from one of the deployment roles');
     }
     const key = prefixId('role');
-    const created = await this.uow.run(async ({ roles, outbox }) => {
-      await roles.lock(lockKeys(orgId, [key], [actor.id]));
+    const created = await this.uow.run(async (scope) => {
+      const { roles, outbox } = scope;
+      await roles.lock(
+        lockKeys(orgId, [key, `name:${input.name.trim().toLowerCase()}`], [actor.id]),
+      );
+      const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('roles:write');
       const stored = await roles.storedRoles(orgId);
       this.assertUniqueName(stored, key, input.name);
       const row: StoredOrgRole = {
@@ -467,7 +476,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       };
       this.assertFits(row);
       const role = resolveRole(key, this.catalog, row)!;
-      await this.assertHoldsOnOrg(actor, role.permissions);
+      this.assertHolds(editor, role.permissions);
       await roles.saveStoredRole(orgId, row);
       await outbox.append([
         organizationEvents.roleCreated.make({
@@ -488,15 +497,23 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!this.catalog.has(key)) {
       throw new OrganizationRuleError('Only a deployment role can be reset');
     }
-    const result = await this.uow.run(async ({ roles, outbox }) => {
+    const result = await this.uow.run(async (scope) => {
+      const { roles, outbox } = scope;
       await roles.lock(lockKeys(orgId, [key], [actor.id]));
+      const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('roles:write');
       const stored = await roles.storedRoles(orgId);
       const before = this.resolveIn(stored, key);
       const after = resolveRole(key, this.catalog, undefined);
       if (!before || !after) {
         throw new NotFoundError('Role', key);
       }
-      await this.assertHoldsOnOrg(actor, [...before.permissions, ...after.permissions]);
+      this.assertUniqueName(
+        stored.filter((row) => row.key !== key),
+        key,
+        after.name,
+      );
+      this.assertHolds(editor, [...before.permissions, ...after.permissions]);
       await this.assertLevelsNotInUse(roles, orgId, before, after);
       await roles.deleteStoredRole(orgId, key);
       await outbox.append([
@@ -518,8 +535,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (this.catalog.has(key)) {
       throw new OrganizationRuleError('A deployment role can be renamed and reset, not deleted');
     }
-    await this.uow.run(async ({ roles, outbox }) => {
+    await this.uow.run(async (scope) => {
+      const { roles, outbox } = scope;
       await roles.lock(lockKeys(orgId, [key], [actor.id]));
+      (await this.relockedActor(scope, actor)).permissions.require('roles:delete');
       const holders = await roles.countHolders(orgId, key);
       if (holders > 0) {
         this.logger.warn('role deletion refused: role is held', { orgId, roleKey: key, holders });
@@ -616,10 +635,16 @@ export class OrganizationServiceImpl implements OrganizationService {
     actor.permissions.require('people:write');
     const orgId = actor.orgId;
     this.assertNotSelf(actor, orgUserId);
+    const seen = (await this.roles.assignmentsOf(orgId, orgUserId)).find(
+      (row) => row.contentId === null,
+    );
     await this.uow.run(async (scope) => {
       const { roles, organizations, outbox } = scope;
-      await roles.lock(lockKeys(orgId, [roleKey], [orgUserId, actor.id]));
+      await roles.lock(
+        lockKeys(orgId, [roleKey, seen?.roleKey ?? MEMBER_ROLE_KEY], [orgUserId, actor.id]),
+      );
       const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('people:write');
       const orgUser = await organizations.findOrgUserById(orgId, orgUserId);
       if (!orgUser) {
         throw new NotFoundError('Person', orgUserId);
@@ -642,17 +667,31 @@ export class OrganizationServiceImpl implements OrganizationService {
         this.logger.warn('org role change refused: target is the owner', { orgId, orgUserId });
         throw new OrganizationRuleError("The owner's role changes only by transfer");
       }
-      const previousKey = current?.roleKey ?? MEMBER_ROLE_KEY;
-      const previous = this.resolveIn(stored, previousKey);
-      this.assertHolds(editor, [...(previous?.permissions ?? []), ...next.permissions]);
       if (orgUser.status === 'invited') {
         const person = await this.people.getUserById(orgUser.userId);
         const pending = person ? await organizations.findPendingInvite(orgId, person.email) : null;
-        if (pending) {
-          await organizations.setInviteRole(orgId, pending.id, roleKey);
+        if (!pending) {
+          throw new NotFoundError('Invite', orgUserId);
         }
+        const invited = this.resolveIn(stored, pending.roleKey);
+        this.assertHolds(editor, [...(invited?.permissions ?? []), ...next.permissions]);
+        const editorUser = await organizations.findOrgUserById(orgId, actor.id);
+        if (!editorUser) {
+          throw new ForbiddenError('You are no longer an active member of this organization');
+        }
+        await organizations.setInviteRole(orgId, pending.id, roleKey, editorUser.userId);
+        this.logger.info('pending invite role changed', {
+          orgId,
+          orgUserId,
+          inviteId: pending.id,
+          roleKey,
+          actorOrgUserId: actor.id,
+        });
         return;
       }
+      const previousKey = current?.roleKey ?? MEMBER_ROLE_KEY;
+      const previous = this.resolveIn(stored, previousKey);
+      this.assertHolds(editor, [...(previous?.permissions ?? []), ...next.permissions]);
       await roles.setOrgRole(
         orgId,
         orgUserId,
@@ -674,8 +713,8 @@ export class OrganizationServiceImpl implements OrganizationService {
           }),
         ]);
       }
+      this.logger.info('org role set', { orgId, orgUserId, roleKey, actorOrgUserId: actor.id });
     });
-    this.logger.info('org role set', { orgId, orgUserId, roleKey, actorOrgUserId: actor.id });
     return this.assignmentViews(orgId, orgUserId);
   }
 
@@ -688,10 +727,16 @@ export class OrganizationServiceImpl implements OrganizationService {
     actor.permissions.require('people:write');
     const orgId = actor.orgId;
     this.assertNotSelf(actor, orgUserId);
+    const seen = (await this.roles.assignmentsOf(orgId, orgUserId)).find(
+      (row) => row.contentId === contentId,
+    );
     await this.uow.run(async (scope) => {
       const { roles, organizations, outbox } = scope;
-      await roles.lock(lockKeys(orgId, [roleKey], [orgUserId, actor.id]));
+      await roles.lock(
+        lockKeys(orgId, [roleKey, ...(seen ? [seen.roleKey] : [])], [orgUserId, actor.id]),
+      );
       const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('people:write');
       const orgUser = await organizations.findOrgUserById(orgId, orgUserId);
       if (!orgUser) {
         throw new NotFoundError('Person', orgUserId);
@@ -760,16 +805,20 @@ export class OrganizationServiceImpl implements OrganizationService {
     actor.permissions.require('people:write');
     const orgId = actor.orgId;
     this.assertNotSelf(actor, orgUserId);
+    const seen = (await this.roles.assignmentsOf(orgId, orgUserId)).find(
+      (row) => row.contentId === contentId,
+    );
     await this.uow.run(async (scope) => {
       const { roles, outbox } = scope;
+      await roles.lock(lockKeys(orgId, seen ? [seen.roleKey] : [], [orgUserId, actor.id]));
       const current = (await roles.assignmentsOf(orgId, orgUserId)).find(
         (row) => row.contentId === contentId,
       );
       if (!current || !current.contentType) {
         throw new NotFoundError('Role assignment', contentId);
       }
-      await roles.lock(lockKeys(orgId, [current.roleKey], [orgUserId, actor.id]));
       const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('people:write');
       const stored = await roles.storedRoles(orgId);
       const role = this.resolveIn(stored, current.roleKey);
       this.assertHoldsOn(editor, this.itemPermissions(role, current.contentType), contentId);
@@ -811,6 +860,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       const { roles } = scope;
       await roles.lock(lockKeys(orgId, [], [orgUserId, actor.id]));
       const editor = await this.relockedActor(scope, actor);
+      editor.permissions.require('people:delete');
       const held = await roles.assignmentsOf(orgId, orgUserId);
       if (held.some((row) => row.roleKey === OWNER_ROLE_KEY)) {
         this.logger.warn('removal refused: target is the owner', { orgId, orgUserId });
@@ -830,19 +880,8 @@ export class OrganizationServiceImpl implements OrganizationService {
       }
       await this.deleteOrgUserIn(scope, orgId, orgUser, held, actor.id);
     });
-    const org = await this.repo.findById(orgId);
-    if (person?.externalId && org) {
-      const orgExternalId = org.externalId ?? org.id;
-      await this.orgAdmin().removeMembership(orgExternalId, person.externalId);
-      await this.apiKeys().revokeAllFor(orgExternalId, person.externalId);
-    }
-    if (person) {
-      const pending = await this.repo.findPendingInvite(orgId, person.email);
-      if (pending) {
-        await this.repo.setInviteStatus(orgId, pending.id, 'canceled');
-      }
-    }
     this.logger.info('person removed', { orgId, orgUserId, actorOrgUserId: actor.id });
+    await this.cleanUpAfterRemoval(orgId, orgUserId, person);
   }
 
   async transferOwnership(input: TransferOwnershipInput, actor: Actor): Promise<void> {
@@ -940,14 +979,13 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!role.levels.includes('org')) {
       throw new OrganizationRuleError(`${role.name} can't be given on the organization`);
     }
-    const person =
-      (await this.people.getUserByEmail(email)) ??
-      (await this.people.createUser({
-        email,
-        ...(input.firstName !== undefined && { firstName: input.firstName }),
-        ...(input.lastName !== undefined && { lastName: input.lastName }),
-      }));
-    const existing = await this.repo.findOrgUser(orgId, person.id);
+    this.assertHolds(actor, role.permissions);
+    const known = await this.people.getUserByEmail(email);
+    const existing = known ? await this.repo.findOrgUser(orgId, known.id) : null;
+    if (existing?.id === actor.id) {
+      this.logger.warn('invite refused: inviting yourself', { orgId, actorOrgUserId: actor.id });
+      throw new ForbiddenError("You can't change your own roles");
+    }
     let contributed = role.permissions;
     if (existing) {
       const held = await this.roles.assignmentsOf(orgId, existing.id);
@@ -960,6 +998,13 @@ export class OrganizationServiceImpl implements OrganizationService {
       contributed = [...contributed, ...(currentRole?.permissions ?? [])];
     }
     this.assertHolds(actor, contributed);
+    const person =
+      known ??
+      (await this.people.createUser({
+        email,
+        ...(input.firstName !== undefined && { firstName: input.firstName }),
+        ...(input.lastName !== undefined && { lastName: input.lastName }),
+      }));
     const sendEmail = input.sendEmail ?? true;
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
@@ -1009,7 +1054,13 @@ export class OrganizationServiceImpl implements OrganizationService {
         });
       }
     }
-    this.logger.info('invite created', { orgId, inviteId: invite.id, roleKey, sendEmail });
+    this.logger.info('invite created', {
+      orgId,
+      inviteId: invite.id,
+      roleKey,
+      sendEmail,
+      actorOrgUserId: actor.id,
+    });
     return invite;
   }
 
@@ -1031,7 +1082,12 @@ export class OrganizationServiceImpl implements OrganizationService {
       throw new NotFoundError('Invite', invite.id);
     }
     await this.sendInviteEmail(refreshed, token, role);
-    this.logger.info('invite resent', { orgId, orgUserId, inviteId: invite.id });
+    this.logger.info('invite resent', {
+      orgId,
+      orgUserId,
+      inviteId: invite.id,
+      actorOrgUserId: actor.id,
+    });
   }
 
   async cancelInvite(orgUserId: string, actor: Actor): Promise<void> {
@@ -1057,7 +1113,12 @@ export class OrganizationServiceImpl implements OrganizationService {
         await this.deleteOrgUserIn(scope, orgId, orgUser, held, actor.id);
       }
     });
-    this.logger.info('invite canceled', { orgId, orgUserId, inviteId: invite.id });
+    this.logger.info('invite canceled', {
+      orgId,
+      orgUserId,
+      inviteId: invite.id,
+      actorOrgUserId: actor.id,
+    });
   }
 
   async peekInvite(token: string): Promise<Invite | null> {
@@ -1069,6 +1130,19 @@ export class OrganizationServiceImpl implements OrganizationService {
       return null;
     }
     return invite;
+  }
+
+  async describeInvite(token: string): Promise<InviteDetails> {
+    const invite = await this.peekInvite(token);
+    if (!invite) {
+      throw new NotFoundError('Invite', 'token');
+    }
+    const person = await this.people.getUserByEmail(invite.email);
+    return {
+      email: invite.email,
+      firstName: person?.firstName ?? null,
+      lastName: person?.lastName ?? null,
+    };
   }
 
   async acceptInvite(input: AcceptInviteInput): Promise<OrgUser> {
@@ -1089,38 +1163,34 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!org) {
       throw new InviteError('Org not found');
     }
-    const orgUser = await this.repo.findOrgUser(orgId, input.userId);
+    const person = await this.people.getUserByExternalId(input.authUserId);
+    if (!person?.externalId) {
+      throw new NotFoundError('User', input.authUserId);
+    }
+    const orgUser = await this.repo.findOrgUser(orgId, person.id);
     if (!orgUser) {
-      throw new NotFoundError('Person', input.userId);
+      throw new NotFoundError('Person', person.id);
     }
-    const stored = await this.roles.storedRoles(orgId);
-    const role = this.resolveIn(stored, invite.roleKey);
-    if (!role || invite.roleKey === OWNER_ROLE_KEY) {
-      throw new InviteError('The invited role no longer exists');
-    }
-    const held = await this.roles.assignmentsOf(orgId, orgUser.id);
-    const current = held.find((row) => row.contentId === null);
-    if (current?.roleKey === OWNER_ROLE_KEY) {
-      throw new InviteError("The owner's role changes only by transfer");
-    }
-    const currentRole = this.resolveIn(stored, current?.roleKey ?? MEMBER_ROLE_KEY);
     const inviter = await this.repo.findOrgUser(orgId, invite.invitedBy);
-    const inviterActor = inviter ? await this.actorFor(orgId, inviter.id) : null;
-    const needed = [...role.permissions, ...(currentRole?.permissions ?? [])];
-    if (!inviterActor || needed.some((p) => !inviterActor.permissions.has(p))) {
-      this.logger.warn('invite accept refused: inviter no longer holds the role', {
-        orgId,
-        inviteId: invite.id,
-      });
+    if (!inviter) {
+      this.logger.warn('invite accept refused: inviter left', { orgId, inviteId: invite.id });
       throw new InviteError('This invitation is no longer valid; ask for a new one');
     }
-    const person = await this.people.getUserById(input.userId);
-    if (!person?.externalId) {
-      throw new NotFoundError('User', input.userId);
-    }
+    await this.uow.run((scope) => this.checkAcceptance(scope, invite, orgUser, inviter.id));
     await this.orgAdmin().grantMembership(org.externalId ?? org.id, person.externalId);
-    const accepted = await this.uow.run(async ({ organizations, roles, outbox }) => {
-      await roles.lock(lockKeys(orgId, [invite.roleKey], [orgUser.id]));
+    const accepted = await this.uow.run(async (scope) => {
+      const { organizations, roles, outbox } = scope;
+      const seen = (await roles.assignmentsOf(orgId, orgUser.id)).find(
+        (row) => row.contentId === null,
+      );
+      await roles.lock(
+        lockKeys(
+          orgId,
+          [invite.roleKey, seen?.roleKey ?? MEMBER_ROLE_KEY],
+          [orgUser.id, inviter.id],
+        ),
+      );
+      const previousKey = await this.checkAcceptance(scope, invite, orgUser, inviter.id);
       const activated =
         orgUser.status === 'active'
           ? orgUser
@@ -1132,18 +1202,25 @@ export class OrganizationServiceImpl implements OrganizationService {
       if (!acceptedInvite) {
         throw new NotFoundError('Invite', invite.id);
       }
-      const previousKey = current?.roleKey ?? MEMBER_ROLE_KEY;
       await roles.setOrgRole(
         orgId,
         orgUser.id,
         invite.roleKey === MEMBER_ROLE_KEY ? null : invite.roleKey,
-        inviter!.id,
+        inviter.id,
       );
       const events: NewOrganizationEvent[] = [
         organizationEvents.inviteAccepted.make({ orgId, data: acceptedInvite }),
       ];
-      if (orgUser.status !== 'active' && invite.roleKey === MEMBER_ROLE_KEY) {
-        events.push(organizationEvents.studentLinked.make({ orgId, data: activated }));
+      if (orgUser.status !== 'active') {
+        events.push(
+          organizationEvents.orgUserUpdated.make({
+            orgId,
+            data: { ...activated, orgRole: { key: invite.roleKey } },
+          }),
+        );
+        if (invite.roleKey === MEMBER_ROLE_KEY) {
+          events.push(organizationEvents.studentLinked.make({ orgId, data: activated }));
+        }
       }
       if (previousKey !== invite.roleKey) {
         events.push(
@@ -1156,7 +1233,7 @@ export class OrganizationServiceImpl implements OrganizationService {
               contentType: null,
               previousRoleKey: previousKey,
             },
-            metadata: { actorOrgUserId: inviter!.id },
+            metadata: { actorOrgUserId: inviter.id },
           }),
         );
       }
@@ -1165,6 +1242,51 @@ export class OrganizationServiceImpl implements OrganizationService {
     });
     this.logger.info('invite accepted', { orgId, inviteId: invite.id, orgUserId: orgUser.id });
     return accepted;
+  }
+
+  private async checkAcceptance(
+    scope: OrganizationsWriteScope,
+    invite: Invite,
+    orgUser: OrgUser,
+    inviterOrgUserId: string,
+  ): Promise<string> {
+    const orgId = invite.orgId;
+    const stored = await scope.roles.storedRoles(orgId);
+    const role = this.resolveIn(stored, invite.roleKey);
+    if (!role || invite.roleKey === OWNER_ROLE_KEY) {
+      throw new InviteError('The invited role no longer exists');
+    }
+    const current = (await scope.roles.assignmentsOf(orgId, orgUser.id)).find(
+      (row) => row.contentId === null,
+    );
+    if (current?.roleKey === OWNER_ROLE_KEY) {
+      throw new InviteError("The owner's role changes only by transfer");
+    }
+    const currentRole = this.resolveIn(stored, current?.roleKey ?? MEMBER_ROLE_KEY);
+    const facts = await scope.roles.actorFacts(orgId, inviterOrgUserId);
+    const inviter =
+      facts && facts.status === 'active'
+        ? resolvePermissions({
+            assignments: facts.assignments,
+            roles: this.roleMap(facts.storedRoles),
+          })
+        : null;
+    const needed: Permission[] = [
+      'people:write',
+      ...role.permissions,
+      ...(currentRole?.permissions ?? []),
+    ];
+    const missing = inviter ? needed.filter((p) => !inviter.has(p)) : needed;
+    if (missing.length > 0) {
+      this.logger.warn('invite accept refused: inviter no longer holds the role', {
+        orgId,
+        inviteId: invite.id,
+        inviterOrgUserId,
+        missing,
+      });
+      throw new InviteError('This invitation is no longer valid; ask for a new one');
+    }
+    return current?.roleKey ?? MEMBER_ROLE_KEY;
   }
 
   async listApiKeys(actor: Actor): Promise<ApiKeySummary[]> {
@@ -1219,6 +1341,54 @@ export class OrganizationServiceImpl implements OrganizationService {
       actorOrgUserId: actor.id,
       clientId,
     });
+  }
+
+  private async cleanUpAfterRemoval(
+    orgId: string,
+    orgUserId: string,
+    person: { email: string; externalId: string | null } | null,
+  ): Promise<void> {
+    const steps: Array<[string, () => Promise<unknown>]> = [];
+    const org = await this.repo.findById(orgId);
+    if (person?.externalId && org) {
+      const orgExternalId = org.externalId ?? org.id;
+      const userExternalId = person.externalId;
+      steps.push([
+        'membership',
+        () => this.orgAdmin().removeMembership(orgExternalId, userExternalId),
+      ]);
+      steps.push([
+        'api keys and tokens',
+        () => this.apiKeys().revokeAllFor(orgExternalId, userExternalId),
+      ]);
+    }
+    if (person) {
+      steps.push([
+        'pending invite',
+        async () => {
+          const pending = await this.repo.findPendingInvite(orgId, person.email);
+          if (pending) {
+            await this.repo.setInviteStatus(orgId, pending.id, 'canceled');
+          }
+        },
+      ]);
+    }
+    for (const [step, run] of steps) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await run();
+          break;
+        } catch (err) {
+          this.logger.error('cleanup after removal failed', {
+            orgId,
+            orgUserId,
+            step,
+            attempt,
+            err: err instanceof Error ? err : new Error(String(err)),
+          });
+        }
+      }
+    }
   }
 
   private apiKeys(): ApiKeys {
@@ -1434,10 +1604,6 @@ export class OrganizationServiceImpl implements OrganizationService {
       });
       throw new ForbiddenError(`You need ${missing.join(', ')}`);
     }
-  }
-
-  private async assertHoldsOnOrg(actor: Actor, permissions: readonly Permission[]): Promise<void> {
-    this.assertHolds(actor, permissions);
   }
 
   private assertHoldsOn(actor: Actor, permissions: readonly Permission[], contentId: string): void {

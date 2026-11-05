@@ -148,10 +148,15 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     return row ? toInvite(row) : null;
   }
 
-  async setInviteRole(orgId: string, id: string, roleKey: string): Promise<Invite | null> {
+  async setInviteRole(
+    orgId: string,
+    id: string,
+    roleKey: string,
+    invitedBy: string,
+  ): Promise<Invite | null> {
     const [row] = await this.db
       .update(invites)
-      .set({ roleKey })
+      .set({ roleKey, invitedBy })
       .where(and(eq(invites.orgId, orgId), eq(invites.id, id), eq(invites.status, "pending")))
       .returning();
     return row ? toInvite(row) : null;

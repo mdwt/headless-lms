@@ -198,7 +198,7 @@ export type CreateInviteInput = z.input<typeof createInviteInputSchema>;
 export const acceptInviteInputSchema = z
   .object({
     token: z.string().trim().min(1),
-    userId: idSchema,
+    authUserId: idSchema,
     email: emailSchema,
   })
   .strict();

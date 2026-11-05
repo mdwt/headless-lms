@@ -39,6 +39,7 @@ export { InviteError, OrganizationRuleError } from './members.js';
 export type {
   AssignmentView,
   CreateRoleInput,
+  InviteDetails,
   ItemRole,
   Member,
   MemberStatus,
