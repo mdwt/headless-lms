@@ -78,6 +78,7 @@ import {
 import {
   type GrantReader,
   type OrgAdmin,
+  NotificationCatalog,
   OrganizationServiceImpl,
   OrgNotificationCategories,
   type RoleDefinition,
@@ -245,6 +246,7 @@ export interface Container {
     community: CommunityNotificationCategories;
     org: OrgNotificationCategories;
   };
+  notificationCatalog: NotificationCatalog;
   notificationCategoryLists: NotificationCategories;
   notificationSettings: NotificationSettingsServiceImpl;
   devices: DevicesServiceImpl;
@@ -430,11 +432,18 @@ export async function buildContainer(
       logger: logger.child({ name: 'org' }),
     }),
   };
+  const notificationCatalog = new NotificationCatalog({
+    types: notificationRegistries.types,
+    channels: notificationRegistries.channels,
+  });
   const notificationCategoryLists: NotificationCategories = {
     listFor: async (orgId, communityId) =>
       (communityId
-        ? await notificationCategories.community.get(orgId, communityId)
-        : await notificationCategories.org.get(orgId, orgId)
+        ? await notificationCategories.community.get(
+            communityId,
+            organizations.systemActor(orgId),
+          )
+        : await notificationCategories.org.get(orgId, organizations.systemActor(orgId))
       ).categories,
   };
   // Entitlements: reads on the root db; writes + outbox append in one tx.
@@ -457,8 +466,10 @@ export async function buildContainer(
     repo: new DrizzleNotificationSettingsRepository(db, identityLogger),
     categories: {
       communityList: async (orgId, communityId) =>
-        (await notificationCategories.community.get(orgId, communityId)).categories,
-      orgList: async (orgId) => (await notificationCategories.org.get(orgId, orgId)).categories,
+        (await notificationCategories.community.get(communityId, organizations.systemActor(orgId)))
+          .categories,
+      orgList: async (orgId) =>
+        (await notificationCategories.org.get(orgId, organizations.systemActor(orgId))).categories,
     },
     access: {
       canOpen: (orgId, actor, communityId) =>
@@ -586,6 +597,7 @@ export async function buildContainer(
   const reporting = {
     admin: new AdminReportServiceImpl({
       repo: new DrizzleAdminRepository(db, reportingLogger),
+      permissions: organizations,
     }),
     member: new MemberReportServiceImpl({
       repo: new DrizzleMemberRepository(db, reportingLogger),
@@ -704,6 +716,7 @@ export async function buildContainer(
     mailer,
     lookups: mailerLookups,
     integrations,
+    systemActor: (orgId) => organizations.systemActor(orgId),
     credentials: credentialStore,
     webhooks:
       options?.adapters?.webhooks ??
@@ -880,6 +893,7 @@ export async function buildContainer(
     notificationTypes: notificationRegistries.types,
     notificationChannels: notificationRegistries.channels,
     notificationCategories,
+    notificationCatalog,
     notificationCategoryLists,
     notificationSettings,
     devices,
