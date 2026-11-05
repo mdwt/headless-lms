@@ -1,6 +1,6 @@
 // Process entry point: env → config → container → server → listen → pubsub → relay.
 import { fileURLToPath } from "node:url";
-import { buildServer, createContainer } from "@headless-lms/server";
+import { buildServer, closeOnSignals, createContainer } from "@headless-lms/server";
 import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
 import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
 import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
@@ -42,6 +42,7 @@ try {
   app.log.error(err);
   process.exit(1);
 }
+closeOnSignals(app);
 
 await container.pubsub?.start();
 await container.chatHub?.start();

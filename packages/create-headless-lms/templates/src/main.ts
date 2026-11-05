@@ -1,6 +1,6 @@
 // Process entry point: env → config → container → server → listen.
 import { fileURLToPath } from "node:url";
-import { createContainer, buildServer } from "@headless-lms/server";
+import { createContainer, buildServer, closeOnSignals } from "@headless-lms/server";
 import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
 import { loadServerConfig, loadStorageConfig } from "./config.js";
 
@@ -22,6 +22,7 @@ try {
   app.log.error(err);
   process.exit(1);
 }
+closeOnSignals(app);
 
 await container.pubsub?.start();
 await container.chatHub?.start();

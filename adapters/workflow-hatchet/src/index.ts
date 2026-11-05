@@ -10,7 +10,10 @@ import type {
 } from "@headless-lms/core/types";
 import type { RecurringJob, ScheduledJob, Scheduler } from "@headless-lms/core/shared/ports";
 import { APIContracts } from "@hatchet-dev/typescript-sdk/clients/rest/index.js";
-import { ConcurrencyLimitStrategy, HatchetClient as Hatchet } from "@hatchet-dev/typescript-sdk/v1/index.js";
+import {
+  ConcurrencyLimitStrategy,
+  HatchetClient as Hatchet,
+} from "@hatchet-dev/typescript-sdk/v1/index.js";
 import {
   ACTION_FAILED,
   ActionFailedError,
@@ -130,7 +133,11 @@ export interface HatchetClientLike {
     name: string;
     fn: (input: AutomationDispatch, ctx: DurableCtxLike) => Promise<void>;
   }): RunnableTask<AutomationDispatch>;
-  worker(name: string, opts: { workflows: any[] }): Promise<HatchetWorkerLike>; // eslint-disable-line @typescript-eslint/no-explicit-any -- bridges to the SDK's own workflow union type without importing it
+  worker(
+    name: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- bridges to the SDK's own workflow union type without importing it
+    opts: { workflows: any[]; handleKill?: boolean },
+  ): Promise<HatchetWorkerLike>;
   crons: HatchetCronClientLike;
   scheduled: HatchetScheduledClientLike;
 }
@@ -292,6 +299,7 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
       throw new Error("HatchetAutomationEngine.start called before register()");
     }
     this.worker = await this.client.worker(WORKER_NAME, {
+      handleKill: false,
       workflows: [
         this.actionTask,
         this.automationRunTask,
@@ -317,8 +325,12 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
       clearInterval(this.reconcileTimer);
     }
     this.reconcileTimer = undefined;
-    await this.worker?.stop();
+    if (!this.worker) {
+      return;
+    }
+    await this.worker.stop();
     this.worker = undefined;
+    this.logger?.info("hatchet worker stopped");
   }
 
   private async reconcileAll(): Promise<void> {

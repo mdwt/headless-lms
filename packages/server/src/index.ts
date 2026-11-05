@@ -5,6 +5,7 @@ import { buildContainer, type BuildContainerOptions, type Container } from './ap
 import type { ServerConfig } from './http/config.js';
 
 export { buildServer } from './http/server.js';
+export { closeOnSignals, type CloseOnSignalsOptions } from './http/shutdown.js';
 export { mcpCatalogue } from './http/mcp/catalogue.js';
 export type {
   CatalogueField,

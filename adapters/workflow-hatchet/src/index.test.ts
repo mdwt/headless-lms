@@ -346,6 +346,7 @@ describe("HatchetAutomationEngine", () => {
     expect(name).toBe("automation-run-worker");
     expect(opts.workflows).toHaveLength(5);
     expect(opts.workflows).toContain(fake.getJobTaskHandle());
+    expect(opts.handleKill).toBe(false);
     expect(fake.workerStart).toHaveBeenCalledTimes(1);
   });
 
