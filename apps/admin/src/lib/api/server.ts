@@ -43,6 +43,7 @@ import { toQuery } from "./shared";
 import { buildModuleTree, contentTypeOf, entitlementStatusOf } from "./compose";
 import { fullName } from "@/lib/format";
 import { authHeaders } from "./server-call";
+import { ApiError } from "./http";
 import type {
   ApiKeySummary,
   Asset,
@@ -469,6 +470,15 @@ export const serverApi = {
   },
   async getCommunity(communityId: string): Promise<Community> {
     return await Communities.getCommunity({ communityId }, await authHeaders());
+  },
+  async isCommunityMember(communityId: string): Promise<boolean> {
+    try {
+      await Communities.getMemberCommunityHome({ communityId }, await authHeaders());
+      return true;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return false;
+      throw err;
+    }
   },
   async communitySpaces(communityId: string): Promise<Space[]> {
     return await Communities.listCommunitySpaces({ communityId }, await authHeaders());

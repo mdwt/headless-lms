@@ -18,8 +18,10 @@ export default async function CommunitiesPage({
       pageSize: 100,
       sort: [{ id: "title", desc: false }],
     });
-    const spaces = await Promise.all(rows.map((c) => serverApi.communitySpaces(c.id)));
-    const communities = rows.map((c, i) => ({
+    const membership = await Promise.all(rows.map((c) => serverApi.isCommunityMember(c.id)));
+    const joined = rows.filter((_, i) => membership[i]);
+    const spaces = await Promise.all(joined.map((c) => serverApi.communitySpaces(c.id)));
+    const communities = joined.map((c, i) => ({
       id: c.id,
       title: c.title,
       spaceCount: spaces[i].length,
