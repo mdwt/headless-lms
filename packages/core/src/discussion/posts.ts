@@ -10,7 +10,15 @@ import type { Logger, Scheduler } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { SpaceDetail } from '../content/index.js';
 import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
-import type { Post, PostFlag, PostFlagResolution, PostStatus, PostView } from '../types/index.js';
+import type {
+  FlaggedComment,
+  FlaggedCommentView,
+  Post,
+  PostFlag,
+  PostFlagResolution,
+  PostStatus,
+  PostView,
+} from '../types/index.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type { NewDiscussionEvent } from './events.js';
 import { discussionEvents } from './events.js';
@@ -699,17 +707,21 @@ export class PostServiceImpl implements PostService {
     return { ...page, rows: await this.viewsOf(actor, page.rows) };
   }
 
-  async coverFile(postId: string, actor: Actor): Promise<string | null> {
+  async coverFile(postId: string, actor: Actor): Promise<string> {
     const orgId = actor.orgId;
     const post = await this.repo.find(orgId, postId);
     if (!post?.coverAssetId || !this.canSee(actor, post)) {
-      return null;
+      throw new NotFoundError('Post cover', postId);
     }
     const space = await this.content.getSpace(post.spaceId, this.authors.systemActor(orgId));
     if (!space || !(await this.access.canOpen(space, actor))) {
-      return null;
+      throw new NotFoundError('Post cover', postId);
     }
-    return this.images.signFile(orgId, post.coverAssetId);
+    const url = await this.images.signFile(orgId, post.coverAssetId);
+    if (!url) {
+      throw new NotFoundError('Post cover', postId);
+    }
+    return url;
   }
 
   async getPost(postId: string, actor: Actor): Promise<PostView> {
@@ -749,8 +761,42 @@ export class PostServiceImpl implements PostService {
     return {
       pending: await this.viewsOf(actor, pending),
       flags,
-      commentFlags: openCommentFlags,
+      commentFlags: await this.flaggedCommentViews(actor, space.communityId, openCommentFlags),
     };
+  }
+
+  private async flaggedCommentViews(
+    actor: Actor,
+    communityId: string,
+    flags: FlaggedComment[],
+  ): Promise<FlaggedCommentView[]> {
+    if (flags.length === 0) {
+      return [];
+    }
+    const orgId = actor.orgId;
+    const authorIds = [...new Set(flags.map((flag) => flag.comment.orgUserId))];
+    const [records, permissions] = await Promise.all([
+      this.profiles.authorsOf(orgId, authorIds),
+      this.authors.permissionsOfMany(orgId, authorIds),
+    ]);
+    return flags.map((flag) => {
+      const record = records[flag.comment.orgUserId];
+      if (!record) {
+        throw new NotFoundError('Member', flag.comment.orgUserId);
+      }
+      return {
+        ...flag,
+        comment: {
+          ...flag.comment,
+          author: authorView(
+            orgId,
+            record,
+            this.fileUrls,
+            teamBadge(permissions.get(flag.comment.orgUserId), communityId),
+          ),
+        },
+      };
+    });
   }
 
   visible(postId: string, actor: Actor): Promise<{ post: Post; space: SpaceDetail }> {

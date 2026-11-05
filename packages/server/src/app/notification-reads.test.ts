@@ -9,14 +9,14 @@ const reject = async (): Promise<never> => {
 function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps {
   return {
     content: {
-      getCommunity: reject,
+      findCommunity: reject,
       getSpace: reject,
       listCommunitiesById: reject,
       getActivity: reject,
       getModule: reject,
-      getCourse: reject,
-      getDownload: reject,
-      getBundle: reject,
+      findCourse: reject,
+      findDownload: reject,
+      findBundle: reject,
       listBundleItems: reject,
     },
     entitlements: {
@@ -39,6 +39,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       systemActor: (orgId: string) => ({ id: 'system', orgId }) as never,
       holders: reject,
       getRole: reject,
+      permissionsOfMany: reject,
       getOrgUsersByIds: reject,
       permissionsOfMany: reject,
     },
@@ -127,7 +128,7 @@ describe('notificationReads', () => {
               settings: { title: 'Lesson 3' },
             }) as never,
           getModule: async () => ({ id: 'mod_1', title: 'Week 1' }) as never,
-          getCourse: async () => ({ id: 'crs_1', title: 'Spanish in 90 Days' }) as never,
+          findCourse: async () => ({ id: 'crs_1', title: 'Spanish in 90 Days' }) as never,
         },
       }),
     );
@@ -164,12 +165,12 @@ describe('notificationReads', () => {
       deps({
         content: {
           ...base.content,
-          getBundle: async () => ({ id: 'bun_1', name: 'Everything' }) as never,
-          getCourse: async (id) =>
+          findBundle: async () => ({ id: 'bun_1', name: 'Everything' }) as never,
+          findCourse: async (id) =>
             (id === 'crs_1' ? { id, title: 'Spanish', type: 'course' } : null) as never,
-          getDownload: async (id) =>
+          findDownload: async (id) =>
             (id === 'dwn_1' ? { id, title: 'Verbs', type: 'download' } : null) as never,
-          getCommunity: async (id) =>
+          findCommunity: async (id) =>
             (id === 'cmy_1' ? { id, title: 'Spring cohort', type: 'community' } : null) as never,
         },
       }),
@@ -280,7 +281,7 @@ describe('notificationReads', () => {
   it('keeps the community mail reads', async () => {
     const reads = notificationReads(
       deps({
-        content: { ...base.content, getCommunity: async () => ({ title: 'Spring' }) as never },
+        content: { ...base.content, findCommunity: async () => ({ title: 'Spring' }) as never },
       }),
     );
     await expect(reads.communityTitle('org_1', 'cmy_1')).resolves.toBe('Spring');

@@ -2,7 +2,12 @@
 export { AdminReportServiceImpl } from './service.js';
 export type { AdminReportServiceParams } from './service.js';
 export { adminReportDeclarations } from './declarations.js';
-export type { AdminReportService, AdminReportRepository, PermissionsReader } from './ports.js';
+export type {
+  AdminReportService,
+  AdminReportRepository,
+  PermissionsReader,
+  SpaceOpenersReader,
+} from './ports.js';
 export type {
   CommunityAnalytics,
   CommunityMember,
@@ -10,7 +15,10 @@ export type {
   CourseActivityEngagement,
   CourseAnalytics,
   CourseEnrollmentPoint,
+  CourseLearner,
+  CourseLearnersQuery,
   EnrollmentPoint,
+  LearnerGrantStatus,
   OverviewStats,
   Page,
   Student,

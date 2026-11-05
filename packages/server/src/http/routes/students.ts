@@ -8,7 +8,6 @@ import {
   StudentsQuery,
   refusals,
 } from '../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -47,11 +46,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       response: { 200: Student, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const student = await students.getStudent(req.params.id, await resolveActor(container, req));
-      if (!student) {
-        throw new NotFoundError('Student', req.params.id);
-      }
-      return student;
+      return students.getStudent(req.params.id, await resolveActor(container, req));
     },
   });
 
@@ -69,14 +64,7 @@ export async function studentsRoutes(app: FastifyInstance, container: Container)
       response: { 200: StudentAnalytics, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const analytics = await students.studentAnalytics(
-        req.params.id,
-        await resolveActor(container, req),
-      );
-      if (!analytics) {
-        throw new NotFoundError('Student', req.params.id);
-      }
-      return analytics;
+      return students.studentAnalytics(req.params.id, await resolveActor(container, req));
     },
   });
 }

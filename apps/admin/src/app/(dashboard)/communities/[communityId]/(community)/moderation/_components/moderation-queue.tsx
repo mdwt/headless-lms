@@ -145,17 +145,11 @@ export function ModerationQueue({
 
       {flaggedComments.length > 0 && (
         <QueueSection title="Flagged comments" count={flaggedComments.length}>
-          {flaggedComments.map(({ space, comment, authorName, flags }) => (
+          {flaggedComments.map(({ space, comment, flags }) => (
             <QueueItem
               key={comment.id}
               flagged
-              person={{
-                displayName: authorName,
-                firstName: null,
-                lastName: null,
-                image: null,
-                imageUrl: null,
-              }}
+              person={comment.author}
               meta={<Badge variant="outline">{space.name}</Badge>}
               flags={flags.map((f) => f.reason)}
               body={comment.body}

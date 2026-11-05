@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
 import {
@@ -51,15 +50,7 @@ export async function communityModerationRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const page = await container.reporting.admin.communityMembers(
-        req.params.communityId,
-        req.query,
-        actor,
-      );
-      if (!page) {
-        throw new NotFoundError('Community', req.params.communityId);
-      }
-      return page;
+      return container.reporting.admin.communityMembers(req.params.communityId, req.query, actor);
     },
   });
 
@@ -250,7 +241,7 @@ export async function communityModerationRoutes(
       operationId: 'removeCommunityPost',
       tags,
       summary: 'Remove a post',
-      description: `Needs \`communities:moderate\` on the community. Takes a published or pending post down and resolves its open flags as \`removed\`. 409 when it is already removed or was never submitted.`,
+      description: `The author can remove their own post; anyone else needs \`communities:moderate\` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as \`removed\`. 409 when it is already removed or was never submitted.`,
       params: CommunityPostParam,
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
@@ -311,7 +302,7 @@ export async function communityModerationRoutes(
       operationId: 'removeCommunityComment',
       tags,
       summary: 'Remove a comment on a post',
-      description: `Needs \`communities:moderate\` on the community. Hides the comment and resolves its open flags as \`removed\`. Removing a removed comment returns it unchanged.`,
+      description: `The author can remove their own comment; anyone else needs \`communities:moderate\` on the community. Hides the comment; removing someone else's comment resolves its open flags as \`removed\`. Removing a removed comment returns it unchanged.`,
       params: CommunityCommentParam,
       response: { 200: CommentView, ...refusals(403, 404) },
     },

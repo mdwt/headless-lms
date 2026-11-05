@@ -4,6 +4,7 @@ import type { ContentService } from './ports.js';
 export const contentDeclarations = {
   listCourses: requires('courses:read'),
   getCourse: requires('courses:read'),
+  findCourse: requires('courses:read'),
   createCourse: requires('courses:write'),
   updateCourse: requires('courses:write'),
   patchCourseSettings: requires('courses:write'),
@@ -24,6 +25,7 @@ export const contentDeclarations = {
 
   listDownloads: requires('downloads:read'),
   getDownload: requires('downloads:read'),
+  findDownload: requires('downloads:read'),
   createDownload: requires('downloads:write'),
   updateDownload: requires('downloads:write'),
   removeDownload: requires('downloads:delete'),
@@ -35,6 +37,7 @@ export const contentDeclarations = {
 
   listBundles: requires('bundles:read'),
   getBundle: requires('bundles:read'),
+  findBundle: requires('bundles:read'),
   createBundle: requires('bundles:write'),
   updateBundle: requires('bundles:write'),
   deleteBundle: requires('bundles:delete'),
@@ -42,13 +45,14 @@ export const contentDeclarations = {
   addBundleItem: requires('bundles:write'),
   removeBundleItem: requires('bundles:write'),
 
-  listCommunities: requires('communities:read'),
-  getCommunity: requires('communities:read'),
+  listCommunities: requires('communities:read', 'communities:moderate'),
+  getCommunity: requires('communities:read', 'communities:moderate'),
+  findCommunity: requires('communities:read', 'communities:moderate'),
   communitiesWithDigest: 'system',
   listCommunitiesById: requires('communities:read'),
   getCommunitySpace: requires('communities:read'),
   getSpace: requires('communities:read'),
-  listSpaces: requires('communities:read'),
+  listSpaces: requires('communities:read', 'communities:moderate'),
   getDmSettings: requires('communities:read'),
   createCommunity: requires('communities:write'),
   updateCommunity: requires('communities:write'),

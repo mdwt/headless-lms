@@ -8,6 +8,7 @@ import { communityModerationRoutes } from './community-moderation.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { actorWith } from '@headless-lms/core/organizations';
 import type { Actor } from '@headless-lms/core/shared/actor';
+import { NotFoundError } from '@headless-lms/core/shared/errors';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const AT = '2026-10-29T12:00:00.000Z';
@@ -21,10 +22,10 @@ const orgUser = { id: 'ou_emma', orgId: ORG.id };
 let actor: Actor | null = EMMA;
 let membersPage: unknown = { rows: [], total: 0, page: 1, pageSize: 20 };
 
-function record(method: string, result: () => unknown) {
+function record(method: string, result: (...args: unknown[]) => unknown) {
   return async (...args: unknown[]) => {
     calls.push({ method, args });
-    return result();
+    return result(...args);
   };
 }
 
@@ -59,7 +60,16 @@ const container = {
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },
-  reporting: { admin: { communityMembers: record('communityMembers', () => membersPage) } },
+  reporting: {
+    admin: {
+      communityMembers: record('communityMembers', (communityId) => {
+        if (communityId === 'cmy_x') {
+          throw new NotFoundError('Community', 'cmy_x');
+        }
+        return membersPage;
+      }),
+    },
+  },
   entitlements: {
     listSpaceMembers: record('listSpaceMembers', () => ({
       rows: [spaceMember],
@@ -124,6 +134,7 @@ describe('community moderation routes', () => {
           image: null,
           team: false,
           roleName: null,
+          opensEverySpace: false,
         },
       ],
       total: 1,
@@ -144,7 +155,6 @@ describe('community moderation routes', () => {
   });
 
   it('answers 404 for a community that does not exist', async () => {
-    membersPage = null;
     const res = await app.inject({ method: 'GET', url: '/api/communities/cmy_x/members' });
     expect(res.statusCode).toBe(404);
   });

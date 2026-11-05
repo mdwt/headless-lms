@@ -1483,7 +1483,9 @@ describe('chats', () => {
     );
     expect(await svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).toBe('https://signed');
     await svc.deleteMessage(sent.id, member);
-    expect(await svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).toBeNull();
+    await expect(svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).rejects.toThrow(
+      NotFoundError,
+    );
     const own = await svc.send(chat.id, messageInput('Mine'), moderator);
     expect((await svc.deleteMessage(own.id, moderator)).deletedAt).toBeInstanceOf(Date);
   });
@@ -1920,18 +1922,20 @@ describe('chats', () => {
       svc.attachmentFile(chat.id, sent.id, assetId, actor);
 
     expect(await file(other)).toBe('https://signed');
-    expect(await file(other, 'asset_other')).toBeNull();
-    expect(await file(third)).toBeNull();
-    expect(await file(moderator)).toBeNull();
-    expect(await svc.attachmentFile('chat_missing', sent.id, 'asset_1', other)).toBeNull();
+    await expect(file(other, 'asset_other')).rejects.toThrow(NotFoundError);
+    await expect(file(third)).rejects.toThrow(NotFoundError);
+    await expect(file(moderator)).rejects.toThrow(NotFoundError);
+    await expect(svc.attachmentFile('chat_missing', sent.id, 'asset_1', other)).rejects.toThrow(
+      NotFoundError,
+    );
 
-    expect(await file(admin)).toBeNull();
+    await expect(file(admin)).rejects.toThrow(NotFoundError);
     await svc.flagMessage(sent.id, 'spam', other);
-    expect(await file(moderator)).toBeNull();
+    await expect(file(moderator)).rejects.toThrow(NotFoundError);
     expect(await file(admin)).toBe('https://signed');
 
     await svc.deleteMessage(sent.id, member);
-    expect(await file(other)).toBeNull();
+    await expect(file(other)).rejects.toThrow(NotFoundError);
     expect(await file(staff)).toBe('https://signed');
   });
 });
@@ -2176,7 +2180,9 @@ describe('chat moderation on communities:moderate', () => {
     expect(await last(other)).toBe('');
     expect(await last(moderator)).toBe('');
     expect(await svc.attachmentFile(chat.id, sent.id, 'asset_1', emma)).toBe('https://signed');
-    expect(await svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).toBeNull();
+    await expect(svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it('serves a flagged attachment to a moderator of the community who is not in the chat', async () => {
@@ -2190,11 +2196,17 @@ describe('chat moderation on communities:moderate', () => {
       { body: 'Look', replyToId: null, assetIds: ['asset_1'] },
       member,
     );
-    expect(await h.svc.attachmentFile(chat.id, sent.id, 'asset_1', emma)).toBeNull();
+    await expect(h.svc.attachmentFile(chat.id, sent.id, 'asset_1', emma)).rejects.toThrow(
+      NotFoundError,
+    );
     await h.svc.flagMessage(sent.id, 'spam', other);
     expect(await h.svc.attachmentFile(chat.id, sent.id, 'asset_1', emma)).toBe('https://signed');
-    expect(await h.svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).toBeNull();
-    expect(await h.svc.attachmentFile(chat.id, sent.id, 'asset_1', fourth)).toBeNull();
+    await expect(h.svc.attachmentFile(chat.id, sent.id, 'asset_1', moderator)).rejects.toThrow(
+      NotFoundError,
+    );
+    await expect(h.svc.attachmentFile(chat.id, sent.id, 'asset_1', fourth)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it('lets only a moderator of the community lock, unlock, resolve flags and read the queue', async () => {

@@ -214,37 +214,40 @@ export class AssetsServiceImpl implements AssetsService {
     };
   }
 
-  async confirm(id: string, actor: Actor): Promise<AssetView | null> {
+  async confirm(id: string, actor: Actor): Promise<AssetView> {
     const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, id);
     if (!asset) {
-      return null;
+      throw new NotFoundError('Asset', id);
     }
     await this.requireReach(asset, actor);
     if (asset.source === 'member') {
       throw new ForbiddenError('Only the uploader can finalize a member upload');
     }
     const confirmed = await this.finalize(orgId, asset);
-    return confirmed ? this.view(confirmed) : null;
+    if (!confirmed) {
+      throw new NotFoundError('Asset', id);
+    }
+    return this.view(confirmed);
   }
 
-  async confirmOwn(id: string, actor: Actor): Promise<AssetView | null> {
+  async confirmOwn(id: string, actor: Actor): Promise<AssetView> {
     const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, id);
     if (!asset || asset.source !== 'member' || asset.uploadedBy !== actor.id) {
       this.logger.debug('upload confirm refused', { orgId, assetId: id, orgUserId: actor.id });
-      return null;
+      throw new NotFoundError('Asset', id);
     }
     const confirmed = await this.finalize(orgId, asset);
     if (!confirmed) {
-      return null;
+      throw new NotFoundError('Asset', id);
     }
     return confirmed.status === 'ready'
       ? { ...confirmed, url: this.fileUrls.memberUpload(confirmed.id), downloadUrl: null }
       : { ...confirmed, url: null, downloadUrl: null };
   }
 
-  async ownUploadFile(assetId: string, actor: Actor): Promise<string | null> {
+  async ownUploadFile(assetId: string, actor: Actor): Promise<string> {
     const orgId = actor.orgId;
     if (!(await this.ownsImage(orgId, assetId, actor.id))) {
       this.logger.warn('upload file not served — not the uploader', {
@@ -252,9 +255,13 @@ export class AssetsServiceImpl implements AssetsService {
         assetId,
         orgUserId: actor.id,
       });
-      return null;
+      throw new NotFoundError('Upload', assetId);
     }
-    return this.signFile(orgId, assetId);
+    const url = await this.signFile(orgId, assetId);
+    if (!url) {
+      throw new NotFoundError('Upload', assetId);
+    }
+    return url;
   }
 
   async ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
@@ -298,10 +305,10 @@ export class AssetsServiceImpl implements AssetsService {
     return { ...page, rows: await Promise.all(page.rows.map((asset) => this.view(asset))) };
   }
 
-  async get(id: string, actor: Actor): Promise<AssetView | null> {
+  async get(id: string, actor: Actor): Promise<AssetView> {
     const asset = await this.repo.findById(actor.orgId, id);
     if (!asset) {
-      return null;
+      throw new NotFoundError('Asset', id);
     }
     await this.requireReach(asset, actor);
     return this.view(asset);
@@ -336,44 +343,44 @@ export class AssetsServiceImpl implements AssetsService {
         });
   }
 
-  async libraryFile(
-    assetId: string,
-    opts: { download: boolean },
-    actor: Actor,
-  ): Promise<string | null> {
+  async libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string> {
     const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, assetId);
     if (!asset || asset.source !== 'library') {
       this.logger.warn('library file not served — not a library asset', { orgId, assetId });
-      return null;
+      throw new NotFoundError('Asset', assetId);
     }
     await this.requireReach(asset, actor);
-    return this.signFile(orgId, assetId, opts.download ? { saveAs: asset.filename } : {});
+    const url = await this.signFile(
+      orgId,
+      assetId,
+      opts.download ? { saveAs: asset.filename } : {},
+    );
+    if (!url) {
+      throw new NotFoundError('Asset', assetId);
+    }
+    return url;
   }
 
-  async remove(id: string, actor: Actor): Promise<boolean> {
+  async remove(id: string, actor: Actor): Promise<void> {
     actor.permissions.require('media:delete');
-    return this.removeAsset(actor.orgId, id, actor.id);
+    await this.removeAsset(actor.orgId, id, actor.id);
   }
 
-  async removeOwn(id: string, actor: Actor): Promise<boolean> {
+  async removeOwn(id: string, actor: Actor): Promise<void> {
     const asset = await this.repo.findById(actor.orgId, id);
     if (!asset || asset.source !== 'member' || asset.uploadedBy !== actor.id) {
-      return false;
+      throw new NotFoundError('Asset', id);
     }
-    return this.removeAsset(actor.orgId, id, actor.id);
+    await this.removeAsset(actor.orgId, id, actor.id);
   }
 
-  private async removeAsset(orgId: string, id: string, actorOrgUserId: string): Promise<boolean> {
+  private async removeAsset(orgId: string, id: string, actorOrgUserId: string): Promise<void> {
     const asset = await this.repo.findById(orgId, id);
-    if (!asset) {
-      return false;
+    if (!asset || !(await this.discard(orgId, asset))) {
+      throw new NotFoundError('Asset', id);
     }
-    const removed = await this.discard(orgId, asset);
-    if (removed) {
-      this.logger.info('asset removed', { orgId, assetId: id, actorOrgUserId });
-    }
-    return removed;
+    this.logger.info('asset removed', { orgId, assetId: id, actorOrgUserId });
   }
 
   private async requireReach(asset: Asset, actor: Actor): Promise<void> {

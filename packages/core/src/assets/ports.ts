@@ -43,14 +43,14 @@ export interface MemberUploadInput {
 export interface AssetsService extends MemberImageReader, LibraryAssetReader, AssetFiles {
   requestUpload(input: RequestUploadInput, actor: Actor): Promise<UploadTicket>;
   requestMemberUpload(input: MemberUploadInput, actor: Actor): Promise<UploadTicket>;
-  confirm(id: string, actor: Actor): Promise<AssetView | null>;
-  confirmOwn(id: string, actor: Actor): Promise<AssetView | null>;
+  confirm(id: string, actor: Actor): Promise<AssetView>;
+  confirmOwn(id: string, actor: Actor): Promise<AssetView>;
   list(query: AssetsQuery, actor: Actor): Promise<Page<AssetView>>;
-  get(id: string, actor: Actor): Promise<AssetView | null>;
-  libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string | null>;
-  ownUploadFile(assetId: string, actor: Actor): Promise<string | null>;
-  remove(id: string, actor: Actor): Promise<boolean>;
-  removeOwn(id: string, actor: Actor): Promise<boolean>;
+  get(id: string, actor: Actor): Promise<AssetView>;
+  libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string>;
+  ownUploadFile(assetId: string, actor: Actor): Promise<string>;
+  remove(id: string, actor: Actor): Promise<void>;
+  removeOwn(id: string, actor: Actor): Promise<void>;
   removeUnattached(orgId: string, now: Date): Promise<number>;
 }
 

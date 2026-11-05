@@ -13,13 +13,19 @@ export default async function CommunitiesPage({
   const { permissions } = await requirePermission(["communities:read", "communities:moderate"]);
 
   if (!permissions.anywhere("communities:read")) {
-    const ids = permissions.where("communities:moderate").content;
-    const homes = await Promise.all(
-      ids.map((id) => serverApi.memberCommunityHome(id).catch(() => null)),
-    );
-    const communities = homes
-      .filter((home) => home !== null)
-      .map((home) => ({ id: home.communityId, title: home.title, spaceCount: home.spaces.length }));
+    const { rows } = await serverApi.listCommunities({
+      page: 1,
+      pageSize: 100,
+      sort: [{ id: "title", desc: false }],
+    });
+    const membership = await Promise.all(rows.map((c) => serverApi.isCommunityMember(c.id)));
+    const joined = rows.filter((_, i) => membership[i]);
+    const spaces = await Promise.all(joined.map((c) => serverApi.communitySpaces(c.id)));
+    const communities = joined.map((c, i) => ({
+      id: c.id,
+      title: c.title,
+      spaceCount: spaces[i].length,
+    }));
     return <ModeratedCommunities communities={communities} />;
   }
 

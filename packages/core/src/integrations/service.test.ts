@@ -241,8 +241,7 @@ describe('IntegrationsService', () => {
 
   it('disconnect destroys the credential and the connection, appends removed', async () => {
     const { svc, repo, credentials, appended } = build();
-    const ok = await svc.disconnect('con_1', ADMIN);
-    expect(ok).toBe(true);
+    await expect(svc.disconnect('con_1', ADMIN)).resolves.toBeUndefined();
     expect(credentials.destroy).toHaveBeenCalledWith('org-1', 'crd_1');
     expect(repo.delete).toHaveBeenCalledWith('org-1', 'con_1');
     // The connection row holds an FK onto the credential row — it must go first.
@@ -258,12 +257,12 @@ describe('IntegrationsService', () => {
     ]);
   });
 
-  it('reconnect/disconnect return null/false for an unknown connection', async () => {
+  it('reconnect/disconnect throw NotFoundError for an unknown connection', async () => {
     const { svc, credentials, append } = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(null) }),
     );
-    expect(await svc.reconnect('nope', { apiKey: 'x' }, ADMIN)).toBeNull();
-    expect(await svc.disconnect('nope', ADMIN)).toBe(false);
+    await expect(svc.reconnect('nope', { apiKey: 'x' }, ADMIN)).rejects.toThrow(NotFoundError);
+    await expect(svc.disconnect('nope', ADMIN)).rejects.toThrow(NotFoundError);
     expect(credentials.update).not.toHaveBeenCalled();
     expect(credentials.destroy).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -396,6 +395,21 @@ describe('IntegrationsService permissions', () => {
     await expect(svc.list(nobody)).rejects.toThrow(ForbiddenError);
     await expect(svc.get('con_1', nobody)).rejects.toThrow(ForbiddenError);
     await expect(svc.invoke('con_1', 'x', {}, nobody)).rejects.toThrow(ForbiddenError);
+    expect(repo.findById).not.toHaveBeenCalled();
+  });
+
+  it('refuses an Instructor on one course every integration action', async () => {
+    const { svc, repo } = build();
+    const james = actorWith({
+      orgId: 'org-1',
+      content: { crs_1: ['courses:read', 'courses:write', 'courses:moderate', 'progress:read'] },
+    });
+    expect(() => svc.available(james)).toThrow(ForbiddenError);
+    await expect(
+      svc.connect({ integrationId: 'stripe', secrets: { apiKey: 'x' } }, james),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(svc.list(james)).rejects.toThrow(ForbiddenError);
+    await expect(svc.invoke('con_1', 'x', {}, james)).rejects.toThrow(ForbiddenError);
     expect(repo.findById).not.toHaveBeenCalled();
   });
 

@@ -1,26 +1,47 @@
 import { serverApi } from "@/lib/api/server";
 import { requirePermission } from "@/lib/auth/server-permissions";
+import { parseListParams } from "@/lib/table/parse-list-params";
 import { AccessGrantsList } from "@/components/access-grants-list";
 import { GrantAccessButton } from "@/components/grant-access-button";
 
-// Access tab: the students granted access to this course (entitlements), plus
-// the course-scoped grant form.
+import { CourseLearnersTable } from "./_components/course-learners-table";
+
 export default async function CourseAccessTab({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { courseId } = await params;
   const { permissions } = await requirePermission(["access:read", "progress:read"], courseId);
   const canGrant = permissions.has("access:write") && permissions.has("people:read");
 
+  if (permissions.has("progress:read", courseId)) {
+    const listParams = parseListParams(await searchParams, { pageSize: 20, initialSort: [] });
+    const [page, students, grants] = await Promise.all([
+      serverApi.courseLearners(courseId, listParams),
+      canGrant ? serverApi.studentsLite() : Promise.resolve([]),
+      canGrant ? serverApi.contentEntitlements(courseId, false) : Promise.resolve([]),
+    ]);
+    const granted = new Set(grants.map((g) => g.orgUserId));
+
+    return (
+      <CourseLearnersTable
+        courseId={courseId}
+        rows={page.rows}
+        total={page.total}
+        params={listParams}
+        grantCandidates={students.filter((s) => !granted.has(s.id))}
+        canGrant={canGrant}
+      />
+    );
+  }
+
   const [grants, students] = await Promise.all([
     serverApi.contentEntitlements(courseId, permissions.has("people:read")),
     canGrant ? serverApi.studentsLite() : Promise.resolve([]),
   ]);
-
-  // Anyone already on the list can't be granted twice — revoked grants are
-  // reinstated from the Entitlements area, not re-granted here.
   const granted = new Set(grants.map((g) => g.orgUserId));
   const candidates = students.filter((s) => !granted.has(s.id));
 

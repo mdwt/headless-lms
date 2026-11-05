@@ -103,7 +103,7 @@ function fakeContent(
   courseStatus: 'published' | 'draft' = 'published',
 ): CourseManagementService {
   return {
-    getCourse: vi.fn(async (id: string, actor: Actor) => {
+    findCourse: vi.fn(async (id: string, actor: Actor) => {
       expect(actor).toBe(SYSTEM);
       return id === 'c1' ? { id, status: courseStatus } : null;
     }),

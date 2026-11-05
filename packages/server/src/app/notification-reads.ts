@@ -12,7 +12,7 @@ import type { OrganizationService } from '@headless-lms/core/organizations';
 import { communityMail, type CommunityMailDeps } from './community-mail.js';
 
 export type NotificationReadsDeps = CommunityMailDeps & {
-  content: Pick<ContentService, 'getActivity' | 'getModule' | 'getCourse' | 'listBundleItems'>;
+  content: Pick<ContentService, 'getActivity' | 'getModule' | 'findCourse' | 'listBundleItems'>;
   entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'contentHolderIds' | 'hasAccess'>;
   organizations: Pick<OrganizationService, 'getOrgUsersByIds' | 'systemActor'>;
   identity: Pick<IdentityService, 'getUserById'>;
@@ -65,7 +65,7 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
       }
       const [module, course] = await Promise.all([
         deps.content.getModule(activity.moduleId, system(orgId)),
-        deps.content.getCourse(activity.courseId, system(orgId)),
+        deps.content.findCourse(activity.courseId, system(orgId)),
       ]);
       if (!course) {
         return null;

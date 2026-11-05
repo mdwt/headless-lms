@@ -14,6 +14,7 @@ import type { SpaceDetail, SpaceRowLock } from '../content/index.js';
 import type { Permission } from '../types/index.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { actorWith } from '../organizations/index.js';
+import { entitlementsDeclarations } from './declarations.js';
 
 const SAMPLE: Entitlement = {
   orgId: 'org-1',
@@ -244,10 +245,9 @@ describe('EntitlementsService', () => {
     ]);
   });
 
-  it('appends nothing when setStatus finds no entitlement', async () => {
+  it('throws NotFoundError and appends nothing when setStatus finds no entitlement', async () => {
     const { svc, append } = build(fakeRepo({ setStatus: vi.fn().mockResolvedValue(null) }));
-    const result = await svc.setStatus('missing', 'revoked', admin);
-    expect(result).toBeNull();
+    await expect(svc.setStatus('missing', 'revoked', admin)).rejects.toThrow(NotFoundError);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -1083,6 +1083,50 @@ describe('permission checks', () => {
     await expect(svc.grant(input, nobody)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.ensureGrant(input, reader)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.setStatus('e1', 'revoked', reader)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+    const { svc, repo, append } = build(
+      fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue(MEMBER) }),
+      inviteContent(),
+      inviteLock(),
+    );
+    const calls: Record<string, () => Promise<unknown>> = {
+      list: () => svc.list({ page: 1, pageSize: 20 }, nobody),
+      grant: () => svc.grant(input, nobody),
+      ensureGrant: () => svc.ensureGrant(input, nobody),
+      setStatus: () => svc.setStatus('e1', 'revoked', nobody),
+      invite: () => svc.invite('cmy_1', 'spc_1', 'ou_member', nobody),
+      addSpaceMember: () => svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', nobody),
+      approve: () => svc.approve('cmy_1', 'spc_1', 'ou_member', nobody),
+      decline: () => svc.decline('cmy_1', 'spc_1', 'ou_member', nobody),
+      remove: () => svc.remove('cmy_1', 'spc_1', 'ou_member', nobody),
+    };
+    const declared = Object.entries(entitlementsDeclarations)
+      .filter(([, declaration]) => typeof declaration !== 'string')
+      .map(([name]) => name);
+    expect(Object.keys(calls).sort()).toEqual(declared.sort());
+    for (const [name, call] of Object.entries(calls)) {
+      await expect(call(), name).rejects.toBeInstanceOf(ForbiddenError);
+    }
+    expect(append).not.toHaveBeenCalled();
+    expect(repo.list).not.toHaveBeenCalled();
+    expect(repo.insertSpaceMember).not.toHaveBeenCalled();
+  });
+
+  it('refuses an Instructor on one course every grant action', async () => {
+    const { svc, append } = build();
+    const james = actorWith({
+      id: 'ou_james',
+      orgId: 'org-1',
+      content: { crs_1: ['courses:read', 'courses:write', 'courses:moderate', 'progress:read'] },
+    });
+    const own = { orgUserId: 's1', contentId: 'crs_1', expiresAt: null };
+    await expect(svc.grant(own, james)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.ensureGrant(own, james)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.setStatus('e1', 'revoked', james)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.list({ page: 1, pageSize: 20 }, james)).rejects.toBeInstanceOf(ForbiddenError);
     expect(append).not.toHaveBeenCalled();
   });
 

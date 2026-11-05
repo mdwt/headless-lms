@@ -40,6 +40,7 @@ const NAMES = [
   'get_dashboard',
   'get_enrollment_trend',
   'get_course_analytics',
+  'list_course_learners',
   'get_course_enrollment_trend',
   'get_student_analytics',
   'update_organization',

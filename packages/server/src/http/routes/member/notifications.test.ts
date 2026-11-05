@@ -66,7 +66,12 @@ const container = {
         pageSize: 20,
         unreadCount: 1,
       })),
-      notification: record('notification', (id) => (id === 'ntf_1' ? item : null)),
+      notification: record('notification', (id) => {
+        if (id !== 'ntf_1') {
+          throw new NotFoundError('Notification', String(id));
+        }
+        return item;
+      }),
       notificationUnreadCounts: record('unreadCounts', () => ({
         org: 2,
         communities: [{ communityId: 'cmy_1', unread: 1 }],

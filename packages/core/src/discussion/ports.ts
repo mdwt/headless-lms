@@ -10,6 +10,7 @@ import type {
   ChatUser,
   DigestRun,
   FlaggedComment,
+  FlaggedCommentView,
   JsonValue,
   LiveMessage,
   MentionItemType,
@@ -313,7 +314,7 @@ export const MODERATION_QUEUE_LIMIT = 100;
 export interface SpaceModerationQueue {
   pending: PostView[];
   flags: PostFlag[];
-  commentFlags: FlaggedComment[];
+  commentFlags: FlaggedCommentView[];
 }
 
 export interface PostCommentReader {
@@ -375,7 +376,7 @@ export interface PostService {
   listOwn(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
   listBookmarked(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
   /** Signed URL of the post's cover, for whoever can read the post. */
-  coverFile(postId: string, actor: Actor): Promise<string | null>;
+  coverFile(postId: string, actor: Actor): Promise<string>;
   getPost(postId: string, actor: Actor): Promise<PostView>;
   visible(postId: string, actor: Actor): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
@@ -637,12 +638,7 @@ export interface ChatService {
   /** Signed URL of a message attachment: for the chat's participants while the
    *  message stands (moderators also after deletion), and for moderators while
    *  it is flagged. */
-  attachmentFile(
-    chatId: string,
-    messageId: string,
-    assetId: string,
-    actor: Actor,
-  ): Promise<string | null>;
+  attachmentFile(chatId: string, messageId: string, assetId: string, actor: Actor): Promise<string>;
   messageQueue(communityId: string, actor: Actor): Promise<MessageQueue>;
 }
 

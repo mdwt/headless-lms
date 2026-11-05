@@ -8,7 +8,6 @@ import {
   MemberModules,
   refusals,
 } from '../../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
 import { resolveActor } from '../../scope.js';
 
@@ -54,11 +53,7 @@ export async function memberCoursesRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const course = await member.getCourse(req.params.courseId, actor);
-      if (!course) {
-        throw new NotFoundError('Course', req.params.courseId);
-      }
-      return course;
+      return member.getCourse(req.params.courseId, actor);
     },
   });
 
@@ -78,11 +73,7 @@ export async function memberCoursesRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const modules = await member.listModules(req.params.courseId, actor);
-      if (!modules) {
-        throw new NotFoundError('Course', req.params.courseId);
-      }
-      return modules;
+      return member.listModules(req.params.courseId, actor);
     },
   });
 
@@ -102,11 +93,7 @@ export async function memberCoursesRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const activities = await member.listActivities(req.params.courseId, actor);
-      if (!activities) {
-        throw new NotFoundError('Course', req.params.courseId);
-      }
-      return activities;
+      return member.listActivities(req.params.courseId, actor);
     },
   });
 }

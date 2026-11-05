@@ -226,7 +226,7 @@ describe('AssetsService', () => {
       'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image',
     );
     expect(storage.remove).toHaveBeenCalled();
-    expect(await svc.get('asset_svg', admin())).toBeNull();
+    await expect(svc.get('asset_svg', admin())).rejects.toThrow(NotFoundError);
   });
 
   it('owns only a ready member image uploaded by that org user', async () => {
@@ -247,8 +247,8 @@ describe('AssetsService', () => {
     expect(image.asset.source).toBe('member');
     expect(image.asset.uploadedBy).toBe('ou_1');
     expect(await svc.ownsImage('org-1', image.asset.id, 'ou_1')).toBe(false);
-    expect(await svc.confirmOwn(image.asset.id, uploader('ou_2'))).toBeNull();
-    expect(await svc.confirmOwn(video.asset.id, uploader('ou_1'))).toBeNull();
+    await expect(svc.confirmOwn(image.asset.id, uploader('ou_2'))).rejects.toThrow(NotFoundError);
+    await expect(svc.confirmOwn(video.asset.id, uploader('ou_1'))).rejects.toThrow(NotFoundError);
     const confirmed = await svc.confirmOwn(image.asset.id, uploader('ou_1'));
     expect(confirmed?.status).toBe('ready');
     expect(await svc.ownsImage('org-1', image.asset.id, 'ou_1')).toBe(true);
@@ -269,7 +269,7 @@ describe('AssetsService', () => {
       new InvalidInputError('This image is too large'),
     );
     expect(big.storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(await big.svc.get(ticket.asset.id, admin())).toBeNull();
+    await expect(big.svc.get(ticket.asset.id, admin())).rejects.toThrow(NotFoundError);
     expect(big.appended.map((e) => e.type)).toEqual(['asset.created', 'asset.deleted']);
 
     const fake = service({ storage: fakeStorage({ size: 10, contentType: 'application/zip' }) });
@@ -283,7 +283,7 @@ describe('AssetsService', () => {
     await expect(fake.svc.confirmOwn(spoofed.asset.id, uploader('ou_1'))).rejects.toThrow(
       'The uploaded file is not the declared type',
     );
-    expect(await fake.svc.get(spoofed.asset.id, admin())).toBeNull();
+    await expect(fake.svc.get(spoofed.asset.id, admin())).rejects.toThrow(NotFoundError);
   });
 
   it('leaves storage untouched when the references refuse the delete', async () => {
@@ -320,7 +320,7 @@ describe('AssetsService', () => {
       'This file is still in use',
     );
     expect(storage.remove).not.toHaveBeenCalled();
-    expect(await svc.removeOwn('asset_used', uploader('ou_2'))).toBe(false);
+    await expect(svc.removeOwn('asset_used', uploader('ou_2'))).rejects.toThrow(NotFoundError);
   });
 
   it('lets the uploader remove their own unreferenced upload', async () => {
@@ -332,10 +332,10 @@ describe('AssetsService', () => {
       },
       uploader('ou_1'),
     );
-    expect(await svc.removeOwn(ticket.asset.id, uploader('ou_2'))).toBe(false);
-    expect(await svc.removeOwn(ticket.asset.id, uploader('ou_1'))).toBe(true);
+    await expect(svc.removeOwn(ticket.asset.id, uploader('ou_2'))).rejects.toThrow(NotFoundError);
+    await expect(svc.removeOwn(ticket.asset.id, uploader('ou_1'))).resolves.toBeUndefined();
     expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(await svc.get(ticket.asset.id, admin())).toBeNull();
+    await expect(svc.get(ticket.asset.id, admin())).rejects.toThrow(NotFoundError);
   });
 
   it('sweeps member uploads older than the one-hour grace that nothing references', async () => {
@@ -487,7 +487,7 @@ describe('AssetsService', () => {
       admin('ou_1'),
     );
 
-    expect(await svc.remove(ticket.asset.id, admin())).toBe(true);
+    await expect(svc.remove(ticket.asset.id, admin())).resolves.toBeUndefined();
     expect(order).toEqual(['row', 'object']);
   });
 
@@ -573,7 +573,7 @@ describe('AssetsService', () => {
     expect((await svc.get(library.asset.id, admin()))?.url).toMatch(
       /\/api\/assets\/ast_\w+\/file$/,
     );
-    expect(await svc.remove(member.asset.id, admin())).toBe(true);
+    await expect(svc.remove(member.asset.id, admin())).resolves.toBeUndefined();
   });
 
   it('answers which ids are ready library assets of the org, in the order asked', async () => {
@@ -638,7 +638,7 @@ describe('AssetsService', () => {
         .mock.calls.map(([key]) => key)
         .sort(),
     ).toEqual([copied, ticket.asset.key].sort());
-    expect(await svc.get(ticket.asset.id, admin())).toBeNull();
+    await expect(svc.get(ticket.asset.id, admin())).rejects.toThrow(NotFoundError);
   });
 
   it('refuses a stored object whose type is not the declared one', async () => {
@@ -655,7 +655,7 @@ describe('AssetsService', () => {
     await expect(svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow(
       'The uploaded file is not the declared type',
     );
-    expect(await svc.get(ticket.asset.id, admin())).toBeNull();
+    await expect(svc.get(ticket.asset.id, admin())).rejects.toThrow(NotFoundError);
   });
 
   it('keeps a pending upload pending without copying when nothing was uploaded', async () => {
@@ -949,9 +949,13 @@ describe('AssetsService', () => {
     expect(await svc.libraryFile(library.asset.id, { download: false }, admin())).toBe(
       'https://signed',
     );
-    expect(await svc.libraryFile(member.asset.id, { download: false }, admin())).toBeNull();
+    await expect(svc.libraryFile(member.asset.id, { download: false }, admin())).rejects.toThrow(
+      NotFoundError,
+    );
     expect(await svc.ownUploadFile(member.asset.id, uploader('ou_1'))).toBe('https://signed');
-    expect(await svc.ownUploadFile(member.asset.id, uploader('ou_2'))).toBeNull();
+    await expect(svc.ownUploadFile(member.asset.id, uploader('ou_2'))).rejects.toThrow(
+      NotFoundError,
+    );
   });
 });
 
@@ -1040,7 +1044,7 @@ describe('AssetsService permissions', () => {
       james,
     );
     await expect(svc.remove(ticket.asset.id, james)).rejects.toThrow(ForbiddenError);
-    expect(await svc.remove(ticket.asset.id, admin())).toBe(true);
+    await expect(svc.remove(ticket.asset.id, admin())).resolves.toBeUndefined();
   });
 
   it('refuses every permission-declared method to an actor who holds nothing', async () => {

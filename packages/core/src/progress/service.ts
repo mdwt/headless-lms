@@ -102,7 +102,7 @@ export class ProgressServiceImpl implements ProgressService {
       throw new NotFoundError('Activity', input.activityId);
     }
     const courseId = activity.courseId;
-    const course = await this.content.getCourse(courseId, system);
+    const course = await this.content.findCourse(courseId, system);
     const opens =
       course !== null &&
       (actor.permissions.has('courses:read', courseId) ||

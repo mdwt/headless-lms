@@ -18,6 +18,10 @@ import type { ContentType, Permission, RoleAssignment } from '../types/index.js'
 import { ConflictError, ForbiddenError } from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
+import { createCapturingLogger } from '../shared/logger.js';
+import type { Logger } from '../shared/ports.js';
+import { DEFAULT_ROLES, RoleSetError, type RoleDefinition } from './default-roles.js';
+import { organizationsDeclarations } from './declarations.js';
 
 const ORG = 'org_1';
 const OWNER_KEY = 'owner';
@@ -30,7 +34,7 @@ interface Person {
   lastName: string | null;
 }
 
-function store() {
+function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger } = {}) {
   const orgs = new Map<string, Organization>();
   const orgUsers = new Map<string, OrgUser>();
   const people = new Map<string, Person>();
@@ -401,6 +405,7 @@ function store() {
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
     inviteUrls: { studentPortalUrl: 'https://learn.test', adminAppUrl: 'https://admin.test' },
+    ...opts,
   });
 
   async function person(
@@ -457,8 +462,8 @@ function store() {
 
 type World = ReturnType<typeof store>;
 
-async function world() {
-  const w = store();
+async function world(opts: Parameters<typeof store>[0] = {}) {
+  const w = store(opts);
   await w.repo.create({ id: ORG, name: 'Spanish in 90 Days', slug: 'spanish', ownerId: 'usr_0' });
   const sarah = await w.person('Sarah');
   await w.roles.setOrgRole(ORG, sarah.orgUser.id, 'owner', 'system');
@@ -620,6 +625,26 @@ describe('roles', () => {
     await w.service.unassignRole(s.james.orgUser.id, 'crs_1', owner);
     await w.service.deleteRole(ta.key, owner);
     expect(w.storedRoles.some((r) => r.key === ta.key)).toBe(false);
+  });
+
+  it('marks every role givable except the owner, on every role read and write', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const roles = await w.service.listRoles(owner);
+    expect(roles.filter((role) => !role.givable).map((role) => role.key)).toEqual(['owner']);
+    expect(roles.find((role) => role.key === 'member')?.givable).toBe(true);
+    await expect(w.service.getRole('owner', owner)).resolves.toMatchObject({ givable: false });
+    await expect(w.service.updateRole('owner', { name: 'Founder' }, owner)).resolves.toMatchObject({
+      givable: false,
+    });
+    await expect(
+      w.service.updateRole('instructor', { name: 'Tutor' }, owner),
+    ).resolves.toMatchObject({ givable: true });
+    await expect(w.service.resetRole('instructor', owner)).resolves.toMatchObject({
+      givable: true,
+    });
+    await expect(
+      w.service.createRole({ base: 'moderator', name: 'Host' }, owner),
+    ).resolves.toMatchObject({ givable: true });
   });
 
   it('refuses deleting a deployment role, and resets one', async () => {
@@ -1040,5 +1065,254 @@ describe('api keys and the organization', () => {
     await expect(
       w.service.updateOrganization({ name: 'x' }, await w.actor(s.oliver.orgUser.id)),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe('the deployment role set', () => {
+  const replaced = (change: (role: RoleDefinition) => RoleDefinition | null) =>
+    DEFAULT_ROLES.map(change).filter((role): role is RoleDefinition => role !== null);
+
+  it('refuses to build the service with an invalid set', () => {
+    expect(() => store({ defaultRoles: replaced((r) => (r.key === 'member' ? null : r)) })).toThrow(
+      RoleSetError,
+    );
+    expect(() =>
+      store({
+        defaultRoles: replaced((r) => (r.key === 'moderator' ? { ...r, levels: ['course'] } : r)),
+      }),
+    ).toThrow(RoleSetError);
+  });
+
+  it('reaches a role the org has not changed, and resolves a changed one from the new base', async () => {
+    const {
+      w: x,
+      sarah,
+      james,
+    } = await world({
+      defaultRoles: replaced((r) =>
+        r.key === 'instructor'
+          ? { ...r, permissions: ['courses:read', 'courses:write', 'progress:read'] }
+          : r,
+      ),
+    });
+    await x.roles.setItemRole(ORG, james.orgUser.id, 'crs_1', 'course', 'instructor', 'system');
+    const before = await x.actor(james.orgUser.id);
+    expect(before.permissions.has('courses:write', 'crs_1')).toBe(true);
+    expect(before.permissions.has('courses:moderate', 'crs_1')).toBe(false);
+    await x.service.updateRole(
+      'instructor',
+      { permissions: { 'courses:delete': true } },
+      await x.actor(sarah.orgUser.id),
+    );
+    const after = await x.actor(james.orgUser.id);
+    expect(after.permissions.has('courses:delete', 'crs_1')).toBe(true);
+    expect(after.permissions.has('courses:write', 'crs_1')).toBe(true);
+    expect(after.permissions.has('courses:moderate', 'crs_1')).toBe(false);
+  });
+
+  it('leaves assignments of a dropped key or level contributing nothing, and logs them', async () => {
+    const { logger, entries } = createCapturingLogger();
+    const {
+      w: x,
+      james,
+      emma,
+    } = await world({
+      logger,
+      defaultRoles: replaced((r) =>
+        r.key === 'moderator' ? null : r.key === 'instructor' ? { ...r, levels: ['org'] } : r,
+      ),
+    });
+    await x.roles.setItemRole(ORG, james.orgUser.id, 'crs_1', 'course', 'instructor', 'system');
+    await x.roles.setItemRole(ORG, emma.orgUser.id, 'cmy_1', 'community', 'moderator', 'system');
+    expect((await x.actor(james.orgUser.id)).permissions.anywhere('courses:write')).toBe(false);
+    expect((await x.actor(emma.orgUser.id)).permissions.anywhere('communities:moderate')).toBe(
+      false,
+    );
+    expect(await x.service.auditRoleKeys()).toBe(2);
+    expect(entries.filter((e) => e.level === 'warn').map((e) => e.meta?.roleKey)).toEqual([
+      'instructor',
+      'moderator',
+    ]);
+  });
+});
+
+describe('levels when giving and saving', () => {
+  it('refuses Owner and Member on any item', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    for (const key of ['owner', 'member']) {
+      for (const item of ['crs_1', 'cmy_1']) {
+        await expect(
+          w.service.assignRole(s.james.orgUser.id, item, key, owner),
+          `${key} on ${item}`,
+        ).rejects.toBeInstanceOf(OrganizationRuleError);
+      }
+    }
+    expect(w.assignments.some((a) => a.orgUserId === s.james.orgUser.id)).toBe(false);
+  });
+
+  it('refuses a level that is neither the org nor a content type', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await expect(
+      w.service.updateRole('instructor', { levels: ['event' as never] }, owner),
+    ).rejects.toThrow(/Unknown level event/);
+    await expect(
+      w.service.createRole({ base: 'instructor', name: 'Host', levels: ['event' as never] }, owner),
+    ).rejects.toThrow(/Unknown level event/);
+    await expect(w.service.updateRole('instructor', { levels: [] }, owner)).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+    expect(w.storedRoles).toEqual([]);
+  });
+});
+
+describe('deny by default', () => {
+  it('refuses every permission-declared method to a person who holds nothing', async () => {
+    const nobody = await w.actor(s.oliver.orgUser.id);
+    await w.service.createInvite(
+      { email: 'ivy@example.com', sendEmail: false },
+      await w.actor(s.sarah.orgUser.id),
+      s.sarah.person.id,
+    );
+    const ivy = w.findByEmail('ivy@example.com').id;
+    const before = { events: w.events.length, assignments: w.assignments.length };
+    const calls: Record<string, () => Promise<unknown>> = {
+      updateOrganization: () => w.service.updateOrganization({ name: 'x' }, nobody),
+      listRoles: () => w.service.listRoles(nobody),
+      getRole: () => w.service.getRole('admin', nobody),
+      updateRole: () => w.service.updateRole('instructor', { name: 'Tutor' }, nobody),
+      createRole: () => w.service.createRole({ base: 'moderator', name: 'Host' }, nobody),
+      resetRole: () => w.service.resetRole('instructor', nobody),
+      deleteRole: () => w.service.deleteRole('instructor', nobody),
+      listTeam: () => w.service.listTeam({ page: 1, pageSize: 20 }, nobody),
+      listAssignments: () => w.service.listAssignments(s.james.orgUser.id, nobody),
+      listAssignmentsOn: () => w.service.listAssignmentsOn('crs_1', nobody),
+      setOrgRole: () => w.service.setOrgRole(s.james.orgUser.id, 'member', nobody),
+      assignRole: () => w.service.assignRole(s.james.orgUser.id, 'crs_1', 'instructor', nobody),
+      unassignRole: () => w.service.unassignRole(s.james.orgUser.id, 'crs_1', nobody),
+      removePerson: () => w.service.removePerson(s.james.orgUser.id, nobody),
+      createInvite: () =>
+        w.service.createInvite({ email: 'max@example.com' }, nobody, s.oliver.person.id),
+      resendInvite: () => w.service.resendInvite(ivy, nobody, s.oliver.person.id),
+      cancelInvite: () => w.service.cancelInvite(ivy, nobody),
+      listApiKeys: () => w.service.listApiKeys(nobody),
+      createApiKey: () => w.service.createApiKey({ name: 'x', scopes: ['courses:read'] }, nobody),
+      deleteApiKey: () => w.service.deleteApiKey('key_1', nobody),
+    };
+    const declared = Object.entries(organizationsDeclarations)
+      .filter(([, declaration]) => typeof declaration !== 'string')
+      .map(([name]) => name);
+    expect(Object.keys(calls).sort()).toEqual(declared.sort());
+    for (const [name, call] of Object.entries(calls)) {
+      await expect(call(), name).rejects.toBeInstanceOf(ForbiddenError);
+    }
+    expect(w.events).toHaveLength(before.events);
+    expect(w.assignments).toHaveLength(before.assignments);
+    expect(w.orgUsers.has(ivy)).toBe(true);
+    expect(w.apiKeys.create).not.toHaveBeenCalled();
+    expect(w.apiKeys.revoke).not.toHaveBeenCalled();
+  });
+});
+
+describe('escalation', () => {
+  it('refuses adding a role that holds a permission the editor lacks', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const editor = await roleWith(w, owner, 'Role editor', ['roles:read', 'roles:write']);
+    await w.service.setOrgRole(s.emma.orgUser.id, editor.key, owner);
+    const emma = await w.actor(s.emma.orgUser.id);
+    await expect(
+      w.service.createRole({ base: 'moderator', name: 'Host' }, emma),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      w.service.createRole(
+        { base: 'admin', name: 'Reader', levels: ['org'], permissions: { 'people:read': true } },
+        emma,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    const lead = await roleWith(w, owner, 'Lead', [
+      'roles:read',
+      'roles:write',
+      'communities:moderate',
+    ]);
+    await w.service.setOrgRole(s.james.orgUser.id, lead.key, owner);
+    await expect(
+      w.service.createRole({ base: 'moderator', name: 'Host' }, await w.actor(s.james.orgUser.id)),
+    ).resolves.toMatchObject({ permissions: ['communities:moderate'] });
+  });
+
+  it('needs rule 2 against the current org role for a Member invite to an existing person', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const manager = await roleWith(w, owner, 'People manager', ['people:read', 'people:write']);
+    await w.service.setOrgRole(s.emma.orgUser.id, manager.key, owner);
+    const emma = await w.actor(s.emma.orgUser.id);
+    await expect(
+      w.service.createInvite(
+        { email: s.liam.person.email, roleKey: 'member', sendEmail: false },
+        emma,
+        s.emma.person.id,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      w.service.createInvite(
+        { email: s.oliver.person.email, roleKey: 'member', sendEmail: false },
+        emma,
+        s.emma.person.id,
+      ),
+    ).resolves.toMatchObject({ roleKey: 'member' });
+    expect(w.assignments.find((a) => a.orgUserId === s.liam.orgUser.id)?.roleKey).toBe('admin');
+  });
+});
+
+describe('ownership transfer, more', () => {
+  const rows = (id: string) =>
+    w.assignments.filter((a) => a.orgUserId === id).map((a) => a.roleKey);
+
+  it('gives the previous owner Member by default', async () => {
+    await w.service.transferOwnership(
+      { newOwnerOrgUserId: s.liam.orgUser.id },
+      await w.actor(s.sarah.orgUser.id),
+    );
+    expect(rows(s.liam.orgUser.id)).toEqual(['owner']);
+    expect(rows(s.sarah.orgUser.id)).toEqual([]);
+    expect((await w.actor(s.sarah.orgUser.id)).permissions.roleOn().key).toBe('member');
+    expect(w.events.map((e) => e.type)).toContain('organization.ownership.transferred');
+  });
+
+  it.each([
+    ['giving the new owner the owner value', 1],
+    ['giving the previous owner the participant value', 2],
+    ['the core transaction', 3],
+  ])('completes when the owner repeats it after a failure at %s', async (_, step) => {
+    const fail = new Error('down');
+    if (step === 1) {
+      w.orgAdmin.setMembershipOwner.mockRejectedValueOnce(fail);
+    } else if (step === 2) {
+      w.orgAdmin.setMembershipOwner.mockResolvedValueOnce(undefined).mockRejectedValueOnce(fail);
+    } else {
+      vi.spyOn(w.roles, 'lock').mockRejectedValueOnce(fail);
+    }
+    const input = { newOwnerOrgUserId: s.james.orgUser.id };
+    await expect(
+      w.service.transferOwnership(input, await w.actor(s.sarah.orgUser.id)),
+    ).rejects.toBe(fail);
+    expect(rows(s.sarah.orgUser.id)).toEqual(['owner']);
+    expect(rows(s.james.orgUser.id)).toEqual([]);
+    await w.service.transferOwnership(input, await w.actor(s.sarah.orgUser.id));
+    expect(rows(s.james.orgUser.id)).toEqual(['owner']);
+    expect(rows(s.sarah.orgUser.id)).toEqual([]);
+    expect(w.orgAdmin.setMembershipOwner).toHaveBeenLastCalledWith(ORG, 'ba_sarah', false);
+    expect(w.events.filter((e) => e.type === 'organization.ownership.transferred')).toHaveLength(1);
+  });
+});
+
+describe('Better Auth on role changes', () => {
+  it('leaves the membership untouched when roles are set, given or removed', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await w.service.setOrgRole(s.james.orgUser.id, 'instructor', owner);
+    await w.service.assignRole(s.emma.orgUser.id, 'cmy_1', 'moderator', owner);
+    await w.service.unassignRole(s.emma.orgUser.id, 'cmy_1', owner);
+    await w.service.setOrgRole(s.james.orgUser.id, 'member', owner);
+    expect(w.orgAdmin.grantMembership).not.toHaveBeenCalled();
+    expect(w.orgAdmin.setMembershipOwner).not.toHaveBeenCalled();
+    expect(w.orgAdmin.removeMembership).not.toHaveBeenCalled();
   });
 });

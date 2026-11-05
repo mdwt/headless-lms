@@ -4,11 +4,13 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   CourseAnalytics,
   CourseIdParam,
+  CourseIdPathParam,
+  CourseLearnersPage,
+  CourseLearnersQuery,
   EnrollmentSeries,
   EnrollmentSeriesQuery,
   refusals,
 } from '../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -34,11 +36,7 @@ export async function courseAnalyticsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const analytics = await container.reporting.admin.courseAnalytics(req.params.id, actor);
-      if (!analytics) {
-        throw new NotFoundError('Course', req.params.id);
-      }
-      return analytics;
+      return container.reporting.admin.courseAnalytics(req.params.id, actor);
     },
   });
 
@@ -58,15 +56,27 @@ export async function courseAnalyticsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const series = await container.reporting.admin.courseEnrollments(
-        req.params.id,
-        req.query.days,
-        actor,
-      );
-      if (!series) {
-        throw new NotFoundError('Course', req.params.id);
-      }
-      return series;
+      return container.reporting.admin.courseEnrollments(req.params.id, req.query.days, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/courses/:courseId/learners',
+    config: { operation: 'reporting.admin.courseLearners' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listCourseLearners',
+      tags: ['Reporting'],
+      summary: "List a course's learners with their access and progress",
+      description: `${describeOperation('reporting.admin.courseLearners')} Everyone with a grant that opens the course, directly or through a bundle, active or not, each with that grant and their progress. Paged and searched by name or email.`,
+      params: CourseIdPathParam,
+      querystring: CourseLearnersQuery,
+      response: { 200: CourseLearnersPage, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return container.reporting.admin.courseLearners(req.params.courseId, req.query, actor);
     },
   });
 }

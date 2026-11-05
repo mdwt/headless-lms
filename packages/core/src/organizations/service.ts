@@ -125,6 +125,10 @@ function lockKeys(orgId: string, roleKeys: string[], orgUserIds: string[]): stri
   ];
 }
 
+function roleView(role: OrgRole, holders: number): RoleView {
+  return { ...role, holders, givable: role.key !== OWNER_ROLE_KEY };
+}
+
 export class OrganizationServiceImpl implements OrganizationService {
   private readonly repo: OrganizationsRepository;
   private readonly roles: RolesRepository;
@@ -411,17 +415,16 @@ export class OrganizationServiceImpl implements OrganizationService {
       this.roles.storedRoles(actor.orgId),
       this.roles.holderCounts(actor.orgId),
     ]);
-    return resolveOrgRoles(this.catalog, stored).map((role) => ({
-      ...role,
-      holders: counts[role.key] ?? 0,
-    }));
+    return resolveOrgRoles(this.catalog, stored).map((role) =>
+      roleView(role, counts[role.key] ?? 0),
+    );
   }
 
   async getRole(key: string, actor: Actor): Promise<RoleView> {
     actor.permissions.require('roles:read');
     const role = await this.findRole(actor.orgId, key);
     const holders = await this.roles.countHolders(actor.orgId, key);
-    return { ...role, holders };
+    return roleView(role, holders);
   }
 
   async updateRole(key: string, input: UpdateRoleInput, actor: Actor): Promise<RoleView> {
@@ -475,7 +478,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       return after;
     });
     this.logger.info('role updated', { orgId, roleKey: key, actorOrgUserId: actor.id });
-    return { ...result, holders: await this.roles.countHolders(orgId, key) };
+    return roleView(result, await this.roles.countHolders(orgId, key));
   }
 
   async createRole(input: CreateRoleInput, actor: Actor): Promise<RoleView> {
@@ -518,7 +521,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       return role;
     });
     this.logger.info('role created', { orgId, roleKey: key, actorOrgUserId: actor.id });
-    return { ...created, holders: 0 };
+    return roleView(created, 0);
   }
 
   async resetRole(key: string, actor: Actor): Promise<RoleView> {
@@ -556,7 +559,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       return after;
     });
     this.logger.info('role reset', { orgId, roleKey: key, actorOrgUserId: actor.id });
-    return { ...result, holders: await this.roles.countHolders(orgId, key) };
+    return roleView(result, await this.roles.countHolders(orgId, key));
   }
 
   async deleteRole(key: string, actor: Actor): Promise<void> {

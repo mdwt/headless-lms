@@ -182,10 +182,10 @@ export interface AutomationsService {
   /** The domain event types an automation may react to. */
   availableTriggers(actor: Actor): AvailableTriggers;
   list(query: AutomationsQuery | undefined, actor: Actor): Promise<Automation[]>;
-  get(id: string, actor: Actor): Promise<Automation | null>;
+  get(id: string, actor: Actor): Promise<Automation>;
   create(input: CreateAutomationInput, actor: Actor): Promise<Automation>;
-  update(id: string, input: UpdateAutomationInput, actor: Actor): Promise<Automation | null>;
-  delete(id: string, actor: Actor): Promise<boolean>;
+  update(id: string, input: UpdateAutomationInput, actor: Actor): Promise<Automation>;
+  delete(id: string, actor: Actor): Promise<void>;
   listRuns(
     automationId: string,
     query: AutomationRunsQuery,
@@ -193,12 +193,12 @@ export interface AutomationsService {
   ): Promise<Page<AutomationRun>>;
   rerun(automationId: string, runId: string, actor: Actor): Promise<AutomationRun>;
   listWebhooks(actor: Actor): Promise<Webhook[]>;
-  getWebhook(id: string, actor: Actor): Promise<Webhook | null>;
+  getWebhook(id: string, actor: Actor): Promise<Webhook>;
   createWebhook(input: CreateWebhookInput, actor: Actor): Promise<CreatedWebhook>;
-  updateWebhook(id: string, input: UpdateWebhookInput, actor: Actor): Promise<Webhook | null>;
-  deleteWebhook(id: string, actor: Actor): Promise<boolean>;
-  revealWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null>;
-  rotateWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null>;
+  updateWebhook(id: string, input: UpdateWebhookInput, actor: Actor): Promise<Webhook>;
+  deleteWebhook(id: string, actor: Actor): Promise<void>;
+  revealWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret>;
+  rotateWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret>;
 }
 
 // Outbound ports (persistence contracts the repositories fulfil).

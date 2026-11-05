@@ -19,7 +19,6 @@ import {
 } from '../schemas/index.js';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
 
@@ -61,11 +60,7 @@ export async function downloadsRoutes(app: FastifyInstance, container: Container
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const download = await content.getDownload(req.params.downloadId, actor);
-      if (!download) {
-        throw new NotFoundError('Download', req.params.downloadId);
-      }
-      return download;
+      return content.getDownload(req.params.downloadId, actor);
     },
   });
 

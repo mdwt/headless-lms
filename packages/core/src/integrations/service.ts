@@ -131,16 +131,12 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return connection;
   }
 
-  async reconnect(
-    id: string,
-    secrets: Record<string, unknown>,
-    actor: Actor,
-  ): Promise<Connection | null> {
+  async reconnect(id: string, secrets: Record<string, unknown>, actor: Actor): Promise<Connection> {
     actor.permissions.require('integrations:write');
     const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, id);
     if (!connection) {
-      return null;
+      throw new NotFoundError('Connection', id);
     }
     const updated = await this.uow.run(async ({ connections, credentials, outbox }) => {
       await credentials.update(orgId, connection.credentialRef, secrets);
@@ -155,15 +151,18 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       connectionId: id,
       integrationId: connection.integrationId,
     });
+    if (!updated) {
+      throw new NotFoundError('Connection', id);
+    }
     return updated;
   }
 
-  async configure(id: string, input: ConfigureInput, actor: Actor): Promise<Connection | null> {
+  async configure(id: string, input: ConfigureInput, actor: Actor): Promise<Connection> {
     actor.permissions.require('integrations:write');
     const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, id);
     if (!connection) {
-      return null;
+      throw new NotFoundError('Connection', id);
     }
     if (input.config !== undefined) {
       this.validate(connection.integrationId, input.config);
@@ -184,15 +183,18 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       connectionId: id,
       integrationId: connection.integrationId,
     });
+    if (!updated) {
+      throw new NotFoundError('Connection', id);
+    }
     return updated;
   }
 
-  async disconnect(id: string, actor: Actor): Promise<boolean> {
+  async disconnect(id: string, actor: Actor): Promise<void> {
     actor.permissions.require('integrations:delete');
     const orgId = actor.orgId;
     const connection = await this.repo.findById(orgId, id);
     if (!connection) {
-      return false;
+      throw new NotFoundError('Connection', id);
     }
     const deleted = await this.uow.run(async ({ connections, credentials, outbox }) => {
       // Connection first: it holds the FK onto the credential row.
@@ -206,7 +208,9 @@ export class IntegrationsServiceImpl implements IntegrationsService {
       connectionId: id,
       integrationId: connection.integrationId,
     });
-    return deleted;
+    if (!deleted) {
+      throw new NotFoundError('Connection', id);
+    }
   }
 
   async list(actor: Actor): Promise<Connection[]> {
@@ -214,9 +218,13 @@ export class IntegrationsServiceImpl implements IntegrationsService {
     return this.repo.list(actor.orgId);
   }
 
-  async get(id: string, actor: Actor): Promise<Connection | null> {
+  async get(id: string, actor: Actor): Promise<Connection> {
     actor.permissions.require('integrations:read');
-    return this.repo.findById(actor.orgId, id);
+    const connection = await this.repo.findById(actor.orgId, id);
+    if (!connection) {
+      throw new NotFoundError('Connection', id);
+    }
+    return connection;
   }
 
   getByIntegration(orgId: string, integrationId: string): Promise<Connection | null> {

@@ -14,6 +14,7 @@ import type { SpaceMember } from '../../entitlements/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
 import { createFileUrls } from '../../assets/index.js';
 import { actorWith } from '../../organizations/index.js';
+import { NotFoundError } from '../../shared/errors.js';
 import type { Actor } from '../../shared/actor.js';
 
 const SYSTEM: Actor = actorWith({ id: 'system', orgId: 'o1', owner: true });
@@ -114,7 +115,7 @@ function fakeContent(
   activities: Record<string, Activity[]> = {},
 ): ContentServicePort {
   return {
-    getCourse: async (id: string) => courses[id] ?? null,
+    findCourse: async (id: string) => courses[id] ?? null,
     listCourseModules: async (courseId: string) => modules[courseId] ?? [],
     listCourseActivities: async (courseId: string) => activities[courseId] ?? [],
     listCourseActivityViews: async (courseId: string) =>
@@ -189,7 +190,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
   };
   return {
     listCourses: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    getCourse: async () => null,
+    findCourse: async () => null,
     createCourse: rejectMutation,
     updateCourse: rejectMutation,
     patchCourseSettings: rejectMutation,
@@ -208,7 +209,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     saveActivity: rejectMutation,
     deleteActivity: rejectMutation,
     listDownloads: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    getDownload: async () => null,
+    findDownload: async () => null,
     createDownload: rejectMutation,
     updateDownload: rejectMutation,
     removeDownload: rejectMutation,
@@ -218,7 +219,7 @@ function fakeContentService(over: Partial<ContentServicePort> = {}): ContentServ
     renameDownloadAsset: rejectMutation,
     reorderDownloadAssets: rejectMutation,
     listCommunities: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
-    getCommunity: async () => null,
+    findCommunity: async () => null,
     listCommunitiesById: async () => [],
     communitiesWithDigest: async () => [],
     createCommunity: rejectMutation,
@@ -269,7 +270,7 @@ describe('MemberReportServiceImpl', () => {
     expect(rows.map((c) => c.id)).toEqual(['c1']);
   });
 
-  it('returns null for a course the student is not enrolled in', async () => {
+  it('throws NotFoundError for a course the student is not enrolled in', async () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContent({ c1: course('c1') }, {}),
@@ -277,8 +278,8 @@ describe('MemberReportServiceImpl', () => {
       ...deps,
       access: grantedAccess([{ orgId: 'o1', contentId: 'c1' }]),
     });
-    expect(await svc.getCourse('cX', stu)).toBeNull();
-    expect(await svc.listModules('cX', stu)).toBeNull();
+    await expect(svc.getCourse('cX', stu)).rejects.toThrow(NotFoundError);
+    await expect(svc.listModules('cX', stu)).rejects.toThrow(NotFoundError);
   });
 
   it('does not return a course enrolled in another org', async () => {
@@ -290,7 +291,7 @@ describe('MemberReportServiceImpl', () => {
       access: grantedAccess([{ orgId: 'o2', contentId: 'c1' }]),
     });
     expect(await svc.listCourses(stu)).toEqual([]);
-    expect(await svc.getCourse('c1', stu)).toBeNull();
+    await expect(svc.getCourse('c1', stu)).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -305,7 +306,7 @@ const progressActivities: Activity[] = [
 ];
 
 describe('MemberReportServiceImpl.courseProgress', () => {
-  it('returns null when the student is not enrolled', async () => {
+  it('throws NotFoundError when the student is not enrolled', async () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContent(
@@ -317,7 +318,7 @@ describe('MemberReportServiceImpl.courseProgress', () => {
       ...deps,
       access: grantedAccess([]),
     });
-    expect(await svc.courseProgress('c1', stu)).toBeNull();
+    await expect(svc.courseProgress('c1', stu)).rejects.toThrow(NotFoundError);
   });
 
   it('maps records to statuses and derives percent from published activities only', async () => {
@@ -421,7 +422,7 @@ describe('file URLs', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
       content: fakeContentService({
-        getCourse: async () => ({ ...course('c1'), thumbnailUrl: null }),
+        findCourse: async () => ({ ...course('c1'), thumbnailUrl: null }),
         listCourseActivityViews: async () => views,
       }),
       progress: fakeProgress([]),
@@ -440,7 +441,7 @@ describe('file URLs', () => {
       ...deps,
     });
 
-    expect(await svc.listActivities('c1', stu)).toBeNull();
+    await expect(svc.listActivities('c1', stu)).rejects.toThrow(NotFoundError);
   });
 
   it('serves an entitled download with the files content signed', async () => {
@@ -464,7 +465,7 @@ describe('file URLs', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
       content: fakeContentService({
-        getDownload: async () => download,
+        findDownload: async () => download,
         listDownloadAssets: async () => files,
       }),
       progress: fakeProgress([]),
@@ -478,12 +479,12 @@ describe('file URLs', () => {
   it('serves no download the student is not entitled to', async () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
-      content: fakeContentService({ getDownload: async () => ({ status: 'published' }) as never }),
+      content: fakeContentService({ findDownload: async () => ({ status: 'published' }) as never }),
       progress: fakeProgress([]),
       ...deps,
     });
 
-    expect(await svc.getDownload('d1', stu)).toBeNull();
+    await expect(svc.getDownload('d1', stu)).rejects.toThrow(NotFoundError);
   });
 
   it('adds the signed photo URL to each directory entry', async () => {
@@ -506,7 +507,7 @@ describe('file URLs', () => {
           pageSize: query.pageSize,
         }),
       }),
-      content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
+      content: fakeContentService({ findCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
       files,
       fileUrls,
@@ -641,7 +642,7 @@ describe('file URLs', () => {
     expect(view.rows[1]).toMatchObject({ space: null, subject: null, parent: null });
   });
 
-  it('reads one notification in the list shape, and null when it is not the person’s', async () => {
+  it('reads one notification in the list shape, and throws NotFoundError when it is not the person’s', async () => {
     const stored = {
       id: 'ntf_1',
       orgId: 'o1',
@@ -691,7 +692,7 @@ describe('file URLs', () => {
       readAt: AT,
     });
     expect(get).toHaveBeenCalledWith('ntf_1', james);
-    await expect(svc.notification('ntf_x', james)).resolves.toBeNull();
+    await expect(svc.notification('ntf_x', james)).rejects.toThrow(NotFoundError);
   });
 
   it('counts unread notifications for the org and every community the person can open', async () => {
@@ -759,10 +760,10 @@ describe('serving files', () => {
     const svc = new MemberReportServiceImpl({
       repo: { ...fakeRepo(), ...over.repo },
       content: fakeContentService({
-        getCourse: async (id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
+        findCourse: async (id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
         getActivity: async (id) => (id === 'a1' ? activity('a1', 0) : null),
         listCourseActivityAssets: async () => [link('a1', 'ast_video')],
-        getDownload: async () =>
+        findDownload: async () =>
           ({ id: 'd1', status: 'published', thumbnailAssetId: 'ast_thumb' }) as never,
         listDownloadAssets: async () => [file('ast_pdf', 'Workbook.pdf'), file('ast_notes', null)],
         ...over.content,
@@ -792,32 +793,44 @@ describe('serving files', () => {
   });
 
   it('refuses a lesson file without access, unlinked, in a draft lesson or course, but lets staff through', async () => {
-    expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_video', student)).toBeNull();
-    expect(await build().svc.activityFile('a1', 'ast_other', student)).toBeNull();
+    await expect(
+      build({ grants: [] }).svc.activityFile('a1', 'ast_video', student),
+    ).rejects.toThrow(NotFoundError);
+    await expect(build().svc.activityFile('a1', 'ast_other', student)).rejects.toThrow(
+      NotFoundError,
+    );
     const draftLesson = build({
       content: { getActivity: async () => activity('a1', 0, { published: false }) },
     });
-    expect(await draftLesson.svc.activityFile('a1', 'ast_video', student)).toBeNull();
+    await expect(draftLesson.svc.activityFile('a1', 'ast_video', student)).rejects.toThrow(
+      NotFoundError,
+    );
     const draftCourse = build({
-      content: { getCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
+      content: { findCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
     });
-    expect(await draftCourse.svc.activityFile('a1', 'ast_video', student)).toBeNull();
+    await expect(draftCourse.svc.activityFile('a1', 'ast_video', student)).rejects.toThrow(
+      NotFoundError,
+    );
     expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_video', owner)).toBe(
       'https://signed/ast_video',
     );
-    expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_other', owner)).toBeNull();
+    await expect(build({ grants: [] }).svc.activityFile('a1', 'ast_other', owner)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it('serves a download file saved under its display name, or its filename', async () => {
     const { svc, signed } = build();
     expect(await svc.downloadFile('d1', 'ast_pdf', student)).toBe('https://signed/ast_pdf');
     expect(await svc.downloadFile('d1', 'ast_notes', student)).toBe('https://signed/ast_notes');
-    expect(await svc.downloadFile('d1', 'ast_missing', student)).toBeNull();
+    await expect(svc.downloadFile('d1', 'ast_missing', student)).rejects.toThrow(NotFoundError);
     expect(signed).toEqual([
       { assetId: 'ast_pdf', saveAs: 'Workbook.pdf' },
       { assetId: 'ast_notes', saveAs: 'ast_notes.pdf' },
     ]);
-    expect(await build({ grants: [] }).svc.downloadFile('d1', 'ast_pdf', student)).toBeNull();
+    await expect(build({ grants: [] }).svc.downloadFile('d1', 'ast_pdf', student)).rejects.toThrow(
+      NotFoundError,
+    );
   });
 
   it('serves the thumbnail of a published item to anyone, and of a draft only to staff', async () => {
@@ -825,7 +838,7 @@ describe('serving files', () => {
     expect(await svc.thumbnailFile('download', 'd1', student)).toBe('https://signed/ast_thumb');
     const draft = build({
       content: {
-        getCourse: async () =>
+        findCourse: async () =>
           ({
             ...course('c1', 'draft'),
             thumbnailAssetId: 'ast_cover',
@@ -833,9 +846,9 @@ describe('serving files', () => {
           }) as never,
       },
     });
-    expect(await draft.svc.thumbnailFile('course', 'c1', student)).toBeNull();
+    await expect(draft.svc.thumbnailFile('course', 'c1', student)).rejects.toThrow(NotFoundError);
     expect(await draft.svc.thumbnailFile('course', 'c1', owner)).toBe('https://signed/ast_cover');
-    expect(await svc.thumbnailFile('course', 'c1', student)).toBeNull();
+    await expect(svc.thumbnailFile('course', 'c1', student)).rejects.toThrow(NotFoundError);
   });
 
   it("serves an org user's photo only when it belongs to this org", async () => {
@@ -851,7 +864,7 @@ describe('serving files', () => {
     });
     expect(await withPhoto.svc.personImage('ou_sarah', stu)).toBe('https://signed/ast_photo');
     const without = build({ repo: { people: async () => [{ ...row, imageAssetId: null }] } });
-    expect(await without.svc.personImage('ou_sarah', stu)).toBeNull();
+    await expect(without.svc.personImage('ou_sarah', stu)).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -917,7 +930,7 @@ describe('community home', () => {
     new MemberReportServiceImpl({
       repo: fakeEntitlementReader({ spaceMemberCounts: async () => ({ spc_request: 4 }) }),
       content: fakeContentService({
-        getCommunity: async (id) =>
+        findCommunity: async (id) =>
           id === 'cmy_1'
             ? ({
                 id,
@@ -930,11 +943,11 @@ describe('community home', () => {
             : null,
         listSpaces: async () => spaces,
         getSpace: async (id) => spaces.find((row) => row.id === id) ?? null,
-        getCourse: async (id) =>
+        findCourse: async (id) =>
           id === 'c1' || id === 'c_draft'
             ? { ...course(id, id === 'c1' ? 'published' : 'draft'), thumbnailUrl: null }
             : null,
-        getDownload: async (id) =>
+        findDownload: async (id) =>
           id === 'd_draft' ? ({ id, title: 'Draft pack', status: 'draft' } as never) : null,
       }),
       progress: fakeProgress([]),
@@ -1016,8 +1029,10 @@ describe('community home', () => {
 
   it('serves a locked space by id as its landing view and a hidden one as missing', async () => {
     const svc = build({ spc_invited: 'invited', spc_secret: 'revoked' });
-    expect(await svc.communitySpace('cmy_1', 'spc_secret', student)).toBeNull();
-    expect(await svc.communitySpace('cmy_1', 'spc_missing', student)).toBeNull();
+    await expect(svc.communitySpace('cmy_1', 'spc_secret', student)).rejects.toThrow(NotFoundError);
+    await expect(svc.communitySpace('cmy_1', 'spc_missing', student)).rejects.toThrow(
+      NotFoundError,
+    );
     const locked = await svc.communitySpace('cmy_1', 'spc_request', student);
     expect(locked).toMatchObject({ locked: true });
     expect(locked).not.toHaveProperty('description');
@@ -1067,11 +1082,12 @@ describe('read permissions open content without a grant', () => {
     new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCourse: async (id) => (id === 'c1' || id === 'c2' ? { ...draftCourse, id } : null),
+        findCourse: async (id) => (id === 'c1' || id === 'c2' ? { ...draftCourse, id } : null),
         listCourseModules: async () => progressModules,
-        getDownload: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_dl' }) as never,
+        findDownload: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_dl' }) as never,
         listDownloadAssets: async () => [],
-        getCommunity: async (id) => ({ id, status: 'draft', thumbnailAssetId: 'ast_cmy' }) as never,
+        findCommunity: async (id) =>
+          ({ id, status: 'draft', thumbnailAssetId: 'ast_cmy' }) as never,
       }),
       progress: fakeProgress([]),
       ...deps,
@@ -1081,14 +1097,14 @@ describe('read permissions open content without a grant', () => {
     const svc = build();
     expect(await svc.getCourse('c1', james)).toMatchObject({ id: 'c1' });
     expect(await svc.listModules('c1', james)).toEqual(progressModules);
-    expect(await svc.getCourse('c2', james)).toBeNull();
-    expect(await svc.getCourse('c1', stu)).toBeNull();
+    await expect(svc.getCourse('c2', james)).rejects.toThrow(NotFoundError);
+    await expect(svc.getCourse('c1', stu)).rejects.toThrow(NotFoundError);
   });
 
   it('opens an unpublished download with downloads:read on it', async () => {
     const svc = build();
     expect(await svc.getDownload('d1', james)).toMatchObject({ download: { id: 'd1' } });
-    expect(await svc.getDownload('d2', james)).toBeNull();
+    await expect(svc.getDownload('d2', james)).rejects.toThrow(NotFoundError);
   });
 
   it("serves an unpublished item's thumbnail with its read permission only", async () => {
@@ -1096,8 +1112,8 @@ describe('read permissions open content without a grant', () => {
     expect(await svc.thumbnailFile('course', 'c1', james)).toBe('https://signed/ast_cover');
     expect(await svc.thumbnailFile('download', 'd1', james)).toBe('https://signed/ast_dl');
     expect(await svc.thumbnailFile('community', 'cmy_1', james)).toBe('https://signed/ast_cmy');
-    expect(await svc.thumbnailFile('community', 'cmy_2', james)).toBeNull();
-    expect(await svc.thumbnailFile('course', 'c1', stu)).toBeNull();
+    await expect(svc.thumbnailFile('community', 'cmy_2', james)).rejects.toThrow(NotFoundError);
+    await expect(svc.thumbnailFile('course', 'c1', stu)).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -1111,7 +1127,7 @@ describe('a learner with a grant', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCourse: async (id, actor) =>
+        findCourse: async (id, actor) =>
           record(actor, id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
         listCourseModules: async (_id, actor) => record(actor, progressModules),
         listCourseActivityViews: async (_id, actor) =>
@@ -1146,7 +1162,7 @@ describe('a learner with a grant', () => {
     const svc = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCommunity: getCommunity as never,
+        findCommunity: getCommunity as never,
         listSpaces: async () => [],
       }),
       progress: fakeProgress([]),
@@ -1170,7 +1186,7 @@ describe('a learner with a grant', () => {
     const moderated = new MemberReportServiceImpl({
       repo: fakeRepo(),
       content: fakeContentService({
-        getCommunity: getCommunity as never,
+        findCommunity: getCommunity as never,
         listSpaces: async () => [],
       }),
       progress: fakeProgress([]),
@@ -1196,7 +1212,7 @@ describe('a learner with a grant', () => {
       progress: fakeProgress([]),
       ...deps,
     });
-    expect(await svc.communityHome('cmy_1', stu)).toBeNull();
+    await expect(svc.communityHome('cmy_1', stu)).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -1219,7 +1235,7 @@ describe('directory and viewer', () => {
     const holders = vi.fn(async () => ['ou_sarah']);
     const svc = new MemberReportServiceImpl({
       repo: { ...fakeRepo(), directory },
-      content: fakeContentService({ getCommunity: async () => ({ id: 'cmy_1' }) as never }),
+      content: fakeContentService({ findCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
       ...deps,
       access: { ...deps.access, isCommunityMember: async () => true },

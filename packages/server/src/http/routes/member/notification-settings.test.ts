@@ -80,9 +80,12 @@ const container = {
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   reporting: {
     member: {
-      communityNotificationSettings: record('communitySettings', (id) =>
-        id === 'cmy_1' ? view : null,
-      ),
+      communityNotificationSettings: record('communitySettings', (id) => {
+        if (id !== 'cmy_1') {
+          throw new NotFoundError('Community', String(id));
+        }
+        return view;
+      }),
       orgNotificationSettings: record('orgSettings', () => ({ categories: [] })),
     },
   },

@@ -658,7 +658,7 @@ describe('posts', () => {
     ]) {
       expect(await message(run)).toBe(expected);
     }
-    expect(await svc.coverFile(created.id, outsider)).toBeNull();
+    await expect(svc.coverFile(created.id, outsider)).rejects.toThrow(NotFoundError);
   });
 
   it('lets only the author edit, and a pending edit says it was already pending', async () => {
@@ -938,12 +938,47 @@ describe('posts', () => {
     );
     const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
     expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
-    expect(queue.commentFlags[0]?.comment).toEqual({
+    expect(queue.commentFlags[0]?.comment).toMatchObject({
       id: 'cmt_1',
       postId: 'pst_1',
       body: 'Buy now',
       orgUserId: member.id,
       status: 'published',
+    });
+  });
+
+  it("carries each flagged comment's author, named as other author views name them", async () => {
+    const { svc, commentFlagRows } = harness({
+      profiles: { [member.id]: { displayName: 'Sarah', firstName: 'Sarah', lastName: 'Jones' } },
+    });
+    commentFlagRows.push({
+      spaceId: 'spc_1',
+      flag: {
+        id: 'crp_1',
+        orgId: ORG,
+        commentId: 'cmt_1',
+        orgUserId: other.id,
+        reason: 'spam',
+        resolvedAt: null,
+        resolution: null,
+        resolvedBy: null,
+        createdAt: AT,
+        updatedAt: AT,
+        comment: {
+          id: 'cmt_1',
+          postId: 'pst_1',
+          body: 'Buy now',
+          orgUserId: member.id,
+          status: 'published',
+        },
+      },
+    });
+    const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
+    expect(queue.commentFlags[0]?.comment.author).toMatchObject({
+      id: member.id,
+      displayName: 'Sarah',
+      firstName: 'Sarah',
+      lastName: 'Jones',
     });
   });
 
@@ -1249,14 +1284,14 @@ describe('posts', () => {
     const post = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
     const bare = await svc.create(draftInput({ title: 'Bare' }), member);
     expect(await svc.coverFile(post.id, other)).toBe('https://signed');
-    expect(await svc.coverFile(post.id, outsider)).toBeNull();
-    expect(await svc.coverFile(bare.id, other)).toBeNull();
-    expect(await svc.coverFile('pst_missing', other)).toBeNull();
+    await expect(svc.coverFile(post.id, outsider)).rejects.toThrow(NotFoundError);
+    await expect(svc.coverFile(bare.id, other)).rejects.toThrow(NotFoundError);
+    await expect(svc.coverFile('pst_missing', other)).rejects.toThrow(NotFoundError);
     const draft = await svc.create(
       draftInput({ mode: 'draft', title: 'Draft', coverAssetId: 'ast_cover' }),
       member,
     );
-    expect(await svc.coverFile(draft.id, other)).toBeNull();
+    await expect(svc.coverFile(draft.id, other)).rejects.toThrow(NotFoundError);
     expect(await svc.coverFile(draft.id, member)).toBe('https://signed');
   });
 });

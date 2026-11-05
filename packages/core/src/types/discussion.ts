@@ -12,6 +12,7 @@ export type {
   CommentStatus,
   DigestRun,
   FlaggedComment,
+  FlaggedCommentView,
   LiveMessage,
   Mention,
   MentionItemType,

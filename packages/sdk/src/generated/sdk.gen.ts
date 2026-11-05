@@ -299,6 +299,8 @@ import type {
   ListConnectedAppsResponses,
   ListConnectionsErrors,
   ListConnectionsResponses,
+  ListCourseLearnersErrors,
+  ListCourseLearnersResponses,
   ListCoursesErrors,
   ListCoursesResponses,
   ListDownloadAssetsErrors,
@@ -3648,7 +3650,7 @@ export class Communities {
   /**
    * List communities
    *
-   * Requires `communities:read`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.
+   * Requires one of `communities:read`, `communities:moderate`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.
    */
   public static listCommunities<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3759,7 +3761,7 @@ export class Communities {
   /**
    * Get a community
    *
-   * Requires `communities:read`. Any community of the organization, drafts included.
+   * Requires one of `communities:read`, `communities:moderate`. Any community of the organization, drafts included.
    */
   public static getCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4030,7 +4032,7 @@ export class Communities {
   /**
    * List the spaces in a community
    *
-   * Requires `communities:read`. Every space in order, with its topics and links.
+   * Requires one of `communities:read`, `communities:moderate`. Every space in order, with its topics and links.
    */
   public static listCommunitySpaces<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4846,7 +4848,7 @@ export class Communities {
   /**
    * Remove a post
    *
-   * Needs `communities:moderate` on the community. Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   * The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
    */
   public static removeCommunityPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4971,7 +4973,7 @@ export class Communities {
   /**
    * Remove a comment on a post
    *
-   * Needs `communities:moderate` on the community. Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
+   * The author can remove their own comment; anyone else needs `communities:moderate` on the community. Hides the comment; removing someone else's comment resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
    */
   public static removeCommunityComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6283,7 +6285,7 @@ export class Posts {
   /**
    * Remove your post, or one in a space you moderate
    *
-   * For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   * The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
    */
   public static removePost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7871,7 +7873,7 @@ export class Discussion {
   /**
    * Delete your comment, or one you moderate
    *
-   * For the author, or a holder of `courses:moderate` on the course for an activity comment or of `communities:moderate` on the community for a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
+   * The author can delete their own comment; anyone else needs `communities:moderate` on the community for a post comment, or `courses:moderate` on the course for a lesson comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
    */
   public static deleteComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9018,6 +9020,46 @@ export class Reporting {
     >({
       responseStyle: "data",
       url: "/api/courses/{id}/analytics/enrollments",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List a course's learners with their access and progress
+   *
+   * Requires `progress:read`. Everyone with a grant that opens the course, directly or through a bundle, active or not, each with that grant and their progress. Paged and searched by name or email.
+   */
+  public static listCourseLearners<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string;
+      page?: number;
+      pageSize?: number;
+      search?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListCourseLearnersResponses, ListCourseLearnersErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "courseId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListCourseLearnersResponses,
+      ListCourseLearnersErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/courses/{courseId}/learners",
       ...options,
       ...params,
     });

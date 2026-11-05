@@ -621,6 +621,7 @@ export async function buildContainer(
     admin: new AdminReportServiceImpl({
       repo: new DrizzleAdminRepository(db, reportingLogger),
       permissions: organizations,
+      spaces: entitlements,
     }),
     member: new MemberReportServiceImpl({
       repo: new DrizzleMemberRepository(db, reportingLogger),
@@ -683,15 +684,15 @@ export async function buildContainer(
     },
     contentInfo: async (orgId, contentId) => {
       const system = organizations.systemActor(orgId);
-      const course = await content.getCourse(contentId, system);
+      const course = await content.findCourse(contentId, system);
       if (course) {
         return { id: course.id, title: course.title, type: course.type };
       }
-      const download = await content.getDownload(contentId, system);
+      const download = await content.findDownload(contentId, system);
       if (download) {
         return { id: download.id, title: download.title, type: download.type };
       }
-      const community = await content.getCommunity(contentId, system);
+      const community = await content.findCommunity(contentId, system);
       return community ? { id: community.id, title: community.title, type: community.type } : null;
     },
   };

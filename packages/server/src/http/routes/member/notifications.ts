@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { InvalidInputError, NotFoundError } from '@headless-lms/core/shared/errors';
+import { InvalidInputError } from '@headless-lms/core/shared/errors';
 import { resolveCaller } from '../../scope.js';
 import {
   NotificationFilterQuery,
@@ -83,14 +83,10 @@ export async function memberNotificationRoutes(
       response: { 200: NotificationView, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const view = await container.reporting.member.notification(
+      return container.reporting.member.notification(
         req.params.notificationId,
         await memberOf(req),
       );
-      if (!view) {
-        throw new NotFoundError('Notification', req.params.notificationId);
-      }
-      return view;
     },
   });
 

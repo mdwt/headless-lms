@@ -90,6 +90,12 @@ const cases: ToolCase[] = [
     expected: ['crs_1', OWNER],
   },
   {
+    tool: 'list_course_learners',
+    args: { courseId: 'crs_1', search: 'ja' },
+    service: 'reporting.admin.courseLearners',
+    expected: ['crs_1', { page: 1, pageSize: 20, search: 'ja' }, OWNER],
+  },
+  {
     tool: 'get_course_enrollment_trend',
     args: { courseId: 'crs_1' },
     service: 'reporting.admin.courseEnrollments',
@@ -116,6 +122,7 @@ describe('student, access and analytics tools', () => {
       ['get_dashboard', 'reporting.admin.overview', 'read', true, false],
       ['get_enrollment_trend', 'reporting.admin.enrollments', 'read', true, false],
       ['get_course_analytics', 'reporting.admin.courseAnalytics', 'read', true, false],
+      ['list_course_learners', 'reporting.admin.courseLearners', 'read', true, false],
       ['get_course_enrollment_trend', 'reporting.admin.courseEnrollments', 'read', true, false],
       ['get_student_analytics', 'reporting.admin.studentAnalytics', 'read', true, false],
     ]);

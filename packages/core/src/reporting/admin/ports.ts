@@ -7,6 +7,8 @@ import type {
   CommunityMembersQuery,
   CourseAnalytics,
   CourseEnrollmentPoint,
+  CourseLearner,
+  CourseLearnersQuery,
   EnrollmentPoint,
   OverviewStats,
   Page,
@@ -19,21 +21,22 @@ import type {
 export interface AdminReportService {
   overview(actor: Actor): Promise<OverviewStats>;
   enrollments(days: number, actor: Actor): Promise<EnrollmentPoint[]>;
-  courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics | null>;
-  courseEnrollments(
+  courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics>;
+  courseEnrollments(courseId: string, days: number, actor: Actor): Promise<CourseEnrollmentPoint[]>;
+  courseLearners(
     courseId: string,
-    days: number,
+    query: CourseLearnersQuery,
     actor: Actor,
-  ): Promise<CourseEnrollmentPoint[] | null>;
+  ): Promise<Page<CourseLearner>>;
   listStudents(query: StudentsQuery, actor: Actor): Promise<Page<Student>>;
-  getStudent(id: string, actor: Actor): Promise<Student | null>;
-  studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics | null>;
-  communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics | null>;
+  getStudent(id: string, actor: Actor): Promise<Student>;
+  studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics>;
+  communityAnalytics(communityId: string, actor: Actor): Promise<CommunityAnalytics>;
   communityMembers(
     communityId: string,
     query: CommunityMembersQuery,
     actor: Actor,
-  ): Promise<Page<CommunityMember> | null>;
+  ): Promise<Page<CommunityMember>>;
 }
 
 export interface PermissionsReader {
@@ -41,6 +44,10 @@ export interface PermissionsReader {
     orgId: string,
     orgUserIds: string[],
   ): Promise<Map<string, EffectivePermissions>>;
+}
+
+export interface SpaceOpenersReader {
+  everySpaceOpeners(orgId: string, communityId: string): Promise<string[]>;
 }
 
 export interface AdminReportRepository {
@@ -52,6 +59,11 @@ export interface AdminReportRepository {
     courseId: string,
     days: number,
   ): Promise<CourseEnrollmentPoint[] | null>;
+  courseLearners(
+    orgId: string,
+    courseId: string,
+    query: CourseLearnersQuery,
+  ): Promise<Page<CourseLearner> | null>;
   /** Active and invited org users whose org role is `memberRoleKey`: no org assignment,
    *  and for an invited one, a pending invite carrying that key. */
   listStudents(

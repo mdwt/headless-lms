@@ -66,6 +66,11 @@ export const OrgRoleView = z.object({
   added: z.boolean(),
   customized: z.boolean(),
   holders: z.number().int(),
+  givable: z
+    .boolean()
+    .describe(
+      'Whether the role can be given. False for the owner role, which moves only by transfer.',
+    ),
 });
 export const OrgRoleList = z.array(OrgRoleView);
 

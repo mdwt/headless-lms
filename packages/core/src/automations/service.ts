@@ -563,7 +563,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return automation;
   }
 
-  async update(id: string, input: UpdateAutomationInput, actor: Actor): Promise<Automation | null> {
+  async update(id: string, input: UpdateAutomationInput, actor: Actor): Promise<Automation> {
     actor.permissions.require('automations:write');
     const orgId = actor.orgId;
     if (input.triggers !== undefined) {
@@ -575,7 +575,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
     const existing = await this.repo.findById(orgId, id);
     if (!existing) {
-      return null;
+      throw new NotFoundError('Automation', id);
     }
     if (existing.kind !== 'workflow') {
       throw new AutomationKindMismatchError(id, existing.kind);
@@ -590,19 +590,20 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       await outbox.append([updateEvent(orgId, input, updated)]);
       return updated;
     });
-    if (automation) {
-      this.logger.info('automation updated', { orgId, automationId: id });
-      await this.reconcileSchedules(orgId);
+    if (!automation) {
+      throw new NotFoundError('Automation', id);
     }
+    this.logger.info('automation updated', { orgId, automationId: id });
+    await this.reconcileSchedules(orgId);
     return automation;
   }
 
-  async delete(id: string, actor: Actor): Promise<boolean> {
+  async delete(id: string, actor: Actor): Promise<void> {
     actor.permissions.require('automations:delete');
     const orgId = actor.orgId;
     const existing = await this.repo.findById(orgId, id);
     if (!existing) {
-      return false;
+      throw new NotFoundError('Automation', id);
     }
     if (existing.kind !== 'workflow') {
       throw new AutomationKindMismatchError(id, existing.kind);
@@ -615,11 +616,11 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       await outbox.append([automationEvents.automationDeleted.make({ orgId, data: removed })]);
       return removed;
     });
-    if (deleted) {
-      this.logger.info('automation deleted', { orgId, automationId: id });
-      await this.reconcileSchedules(orgId);
+    if (!deleted) {
+      throw new NotFoundError('Automation', id);
     }
-    return deleted !== null;
+    this.logger.info('automation deleted', { orgId, automationId: id });
+    await this.reconcileSchedules(orgId);
   }
 
   async list(query: AutomationsQuery | undefined, actor: Actor): Promise<Automation[]> {
@@ -628,10 +629,13 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return automations.map(toAutomationView);
   }
 
-  async get(id: string, actor: Actor): Promise<Automation | null> {
+  async get(id: string, actor: Actor): Promise<Automation> {
     actor.permissions.require('automations:read');
     const automation = await this.repo.findById(actor.orgId, id);
-    return automation ? toAutomationView(automation) : null;
+    if (!automation) {
+      throw new NotFoundError('Automation', id);
+    }
+    return toAutomationView(automation);
   }
 
   async listRuns(
@@ -693,10 +697,9 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return automations.map(toWebhook);
   }
 
-  async getWebhook(id: string, actor: Actor): Promise<Webhook | null> {
+  async getWebhook(id: string, actor: Actor): Promise<Webhook> {
     actor.permissions.require('automations:read');
-    const automation = await this.findWebhook(actor.orgId, id);
-    return automation ? toWebhook(automation) : null;
+    return toWebhook(await this.requireWebhook(actor.orgId, id));
   }
 
   async createWebhook(input: CreateWebhookInput, actor: Actor): Promise<CreatedWebhook> {
@@ -722,17 +725,10 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return { ...toWebhook(automation), secret };
   }
 
-  async updateWebhook(
-    id: string,
-    input: UpdateWebhookInput,
-    actor: Actor,
-  ): Promise<Webhook | null> {
+  async updateWebhook(id: string, input: UpdateWebhookInput, actor: Actor): Promise<Webhook> {
     actor.permissions.require('automations:write');
     const orgId = actor.orgId;
-    const existing = await this.findWebhook(orgId, id);
-    if (!existing) {
-      return null;
-    }
+    const existing = await this.requireWebhook(orgId, id);
     const events = input.events === undefined ? undefined : unique(input.events);
     if (events) {
       assertCatalogTriggers(events, false);
@@ -758,19 +754,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       return row;
     });
     if (!updated) {
-      return null;
+      throw new NotFoundError('Webhook', id);
     }
     this.logger.info('webhook updated', { orgId, automationId: id });
     return toWebhook(updated);
   }
 
-  async deleteWebhook(id: string, actor: Actor): Promise<boolean> {
+  async deleteWebhook(id: string, actor: Actor): Promise<void> {
     actor.permissions.require('automations:delete');
     const orgId = actor.orgId;
-    const existing = await this.findWebhook(orgId, id);
-    if (!existing) {
-      return false;
-    }
+    const existing = await this.requireWebhook(orgId, id);
     const { secretRef } = webhookTarget(existing);
     const deleted = await this.uow.run(async ({ automations, credentials, outbox }) => {
       const removed = await automations.delete(orgId, id);
@@ -781,19 +774,16 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       await outbox.append([automationEvents.automationDeleted.make({ orgId, data: removed })]);
       return removed;
     });
-    if (deleted) {
-      this.logger.info('webhook deleted', { orgId, automationId: id });
+    if (!deleted) {
+      throw new NotFoundError('Webhook', id);
     }
-    return deleted !== null;
+    this.logger.info('webhook deleted', { orgId, automationId: id });
   }
 
-  async revealWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null> {
+  async revealWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret> {
     actor.permissions.require('automations:write');
     const orgId = actor.orgId;
-    const existing = await this.findWebhook(orgId, id);
-    if (!existing) {
-      return null;
-    }
+    const existing = await this.requireWebhook(orgId, id);
     const secrets = await this.credentials.reveal(orgId, webhookTarget(existing).secretRef);
     const secret = secrets?.['secret'];
     if (typeof secret !== 'string') {
@@ -802,22 +792,22 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     return { secret };
   }
 
-  async rotateWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret | null> {
+  async rotateWebhookSecret(id: string, actor: Actor): Promise<WebhookSecret> {
     actor.permissions.require('automations:write');
     const orgId = actor.orgId;
-    const existing = await this.findWebhook(orgId, id);
-    if (!existing) {
-      return null;
-    }
+    const existing = await this.requireWebhook(orgId, id);
     const secret = generateWebhookSecret();
     await this.credentials.update(orgId, webhookTarget(existing).secretRef, { secret });
     this.logger.info('webhook secret rotated', { orgId, automationId: id });
     return { secret };
   }
 
-  private async findWebhook(orgId: string, id: string): Promise<Automation | null> {
+  private async requireWebhook(orgId: string, id: string): Promise<Automation> {
     const automation = await this.repo.findById(orgId, id);
-    return automation?.kind === 'webhook' ? automation : null;
+    if (automation?.kind !== 'webhook') {
+      throw new NotFoundError('Webhook', id);
+    }
+    return automation;
   }
 
   availableActions(actor: Actor): AvailableActions {

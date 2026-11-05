@@ -1524,6 +1524,41 @@ describe('course access', () => {
   });
 });
 
+describe('a learner with a grant', () => {
+  it('posts a lesson comment, with every content read passing the system actor', async () => {
+    const fake = fakeRepo();
+    const { uow } = fakeUow(fake.repo);
+    const { settings } = fakeSettings();
+    await setSettings(settings, 'c1', { enabled: true });
+    const readers: Actor[] = [];
+    const service = new DiscussionServiceImpl({
+      repo: fake.repo,
+      access: fakeAccess().access,
+      content: {
+        async getActivity(activityId, actor) {
+          readers.push(actor);
+          return { id: activityId, courseId: 'c1', settings: {} } as never;
+        },
+      },
+      posts: { visible: async () => null as never, find: async () => null },
+      spaces: { spaceOpenersAmong: async () => [] },
+      authors: fakeAuthors(),
+      mentions: mentionStore().repo,
+      uow,
+      settings,
+      fileUrls,
+    });
+    const view = await service.postComment(
+      { activityId: 'a1', parentId: null, body: 'Hola' },
+      learner,
+    );
+    expect(view).toMatchObject({ status: 'published', author: { id: learner.id } });
+    expect(readers.length).toBeGreaterThan(0);
+    expect(readers.every((actor) => actor.id === 'system')).toBe(true);
+    expect(readers.every((actor) => actor.permissions.has('courses:write', 'c1'))).toBe(true);
+  });
+});
+
 describe('lesson comment moderation is courses:moderate on the comment’s course', () => {
   async function seeded() {
     const s = await openCourse();

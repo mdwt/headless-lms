@@ -29,13 +29,13 @@ function build(grants: string[]) {
     canOpenSpace: vi.fn(async (spaceId: string, _a: Actor) => spaceId === 'spc_1'),
   };
   const content = {
-    getCourse: async (id: string) => (courses[id] ?? null) as never,
+    findCourse: async (id: string) => (courses[id] ?? null) as never,
     getActivity: async (id: string) => (activities[id] ?? null) as never,
-    getDownload: async (id: string) =>
+    findDownload: async (id: string) =>
       (id === 'dwn_1' ? { id, title: 'Verb tables', status: 'published' } : null) as never,
-    getBundle: async (id: string) => (id === 'bun_1' ? { id, name: 'Everything' } : null) as never,
+    findBundle: async (id: string) => (id === 'bun_1' ? { id, name: 'Everything' } : null) as never,
     listBundleItems: async () => [{ contentId: 'crs_1' }, { contentId: 'dwn_1' }] as never,
-    getCommunity: async (id: string) =>
+    findCommunity: async (id: string) =>
       (id === 'cmy_1' ? { id, title: 'Spring cohort' } : null) as never,
     getSpace: async (id: string) =>
       (id.startsWith('spc_')

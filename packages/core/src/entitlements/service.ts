@@ -160,11 +160,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return entitlement;
   }
 
-  async setStatus(
-    id: string,
-    status: 'active' | 'revoked',
-    actor: Actor,
-  ): Promise<Entitlement | null> {
+  async setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement> {
     actor.permissions.require('access:write');
     const orgId = actor.orgId;
     const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
@@ -185,14 +181,15 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       ]);
       return updated;
     });
-    if (entitlement) {
-      this.logger.info('entitlement status changed', {
-        orgId,
-        entitlementId: id,
-        status,
-        actorId: actor.id,
-      });
+    if (!entitlement) {
+      throw new NotFoundError('Entitlement', id);
     }
+    this.logger.info('entitlement status changed', {
+      orgId,
+      entitlementId: id,
+      status,
+      actorId: actor.id,
+    });
     return entitlement;
   }
 
@@ -396,8 +393,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     const orgId = actor.orgId;
     const space = await this.requireVisibleSpaceIn(actor, communityId, spaceId);
-    this.assertRule(space.accessRule, 'by_invite');
     await this.assertCanManage(actor, space.communityId);
+    this.assertRule(space.accessRule, 'by_invite');
     await this.assertHolds(actor, orgUserId, space.communityId);
     const created = await this.createMember(orgId, actor, space, orgUserId, 'invited', 'invite');
     this.logger.info('space member created', {
@@ -418,8 +415,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     const orgId = actor.orgId;
     const space = await this.requireVisibleSpaceIn(actor, communityId, spaceId);
-    this.assertHasMembers(space.accessRule);
     await this.assertCanManage(actor, space.communityId);
+    this.assertHasMembers(space.accessRule);
     await this.assertHolds(actor, orgUserId, space.communityId);
     const excluding = await this.everySpaceOpeners(orgId, space.communityId);
     const created = await this.uow.run(async (scope) => {
@@ -470,8 +467,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     const orgId = actor.orgId;
     const space = await this.requireVisibleSpaceIn(actor, communityId, spaceId);
-    this.assertRule(space.accessRule, 'by_request');
     await this.assertCanManage(actor, space.communityId);
+    this.assertRule(space.accessRule, 'by_request');
     await this.assertHolds(actor, orgUserId, space.communityId);
     const excluding = await this.everySpaceOpeners(orgId, space.communityId);
     return this.activate(
@@ -530,8 +527,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<SpaceMember> {
     const orgId = actor.orgId;
     const space = await this.requireVisibleSpaceIn(actor, communityId, spaceId);
-    this.assertHasMembers(space.accessRule);
     await this.assertCanManage(actor, space.communityId);
+    this.assertHasMembers(space.accessRule);
     const { updated, previousStatus } = await this.uow.run(
       async ({ entitlements, spaces, outbox }) => {
         const locked = await this.lockSpace(spaces, orgId, spaceId);

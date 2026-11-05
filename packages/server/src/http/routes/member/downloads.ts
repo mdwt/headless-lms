@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { DownloadIdParam, MemberDownload, MemberDownloads, refusals } from '../../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
 import { resolveActor } from '../../scope.js';
 
@@ -47,11 +46,7 @@ export async function memberDownloadsRoutes(
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const result = await member.getDownload(req.params.downloadId, actor);
-      if (!result) {
-        throw new NotFoundError('Download', req.params.downloadId);
-      }
-      return result;
+      return member.getDownload(req.params.downloadId, actor);
     },
   });
 }

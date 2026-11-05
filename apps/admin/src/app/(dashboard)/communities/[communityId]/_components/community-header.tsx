@@ -24,23 +24,20 @@ import { deleteCommunityAndRedirectAction, setCommunityPublishedAction } from ".
 import { CommunityTabsNav } from "./community-tabs-nav";
 
 export function CommunityHeader({
-  id,
-  title,
   community,
   stats,
 }: {
-  id: string;
-  title: string;
-  community: Community | null;
+  community: Community;
   stats: { spaceCount: number; memberCount: number | null };
 }) {
+  const { id, title } = community;
   const permissions = usePermissions();
   const router = useRouter();
-  const canManage = community !== null && permissions.has("communities:write", id);
-  const canDelete = community !== null && permissions.has("communities:delete", id);
+  const canManage = permissions.has("communities:write", id);
+  const canDelete = permissions.has("communities:delete", id);
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const published = community?.status === "published";
+  const published = community.status === "published";
 
   function onTogglePublish() {
     const next: Community["status"] = published ? "draft" : "published";
@@ -80,12 +77,8 @@ export function CommunityHeader({
         <div className="flex min-w-0 flex-col gap-2">
           <h1 className="text-xl font-semibold tracking-tight text-balance text-ink">{title}</h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-3">
-            {community ? (
-              <>
-                <CourseStatusBadge status={community.status} />
-                <Dot />
-              </>
-            ) : null}
+            <CourseStatusBadge status={community.status} />
+            <Dot />
             <span className="tabular-nums">
               {formatNumber(stats.spaceCount)} {stats.spaceCount === 1 ? "space" : "spaces"}
             </span>
@@ -97,12 +90,8 @@ export function CommunityHeader({
                 </span>
               </>
             ) : null}
-            {community ? (
-              <>
-                <Dot />
-                <span>Updated {relativeTime(community.updatedAt)}</span>
-              </>
-            ) : null}
+            <Dot />
+            <span>Updated {relativeTime(community.updatedAt)}</span>
           </div>
         </div>
 

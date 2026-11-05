@@ -17,7 +17,6 @@ import type {
   GetCommunityMessageQueueResponse,
   GetCommunityNotificationCategoriesResponse,
   GetCommunityResponse,
-  GetMemberCommunityHomeResponse,
   GetCommunitySpaceQueueResponse,
   GetPostResponse,
   GetDownloadResponse,
@@ -40,6 +39,7 @@ import type {
   ListBundlesResponse,
   ListConnectionsResponse,
   ListCommunityMembersResponse,
+  ListCourseLearnersResponse,
   ListCommunitySpaceMembersResponse,
   ListCommunitySpacesResponse,
   ListNotificationTypesResponse,
@@ -172,6 +172,8 @@ export type EnrollmentSeries = GetEnrollmentSeriesResponse;
 export type EnrollmentPoint = EnrollmentSeries[number];
 export type CourseAnalytics = GetCourseAnalyticsResponse;
 export type CourseActivityEngagement = CourseAnalytics["activities"][number];
+export type CourseLearnersPage = ListCourseLearnersResponse;
+export type CourseLearner = CourseLearnersPage["rows"][number];
 export type StudentAnalytics = GetStudentAnalyticsResponse;
 export type StudentCourseProgress = StudentAnalytics["courses"][number];
 
@@ -227,7 +229,6 @@ export type DmSettings = Community["settings"]["dm"];
 export type DigestSchedule = NonNullable<Community["settings"]["digest"]>;
 export type CommunityAnalytics = GetCommunityAnalyticsResponse;
 export type CommunityMember = ListCommunityMembersResponse["rows"][number];
-export type MemberCommunityHome = GetMemberCommunityHomeResponse;
 
 export type Space = ListCommunitySpacesResponse[number];
 export type SpaceAccessRule = Space["accessRule"];
@@ -249,7 +250,6 @@ export interface SpaceModeration {
   flaggedPosts: { post: CommunityPost; flags: SpaceQueue["flags"] }[];
   flaggedComments: {
     comment: SpaceQueue["commentFlags"][number]["comment"];
-    authorName: string;
     flags: SpaceQueue["commentFlags"];
   }[];
 }

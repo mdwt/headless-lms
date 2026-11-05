@@ -87,6 +87,8 @@ function actorMetadata(actor: Actor): { actorOrgUserId: string } {
   return { actorOrgUserId: actor.id };
 }
 
+const COMMUNITY_READERS: readonly Permission[] = ['communities:read', 'communities:moderate'];
+
 type WithThumbnail = {
   id: string;
   type: 'course' | 'download' | 'community';
@@ -121,31 +123,40 @@ export class ContentService
   }
 
   private require(actor: Actor, permission: Permission, on?: string): void {
-    if (!actor.permissions.has(permission, on)) {
+    this.requireAny(actor, [permission], on);
+  }
+
+  private requireAny(actor: Actor, permissions: readonly Permission[], on?: string): void {
+    if (!permissions.some((permission) => actor.permissions.has(permission, on))) {
       this.logger.warn('content action refused', {
         orgId: actor.orgId,
         actorId: actor.id,
-        permission,
+        permission: permissions.join(' or '),
         contentId: on,
       });
-      throw new ForbiddenError(`You need ${permission}`);
+      throw new ForbiddenError(`You need ${permissions.join(' or ')}`);
     }
   }
 
-  private visibleIds(actor: Actor, permission: Permission, what: string): string[] | undefined {
-    const where = actor.permissions.where(permission);
-    if (where.org) {
+  private visibleIds(
+    actor: Actor,
+    permissions: readonly Permission[],
+    what: string,
+  ): string[] | undefined {
+    const wheres = permissions.map((permission) => actor.permissions.where(permission));
+    if (wheres.some((where) => where.org)) {
       return undefined;
     }
-    if (where.content.length === 0) {
+    const ids = [...new Set(wheres.flatMap((where) => where.content))];
+    if (ids.length === 0) {
       this.logger.warn('content list refused', {
         orgId: actor.orgId,
         actorId: actor.id,
-        permission,
+        permission: permissions.join(' or '),
       });
       throw new ForbiddenError(`You cannot see ${what}`);
     }
-    return where.content;
+    return ids;
   }
 
   private withThumbnail<T extends WithThumbnail>(item: T): T & { thumbnailUrl: string | null } {
@@ -235,11 +246,19 @@ export class ContentService
   }
 
   async listCourses(query: ListCoursesQuery, actor: Actor): Promise<Page<CourseView>> {
-    const ids = this.visibleIds(actor, 'courses:read', 'courses');
+    const ids = this.visibleIds(actor, ['courses:read'], 'courses');
     return this.pageWithThumbnails(await this.repo.listCourses(actor.orgId, query, ids));
   }
 
-  async getCourse(id: string, actor: Actor): Promise<CourseView | null> {
+  async getCourse(id: string, actor: Actor): Promise<CourseView> {
+    const course = await this.findCourse(id, actor);
+    if (!course) {
+      throw new NotFoundError('Course', id);
+    }
+    return course;
+  }
+
+  async findCourse(id: string, actor: Actor): Promise<CourseView | null> {
     this.require(actor, 'courses:read', id);
     const course = await this.repo.findCourseById(actor.orgId, id);
     return course ? this.withThumbnail(course) : null;
@@ -607,11 +626,19 @@ export class ContentService
   // --- downloads ------------------------------------------------------------
 
   async listDownloads(query: ListDownloadsQuery, actor: Actor): Promise<Page<DownloadView>> {
-    const ids = this.visibleIds(actor, 'downloads:read', 'downloads');
+    const ids = this.visibleIds(actor, ['downloads:read'], 'downloads');
     return this.pageWithThumbnails(await this.repo.listDownloads(actor.orgId, query, ids));
   }
 
-  async getDownload(id: string, actor: Actor): Promise<DownloadView | null> {
+  async getDownload(id: string, actor: Actor): Promise<DownloadView> {
+    const download = await this.findDownload(id, actor);
+    if (!download) {
+      throw new NotFoundError('Download', id);
+    }
+    return download;
+  }
+
+  async findDownload(id: string, actor: Actor): Promise<DownloadView | null> {
     this.require(actor, 'downloads:read', id);
     const download = await this.repo.getDownload(actor.orgId, id);
     return download ? this.withThumbnail(download) : null;
@@ -809,7 +836,15 @@ export class ContentService
     return this.repo.listBundles(actor.orgId, query);
   }
 
-  async getBundle(id: string, actor: Actor): Promise<Bundle | null> {
+  async getBundle(id: string, actor: Actor): Promise<Bundle> {
+    const bundle = await this.findBundle(id, actor);
+    if (!bundle) {
+      throw new NotFoundError('Bundle', id);
+    }
+    return bundle;
+  }
+
+  async findBundle(id: string, actor: Actor): Promise<Bundle | null> {
     this.require(actor, 'bundles:read');
     return this.repo.findBundleById(actor.orgId, id);
   }
@@ -962,12 +997,20 @@ export class ContentService
   }
 
   async listCommunities(query: ListCommunitiesQuery, actor: Actor): Promise<Page<CommunityView>> {
-    const ids = this.visibleIds(actor, 'communities:read', 'communities');
+    const ids = this.visibleIds(actor, COMMUNITY_READERS, 'communities');
     return this.pageWithThumbnails(await this.repo.listCommunities(actor.orgId, query, ids));
   }
 
-  async getCommunity(id: string, actor: Actor): Promise<CommunityView | null> {
-    this.require(actor, 'communities:read', id);
+  async getCommunity(id: string, actor: Actor): Promise<CommunityView> {
+    const community = await this.findCommunity(id, actor);
+    if (!community) {
+      throw new NotFoundError('Community', id);
+    }
+    return community;
+  }
+
+  async findCommunity(id: string, actor: Actor): Promise<CommunityView | null> {
+    this.requireAny(actor, COMMUNITY_READERS, id);
     const community = await this.repo.findCommunityById(actor.orgId, id);
     return community ? this.withThumbnail(community) : null;
   }
@@ -1001,14 +1044,17 @@ export class ContentService
     communityId: string,
     spaceId: string,
     actor: Actor,
-  ): Promise<SpaceDetail | null> {
+  ): Promise<SpaceDetail> {
     this.require(actor, 'communities:read', communityId);
     const space = await this.repo.findSpace(actor.orgId, spaceId);
-    return space?.communityId === communityId ? space : null;
+    if (space?.communityId !== communityId) {
+      throw new NotFoundError('Space', spaceId);
+    }
+    return space;
   }
 
   async listSpaces(communityId: string, actor: Actor): Promise<SpaceDetail[]> {
-    this.require(actor, 'communities:read', communityId);
+    this.requireAny(actor, COMMUNITY_READERS, communityId);
     if (!(await this.repo.findCommunityById(actor.orgId, communityId))) {
       throw new NotFoundError('Community', communityId);
     }

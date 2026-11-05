@@ -13,7 +13,6 @@ import {
   UploadTicket,
   refusals,
 } from '../schemas/index.js';
-import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
 import { describeOperation } from '../operations.js';
@@ -56,11 +55,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const asset = await assets.confirm(req.params.id, actor);
-      if (!asset) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
-      return asset;
+      return assets.confirm(req.params.id, actor);
     },
   });
 
@@ -96,11 +91,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      const asset = await assets.get(req.params.id, actor);
-      if (!asset) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
-      return asset;
+      return assets.get(req.params.id, actor);
     },
   });
 
@@ -118,10 +109,7 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
-      const removed = await assets.remove(req.params.id, actor);
-      if (!removed) {
-        throw new NotFoundError('Asset', req.params.id);
-      }
+      await assets.remove(req.params.id, actor);
       return reply.code(204).send();
     },
   });
@@ -155,9 +143,6 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       handler: async (req, reply) => {
         const actor = await resolveActor(container, req);
         const url = await assets.libraryFile(req.params.id, { download }, actor);
-        if (!url) {
-          throw new NotFoundError('Asset', req.params.id);
-        }
         return reply
           .header('cache-control', 'no-store')
           .header('referrer-policy', 'no-referrer')

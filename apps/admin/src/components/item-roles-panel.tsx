@@ -69,7 +69,7 @@ export function ItemRolesPanel({
   const [pending, startTransition] = useTransition();
   const members = useMemo(() => (memberIds ? new Set(memberIds) : null), [memberIds]);
   const community = contentType === "community";
-  const offered = roles.filter((r) => r.levels.includes(contentType));
+  const offered = roles.filter((r) => r.givable && r.levels.includes(contentType));
   const canGive = canWrite && offered.length > 0;
 
   function onRemove(row: ItemRoleRow) {
