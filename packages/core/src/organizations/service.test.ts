@@ -1303,3 +1303,16 @@ describe('ownership transfer, more', () => {
     expect(w.events.filter((e) => e.type === 'organization.ownership.transferred')).toHaveLength(1);
   });
 });
+
+describe('Better Auth on role changes', () => {
+  it('leaves the membership untouched when roles are set, given or removed', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await w.service.setOrgRole(s.james.orgUser.id, 'instructor', owner);
+    await w.service.assignRole(s.emma.orgUser.id, 'cmy_1', 'moderator', owner);
+    await w.service.unassignRole(s.emma.orgUser.id, 'cmy_1', owner);
+    await w.service.setOrgRole(s.james.orgUser.id, 'member', owner);
+    expect(w.orgAdmin.grantMembership).not.toHaveBeenCalled();
+    expect(w.orgAdmin.setMembershipOwner).not.toHaveBeenCalled();
+    expect(w.orgAdmin.removeMembership).not.toHaveBeenCalled();
+  });
+});
