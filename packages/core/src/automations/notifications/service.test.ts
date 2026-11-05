@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { NotFoundError } from '../../shared/errors.js';
 import type { NotificationsRepository } from '../ports.js';
 import { NotificationsServiceImpl } from './service.js';
+import { actorWith } from '../../organizations/index.js';
+
+const ACTOR = actorWith({ id: 'ou_1', orgId: 'org_1' });
 
 function fakeRepo(over: Partial<NotificationsRepository> = {}): NotificationsRepository {
   return {
@@ -24,7 +27,7 @@ describe('NotificationsService', () => {
   it('lists through the repository with the filter and page', async () => {
     const repo = fakeRepo();
     const svc = new NotificationsServiceImpl({ repo });
-    await svc.list('org_1', 'usr_1', { category: ['mentions'] }, { page: 1, pageSize: 20 });
+    await svc.list('usr_1', { category: ['mentions'] }, { page: 1, pageSize: 20 }, ACTOR);
     expect(repo.page).toHaveBeenCalledWith(
       'org_1',
       'usr_1',
@@ -36,7 +39,7 @@ describe('NotificationsService', () => {
   it('reads one notification of the person through the repository', async () => {
     const repo = fakeRepo();
     const svc = new NotificationsServiceImpl({ repo });
-    await expect(svc.get('org_1', 'usr_1', 'ntf_1')).resolves.toBeNull();
+    await expect(svc.get('usr_1', 'ntf_1', ACTOR)).resolves.toBeNull();
     expect(repo.find).toHaveBeenCalledWith('org_1', 'usr_1', 'ntf_1');
   });
 
@@ -48,7 +51,7 @@ describe('NotificationsService', () => {
       })),
     });
     const svc = new NotificationsServiceImpl({ repo });
-    await expect(svc.unreadCounts('org_1', 'usr_1', ['cmy_1', 'cmy_2', 'cmy_1'])).resolves.toEqual({
+    await expect(svc.unreadCounts('usr_1', ['cmy_1', 'cmy_2', 'cmy_1'], ACTOR)).resolves.toEqual({
       org: 2,
       communities: [
         { communityId: 'cmy_1', unread: 0 },
@@ -61,15 +64,15 @@ describe('NotificationsService', () => {
   it('marks one read, and throws NotFoundError when it is not the person’s', async () => {
     const repo = fakeRepo({ markRead: vi.fn(async (_o, _u, id) => id === 'ntf_1') });
     const svc = new NotificationsServiceImpl({ repo });
-    await expect(svc.markRead('org_1', 'usr_1', 'ntf_1')).resolves.toBeUndefined();
-    await expect(svc.markRead('org_1', 'usr_1', 'ntf_x')).rejects.toBeInstanceOf(NotFoundError);
+    await expect(svc.markRead('usr_1', 'ntf_1', ACTOR)).resolves.toBeUndefined();
+    await expect(svc.markRead('usr_1', 'ntf_x', ACTOR)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('marks the notifications matching the filter read', async () => {
     const repo = fakeRepo({ markAllRead: vi.fn(async () => 3) });
     const svc = new NotificationsServiceImpl({ repo });
     await expect(
-      svc.markAllRead('org_1', 'usr_1', { reason: ['comment_author', 'thread_participant'] }),
+      svc.markAllRead('usr_1', { reason: ['comment_author', 'thread_participant'] }, ACTOR),
     ).resolves.toEqual({ marked: 3 });
     expect(repo.markAllRead).toHaveBeenCalledWith(
       'org_1',

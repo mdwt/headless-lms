@@ -94,7 +94,8 @@ type World = {
   followers?: string[];
   thread?: string[];
   moderators?: string[];
-  staff?: string[];
+  courseModerators?: string[];
+  readers?: string[];
   holders?: string[];
   blocked?: string[];
   participants?: Participant[];
@@ -124,8 +125,12 @@ function fakeReads(world: World = {}) {
       ids.filter((id) => (world.members ?? EVERYONE).includes(id)),
     communityMembers: async () => world.members ?? EVERYONE,
     communityTitle: async () => 'Spring cohort',
-    moderationAudience: async () => world.moderators ?? ['ou_mia', 'ou_olivia'],
-    staffIds: async () => world.staff ?? ['ou_olivia'],
+    holders: async (_o, permission) =>
+      permission === 'communities:moderate'
+        ? (world.moderators ?? ['ou_mia', 'ou_olivia'])
+        : permission === 'courses:moderate'
+          ? (world.courseModerators ?? ['ou_olivia'])
+          : (world.readers ?? ['ou_olivia']),
     followerIds: async () => world.followers ?? [],
     threadParticipants: async () => world.thread ?? [],
     mutedAmong: muted,
@@ -516,7 +521,7 @@ describe('discussion.comment.created', () => {
     const { lists } = await run(created({ ...ACTIVITY_COMMENT, parentId: 'cmt_9' }), {
       thread: ['ou_james', 'ou_emma', 'ou_noah'],
       holders: ['ou_emma', 'ou_sarah'],
-      staff: ['ou_noah'],
+      readers: ['ou_noah'],
     });
     expect(lists.map((list) => list.type)).toEqual(['comment.created', 'mention']);
     expect(lists[0]).toMatchObject({
@@ -758,8 +763,10 @@ describe('reports', () => {
     expect(people(lists[0])).toEqual({ ou_mia: ['moderator'], ou_olivia: ['moderator'] });
   });
 
-  it('tells staff about a reported activity comment, the reporter excluded', async () => {
-    const { lists } = await run(commentFlag('cmt_9', null), { staff: ['ou_olivia', 'ou_emma'] });
+  it('tells the course moderators about a reported activity comment, the reporter excluded', async () => {
+    const { lists } = await run(commentFlag('cmt_9', null), {
+      courseModerators: ['ou_olivia', 'ou_emma'],
+    });
     expect(lists[0]).toMatchObject({
       type: 'content.flagged',
       scope: 'org',
@@ -771,10 +778,10 @@ describe('reports', () => {
         reason: 'rude',
       },
     });
-    expect(people(lists[0])).toEqual({ ou_olivia: ['staff'] });
+    expect(people(lists[0])).toEqual({ ou_olivia: ['moderator'] });
   });
 
-  it('tells staff about a reported message', async () => {
+  it('tells the moderators of the community among its members about a reported message', async () => {
     const { lists } = await run(
       ready(
         discussionEvents.messageReported.make({
@@ -795,7 +802,7 @@ describe('reports', () => {
         }),
         { actorOrgUserId: 'ou_emma' },
       ),
-      { staff: ['ou_olivia', 'ou_emma'] },
+      { moderators: ['ou_olivia', 'ou_emma', 'ou_mia'], members: ['ou_olivia', 'ou_emma'] },
     );
     expect(lists).toEqual([
       expect.objectContaining({
@@ -806,7 +813,7 @@ describe('reports', () => {
         display: { reason: 'spam' },
       }),
     ]);
-    expect(people(lists[0])).toEqual({ ou_olivia: ['staff'] });
+    expect(people(lists[0])).toEqual({ ou_olivia: ['moderator'] });
   });
 });
 

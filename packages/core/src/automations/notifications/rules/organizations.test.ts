@@ -3,6 +3,7 @@ import { organizationEvents } from '../../../organizations/index.js';
 import type { DomainEvent } from '../../../shared/ports.js';
 import { emptyCommunityMail } from '../../community-mail.js';
 import type { NotificationReads } from '../../ports.js';
+import type { Permission } from '../../../types/index.js';
 import { ORGANIZATION_RULES } from './organizations.js';
 
 const ORG = 'org_1';
@@ -54,50 +55,113 @@ function ready(
   };
 }
 
-describe('organization.user.updated', () => {
-  const updated = (role: string, actor: string) =>
+const ROLES: Record<string, { name: string; permissions: Permission[] }> = {
+  member: { name: 'Member', permissions: [] },
+  admin: { name: 'Admin', permissions: ['communities:moderate', 'courses:write', 'people:write'] },
+  instructor: {
+    name: 'Tutor',
+    permissions: ['courses:write', 'courses:moderate', 'api_keys:write'],
+  },
+  moderator: { name: 'Moderator', permissions: ['communities:moderate'] },
+};
+
+function withRoles(): NotificationReads {
+  return {
+    ...fakeReads(),
+    role: async (_o, key) => ROLES[key] ?? null,
+    orgName: async () => 'Spanish in 90 Days',
+    contentInfo: async (_o, item) =>
+      'contentId' in item && item.contentId === 'crs_1'
+        ? { title: 'Spanish Basics', type: 'course' }
+        : null,
+  };
+}
+
+describe('organization.role.assigned', () => {
+  const assigned = (data: {
+    roleKey: string;
+    previousRoleKey: string | null;
+    contentId?: string;
+    contentType?: 'course' | 'community';
+  }) =>
     ready(
-      organizationEvents.orgUserUpdated.make({
+      organizationEvents.roleAssigned.make({
         orgId: ORG,
         data: {
-          id: 'ou_sarah',
-          orgId: ORG,
-          userId: 'usr_sarah',
-          role: role as 'moderator',
-          status: 'active',
-          createdAt: T,
-          updatedAt: T,
+          orgUserId: 'ou_james',
+          roleKey: data.roleKey,
+          previousRoleKey: data.previousRoleKey,
+          contentId: data.contentId ?? null,
+          contentType: data.contentType ?? null,
         },
       }),
-      { actorOrgUserId: actor },
+      { actorOrgUserId: 'ou_sarah' },
     );
+  const rule = ORGANIZATION_RULES['organization.role.assigned']!;
 
-  it('tells a person they are now a moderator, naming the communities they belong to', async () => {
-    const lists = await ORGANIZATION_RULES['organization.user.updated']!(
-      updated('moderator', 'ou_olivia'),
-      fakeReads(),
+  it('tells James he is now Tutor of the course he gained permissions on', async () => {
+    const lists = await rule(
+      assigned({
+        roleKey: 'instructor',
+        previousRoleKey: null,
+        contentId: 'crs_1',
+        contentType: 'course',
+      }),
+      withRoles(),
     );
     expect(lists).toEqual([
       {
-        type: 'moderator.assigned',
+        type: 'role.assigned',
         scope: 'org',
-        actorOrgUserId: 'ou_olivia',
+        actorOrgUserId: 'ou_sarah',
         communityId: null,
         spaceId: null,
         subject: null,
         parent: null,
-        display: { communityTitles: ['Spring cohort', 'Summer cohort'] },
-        recipients: [{ orgUserId: 'ou_sarah', userId: 'usr_sarah', reasons: ['subject'] }],
+        display: {
+          roleName: 'Tutor',
+          place: 'of Spanish Basics',
+          contentId: 'crs_1',
+          contentType: 'course',
+        },
+        recipients: [{ orgUserId: 'ou_james', userId: 'usr_james', reasons: ['subject'] }],
       },
     ]);
   });
 
-  it('sends nothing for another role', async () => {
+  it('names the org for an org role gained from Member', async () => {
+    const [list] = await rule(
+      assigned({ roleKey: 'instructor', previousRoleKey: 'member' }),
+      withRoles(),
+    );
+    expect(list?.display).toMatchObject({ roleName: 'Tutor', place: 'in Spanish in 90 Days' });
+  });
+
+  it('sends nothing when moving from Admin to Moderator, which gains nothing', async () => {
     expect(
-      await ORGANIZATION_RULES['organization.user.updated']!(
-        updated('instructor', 'ou_olivia'),
-        fakeReads(),
-      ),
+      await rule(assigned({ roleKey: 'moderator', previousRoleKey: 'admin' }), withRoles()),
     ).toEqual([]);
+  });
+
+  it('sends nothing on a loss, or for a role key the org no longer has', async () => {
+    expect(
+      await rule(assigned({ roleKey: 'member', previousRoleKey: 'moderator' }), withRoles()),
+    ).toEqual([]);
+    expect(
+      await rule(assigned({ roleKey: 'role_gone', previousRoleKey: null }), withRoles()),
+    ).toEqual([]);
+  });
+
+  it('counts only the permissions about the item’s type for a role given on an item', async () => {
+    const lists = await rule(
+      assigned({
+        roleKey: 'moderator',
+        previousRoleKey: null,
+        contentId: 'crs_1',
+        contentType: 'course',
+      }),
+      withRoles(),
+    );
+    expect(lists).toEqual([]);
   });
 });

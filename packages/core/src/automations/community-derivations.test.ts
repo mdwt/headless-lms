@@ -165,42 +165,50 @@ describe('community email derivations', () => {
     ).toEqual([]);
   });
 
-  it('emails a new moderator and ignores every other role change', async () => {
-    const moderator = ready(
-      organizationEvents.orgUserUpdated.make({
-        orgId: 'org-1',
-        data: {
-          id: 'ou_1',
+  it('emails a person who gained a permission with a role, and nobody on a loss', async () => {
+    const assigned = (roleKey: string, previousRoleKey: string | null) =>
+      ready(
+        organizationEvents.roleAssigned.make({
           orgId: 'org-1',
-          userId: 'usr_1',
-          role: 'moderator',
-          status: 'active',
-          createdAt: new Date('2026-01-01T00:00:00Z'),
-          updatedAt: new Date('2026-01-01T00:00:00Z'),
+          data: {
+            orgUserId: 'ou_1',
+            roleKey,
+            previousRoleKey,
+            contentId: 'cmy_1',
+            contentType: 'community',
+          },
+        }),
+      );
+    const roles: Record<string, { name: string; permissions: ['communities:moderate'] | [] }> = {
+      moderator: { name: 'Community lead', permissions: ['communities:moderate'] },
+      member: { name: 'Member', permissions: [] },
+    };
+    const withRoles = deps({
+      mail: {
+        ...deps().mail,
+        role: vi.fn(async (_o: string, key: string) => roles[key] ?? null),
+        contentInfo: vi.fn(async () => ({ title: 'Founders', type: 'community' })),
+      },
+    });
+    expect(
+      await COMMUNITY_DERIVATIONS.roleAssigned!.derive(assigned('moderator', null), withRoles),
+    ).toEqual([
+      expect.objectContaining({
+        orgUserId: 'ou_1',
+        params: {
+          roleName: 'Community lead',
+          place: 'of Founders',
+          contentId: 'cmy_1',
+          contentType: 'community',
         },
       }),
-    );
-    const student = ready(
-      organizationEvents.orgUserUpdated.make({
-        orgId: 'org-1',
-        data: {
-          id: 'ou_1',
-          orgId: 'org-1',
-          userId: 'usr_1',
-          role: 'student',
-          status: 'active',
-          createdAt: new Date('2026-01-01T00:00:00Z'),
-          updatedAt: new Date('2026-01-01T00:00:00Z'),
-        },
-      }),
-    );
-    expect(await COMMUNITY_DERIVATIONS.youAreNowAModerator!.derive(moderator, deps())).toEqual([
-      expect.objectContaining({ orgUserId: 'ou_1' }),
     ]);
-    expect(await COMMUNITY_DERIVATIONS.youAreNowAModerator!.derive(student, deps())).toEqual([]);
+    expect(
+      await COMMUNITY_DERIVATIONS.roleAssigned!.derive(assigned('member', 'moderator'), withRoles),
+    ).toEqual([]);
   });
 
-  it('emails staff only for a requested space member', async () => {
+  it('emails the moderators among the community members only for a requested space member', async () => {
     const requested = ready(
       entitlementEvents.spaceMemberCreated.make({
         orgId: 'org-1',
@@ -236,7 +244,10 @@ describe('community email derivations', () => {
     const audience = deps({
       mail: {
         ...deps().mail,
-        moderationAudience: vi.fn(async () => ['staff_1']),
+        holders: vi.fn(async () => ['staff_1', 'staff_2']),
+        communityMembersAmong: vi.fn(async (_o: string, _c: string, ids: string[]) =>
+          ids.filter((id) => id === 'staff_1'),
+        ),
         activeMemberCount: vi.fn(async () => 1),
       },
     });

@@ -32,7 +32,7 @@ describe('RECIPIENT_RULES', () => {
         'entitlement.space_member.created',
         'entitlement.space_member.deleted',
         'entitlement.space_member.updated',
-        'organization.user.updated',
+        'organization.role.assigned',
       ].sort(),
     );
   });

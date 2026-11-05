@@ -69,7 +69,11 @@ function fakeReads(world: World = {}): NotificationReads {
       capacity: world.capacity === undefined ? 5 : world.capacity,
     }),
     activeMemberCount: async () => 2,
-    moderationAudience: async () => ['ou_mia', 'ou_olivia', 'ou_sarah'],
+    holders: async (_o, permission, on) =>
+      permission === 'communities:moderate' && on === 'cmy_1'
+        ? ['ou_mia', 'ou_olivia', 'ou_sarah', 'ou_noah']
+        : [],
+    communityMembersAmong: async (_o, _c, ids) => ids.filter((id) => id !== 'ou_noah'),
     spaceOpenersAmong: async (_o, _s, ids) =>
       ids.filter((id) => (world.openers ?? ['ou_mia', 'ou_olivia']).includes(id)),
     communitiesOpenedBy: async () => world.opened ?? [],

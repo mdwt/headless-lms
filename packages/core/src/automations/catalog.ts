@@ -152,6 +152,36 @@ const TRIGGERS: CatalogTrigger[] = [
     description: 'a person was given a role on the organization or on a content item',
   },
   {
+    event: organizationEvents.roleUnassigned,
+    label: 'Role removed',
+    category: 'Organization',
+    description: 'a role was removed from a person on a content item',
+  },
+  {
+    event: organizationEvents.roleCreated,
+    label: 'Role created',
+    category: 'Organization',
+    description: 'the organization added a role',
+  },
+  {
+    event: organizationEvents.roleUpdated,
+    label: 'Role updated',
+    category: 'Organization',
+    description: 'a role was renamed, changed or reset',
+  },
+  {
+    event: organizationEvents.roleDeleted,
+    label: 'Role deleted',
+    category: 'Organization',
+    description: 'the organization deleted a role it added',
+  },
+  {
+    event: organizationEvents.ownershipTransferred,
+    label: 'Ownership transferred',
+    category: 'Organization',
+    description: 'ownership of the organization moved to another person',
+  },
+  {
     event: organizationEvents.inviteCreated,
     label: 'Invite sent',
     category: 'Organization',
