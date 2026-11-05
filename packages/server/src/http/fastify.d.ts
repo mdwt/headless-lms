@@ -8,6 +8,8 @@ export type AuthUser = User;
 declare module 'fastify' {
   interface FastifyContextConfig {
     operation?: string;
+    /** A server-sent event stream; shutdown waits for it to finish. */
+    eventStream?: boolean;
   }
   interface FastifyInstance {
     /** Session guard. Populates `authUser` (and `orgId` when the session has an
@@ -16,6 +18,9 @@ declare module 'fastify' {
     requireSession(request: FastifyRequest): Promise<void>;
     /** As `requireSession`, but also requires an active org on the session. */
     requireOrgSession(request: FastifyRequest): Promise<void>;
+    /** As `requireOrgSession`, with the session read from the store rather
+     *  than the session cookie cache. For long-lived streams. */
+    requireLiveOrgSession(request: FastifyRequest): Promise<void>;
   }
   interface FastifyRequest {
     authUser: User;

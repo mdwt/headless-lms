@@ -286,6 +286,9 @@ describe('member chat routes', () => {
   it("checks the stream's session with the cookie cache bypassed", async () => {
     watched = async () => events([]);
     await app.inject({ method: 'GET', url: '/api/member/communities/cmy_1/chats/events' });
+    expect(verified).toEqual([{ bypassCookieCache: true }]);
+    await app.inject({ method: 'GET', url: '/api/member/chats/cht_1' });
+    expect(verified.at(-1)).toEqual({ bypassCookieCache: false });
     const live = last('watch')![1] as LiveSession;
     verified.length = 0;
 

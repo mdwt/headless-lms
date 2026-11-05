@@ -9,6 +9,9 @@ import { registerWellKnown } from './well-known.js';
 import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
 import { registerRoutes } from './routes.js';
 import { registerMcp } from './mcp/route.js';
+import { trackEventStreams } from './sse.js';
+
+const STREAMS_CLOSE_MS = 2000;
 
 export async function buildServer(
   config: ServerConfig,
@@ -52,9 +55,13 @@ export async function buildServer(
   registerRoutes(app, container);
   registerMcp(app, container);
 
-  // Open chat streams get their closing frame before Fastify drops connections.
+  // Open chat streams, and stream requests still on their way to the hub, get
+  // their closing frame before Fastify drops every connection.
+  const eventStreams = trackEventStreams(app);
   app.addHook('preClose', async () => {
+    const deadline = Date.now() + STREAMS_CLOSE_MS;
     await container.chatHub?.close();
+    await eventStreams.settled(Math.max(0, deadline - Date.now()));
   });
 
   // Drain + stop the outbox relay, the automation engine and then PubSub on

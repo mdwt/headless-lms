@@ -65,8 +65,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/chats/events',
-    preHandler: app.requireOrgSession,
-    config: { operation: 'chats.watch' },
+    preHandler: app.requireLiveOrgSession,
+    config: { operation: 'chats.watch', eventStream: true },
     schema: {
       operationId: 'streamMemberChatEvents',
       tags,

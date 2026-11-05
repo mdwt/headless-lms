@@ -60,6 +60,7 @@ import {
 import { ProgressServiceImpl } from '@headless-lms/core/progress';
 import {
   type ChatHub,
+  type ChatHubOptions,
   ChatLiveForwarder,
   ChatServiceImpl,
   DigestServiceImpl,
@@ -157,6 +158,8 @@ export interface BuildContainerOptions {
   pluginsDir?: string;
   adapters?: AdapterOverrides;
   roles?: readonly RoleDefinition[];
+  /** Live chat hub timings. Absent → the defaults (1 s state flush, 30 s session check). */
+  live?: ChatHubOptions;
 }
 
 export interface Config {
@@ -552,6 +555,7 @@ export async function buildContainer(
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     ...(pubsub && { pubsub }),
+    ...(options?.live && { live: options.live }),
     logger: discussionLogger,
   });
   const discussion = new DiscussionServiceImpl({

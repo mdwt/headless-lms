@@ -57,8 +57,8 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
   });
 
   // Requires a valid session with an active org set — every org-scoped route.
-  app.decorate('requireOrgSession', async (request: FastifyRequest) => {
-    const session = await appServer.auth.verify(request.headers);
+  const orgSession = (bypassCookieCache: boolean) => async (request: FastifyRequest) => {
+    const session = await appServer.auth.verify(request.headers, { bypassCookieCache });
     if (!session) {
       throw new UnauthorizedError();
     }
@@ -78,5 +78,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     // resolveScope requires the auth-provider id too — routes that write back
     // through better-auth key on it.
     request.authOrgId = authOrgId;
-  });
+  };
+  app.decorate('requireOrgSession', orgSession(false));
+  app.decorate('requireLiveOrgSession', orgSession(true));
 }

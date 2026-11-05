@@ -1,7 +1,38 @@
-import type { FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 
 const PING_MS = 25_000;
 const DRAIN_TIMEOUT_MS = 30_000;
+
+export interface EventStreams {
+  /** Resolves once every event stream request in flight has finished, or after `timeoutMs`. */
+  settled(timeoutMs: number): Promise<void>;
+}
+
+/** Tracks the requests to routes marked `config.eventStream`, from routing to
+ *  the end of their response. */
+export function trackEventStreams(app: FastifyInstance): EventStreams {
+  const open = new Set<Promise<void>>();
+  app.addHook('onRequest', async (req, reply) => {
+    if (!req.routeOptions.config.eventStream) {
+      return;
+    }
+    const closed = new Promise<void>((resolve) => reply.raw.once('close', () => resolve()));
+    open.add(closed);
+    void closed.then(() => open.delete(closed));
+  });
+  return {
+    async settled(timeoutMs) {
+      let timer: NodeJS.Timeout | undefined;
+      await Promise.race([
+        Promise.all(open),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, timeoutMs);
+        }),
+      ]);
+      clearTimeout(timer);
+    },
+  };
+}
 
 export interface SseOptions {
   pingMs?: number;
