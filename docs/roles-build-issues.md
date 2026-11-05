@@ -22,9 +22,9 @@ Baseline at `451cdc5a`: `pnpm build` passes, `pnpm test` 1982 tests in 159 files
 | 5 | Server: `resolveActor`, routes and MCP tools on core methods, `operation` | done |
 | 6 | Contexts take the actor and check: content, discussion, chats, entitlements, progress, assets, integrations, automations, reporting, notification categories | done; 2114 tests pass, lint clean |
 | 7 | Events, notifications, emails | done; role.assigned email verified end to end |
-| 8 | Admin app, student app | student app done (d1f20d72), verified in the browser; admin app in progress |
-| 9 | Community app (`hlms-community`) | open |
-| 10 | SDK, OpenAPI, MCP catalogue, docs | open |
+| 8 | Admin app, student app | done: student d1f20d72; admin b20619b8, f13210e2; both verified in the browser per person |
+| 9 | Community app (`hlms-community`) | done (4011cef, a58e2ae, da7f491, a024fb8, db5443a), verified in the browser; seed script run against the API |
+| 10 | SDK, OpenAPI, MCP catalogue, docs | done (8a743f9c, 39be615b, 6cebd80a, 45d1625f, 30d4f194, bc8924bf) |
 | 11 | Tests (section 19) | open |
 | 12 | End to end on a running stack | in progress: API scenarios: people and roles 52/52, access and moderation 47/47, custom roles, media and people 39/39, limits and events 10/10 (102 memberships, REST and MCP agree, a demoted creator's key narrows on the next request, org events at version 2); no error lines in the API log |
 
@@ -62,3 +62,8 @@ Each issue: status `open`, `fixed` or `wontfix`, and the fixing commit.
 | 26 | Review L16 | Remove-post and remove-comment descriptions said only moderators may call them. | in progress |  |
 | 27 | Review L17 | The MCP catalogue read the default role set outside organizations; no boundary test. | fixed | 1664fe6a |
 | 28 | Review L18 | The 'Member updated' trigger never fired. Acceptance now emits `organization.user.updated`. | fixed | 027f1a02 |
+| 29 | Admin, API | A course's learners show without names to `progress:read` holders: `GET /api/entitlements?contentId=` rows carry only `orgUserId`, and names need `people:read`. | open | |
+| 30 | Admin, API | A moderator without `communities:read` can't read the community's name or spaces in the admin app (`getCommunity`, `listSpaces`, `listCommunities` need `communities:read`). Comment-flag authors show as "Unknown person" without `people:read`. | open | |
+| 31 | Admin, API | The admin community member list has no `opensEverySpace`; the admin app joins the member directory to exclude those people from space candidates. | open | |
+| 32 | Admin, API | Roles carry no flag for whether they can be given; the picker infers Owner. | open | |
+| 33 | Admin (existing) | Team and Students tables scroll sideways inside the settings column at 1280px. Exists before this build. | open (outside roles) | |
