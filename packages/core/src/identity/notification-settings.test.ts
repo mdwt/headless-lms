@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NotificationSettingsServiceImpl } from './notification-settings.js';
 import type { NotificationSettingsRepository, SettingKey } from './ports.js';
 import { NotFoundError, ValidationError } from '../shared/errors.js';
+import { actorWith } from '../organizations/index.js';
 import type { NotificationCategory, StoredSetting } from '../types/index.js';
 
 const on = { default: true, locked: false };
@@ -97,17 +98,21 @@ function harness(options: { canOpen?: boolean } = {}) {
   return { service, rows };
 }
 
-const sarah = { id: 'ou_sarah', role: 'student' as const, userId: 'usr_sarah' };
-const james = { id: 'ou_james', role: 'student' as const, userId: 'usr_james' };
+const sarah = { ...actorWith({ id: 'ou_sarah', orgId: 'org_1' }), userId: 'usr_sarah' };
+const james = { ...actorWith({ id: 'ou_james', orgId: 'org_1' }), userId: 'usr_james' };
 const cohort = { communityId: 'cmy_1' };
 
 describe('notification settings', () => {
   it('stores one row per explicit choice and reads them back per community', async () => {
     const { service } = harness();
-    await service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'email', enabled: false },
-      { category: 'new_posts', spaceId: 'spc_1', channel: 'push', enabled: true },
-    ]);
+    await service.set(
+      cohort,
+      [
+        { category: 'mentions', channel: 'email', enabled: false },
+        { category: 'new_posts', spaceId: 'spc_1', channel: 'push', enabled: true },
+      ],
+      sarah,
+    );
     await expect(service.get('org_1', 'usr_sarah', cohort)).resolves.toEqual([
       {
         communityId: 'cmy_1',
@@ -130,34 +135,34 @@ describe('notification settings', () => {
 
   it('changes a stored value in place and deletes it on enabled null', async () => {
     const { service, rows } = harness();
-    await service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'email', enabled: false },
-    ]);
-    await service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'email', enabled: true },
-    ]);
+    await service.set(cohort, [{ category: 'mentions', channel: 'email', enabled: false }], sarah);
+    await service.set(cohort, [{ category: 'mentions', channel: 'email', enabled: true }], sarah);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.enabled).toBe(true);
-    await service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'email', enabled: null },
-    ]);
+    await service.set(cohort, [{ category: 'mentions', channel: 'email', enabled: null }], sarah);
     expect(rows).toEqual([]);
   });
 
   it('keeps the last of two changes to one setting in a request', async () => {
     const { service, rows } = harness();
-    await service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'push', enabled: false },
-      { category: 'mentions', channel: 'push', enabled: true },
-    ]);
+    await service.set(
+      cohort,
+      [
+        { category: 'mentions', channel: 'push', enabled: false },
+        { category: 'mentions', channel: 'push', enabled: true },
+      ],
+      sarah,
+    );
     expect(rows.map((row) => row.enabled)).toEqual([true]);
   });
 
   it('stores org settings with no community, against the org list', async () => {
     const { service } = harness();
-    await service.set('org_1', sarah, 'org', [
-      { category: 'course_content', channel: 'email', enabled: true },
-    ]);
+    await service.set(
+      'org',
+      [{ category: 'course_content', channel: 'email', enabled: true }],
+      sarah,
+    );
     await expect(service.get('org_1', 'usr_sarah', 'org')).resolves.toEqual([
       {
         communityId: null,
@@ -168,18 +173,14 @@ describe('notification settings', () => {
       },
     ]);
     await expect(
-      service.set('org_1', sarah, 'org', [
-        { category: 'mentions', channel: 'email', enabled: true },
-      ]),
+      service.set('org', [{ category: 'mentions', channel: 'email', enabled: true }], sarah),
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('answers not found when the person cannot open the community', async () => {
     const { service, rows } = harness({ canOpen: false });
     await expect(
-      service.set('org_1', sarah, cohort, [
-        { category: 'mentions', channel: 'email', enabled: false },
-      ]),
+      service.set(cohort, [{ category: 'mentions', channel: 'email', enabled: false }], sarah),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(rows).toEqual([]);
   });
@@ -203,10 +204,11 @@ describe('notification settings', () => {
     ],
   ])('refuses %o with 422, naming the field', async (change, problem) => {
     const { service, rows } = harness();
-    const attempt = service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'email', enabled: false },
-      change,
-    ]);
+    const attempt = service.set(
+      cohort,
+      [{ category: 'mentions', channel: 'email', enabled: false }, change],
+      sarah,
+    );
     await expect(attempt).rejects.toBeInstanceOf(ValidationError);
     await expect(attempt).rejects.toThrow(`${problem.path}: ${problem.message}`);
     await expect(attempt).rejects.toMatchObject({ problems: [problem] });
@@ -221,21 +223,29 @@ describe('notification settings', () => {
       channels: { list: () => ['inApp', 'email'] },
     });
     await expect(
-      configuredWithoutPush.set('org_1', sarah, cohort, [
-        { category: 'mentions', channel: 'push', enabled: true },
-      ]),
+      configuredWithoutPush.set(
+        cohort,
+        [{ category: 'mentions', channel: 'push', enabled: true }],
+        sarah,
+      ),
     ).rejects.toThrow(/does not offer the channel push/);
   });
 
   it('reads many people at once, keyed by user id, for the categories asked', async () => {
     const { service } = harness();
-    await service.set('org_1', sarah, cohort, [
-      { category: 'mentions', channel: 'email', enabled: false },
-      { category: 'new_posts', channel: 'push', enabled: true },
-    ]);
-    await service.set('org_1', james, cohort, [
-      { category: 'new_posts', spaceId: 'spc_1', channel: 'inApp', enabled: true },
-    ]);
+    await service.set(
+      cohort,
+      [
+        { category: 'mentions', channel: 'email', enabled: false },
+        { category: 'new_posts', channel: 'push', enabled: true },
+      ],
+      sarah,
+    );
+    await service.set(
+      cohort,
+      [{ category: 'new_posts', spaceId: 'spc_1', channel: 'inApp', enabled: true }],
+      james,
+    );
     const many = await service.getMany('org_1', ['usr_sarah', 'usr_james', 'usr_emma'], cohort, [
       'new_posts',
     ]);
@@ -250,13 +260,15 @@ describe('notification settings', () => {
 
   it('lists who switched a category on for a space or for all spaces, as org-user ids', async () => {
     const { service } = harness();
-    await service.set('org_1', sarah, cohort, [
-      { category: 'new_posts', channel: 'push', enabled: true },
-    ]);
-    await service.set('org_1', james, cohort, [
-      { category: 'new_posts', spaceId: 'spc_1', channel: 'inApp', enabled: true },
-      { category: 'new_posts', spaceId: 'spc_2', channel: 'inApp', enabled: false },
-    ]);
+    await service.set(cohort, [{ category: 'new_posts', channel: 'push', enabled: true }], sarah);
+    await service.set(
+      cohort,
+      [
+        { category: 'new_posts', spaceId: 'spc_1', channel: 'inApp', enabled: true },
+        { category: 'new_posts', spaceId: 'spc_2', channel: 'inApp', enabled: false },
+      ],
+      james,
+    );
     await expect(service.switchedOn('org_1', 'cmy_1', 'new_posts', 'spc_1')).resolves.toEqual([
       'ou_sarah',
       'ou_james',

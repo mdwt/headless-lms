@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DevicesServiceImpl } from './devices.js';
 import type { DevicesRepository } from './ports.js';
 import { NotFoundError, ValidationError } from '../shared/errors.js';
+import { actorWith } from '../organizations/index.js';
 import type { DeviceView, PushConfig } from '../types/index.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -57,8 +58,8 @@ function harness(push: PushConfig = PUSH) {
   return { service: new DevicesServiceImpl({ repo, push }), rows };
 }
 
-const sarah = { id: 'ou_sarah', role: 'student' as const, userId: 'usr_sarah' };
-const james = { id: 'ou_james', role: 'student' as const, userId: 'usr_james' };
+const sarah = { ...actorWith({ id: 'ou_sarah', orgId: 'org_1' }), userId: 'usr_sarah' };
+const james = { ...actorWith({ id: 'ou_james', orgId: 'org_1' }), userId: 'usr_james' };
 const iphone = {
   provider: 'apns' as const,
   token: 'apns-token-1',
@@ -69,7 +70,7 @@ const iphone = {
 describe('devices', () => {
   it('registers a device and answers it without the person or times', async () => {
     const { service } = harness();
-    await expect(service.register('org_1', sarah, iphone)).resolves.toEqual({
+    await expect(service.register(iphone, sarah)).resolves.toEqual({
       id: 'dev_1',
       provider: 'apns',
       token: 'apns-token-1',
@@ -82,10 +83,10 @@ describe('devices', () => {
 
   it('refreshes a known token instead of adding a device', async () => {
     const { service, rows } = harness();
-    await service.register('org_1', sarah, iphone);
+    await service.register(iphone, sarah);
     const firstSeen = rows[0]!.lastSeenAt;
     await new Promise((resolve) => setTimeout(resolve, 5));
-    const again = await service.register('org_1', sarah, iphone);
+    const again = await service.register(iphone, sarah);
     expect(again.id).toBe('dev_1');
     expect(rows).toHaveLength(1);
     expect(rows[0]!.lastSeenAt.getTime()).toBeGreaterThan(firstSeen.getTime());
@@ -93,19 +94,22 @@ describe('devices', () => {
 
   it('moves a token registered by another person to the caller', async () => {
     const { service } = harness();
-    await service.register('org_1', sarah, iphone);
-    await service.register('org_1', james, iphone);
-    await expect(service.list('org_1', sarah)).resolves.toEqual([]);
-    await expect(service.list('org_1', james)).resolves.toMatchObject([{ id: 'dev_1' }]);
+    await service.register(iphone, sarah);
+    await service.register(iphone, james);
+    await expect(service.list(sarah)).resolves.toEqual([]);
+    await expect(service.list(james)).resolves.toMatchObject([{ id: 'dev_1' }]);
   });
 
   it('stores web push keys with a browser subscription', async () => {
     const { service } = harness();
-    const device = await service.register('org_1', sarah, {
-      provider: 'webpush',
-      token: 'https://push.example.com/sub/1',
-      keys: { p256dh: 'p', auth: 'a' },
-    });
+    const device = await service.register(
+      {
+        provider: 'webpush',
+        token: 'https://push.example.com/sub/1',
+        keys: { p256dh: 'p', auth: 'a' },
+      },
+      sarah,
+    );
     expect(device).toMatchObject({ provider: 'webpush', p256dh: 'p', auth: 'a', appId: null });
   });
 
@@ -132,20 +136,20 @@ describe('devices', () => {
     ],
   ])('refuses %o with 422, naming the field', async (input, problem) => {
     const { service, rows } = harness();
-    await expect(service.register('org_1', sarah, input)).rejects.toThrow(
+    await expect(service.register(input, sarah)).rejects.toThrow(
       `${problem.path}: ${problem.message}`,
     );
-    await expect(service.register('org_1', sarah, input)).rejects.toMatchObject({
+    await expect(service.register(input, sarah)).rejects.toMatchObject({
       problems: [problem],
     });
-    await expect(service.register('org_1', sarah, input)).rejects.toBeInstanceOf(ValidationError);
+    await expect(service.register(input, sarah)).rejects.toBeInstanceOf(ValidationError);
     expect(rows).toEqual([]);
   });
 
   it('refuses every provider when none is configured, and serves no VAPID key', async () => {
     const { service } = harness({});
     for (const provider of ['apns', 'fcm', 'webpush'] as const) {
-      await expect(service.register('org_1', sarah, { provider, token: 't' })).rejects.toThrow(
+      await expect(service.register({ provider, token: 't' }, sarah)).rejects.toThrow(
         `push through ${provider} is not configured`,
       );
     }
@@ -155,16 +159,16 @@ describe('devices', () => {
 
   it('removes only the caller’s own device', async () => {
     const { service } = harness();
-    const device = await service.register('org_1', sarah, iphone);
-    await expect(service.remove('org_1', james, device.id)).rejects.toBeInstanceOf(NotFoundError);
-    await service.remove('org_1', sarah, device.id);
-    await expect(service.list('org_1', sarah)).resolves.toEqual([]);
+    const device = await service.register(iphone, sarah);
+    await expect(service.remove(device.id, james)).rejects.toBeInstanceOf(NotFoundError);
+    await service.remove(device.id, sarah);
+    await expect(service.list(sarah)).resolves.toEqual([]);
   });
 
   it('gives the push channel only the devices seen since the cutoff', async () => {
     const { service, rows } = harness();
-    await service.register('org_1', sarah, iphone);
-    await service.register('org_1', sarah, { provider: 'fcm', token: 'android-1' });
+    await service.register(iphone, sarah);
+    await service.register({ provider: 'fcm', token: 'android-1' }, sarah);
     rows[0]!.lastSeenAt = new Date(Date.now() - 31 * DAY);
     const active = await service.activeDevices(
       'org_1',
@@ -177,9 +181,9 @@ describe('devices', () => {
 
   it('names, in one read, the people with a device seen since the cutoff', async () => {
     const { service, rows } = harness();
-    await service.register('org_1', sarah, iphone);
-    await service.register('org_1', james, { provider: 'fcm', token: 'android-1' });
-    await service.register('org_1', james, { provider: 'fcm', token: 'android-2' });
+    await service.register(iphone, sarah);
+    await service.register({ provider: 'fcm', token: 'android-1' }, james);
+    await service.register({ provider: 'fcm', token: 'android-2' }, james);
     rows[0]!.lastSeenAt = new Date(Date.now() - 31 * DAY);
     const since = new Date(Date.now() - 30 * DAY);
     await expect(
@@ -190,8 +194,8 @@ describe('devices', () => {
 
   it('deletes the devices the provider reported dead', async () => {
     const { service, rows } = harness();
-    await service.register('org_1', sarah, iphone);
-    await service.register('org_1', sarah, { provider: 'fcm', token: 'android-1' });
+    await service.register(iphone, sarah);
+    await service.register({ provider: 'fcm', token: 'android-1' }, sarah);
     await service.removeDead('org_1', ['dev_1']);
     await service.removeDead('org_1', []);
     expect(rows.map((row) => row.id)).toEqual(['dev_2']);

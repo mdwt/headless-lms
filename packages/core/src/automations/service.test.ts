@@ -27,12 +27,23 @@ import type {
   OutboxAppender,
 } from '../shared/ports.js';
 import { createCapturingLogger, noopLogger } from '../shared/logger.js';
-import { ConflictError, InvalidInputError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import type { Entitlement } from '../entitlements/index.js';
 import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
 import { emptyCommunityMail } from './community-mail.js';
+import { actorWith } from '../organizations/index.js';
+
+const ADMIN = actorWith({
+  orgId: 'org-1',
+  org: ['automations:read', 'automations:write', 'automations:delete'],
+});
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
   orgId: 'org-1',
@@ -247,6 +258,7 @@ function build(
     mailer,
     lookups,
     integrations,
+    systemActor: (orgId: string) => actorWith({ orgId, owner: true }),
     credentials,
     webhooks,
     mail: emptyCommunityMail,
@@ -846,7 +858,7 @@ describe('AutomationsService CRUD', () => {
       triggers: ['entitlement.created'],
       actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
     };
-    const created = await svc.create('org-1', input);
+    const created = await svc.create(input, ADMIN);
     expect(created).toEqual(AUTOMATION);
     expect(repo.insert).toHaveBeenCalledWith('org-1', { ...input, kind: 'workflow' });
     expect(appended).toEqual([
@@ -865,7 +877,7 @@ describe('AutomationsService CRUD', () => {
       triggers: ['entitlement.created', 'automation.run.started'],
       actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
     };
-    await expect(svc.create('org-1', input)).rejects.toThrow(InvalidTriggerError);
+    await expect(svc.create(input, ADMIN)).rejects.toThrow(InvalidTriggerError);
     expect(repo.insert).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -873,11 +885,14 @@ describe('AutomationsService CRUD', () => {
   it('rejects a schedule the matcher cannot run', async () => {
     const { svc, repo, append } = build();
     await expect(
-      svc.create('org-1', {
-        name: 'Every five',
-        triggers: ['schedule:*/5 * * * *'],
-        actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
-      }),
+      svc.create(
+        {
+          name: 'Every five',
+          triggers: ['schedule:*/5 * * * *'],
+          actions: [{ type: 'sendEmail', input: { template: 'accessGranted' } }],
+        },
+        ADMIN,
+      ),
     ).rejects.toThrow(InvalidTriggerError);
     expect(repo.insert).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -887,10 +902,10 @@ describe('AutomationsService CRUD', () => {
     const { svc, repo, append } = build();
     const actions = [{ type: 'sendEmail', input: { template: 'accessGranted' } }];
     await expect(
-      svc.create('org-1', { name: 'Typo', triggers: ['entitlement.creatd'], actions }),
+      svc.create({ name: 'Typo', triggers: ['entitlement.creatd'], actions }, ADMIN),
     ).rejects.toThrow(InvalidTriggerError);
     await expect(
-      svc.update('org-1', 'atm_1', { triggers: ['entitlement.created', 'lesson.watched'] }),
+      svc.update('atm_1', { triggers: ['entitlement.created', 'lesson.watched'] }, ADMIN),
     ).rejects.toThrow(InvalidTriggerError);
     expect(repo.insert).not.toHaveBeenCalled();
     expect(repo.update).not.toHaveBeenCalled();
@@ -899,11 +914,14 @@ describe('AutomationsService CRUD', () => {
 
   it('accepts catalog triggers and supported schedules', async () => {
     const { svc, repo } = build();
-    await svc.create('org-1', {
-      name: 'Hourly',
-      triggers: ['schedule:0 * * * *', 'discussion.message.sent'],
-      actions: [{ type: 'sendEmail', input: { template: 'digest' } }],
-    });
+    await svc.create(
+      {
+        name: 'Hourly',
+        triggers: ['schedule:0 * * * *', 'discussion.message.sent'],
+        actions: [{ type: 'sendEmail', input: { template: 'digest' } }],
+      },
+      ADMIN,
+    );
     expect(repo.insert).toHaveBeenCalledTimes(1);
   });
 
@@ -917,9 +935,9 @@ describe('AutomationsService CRUD', () => {
     const { svc, repo, append } = build();
     const actions = [{ type, input: {} }];
     await expect(
-      svc.create('org-1', { name: 'Old', triggers: ['schedule:0 * * * *'], actions }),
+      svc.create({ name: 'Old', triggers: ['schedule:0 * * * *'], actions }, ADMIN),
     ).rejects.toThrow(InvalidInputError);
-    await expect(svc.update('org-1', 'atm_1', { actions })).rejects.toThrow(InvalidInputError);
+    await expect(svc.update('atm_1', { actions }, ADMIN)).rejects.toThrow(InvalidInputError);
     expect(repo.insert).not.toHaveBeenCalled();
     expect(repo.update).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -928,7 +946,7 @@ describe('AutomationsService CRUD', () => {
   it('rejects updating an automation to a trigger in the automation.* namespace', async () => {
     const { svc, repo, append } = build();
     await expect(
-      svc.update('org-1', 'atm_1', { triggers: ['automation.run.completed'] }),
+      svc.update('atm_1', { triggers: ['automation.run.completed'] }, ADMIN),
     ).rejects.toThrow(InvalidTriggerError);
     expect(repo.update).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -936,7 +954,7 @@ describe('AutomationsService CRUD', () => {
 
   it('updates an automation and appends automation.updated when more than enabled changes', async () => {
     const { svc, repo, appended } = build();
-    const updated = await svc.update('org-1', 'atm_1', { name: 'New name' });
+    const updated = await svc.update('atm_1', { name: 'New name' }, ADMIN);
     expect(updated).toEqual(AUTOMATION);
     expect(repo.update).toHaveBeenCalledWith('org-1', 'atm_1', { name: 'New name' });
     expect(appended).toEqual([
@@ -950,7 +968,7 @@ describe('AutomationsService CRUD', () => {
 
   it('appends automation.enabled for an enabled:true-only update', async () => {
     const { svc, appended } = build();
-    await svc.update('org-1', 'atm_1', { enabled: true });
+    await svc.update('atm_1', { enabled: true }, ADMIN);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'automation.enabled',
@@ -962,7 +980,7 @@ describe('AutomationsService CRUD', () => {
 
   it('appends automation.disabled for an enabled:false-only update', async () => {
     const { svc, appended } = build();
-    await svc.update('org-1', 'atm_1', { enabled: false });
+    await svc.update('atm_1', { enabled: false }, ADMIN);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'automation.disabled',
@@ -974,14 +992,14 @@ describe('AutomationsService CRUD', () => {
 
   it('returns null and appends nothing when updating a missing automation', async () => {
     const { svc, append } = build(fakeRepo({ update: vi.fn().mockResolvedValue(null) }));
-    const result = await svc.update('org-1', 'missing', { enabled: true });
+    const result = await svc.update('missing', { enabled: true }, ADMIN);
     expect(result).toBeNull();
     expect(append).not.toHaveBeenCalled();
   });
 
   it('deletes an automation and appends automation.deleted with the removed snapshot', async () => {
     const { svc, repo, appended } = build();
-    const ok = await svc.delete('org-1', 'atm_1');
+    const ok = await svc.delete('atm_1', ADMIN);
     expect(ok).toBe(true);
     expect(repo.delete).toHaveBeenCalledWith('org-1', 'atm_1');
     expect(appended).toEqual([
@@ -995,23 +1013,23 @@ describe('AutomationsService CRUD', () => {
 
   it('returns false and appends nothing when deleting a missing automation', async () => {
     const { svc, append } = build(fakeRepo({ delete: vi.fn().mockResolvedValue(null) }));
-    const ok = await svc.delete('org-1', 'missing');
+    const ok = await svc.delete('missing', ADMIN);
     expect(ok).toBe(false);
     expect(append).not.toHaveBeenCalled();
   });
 
   it('lists and gets automations via the read repository, without a uow', async () => {
     const { svc, repo, append } = build();
-    expect(await svc.list('org-1')).toEqual([AUTOMATION]);
+    expect(await svc.list(undefined, ADMIN)).toEqual([AUTOMATION]);
     expect(repo.listByOrg).toHaveBeenCalledWith('org-1', undefined);
-    expect(await svc.get('org-1', 'atm_1')).toEqual(AUTOMATION);
+    expect(await svc.get('atm_1', ADMIN)).toEqual(AUTOMATION);
     expect(repo.findById).toHaveBeenCalledWith('org-1', 'atm_1');
     expect(append).not.toHaveBeenCalled();
   });
 
   it('lists runs via the runs read repository', async () => {
     const { svc, runsRepo } = build();
-    const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
+    const page = await svc.listRuns('atm_1', { page: 1, pageSize: 20 }, ADMIN);
     expect(page.rows).toEqual([RUN]);
     expect(runsRepo.list).toHaveBeenCalledWith('org-1', 'atm_1', { page: 1, pageSize: 20 });
   });
@@ -1022,12 +1040,12 @@ describe('AutomationsService CRUD', () => {
       findById: vi.fn().mockResolvedValue(WEBHOOK_AUTOMATION),
     });
     const { svc } = build(repo);
-    const listed = await svc.list('org-1');
+    const listed = await svc.list(undefined, ADMIN);
     expect(listed[0]).toEqual(AUTOMATION);
     expect(listed[1]!.actions).toEqual([
       { type: 'deliverWebhook', input: { url: 'https://crm.example.com/hooks' } },
     ]);
-    const fetched = await svc.get('org-1', 'atm_wh');
+    const fetched = await svc.get('atm_wh', ADMIN);
     expect(fetched!.actions[0]!.input).not.toHaveProperty('secretRef');
   });
 
@@ -1056,7 +1074,7 @@ describe('AutomationsService CRUD', () => {
         id: 'inv_1',
         orgId: 'org-1',
         email: 'ann@example.com',
-        role: 'student',
+        roleKey: 'member',
         status: 'pending',
         invitedBy: 'ou_1',
         tokenHash: 'hash',
@@ -1086,7 +1104,7 @@ describe('AutomationsService CRUD', () => {
         }),
       });
       const { svc } = build(fakeRepo(), runsRepo);
-      const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
+      const page = await svc.listRuns('atm_1', { page: 1, pageSize: 20 }, ADMIN);
       const listed = page.rows[0]!.event;
       expect(listed).not.toHaveProperty('metadata');
       expect(listed.data).not.toHaveProperty(hidden);
@@ -1103,7 +1121,7 @@ describe('AutomationsService CRUD', () => {
         .mockResolvedValue({ rows: [{ ...RUN, event }], total: 1, page: 1, pageSize: 20 }),
     });
     const { svc } = build(fakeRepo(), runsRepo);
-    const page = await svc.listRuns('org-1', 'atm_1', { page: 1, pageSize: 20 });
+    const page = await svc.listRuns('atm_1', { page: 1, pageSize: 20 }, ADMIN);
     expect(page.rows[0]!.event.data).toBeNull();
   });
 });
@@ -1129,7 +1147,7 @@ describe('AutomationsService.availableActions', () => {
     });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), fakeEngine(), fakeMailer(), integrations);
 
-    expect(svc.availableActions()).toEqual([
+    expect(svc.availableActions(ADMIN)).toEqual([
       {
         type: 'sendEmail',
         description: expect.any(String),
@@ -1148,14 +1166,14 @@ describe('AutomationsService.availableActions', () => {
 
   it('returns only the built-ins when no integrations are loaded', () => {
     const { svc } = build();
-    expect(svc.availableActions().map((a) => a.type)).toEqual(['sendEmail', 'grantAccess']);
+    expect(svc.availableActions(ADMIN).map((a) => a.type)).toEqual(['sendEmail', 'grantAccess']);
   });
 });
 
 describe('AutomationsService.availableTriggers', () => {
   it('lists domain event types with descriptions, entitlement.created included', () => {
     const { svc } = build();
-    const { triggers } = svc.availableTriggers();
+    const { triggers } = svc.availableTriggers(ADMIN);
     expect(triggers.length).toBeGreaterThan(0);
     for (const trigger of triggers) {
       expect(trigger.type).toBeTruthy();
@@ -1173,7 +1191,7 @@ describe('AutomationsService.availableTriggers', () => {
 
   it('excludes the automation.* family', () => {
     const { svc } = build();
-    const { triggers } = svc.availableTriggers();
+    const { triggers } = svc.availableTriggers(ADMIN);
     expect(triggers.filter((t) => t.type.startsWith('automation.'))).toEqual([]);
   });
 });
@@ -1185,9 +1203,9 @@ describe('AutomationsService workflow guards', () => {
       { type: 'deliverWebhook', input: { url: 'https://x.test', secretRef: 'crd_x' } },
     ];
     await expect(
-      svc.create('org-1', { name: 'Sneaky', triggers: ['entitlement.created'], actions }),
+      svc.create({ name: 'Sneaky', triggers: ['entitlement.created'], actions }, ADMIN),
     ).rejects.toThrow(ReservedActionError);
-    await expect(svc.update('org-1', 'atm_1', { actions })).rejects.toThrow(ReservedActionError);
+    await expect(svc.update('atm_1', { actions }, ADMIN)).rejects.toThrow(ReservedActionError);
     expect(repo.insert).not.toHaveBeenCalled();
     expect(repo.update).not.toHaveBeenCalled();
   });
@@ -1196,10 +1214,10 @@ describe('AutomationsService workflow guards', () => {
     const { svc, repo, append } = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(WEBHOOK_AUTOMATION) }),
     );
-    await expect(svc.update('org-1', 'atm_wh', { name: 'x' })).rejects.toThrow(
+    await expect(svc.update('atm_wh', { name: 'x' }, ADMIN)).rejects.toThrow(
       AutomationKindMismatchError,
     );
-    await expect(svc.delete('org-1', 'atm_wh')).rejects.toThrow(AutomationKindMismatchError);
+    await expect(svc.delete('atm_wh', ADMIN)).rejects.toThrow(AutomationKindMismatchError);
     expect(repo.update).not.toHaveBeenCalled();
     expect(repo.delete).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -1207,11 +1225,14 @@ describe('AutomationsService workflow guards', () => {
 
   it('dedupes triggers on create', async () => {
     const { svc, repo } = build();
-    await svc.create('org-1', {
-      name: 'Twice',
-      triggers: ['entitlement.created', 'entitlement.created'],
-      actions: [],
-    });
+    await svc.create(
+      {
+        name: 'Twice',
+        triggers: ['entitlement.created', 'entitlement.created'],
+        actions: [],
+      },
+      ADMIN,
+    );
     expect(repo.insert).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({ triggers: ['entitlement.created'] }),
@@ -1220,7 +1241,7 @@ describe('AutomationsService workflow guards', () => {
 
   it('filters the list by kind', async () => {
     const { svc, repo } = build();
-    await svc.list('org-1', { kind: 'workflow' });
+    await svc.list({ kind: 'workflow' }, ADMIN);
     expect(repo.listByOrg).toHaveBeenCalledWith('org-1', 'workflow');
   });
 });
@@ -1237,7 +1258,7 @@ describe('AutomationsService.rerun', () => {
     const runsRepo = fakeRunsRepo({ findById: vi.fn().mockResolvedValue(FAILED_RUN) });
     const { svc, engine, appended } = build(fakeRepo(), runsRepo);
 
-    const run = await svc.rerun('org-1', 'atm_1', 'run_1');
+    const run = await svc.rerun('atm_1', 'run_1', ADMIN);
 
     expect(run).toEqual(RUN);
     expect(runsRepo.restart).toHaveBeenCalledWith(
@@ -1286,7 +1307,7 @@ describe('AutomationsService.rerun', () => {
     });
     const { svc, engine } = build(fakeRepo(), runsRepo);
 
-    const run = await svc.rerun('org-1', 'atm_1', 'run_1');
+    const run = await svc.rerun('atm_1', 'run_1', ADMIN);
 
     expect(vi.mocked(engine.dispatch).mock.calls[0]![0].event).toEqual(event);
     expect(run.event.data).not.toHaveProperty('body');
@@ -1296,7 +1317,7 @@ describe('AutomationsService.rerun', () => {
   it('refuses a run that is still running', async () => {
     const runsRepo = fakeRunsRepo({ restart: vi.fn().mockResolvedValue(null) });
     const { svc, engine, append } = build(fakeRepo(), runsRepo);
-    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).rejects.toThrow(ConflictError);
+    await expect(svc.rerun('atm_1', 'run_1', ADMIN)).rejects.toThrow(ConflictError);
     expect(append).not.toHaveBeenCalled();
     expect(engine.dispatch).not.toHaveBeenCalled();
   });
@@ -1306,7 +1327,7 @@ describe('AutomationsService.rerun', () => {
       findById: vi.fn().mockResolvedValue({ ...FAILED_RUN, automationId: 'atm_other' }),
     });
     const { svc, engine } = build(fakeRepo(), runsRepo);
-    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).rejects.toThrow(NotFoundError);
+    await expect(svc.rerun('atm_1', 'run_1', ADMIN)).rejects.toThrow(NotFoundError);
     expect(runsRepo.restart).not.toHaveBeenCalled();
     expect(engine.dispatch).not.toHaveBeenCalled();
   });
@@ -1317,7 +1338,7 @@ describe('AutomationsService.rerun', () => {
       fakeRepo({ findById: vi.fn().mockResolvedValue(null) }),
       runsRepo,
     );
-    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).rejects.toThrow(NotFoundError);
+    await expect(svc.rerun('atm_1', 'run_1', ADMIN)).rejects.toThrow(NotFoundError);
     expect(runsRepo.restart).not.toHaveBeenCalled();
     expect(engine.dispatch).not.toHaveBeenCalled();
   });
@@ -1330,7 +1351,7 @@ describe('AutomationsService.rerun', () => {
     });
     const engine = fakeEngine({ dispatch: vi.fn().mockRejectedValue(new Error('queue down')) });
     const { svc } = build(fakeRepo(), runsRepo, engine);
-    await expect(svc.rerun('org-1', 'atm_1', 'run_1')).resolves.toEqual(failed);
+    await expect(svc.rerun('atm_1', 'run_1', ADMIN)).resolves.toEqual(failed);
     expect(runsRepo.recordOutcome).toHaveBeenCalledWith(
       'org-1',
       'run_1',
@@ -1375,11 +1396,14 @@ describe('AutomationsService webhooks', () => {
   it('creates a webhook automation with a stored signing secret and returns the secret once', async () => {
     const { svc, repo, credentials, appended } = buildWebhooks();
 
-    const created = await svc.createWebhook('org-1', {
-      url: 'https://crm.example.com/hooks',
-      events: ['entitlement.created', 'entitlement.deleted', 'entitlement.created'],
-      description: 'CRM sync',
-    });
+    const created = await svc.createWebhook(
+      {
+        url: 'https://crm.example.com/hooks',
+        events: ['entitlement.created', 'entitlement.deleted', 'entitlement.created'],
+        description: 'CRM sync',
+      },
+      ADMIN,
+    );
 
     const [, stored] = vi.mocked(credentials.store).mock.calls[0]!;
     expect(stored).toEqual({ secret: expect.stringMatching(/^whsec_/) });
@@ -1404,28 +1428,28 @@ describe('AutomationsService webhooks', () => {
   it('rejects events the system does not emit, and the automation.* family', async () => {
     const { svc, repo } = buildWebhooks();
     await expect(
-      svc.createWebhook('org-1', { url: 'https://x.test', events: ['nope.happened'] }),
+      svc.createWebhook({ url: 'https://x.test', events: ['nope.happened'] }, ADMIN),
     ).rejects.toThrow(InvalidTriggerError);
     await expect(
-      svc.createWebhook('org-1', { url: 'https://x.test', events: ['automation.run.failed'] }),
+      svc.createWebhook({ url: 'https://x.test', events: ['automation.run.failed'] }, ADMIN),
     ).rejects.toThrow(InvalidTriggerError);
     expect(repo.insert).not.toHaveBeenCalled();
   });
 
   it('lists and gets webhooks as their own shape', async () => {
     const { svc, repo } = buildWebhooks();
-    expect(await svc.listWebhooks('org-1')).toEqual([WEBHOOK]);
+    expect(await svc.listWebhooks(ADMIN)).toEqual([WEBHOOK]);
     expect(repo.listByOrg).toHaveBeenCalledWith('org-1', 'webhook');
-    expect(await svc.getWebhook('org-1', 'atm_wh')).toEqual(WEBHOOK);
+    expect(await svc.getWebhook('atm_wh', ADMIN)).toEqual(WEBHOOK);
   });
 
   it('does not treat a workflow as a webhook', async () => {
     const { svc, repo, credentials } = build();
-    expect(await svc.getWebhook('org-1', 'atm_1')).toBeNull();
-    expect(await svc.updateWebhook('org-1', 'atm_1', { enabled: false })).toBeNull();
-    expect(await svc.deleteWebhook('org-1', 'atm_1')).toBe(false);
-    expect(await svc.revealWebhookSecret('org-1', 'atm_1')).toBeNull();
-    expect(await svc.rotateWebhookSecret('org-1', 'atm_1')).toBeNull();
+    expect(await svc.getWebhook('atm_1', ADMIN)).toBeNull();
+    expect(await svc.updateWebhook('atm_1', { enabled: false }, ADMIN)).toBeNull();
+    expect(await svc.deleteWebhook('atm_1', ADMIN)).toBe(false);
+    expect(await svc.revealWebhookSecret('atm_1', ADMIN)).toBeNull();
+    expect(await svc.rotateWebhookSecret('atm_1', ADMIN)).toBeNull();
     expect(repo.update).not.toHaveBeenCalled();
     expect(repo.delete).not.toHaveBeenCalled();
     expect(credentials.update).not.toHaveBeenCalled();
@@ -1433,10 +1457,14 @@ describe('AutomationsService webhooks', () => {
 
   it('rewrites the delivery target on a URL change, keeping the signing secret', async () => {
     const { svc, repo, appended } = buildWebhooks();
-    await svc.updateWebhook('org-1', 'atm_wh', {
-      url: 'https://new.example.com/hooks',
-      events: ['progress.record.completed'],
-    });
+    await svc.updateWebhook(
+      'atm_wh',
+      {
+        url: 'https://new.example.com/hooks',
+        events: ['progress.record.completed'],
+      },
+      ADMIN,
+    );
     expect(repo.update).toHaveBeenCalledWith('org-1', 'atm_wh', {
       name: 'https://new.example.com/hooks',
       description: undefined,
@@ -1454,21 +1482,21 @@ describe('AutomationsService webhooks', () => {
 
   it('appends automation.disabled for an enabled:false-only webhook update', async () => {
     const { svc, appended } = buildWebhooks();
-    await svc.updateWebhook('org-1', 'atm_wh', { enabled: false });
+    await svc.updateWebhook('atm_wh', { enabled: false }, ADMIN);
     expect(appended).toEqual([expect.objectContaining({ type: 'automation.disabled' })]);
   });
 
   it('deletes the webhook and destroys its signing secret', async () => {
     const { svc, credentials, appended } = buildWebhooks();
-    expect(await svc.deleteWebhook('org-1', 'atm_wh')).toBe(true);
+    expect(await svc.deleteWebhook('atm_wh', ADMIN)).toBe(true);
     expect(credentials.destroy).toHaveBeenCalledWith('org-1', 'crd_1');
     expect(appended).toEqual([expect.objectContaining({ type: 'automation.deleted' })]);
   });
 
   it('reveals and rotates the signing secret', async () => {
     const { svc, credentials } = buildWebhooks();
-    expect(await svc.revealWebhookSecret('org-1', 'atm_wh')).toEqual({ secret: WEBHOOK_SECRET });
-    const rotated = await svc.rotateWebhookSecret('org-1', 'atm_wh');
+    expect(await svc.revealWebhookSecret('atm_wh', ADMIN)).toEqual({ secret: WEBHOOK_SECRET });
+    const rotated = await svc.rotateWebhookSecret('atm_wh', ADMIN);
     expect(rotated?.secret).toMatch(/^whsec_/);
     expect(rotated?.secret).not.toBe(WEBHOOK_SECRET);
     expect(credentials.update).toHaveBeenCalledWith('org-1', 'crd_1', {
@@ -1602,7 +1630,7 @@ describe('AutomationsService.runAction deliverWebhook', () => {
         id: 'inv_1',
         orgId: 'org-1',
         email: 'ann@example.com',
-        role: 'student',
+        roleKey: 'member',
         status: 'pending',
         invitedBy: 'ou_1',
         tokenHash: 'hash',
@@ -1731,11 +1759,14 @@ describe('schedule reconcile after commit', () => {
     });
     const { svc, appended } = build(fakeRepo(), fakeRunsRepo(), engine);
     await expect(
-      svc.create('org-1', {
-        name: 'Daily',
-        triggers: ['schedule:0 7 * * *'],
-        actions: [{ type: 'sendEmail', input: { template: 'digest' } }],
-      }),
+      svc.create(
+        {
+          name: 'Daily',
+          triggers: ['schedule:0 7 * * *'],
+          actions: [{ type: 'sendEmail', input: { template: 'digest' } }],
+        },
+        ADMIN,
+      ),
     ).resolves.toEqual(AUTOMATION);
     expect(engine.syncSchedules).toHaveBeenCalledOnce();
     expect(appended).toEqual([expect.objectContaining({ type: 'automation.created' })]);
@@ -1746,8 +1777,8 @@ describe('schedule reconcile after commit', () => {
       syncSchedules: vi.fn().mockRejectedValue(new Error('hatchet down')),
     });
     const { svc } = build(fakeRepo(), fakeRunsRepo(), engine);
-    await expect(svc.update('org-1', 'atm_1', { name: 'Renamed' })).resolves.toEqual(AUTOMATION);
-    await expect(svc.delete('org-1', 'atm_1')).resolves.toBe(true);
+    await expect(svc.update('atm_1', { name: 'Renamed' }, ADMIN)).resolves.toEqual(AUTOMATION);
+    await expect(svc.delete('atm_1', ADMIN)).resolves.toBe(true);
   });
 });
 
@@ -1802,5 +1833,75 @@ describe('fireSchedule slots', () => {
     const { svc, runsRepo } = withWork(scheduled('sendEmail', new Date('2026-01-02T08:15:00Z')));
     await svc.fireSchedule('org-1', 'atm_1', new Date('2026-01-02T07:00:00Z'));
     expect(runsRepo.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('AutomationsService permissions', () => {
+  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+    const { svc, repo } = build();
+    const nobody = actorWith({ orgId: 'org-1' });
+    expect(() => svc.availableActions(nobody)).toThrow(ForbiddenError);
+    expect(() => svc.availableTriggers(nobody)).toThrow(ForbiddenError);
+    const calls: (() => Promise<unknown>)[] = [
+      () => svc.list(undefined, nobody),
+      () => svc.get('atm_1', nobody),
+      () => svc.create({ name: 'x', triggers: ['entitlement.created'], actions: [] }, nobody),
+      () => svc.update('atm_1', { enabled: false }, nobody),
+      () => svc.delete('atm_1', nobody),
+      () => svc.listRuns('atm_1', { page: 1, pageSize: 20 }, nobody),
+      () => svc.rerun('atm_1', 'run_1', nobody),
+      () => svc.listWebhooks(nobody),
+      () => svc.getWebhook('atm_1', nobody),
+      () => svc.createWebhook({ url: 'https://x.test', events: ['entitlement.created'] }, nobody),
+      () => svc.updateWebhook('atm_1', { enabled: false }, nobody),
+      () => svc.deleteWebhook('atm_1', nobody),
+      () => svc.revealWebhookSecret('atm_1', nobody),
+      () => svc.rotateWebhookSecret('atm_1', nobody),
+    ];
+    for (const call of calls) {
+      await expect(call()).rejects.toThrow(ForbiddenError);
+    }
+    expect(repo.findById).not.toHaveBeenCalled();
+  });
+
+  it('needs automations:delete to delete a workflow or a webhook', async () => {
+    const { svc } = build();
+    const writer = actorWith({ orgId: 'org-1', org: ['automations:write'] });
+    await expect(svc.delete('atm_1', writer)).rejects.toThrow(ForbiddenError);
+    await expect(svc.deleteWebhook('atm_1', writer)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('offers "Role assigned" as a trigger', () => {
+    const { svc } = build();
+    expect(svc.availableTriggers(ADMIN).triggers.map((t) => t.type)).toContain(
+      'organization.role.assigned',
+    );
+  });
+
+  it.each([
+    [{ roleKey: 'moderator' }, true],
+    [{ roleKey: 'instructor' }, false],
+    [{ contentType: 'community', contentId: 'cmy_1' }, true],
+    [{ contentId: 'cmy_2' }, false],
+  ])('filters "Role assigned" on %o', async (filter, dispatched) => {
+    const repo = fakeRepo({
+      listByTrigger: vi.fn().mockResolvedValue([{ ...AUTOMATION, filter }]),
+    });
+    const { svc, engine } = build(repo);
+    await svc.handle({
+      type: 'organization.role.assigned',
+      version: 1,
+      id: 'evt_role',
+      orgId: 'org-1',
+      occurredAt: '2026-01-02T00:00:00.000Z',
+      data: {
+        orgUserId: 'ou_emma',
+        roleKey: 'moderator',
+        contentId: 'cmy_1',
+        contentType: 'community',
+        previousRoleKey: null,
+      },
+    });
+    expect(engine.dispatch).toHaveBeenCalledTimes(dispatched ? 1 : 0);
   });
 });

@@ -189,7 +189,10 @@ describe('AssetsService', () => {
       'image/webp',
       'image/avif',
     ]) {
-      const ticket = await svc.requestMemberUpload({ filename: 'a', contentType }, uploader('ou_1'));
+      const ticket = await svc.requestMemberUpload(
+        { filename: 'a', contentType },
+        uploader('ou_1'),
+      );
       expect(ticket.asset.contentType).toBe(contentType);
     }
   });
@@ -944,5 +947,100 @@ describe('AssetsService', () => {
     expect(await svc.libraryFile(member.asset.id, { download: false }, admin())).toBeNull();
     expect(await svc.ownUploadFile(member.asset.id, uploader('ou_1'))).toBe('https://signed');
     expect(await svc.ownUploadFile(member.asset.id, uploader('ou_2'))).toBeNull();
+  });
+});
+
+describe('AssetsService permissions', () => {
+  const james = actorWith({ id: 'ou_james', content: { crs_1: ['courses:write'] } });
+
+  it('lets James upload and confirm for crs_1 and records the item on the asset', async () => {
+    const { svc } = service();
+    const ticket = await svc.requestUpload(
+      { filename: 'a.mp4', contentType: 'video/mp4', contentId: 'crs_1' },
+      james,
+    );
+    expect(ticket.asset.contentId).toBe('crs_1');
+    expect(ticket.asset.uploadedBy).toBe('ou_james');
+    const confirmed = await svc.confirm(ticket.asset.id, james);
+    expect(confirmed?.status).toBe('ready');
+    expect(await svc.get(ticket.asset.id, james)).not.toBeNull();
+    expect(await svc.libraryFile(ticket.asset.id, { download: false }, james)).toBe(
+      'https://storage/download',
+    );
+  });
+
+  it('refuses James an upload for crs_2, for a download, or to the library', async () => {
+    const { svc } = service();
+    await expect(
+      svc.requestUpload({ filename: 'a.mp4', contentType: 'video/mp4', contentId: 'crs_2' }, james),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(
+      svc.requestUpload({ filename: 'a.mp4', contentType: 'video/mp4', contentId: 'dl_1' }, james),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(
+      svc.requestUpload({ filename: 'a.mp4', contentType: 'video/mp4' }, james),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('refuses James a library file or a file uploaded for another course', async () => {
+    const { svc } = service();
+    const library = await svc.requestUpload(
+      { filename: 'a.png', contentType: 'image/png' },
+      admin(),
+    );
+    const other = await svc.requestUpload(
+      { filename: 'b.png', contentType: 'image/png', contentId: 'crs_2' },
+      admin(),
+    );
+    await expect(svc.get(library.asset.id, james)).rejects.toThrow(ForbiddenError);
+    await expect(svc.confirm(other.asset.id, james)).rejects.toThrow(ForbiddenError);
+    await expect(svc.libraryFile(other.asset.id, { download: true }, james)).rejects.toThrow(
+      ForbiddenError,
+    );
+  });
+
+  it('lists the whole library to media:read, otherwise only what was uploaded for the item', async () => {
+    const { svc } = service();
+    await svc.requestUpload({ filename: 'a.png', contentType: 'image/png' }, admin());
+    await svc.requestUpload(
+      { filename: 'b.png', contentType: 'image/png', contentId: 'crs_1' },
+      james,
+    );
+    expect((await svc.list({ page: 1, pageSize: 20 }, admin())).rows).toHaveLength(2);
+    const forItem = await svc.list({ page: 1, pageSize: 20, contentId: 'crs_1' }, james);
+    expect(forItem.rows.map((row) => row.filename)).toEqual(['b.png']);
+    await expect(svc.list({ page: 1, pageSize: 20 }, james)).rejects.toThrow(ForbiddenError);
+    await expect(svc.list({ page: 1, pageSize: 20, contentId: 'crs_2' }, james)).rejects.toThrow(
+      ForbiddenError,
+    );
+  });
+
+  it('needs media:delete to delete from the library', async () => {
+    const { svc } = service();
+    const ticket = await svc.requestUpload(
+      { filename: 'a.png', contentType: 'image/png', contentId: 'crs_1' },
+      james,
+    );
+    await expect(svc.remove(ticket.asset.id, james)).rejects.toThrow(ForbiddenError);
+    expect(await svc.remove(ticket.asset.id, admin())).toBe(true);
+  });
+
+  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+    const { svc } = service();
+    const ticket = await svc.requestUpload(
+      { filename: 'a.png', contentType: 'image/png' },
+      admin(),
+    );
+    const nobody = uploader('ou_nobody');
+    await expect(
+      svc.requestUpload({ filename: 'a.png', contentType: 'image/png' }, nobody),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(svc.confirm(ticket.asset.id, nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.get(ticket.asset.id, nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.list({ page: 1, pageSize: 20 }, nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.libraryFile(ticket.asset.id, { download: false }, nobody)).rejects.toThrow(
+      ForbiddenError,
+    );
+    await expect(svc.remove(ticket.asset.id, nobody)).rejects.toThrow(ForbiddenError);
   });
 });

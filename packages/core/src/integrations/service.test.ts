@@ -8,9 +8,15 @@ import {
   UnknownIntegrationError,
   type Connection,
 } from './model.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { ConnectionsRepository, Integration, IntegrationsUnitOfWork } from './ports.js';
 import type { CredentialStore, NewDomainEvent } from '../shared/ports.js';
+import { actorWith } from '../organizations/index.js';
+
+const ADMIN = actorWith({
+  orgId: 'org-1',
+  org: ['integrations:read', 'integrations:write', 'integrations:delete'],
+});
 
 // Inline integrations — the real ones (adapters/integrations/*) are adapter
 // concerns; the core service only needs modules satisfying the port.
@@ -116,7 +122,7 @@ describe('IntegrationsRegistry', () => {
 describe('IntegrationsService', () => {
   it("available exposes each declared integration's id, config schema, and actions", () => {
     const { svc } = build();
-    const available = svc.available();
+    const available = svc.available(ADMIN);
     expect(available.map((a) => a.id)).toEqual(['stripe', 'slack']);
     expect(available[0]?.configSchema).toHaveProperty('type', 'object');
     expect(available[0]?.secretsSchema).toHaveProperty('required', ['apiKey']);
@@ -133,11 +139,14 @@ describe('IntegrationsService', () => {
 
   it('connect stores the credential, inserts the connection, appends created — one scope', async () => {
     const { svc, repo, credentials, appended } = build();
-    const conn = await svc.connect('org-1', {
-      integrationId: 'stripe',
-      secrets: { apiKey: 'sk_live_x' },
-      config: { mode: 'live' },
-    });
+    const conn = await svc.connect(
+      {
+        integrationId: 'stripe',
+        secrets: { apiKey: 'sk_live_x' },
+        config: { mode: 'live' },
+      },
+      ADMIN,
+    );
     expect(credentials.store).toHaveBeenCalledWith('org-1', { apiKey: 'sk_live_x' });
     expect(conn.credentialRef).toBe('crd_1');
     expect(conn.active).toBe(true);
@@ -154,7 +163,7 @@ describe('IntegrationsService', () => {
   it('connect rejects an undeclared integration id', async () => {
     const { svc, credentials } = build();
     await expect(
-      svc.connect('org-1', { integrationId: 'strope', secrets: { apiKey: 'x' } }),
+      svc.connect({ integrationId: 'strope', secrets: { apiKey: 'x' } }, ADMIN),
     ).rejects.toThrow(UnknownIntegrationError);
     expect(credentials.store).not.toHaveBeenCalled();
   });
@@ -162,11 +171,14 @@ describe('IntegrationsService', () => {
   it("connect rejects config the integration's validator refuses", async () => {
     const { svc, credentials } = build();
     await expect(
-      svc.connect('org-1', {
-        integrationId: 'stripe',
-        secrets: { apiKey: 'x' },
-        config: { mode: 'sandbox' },
-      }),
+      svc.connect(
+        {
+          integrationId: 'stripe',
+          secrets: { apiKey: 'x' },
+          config: { mode: 'sandbox' },
+        },
+        ADMIN,
+      ),
     ).rejects.toThrow(InvalidConfigError);
     expect(credentials.store).not.toHaveBeenCalled();
   });
@@ -176,7 +188,7 @@ describe('IntegrationsService', () => {
       fakeRepo({ findByIntegration: vi.fn().mockResolvedValue(SAMPLE) }),
     );
     await expect(
-      svc.connect('org-1', { integrationId: 'stripe', secrets: { apiKey: 'x' } }),
+      svc.connect({ integrationId: 'stripe', secrets: { apiKey: 'x' } }, ADMIN),
     ).rejects.toThrow(AlreadyConnectedError);
     expect(credentials.store).not.toHaveBeenCalled();
   });
@@ -187,7 +199,7 @@ describe('IntegrationsService', () => {
       fakeCredentials({ store: vi.fn().mockRejectedValue(new Error('crypto down')) }),
     );
     await expect(
-      svc.connect('org-1', { integrationId: 'stripe', secrets: { apiKey: 'x' } }),
+      svc.connect({ integrationId: 'stripe', secrets: { apiKey: 'x' } }, ADMIN),
     ).rejects.toThrow('crypto down');
     expect(repo.insert).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -195,7 +207,7 @@ describe('IntegrationsService', () => {
 
   it('reconnect replaces the secrets in place (same ref), appends updated', async () => {
     const { svc, credentials, appended } = build();
-    await svc.reconnect('org-1', 'con_1', { apiKey: 'sk_live_new' });
+    await svc.reconnect('con_1', { apiKey: 'sk_live_new' }, ADMIN);
     expect(credentials.update).toHaveBeenCalledWith('org-1', 'crd_1', { apiKey: 'sk_live_new' });
     expect(appended).toEqual([
       expect.objectContaining({
@@ -207,14 +219,14 @@ describe('IntegrationsService', () => {
 
   it("configure validates the new config against the connection's integration", async () => {
     const { svc } = build();
-    await expect(svc.configure('org-1', 'con_1', { config: { mode: 'nope' } })).rejects.toThrow(
+    await expect(svc.configure('con_1', { config: { mode: 'nope' } }, ADMIN)).rejects.toThrow(
       InvalidConfigError,
     );
   });
 
   it('configure patches config/active, appends updated', async () => {
     const { svc, repo, appended } = build();
-    await svc.configure('org-1', 'con_1', { active: false });
+    await svc.configure('con_1', { active: false }, ADMIN);
     expect(repo.update).toHaveBeenCalledWith('org-1', 'con_1', {
       active: false,
       updatedAt: new Date('2026-01-02T00:00:00.000Z'),
@@ -229,7 +241,7 @@ describe('IntegrationsService', () => {
 
   it('disconnect destroys the credential and the connection, appends removed', async () => {
     const { svc, repo, credentials, appended } = build();
-    const ok = await svc.disconnect('org-1', 'con_1');
+    const ok = await svc.disconnect('con_1', ADMIN);
     expect(ok).toBe(true);
     expect(credentials.destroy).toHaveBeenCalledWith('org-1', 'crd_1');
     expect(repo.delete).toHaveBeenCalledWith('org-1', 'con_1');
@@ -250,8 +262,8 @@ describe('IntegrationsService', () => {
     const { svc, credentials, append } = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(null) }),
     );
-    expect(await svc.reconnect('org-1', 'nope', { apiKey: 'x' })).toBeNull();
-    expect(await svc.disconnect('org-1', 'nope')).toBe(false);
+    expect(await svc.reconnect('nope', { apiKey: 'x' }, ADMIN)).toBeNull();
+    expect(await svc.disconnect('nope', ADMIN)).toBe(false);
     expect(credentials.update).not.toHaveBeenCalled();
     expect(credentials.destroy).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
@@ -279,7 +291,7 @@ describe('IntegrationsService', () => {
       fakeRepo({ findById: vi.fn().mockResolvedValue(SLACK_CONNECTION) }),
       fakeCredentials({ reveal: vi.fn().mockResolvedValue({ botToken: 't' }) }),
     );
-    const output = await svc.invoke('org-1', 'con_2', 'postMessageToChannel', { limit: 5 });
+    const output = await svc.invoke('con_2', 'postMessageToChannel', { limit: 5 }, ADMIN);
     expect(credentials.reveal).toHaveBeenCalledWith('org-1', 'crd_2');
     expect(invoke).toHaveBeenCalledWith(
       { secrets: { botToken: 't' }, config: { defaultChannel: '#general' } },
@@ -291,17 +303,17 @@ describe('IntegrationsService', () => {
 
   it('invoke rejects a missing connection, an inactive one, and an unknown action', async () => {
     const { svc } = build(fakeRepo({ findById: vi.fn().mockResolvedValue(null) }));
-    await expect(svc.invoke('org-1', 'nope', 'x', {})).rejects.toThrow(NotFoundError);
+    await expect(svc.invoke('nope', 'x', {}, ADMIN)).rejects.toThrow(NotFoundError);
 
     const inactive = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue({ ...SLACK_CONNECTION, active: false }) }),
     );
-    await expect(inactive.svc.invoke('org-1', 'con_2', 'x', {})).rejects.toThrow(ConflictError);
+    await expect(inactive.svc.invoke('con_2', 'x', {}, ADMIN)).rejects.toThrow(ConflictError);
 
     const unknownAction = build(
       fakeRepo({ findById: vi.fn().mockResolvedValue(SLACK_CONNECTION) }),
     );
-    await expect(unknownAction.svc.invoke('org-1', 'con_2', 'nope', {})).rejects.toThrow(
+    await expect(unknownAction.svc.invoke('con_2', 'nope', {}, ADMIN)).rejects.toThrow(
       NotFoundError,
     );
   });
@@ -311,10 +323,10 @@ describe('IntegrationsService', () => {
       .spyOn(slack.actions[0]!, 'invoke')
       .mockRejectedValue(new Error('slack said no'));
     const { svc } = build(fakeRepo({ findById: vi.fn().mockResolvedValue(SLACK_CONNECTION) }));
-    await expect(svc.invoke('org-1', 'con_2', 'postMessageToChannel', {})).rejects.toThrow(
+    await expect(svc.invoke('con_2', 'postMessageToChannel', {}, ADMIN)).rejects.toThrow(
       /slack said no/,
     );
-    await expect(svc.invoke('org-1', 'con_2', 'postMessageToChannel', {})).rejects.toBeInstanceOf(
+    await expect(svc.invoke('con_2', 'postMessageToChannel', {}, ADMIN)).rejects.toBeInstanceOf(
       ActionInvocationError,
     );
     invoke.mockRestore();
@@ -344,13 +356,16 @@ describe('logging', () => {
       logger,
     });
 
-    const connection = await svc.connect('org-1', {
-      integrationId: 'slack',
-      config: {},
-      secrets: { botToken: 't' },
-    });
-    await svc.disconnect('org-1', connection.id);
-    await expect(svc.connect('org-1', { integrationId: 'nope', secrets: {} })).rejects.toThrow(
+    const connection = await svc.connect(
+      {
+        integrationId: 'slack',
+        config: {},
+        secrets: { botToken: 't' },
+      },
+      ADMIN,
+    );
+    await svc.disconnect(connection.id, ADMIN);
+    await expect(svc.connect({ integrationId: 'nope', secrets: {} }, ADMIN)).rejects.toThrow(
       UnknownIntegrationError,
     );
 
@@ -364,5 +379,29 @@ describe('logging', () => {
       integrationId: 'slack',
       connectionId: connection.id,
     });
+  });
+});
+
+describe('IntegrationsService permissions', () => {
+  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+    const { svc, repo } = build();
+    const nobody = actorWith({ orgId: 'org-1' });
+    expect(() => svc.available(nobody)).toThrow(ForbiddenError);
+    await expect(
+      svc.connect({ integrationId: 'stripe', secrets: { apiKey: 'x' } }, nobody),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(svc.reconnect('con_1', { apiKey: 'x' }, nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.configure('con_1', { active: false }, nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.disconnect('con_1', nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.list(nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.get('con_1', nobody)).rejects.toThrow(ForbiddenError);
+    await expect(svc.invoke('con_1', 'x', {}, nobody)).rejects.toThrow(ForbiddenError);
+    expect(repo.findById).not.toHaveBeenCalled();
+  });
+
+  it('needs integrations:delete to disconnect, write alone is refused', async () => {
+    const { svc } = build();
+    const writer = actorWith({ orgId: 'org-1', org: ['integrations:write'] });
+    await expect(svc.disconnect('con_1', writer)).rejects.toThrow(ForbiddenError);
   });
 });

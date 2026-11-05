@@ -6,6 +6,11 @@ import { createFileUrls } from '../assets/index.js';
 import type { IdentityRepository, IdentityUnitOfWork } from './ports.js';
 import type { User } from './model.js';
 import type { NewDomainEvent } from '../shared/ports.js';
+import { actorWith } from '../organizations/index.js';
+
+function memberOf(userId: string, orgUserId: string, orgId: string) {
+  return { ...actorWith({ id: orgUserId, orgId }), userId };
+}
 import type { Mailer } from '../shared/mailer.js';
 
 const PROVISIONED: User = {
@@ -197,13 +202,7 @@ describe('updateProfile', () => {
     const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
     const { service } = build(repo);
 
-    const profile = await service.updateProfile(
-      'org-1',
-      'usr_invited',
-      'usr_invited',
-      'ou_1',
-      photo,
-    );
+    const profile = await service.updateProfile(photo, memberOf('usr_invited', 'ou_1', 'org-1'));
 
     expect(profile.imageAssetId).toBe('ast_1');
     expect(profile.imageUrl).toBe(fileUrls.memberUpload('ast_1'));
@@ -218,7 +217,7 @@ describe('updateProfile', () => {
     const { service } = build(repo, { ownsImage: async () => false });
 
     await expect(
-      service.updateProfile('org-1', 'usr_invited', 'usr_invited', 'ou_1', photo),
+      service.updateProfile(photo, memberOf('usr_invited', 'ou_1', 'org-1')),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(repo.upsertProfile).not.toHaveBeenCalled();
   });
@@ -228,9 +227,12 @@ describe('updateProfile', () => {
     const ownsImage = vi.fn(async () => false);
     const { service } = build(repo, { ownsImage });
 
-    const profile = await service.updateProfile('org-1', 'usr_invited', 'usr_invited', 'ou_1', {
-      imageAssetId: null,
-    });
+    const profile = await service.updateProfile(
+      {
+        imageAssetId: null,
+      },
+      memberOf('usr_invited', 'ou_1', 'org-1'),
+    );
 
     expect(profile.imageUrl).toBeNull();
 
@@ -258,7 +260,7 @@ describe('profileOf', () => {
   it('signs the photo inside the org it belongs to', async () => {
     const repo = fakeRepo({ findProfile: vi.fn().mockResolvedValue(stored) });
 
-    const profile = await build(repo).service.profileOf('org-1', 'usr_invited');
+    const profile = await build(repo).service.profileOf(memberOf('usr_invited', 'ou_1', 'org-1'));
 
     expect(profile).toEqual({ ...stored, imageUrl: fileUrls.memberUpload('ast_1') });
   });
@@ -266,14 +268,14 @@ describe('profileOf', () => {
   it('serves no photo URL in another org', async () => {
     const repo = fakeRepo({ findProfile: vi.fn().mockResolvedValue(stored) });
 
-    const profile = await build(repo).service.profileOf('org-2', 'usr_invited');
+    const profile = await build(repo).service.profileOf(memberOf('usr_invited', 'ou_1', 'org-2'));
 
     expect(profile.imageAssetId).toBe('ast_1');
     expect(profile.imageUrl).toBeNull();
   });
 
   it('serves an empty profile without a photo URL when none is stored', async () => {
-    const profile = await build().service.profileOf('org-1', 'usr_invited');
+    const profile = await build().service.profileOf(memberOf('usr_invited', 'ou_1', 'org-1'));
 
     expect(profile).toMatchObject({ userId: 'usr_invited', imageAssetId: null, imageUrl: null });
   });
@@ -282,11 +284,8 @@ describe('profileOf', () => {
     const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
 
     const profile = await build(repo).service.updateProfile(
-      'org-2',
-      'usr_invited',
-      'usr_invited',
-      'ou_1',
       { imageAssetId: 'ast_1' },
+      memberOf('usr_invited', 'ou_1', 'org-2'),
     );
 
     expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', {
