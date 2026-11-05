@@ -7,7 +7,6 @@ import type { Permission } from '../../../types/index.js';
 import { ORGANIZATION_RULES } from './organizations.js';
 
 const ORG = 'org_1';
-const T = new Date('2026-11-01T00:00:00Z');
 
 function fakeReads(activity = true): NotificationReads {
   return {
