@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { DrizzleOutboxAppender, DrizzleOutboxStore, OUTBOX_MAX_ATTEMPTS } from "./outbox.js";
+import {
+  DrizzleOutboxAppender,
+  DrizzleOutboxStore,
+  OUTBOX_CLAIM_MS,
+  OUTBOX_MAX_ATTEMPTS,
+} from "./outbox.js";
 import type { DbExecutor } from "../client.js";
 
 function fakeTx() {
@@ -48,7 +53,7 @@ describe("DrizzleOutboxAppender", () => {
  *  resolves the given rows. */
 function fakeSelectDb(rows: Array<Record<string, unknown>>) {
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "from", "where", "orderBy", "limit", "for"]) {
+  for (const method of ["select", "from", "where", "orderBy", "limit", "for", "update", "set"]) {
     chain[method] = vi.fn(() => chain);
   }
   chain["then"] = (resolve: (value: unknown) => unknown) => resolve(rows);
@@ -95,6 +100,32 @@ describe("DrizzleOutboxStore", () => {
         },
       },
     ]);
+  });
+
+  it("claims the rows it fetches until OUTBOX_CLAIM_MS from now", async () => {
+    const createdAt = new Date("2026-07-22T00:00:00.000Z");
+    const { db, chain } = fakeSelectDb([
+      {
+        id: "evt_1",
+        payload: { type: "entitlement.created", version: 1, orgId: "org-1", data: {} },
+        attempts: 0,
+        createdAt,
+      },
+    ]);
+    const before = Date.now();
+    await new DrizzleOutboxStore(db).fetchBatch(10);
+    expect(chain["update"]).toHaveBeenCalledTimes(1);
+    const claimed = (chain["set"] as ReturnType<typeof vi.fn>).mock.calls[0]![0] as {
+      nextAttemptAt: Date;
+    };
+    expect(claimed.nextAttemptAt.getTime()).toBeGreaterThanOrEqual(before + OUTBOX_CLAIM_MS);
+    expect(claimed.nextAttemptAt.getTime()).toBeLessThanOrEqual(Date.now() + OUTBOX_CLAIM_MS);
+  });
+
+  it("claims nothing when nothing is due", async () => {
+    const { db, chain } = fakeSelectDb([]);
+    await new DrizzleOutboxStore(db).fetchBatch(10);
+    expect(chain["update"]).not.toHaveBeenCalled();
   });
 
   it("markFailed increments attempts in SQL and records error + retry time", async () => {
