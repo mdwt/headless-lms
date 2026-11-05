@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
 import {
   CommentView,
   CommunityParam,
@@ -37,6 +37,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/feed',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.memberFeed' },
     schema: {
       operationId: 'getMemberFeed',
       tags,
@@ -48,8 +49,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.memberFeed(req.orgId, actor, req.params.communityId, req.query);
+      const actor = await resolveActor(container, req);
+      return posts.memberFeed(req.params.communityId, req.query, actor);
     },
   });
 
@@ -57,6 +58,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/own-posts',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.listOwn' },
     schema: {
       operationId: 'listOwnPosts',
       tags,
@@ -68,8 +70,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.listOwn(req.orgId, actor, req.params.communityId, req.query);
+      const actor = await resolveActor(container, req);
+      return posts.listOwn(req.params.communityId, req.query, actor);
     },
   });
 
@@ -77,6 +79,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/bookmarks',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.listBookmarked' },
     schema: {
       operationId: 'listBookmarkedPosts',
       tags,
@@ -88,8 +91,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.listBookmarked(req.orgId, actor, req.params.communityId, req.query);
+      const actor = await resolveActor(container, req);
+      return posts.listBookmarked(req.params.communityId, req.query, actor);
     },
   });
 
@@ -97,6 +100,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/spaces/:spaceId/feed',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.spaceFeed' },
     schema: {
       operationId: 'getSpaceFeed',
       tags,
@@ -108,14 +112,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostFeedPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.spaceFeed(
-        req.orgId,
-        actor,
-        req.params.communityId,
-        req.params.spaceId,
-        req.query,
-      );
+      const actor = await resolveActor(container, req);
+      return posts.spaceFeed(req.params.communityId, req.params.spaceId, req.query, actor);
     },
   });
 
@@ -123,6 +121,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/spaces/:spaceId/queue',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.moderationQueue' },
     schema: {
       operationId: 'getSpaceQueue',
       tags,
@@ -133,8 +132,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: SpaceQueue, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.moderationQueue(req.orgId, actor, req.params.communityId, req.params.spaceId);
+      const actor = await resolveActor(container, req);
+      return posts.moderationQueue(req.params.communityId, req.params.spaceId, actor);
     },
   });
 
@@ -142,23 +141,23 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/posts',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.create' },
     schema: {
       operationId: 'createPost',
       tags,
       summary: 'Create a post',
       description:
-        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft, and `details.postId` names it, so open that draft instead of creating the post again.',
+        'For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you do not hold `communities:moderate` on the community. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft, and `details.postId` names it, so open that draft instead of creating the post again.',
       params: CommunitySpaceParam,
       body: CreatePost,
       response: { 201: PostView, ...refusals(400, 403, 404, 409, 503) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const post = await posts.create(req.orgId, actor, {
-        ...req.body,
-        communityId: req.params.communityId,
-        spaceId: req.params.spaceId,
-      });
+      const actor = await resolveActor(container, req);
+      const post = await posts.create(
+        { ...req.body, communityId: req.params.communityId, spaceId: req.params.spaceId },
+        actor,
+      );
       req.log.info({ postId: post.id, status: post.status }, 'post created');
       return reply.code(201).send(post);
     },
@@ -168,6 +167,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/posts/:postId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.getPost' },
     schema: {
       operationId: 'getPost',
       tags,
@@ -178,8 +178,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.getPost(req.orgId, actor, req.params.postId);
+      const actor = await resolveActor(container, req);
+      return posts.getPost(req.params.postId, actor);
     },
   });
 
@@ -187,6 +187,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PATCH',
     url: '/api/member/posts/:postId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.update' },
     schema: {
       operationId: 'updatePost',
       tags,
@@ -198,8 +199,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.update(req.orgId, req.params.postId, actor, req.body);
+      const actor = await resolveActor(container, req);
+      return posts.update(req.params.postId, req.body, actor);
     },
   });
 
@@ -207,18 +208,19 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/submission',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.submit' },
     schema: {
       operationId: 'submitPost',
       tags,
       summary: 'Submit your draft or scheduled post',
       description:
-        'Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.',
+        'Author only. Publishes it now, or holds it for review when the space requires review and you do not hold `communities:moderate` on the community. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.',
       params: PostIdParam,
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.submit(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.submit(req.params.postId, actor);
     },
   });
 
@@ -226,6 +228,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/schedule',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.schedule' },
     schema: {
       operationId: 'schedulePost',
       tags,
@@ -237,8 +240,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409, 503) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.schedule(req.orgId, req.params.postId, actor, req.body.scheduledAt);
+      const actor = await resolveActor(container, req);
+      return posts.schedule(req.params.postId, req.body.scheduledAt, actor);
     },
   });
 
@@ -246,6 +249,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/unschedule',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.unschedule' },
     schema: {
       operationId: 'unschedulePost',
       tags,
@@ -256,8 +260,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.unschedule(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.unschedule(req.params.postId, actor);
     },
   });
 
@@ -265,6 +269,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/approval',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.approve' },
     schema: {
       operationId: 'approvePost',
       tags,
@@ -275,8 +280,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.approve(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.approve(req.params.postId, null, actor);
     },
   });
 
@@ -284,6 +289,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/removal',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.remove' },
     schema: {
       operationId: 'removePost',
       tags,
@@ -294,8 +300,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.remove(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.remove(req.params.postId, null, actor);
     },
   });
 
@@ -303,6 +309,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/restoration',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.restore' },
     schema: {
       operationId: 'restorePost',
       tags,
@@ -312,8 +319,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.restore(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.restore(req.params.postId, null, actor);
     },
   });
 
@@ -321,6 +328,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/pin',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.pin' },
     schema: {
       operationId: 'pinPost',
       tags,
@@ -330,8 +338,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.pin(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.pin(req.params.postId, actor);
     },
   });
 
@@ -339,6 +347,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/unpin',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.unpin' },
     schema: {
       operationId: 'unpinPost',
       tags,
@@ -348,8 +357,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.unpin(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.unpin(req.params.postId, actor);
     },
   });
 
@@ -357,6 +366,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/comments/close',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.closeComments' },
     schema: {
       operationId: 'closePostComments',
       tags,
@@ -367,8 +377,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.closeComments(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.closeComments(req.params.postId, actor);
     },
   });
 
@@ -376,6 +386,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/comments/open',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.openComments' },
     schema: {
       operationId: 'openPostComments',
       tags,
@@ -385,8 +396,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.openComments(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      return posts.openComments(req.params.postId, actor);
     },
   });
 
@@ -394,6 +405,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/posts/:postId/reactions',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.setReactions' },
     schema: {
       operationId: 'setPostReactionPolicy',
       tags,
@@ -405,8 +417,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.setReactions(req.orgId, req.params.postId, actor, req.body.enabled);
+      const actor = await resolveActor(container, req);
+      return posts.setReactions(req.params.postId, req.body.enabled, actor);
     },
   });
 
@@ -414,6 +426,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/posts/:postId/reaction',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.setReaction' },
     schema: {
       operationId: 'setPostReaction',
       tags,
@@ -425,8 +438,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: Reactions, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.setReaction(req.orgId, req.params.postId, actor, req.body.emoji);
+      const actor = await resolveActor(container, req);
+      return posts.setReaction(req.params.postId, req.body.emoji, actor);
     },
   });
 
@@ -434,6 +447,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/posts/:postId/reaction',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.setReaction' },
     schema: {
       operationId: 'clearPostReaction',
       tags,
@@ -444,8 +458,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: Reactions, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return posts.setReaction(req.orgId, req.params.postId, actor, null);
+      const actor = await resolveActor(container, req);
+      return posts.setReaction(req.params.postId, null, actor);
     },
   });
 
@@ -453,6 +467,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/posts/:postId/subscription',
     preHandler: app.requireOrgSession,
+    config: { operation: 'subscriptions.setPost' },
     schema: {
       operationId: 'setPostSubscription',
       tags,
@@ -464,8 +479,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await container.subscriptions.setPost(req.orgId, actor, req.params.postId, req.body);
+      const actor = await resolveActor(container, req);
+      await container.subscriptions.setPost(req.params.postId, req.body, actor);
       return reply.code(204).send();
     },
   });
@@ -474,6 +489,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/bookmark',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.bookmark' },
     schema: {
       operationId: 'bookmarkPost',
       tags,
@@ -483,8 +499,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await posts.bookmark(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      await posts.bookmark(req.params.postId, actor);
       return reply.code(204).send();
     },
   });
@@ -493,6 +509,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/posts/:postId/bookmark',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.unbookmark' },
     schema: {
       operationId: 'unbookmarkPost',
       tags,
@@ -502,8 +519,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await posts.unbookmark(req.orgId, req.params.postId, actor);
+      const actor = await resolveActor(container, req);
+      await posts.unbookmark(req.params.postId, actor);
       return reply.code(204).send();
     },
   });
@@ -512,6 +529,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/flags',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.flag' },
     schema: {
       operationId: 'flagPost',
       tags,
@@ -523,8 +541,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 201: PostFlag, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const flag = await posts.flag(req.orgId, req.params.postId, actor, req.body.reason);
+      const actor = await resolveActor(container, req);
+      const flag = await posts.flag(req.params.postId, req.body.reason, actor);
       return reply.code(201).send(flag);
     },
   });
@@ -533,6 +551,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/flags/resolution',
     preHandler: app.requireOrgSession,
+    config: { operation: 'posts.resolveFlags' },
     schema: {
       operationId: 'resolvePostFlags',
       tags,
@@ -544,8 +563,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await posts.resolveFlags(req.orgId, req.params.postId, actor, req.body.resolution);
+      const actor = await resolveActor(container, req);
+      await posts.resolveFlags(req.params.postId, req.body.resolution, null, actor);
       return reply.code(204).send();
     },
   });
@@ -554,6 +573,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/posts/:postId/comments',
     preHandler: app.requireOrgSession,
+    config: { operation: 'discussion.postComments' },
     schema: {
       operationId: 'listPostComments',
       tags,
@@ -565,8 +585,8 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 200: PostCommentsPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return container.discussion.postComments(req.orgId, req.params.postId, actor, req.query);
+      const actor = await resolveActor(container, req);
+      return container.discussion.postComments(req.params.postId, req.query, actor);
     },
   });
 
@@ -574,6 +594,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/comments',
     preHandler: app.requireOrgSession,
+    config: { operation: 'discussion.postComment' },
     schema: {
       operationId: 'createPostComment',
       tags,
@@ -585,13 +606,11 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
       response: { 201: CommentView, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const comment = await container.discussion.postComment(req.orgId, {
+      const actor = await resolveActor(container, req);
+      const comment = await container.discussion.postComment(
+        { postId: req.params.postId, parentId: req.body.parentId, body: req.body.body },
         actor,
-        postId: req.params.postId,
-        parentId: req.body.parentId,
-        body: req.body.body,
-      });
+      );
       return reply.code(201).send(comment);
     },
   });

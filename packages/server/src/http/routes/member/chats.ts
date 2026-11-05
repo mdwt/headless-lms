@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
+import { describeOperation } from '../../operations.js';
 import {
   BlockParam,
   Chat,
@@ -13,6 +14,7 @@ import {
   FlagReason,
   PageQuery,
   MarkRead,
+  MessageQueue,
   MessageFlag,
   MessageIdParam,
   MessagesPage,
@@ -37,6 +39,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/chats',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.listChats' },
     schema: {
       operationId: 'listMemberChats',
       tags,
@@ -48,8 +51,27 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: ChatsPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.listChats(req.orgId, actor, req.params.communityId, req.query);
+      const actor = await resolveActor(container, req);
+      return chats.listChats(req.params.communityId, req.query, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/message-queue',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'chats.messageQueue' },
+    schema: {
+      operationId: 'getMemberMessageQueue',
+      tags,
+      summary: 'Open message flags in a community you moderate',
+      description: `${describeOperation('chats.messageQueue')} Needed on the community, as a member of it. The messages in its chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.`,
+      params: CommunityParam,
+      response: { 200: MessageQueue, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return chats.messageQueue(req.params.communityId, actor);
     },
   });
 
@@ -57,6 +79,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/direct',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.startDirect' },
     schema: {
       operationId: 'startDirectChat',
       tags,
@@ -67,8 +90,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Chat, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.startDirect(req.orgId, actor, req.body);
+      const actor = await resolveActor(container, req);
+      return chats.startDirect(req.body, actor);
     },
   });
 
@@ -76,6 +99,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/group',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.startGroup' },
     schema: {
       operationId: 'startGroupChat',
       tags,
@@ -86,8 +110,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 201: Chat, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const chat = await chats.startGroup(req.orgId, actor, req.body);
+      const actor = await resolveActor(container, req);
+      const chat = await chats.startGroup(req.body, actor);
       return reply.code(201).send(chat);
     },
   });
@@ -96,6 +120,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/participants',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.addParticipant' },
     schema: {
       operationId: 'addChatParticipant',
       tags,
@@ -107,8 +132,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Chat, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.addParticipant(req.orgId, actor, req.params.chatId, req.body.orgUserId);
+      const actor = await resolveActor(container, req);
+      return chats.addParticipant(req.params.chatId, req.body.orgUserId, actor);
     },
   });
 
@@ -116,6 +141,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/leave',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.leave' },
     schema: {
       operationId: 'leaveChat',
       tags,
@@ -125,8 +151,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Chat, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.leave(req.orgId, actor, req.params.chatId);
+      const actor = await resolveActor(container, req);
+      return chats.leave(req.params.chatId, actor);
     },
   });
 
@@ -134,6 +160,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/acceptance',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.accept' },
     schema: {
       operationId: 'acceptChat',
       tags,
@@ -144,8 +171,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Chat, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.accept(req.orgId, actor, req.params.chatId);
+      const actor = await resolveActor(container, req);
+      return chats.accept(req.params.chatId, actor);
     },
   });
 
@@ -153,6 +180,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/chats/:chatId/messages',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.messages' },
     schema: {
       operationId: 'listChatMessages',
       tags,
@@ -163,8 +191,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: MessagesPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.messages(req.orgId, actor, req.params.chatId, req.query);
+      const actor = await resolveActor(container, req);
+      return chats.messages(req.params.chatId, req.query, actor);
     },
   });
 
@@ -172,6 +200,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/messages',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.send' },
     schema: {
       operationId: 'sendChatMessage',
       tags,
@@ -183,8 +212,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 201: MessageView, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const message = await chats.send(req.orgId, actor, req.params.chatId, req.body);
+      const actor = await resolveActor(container, req);
+      const message = await chats.send(req.params.chatId, req.body, actor);
       return reply.code(201).send(message);
     },
   });
@@ -193,6 +222,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PATCH',
     url: '/api/member/messages/:messageId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.editMessage' },
     schema: {
       operationId: 'editChatMessage',
       tags,
@@ -204,8 +234,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: MessageView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.editMessage(req.orgId, actor, req.params.messageId, req.body.body);
+      const actor = await resolveActor(container, req);
+      return chats.editMessage(req.params.messageId, req.body.body, actor);
     },
   });
 
@@ -213,6 +243,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/messages/:messageId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.deleteMessage' },
     schema: {
       operationId: 'deleteChatMessage',
       tags,
@@ -223,8 +254,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: MessageView, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.deleteMessage(req.orgId, actor, req.params.messageId);
+      const actor = await resolveActor(container, req);
+      return chats.deleteMessage(req.params.messageId, actor);
     },
   });
 
@@ -232,6 +263,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/messages/:messageId/reaction',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.setReaction' },
     schema: {
       operationId: 'setMessageReaction',
       tags,
@@ -243,8 +275,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Reactions, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.setReaction(req.orgId, actor, req.params.messageId, req.body.emoji);
+      const actor = await resolveActor(container, req);
+      return chats.setReaction(req.params.messageId, req.body.emoji, actor);
     },
   });
 
@@ -252,6 +284,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/messages/:messageId/reaction',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.setReaction' },
     schema: {
       operationId: 'clearMessageReaction',
       tags,
@@ -261,8 +294,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Reactions, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.setReaction(req.orgId, actor, req.params.messageId, null);
+      const actor = await resolveActor(container, req);
+      return chats.setReaction(req.params.messageId, null, actor);
     },
   });
 
@@ -270,6 +303,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/messages/:messageId/flags',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.flagMessage' },
     schema: {
       operationId: 'flagMessage',
       tags,
@@ -281,8 +315,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 201: MessageFlag, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const flag = await chats.flagMessage(req.orgId, actor, req.params.messageId, req.body.reason);
+      const actor = await resolveActor(container, req);
+      const flag = await chats.flagMessage(req.params.messageId, req.body.reason, actor);
       return reply.code(201).send(flag);
     },
   });
@@ -291,6 +325,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/messages/:messageId/flags/resolution',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.resolveMessageFlags' },
     schema: {
       operationId: 'resolveMessageFlags',
       tags,
@@ -302,8 +337,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await chats.resolveMessageFlags(req.orgId, actor, req.params.messageId, req.body.resolution);
+      const actor = await resolveActor(container, req);
+      await chats.resolveMessageFlags(req.params.messageId, req.body.resolution, null, actor);
       return reply.code(204).send();
     },
   });
@@ -312,6 +347,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/read',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.markRead' },
     schema: {
       operationId: 'markChatRead',
       tags,
@@ -322,8 +358,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await chats.markRead(req.orgId, actor, req.params.chatId, req.body.messageId);
+      const actor = await resolveActor(container, req);
+      await chats.markRead(req.params.chatId, req.body.messageId, actor);
       return reply.code(204).send();
     },
   });
@@ -332,6 +368,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/chats/:chatId/subscription',
     preHandler: app.requireOrgSession,
+    config: { operation: 'subscriptions.setChat' },
     schema: {
       operationId: 'setChatSubscription',
       tags,
@@ -343,8 +380,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await container.subscriptions.setChat(req.orgId, actor, req.params.chatId, req.body);
+      const actor = await resolveActor(container, req);
+      await container.subscriptions.setChat(req.params.chatId, req.body, actor);
       return reply.code(204).send();
     },
   });
@@ -353,6 +390,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/lock',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.lock' },
     schema: {
       operationId: 'lockChat',
       tags,
@@ -363,8 +401,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Chat, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.lock(req.orgId, actor, req.params.chatId);
+      const actor = await resolveActor(container, req);
+      return chats.lock(req.params.chatId, null, actor);
     },
   });
 
@@ -372,6 +410,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/unlock',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.unlock' },
     schema: {
       operationId: 'unlockChat',
       tags,
@@ -382,8 +421,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 200: Chat, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return chats.unlock(req.orgId, actor, req.params.chatId);
+      const actor = await resolveActor(container, req);
+      return chats.unlock(req.params.chatId, null, actor);
     },
   });
 
@@ -391,6 +430,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/communities/:communityId/blocks/:orgUserId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.block' },
     schema: {
       operationId: 'blockMember',
       tags,
@@ -401,8 +441,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await chats.block(req.orgId, actor, req.params.communityId, req.params.orgUserId);
+      const actor = await resolveActor(container, req);
+      await chats.block(req.params.communityId, req.params.orgUserId, actor);
       return reply.code(204).send();
     },
   });
@@ -411,6 +451,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/communities/:communityId/blocks/:orgUserId',
     preHandler: app.requireOrgSession,
+    config: { operation: 'chats.unblock' },
     schema: {
       operationId: 'unblockMember',
       tags,
@@ -421,8 +462,8 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      await chats.unblock(req.orgId, actor, req.params.communityId, req.params.orgUserId);
+      const actor = await resolveActor(container, req);
+      await chats.unblock(req.params.communityId, req.params.orgUserId, actor);
       return reply.code(204).send();
     },
   });

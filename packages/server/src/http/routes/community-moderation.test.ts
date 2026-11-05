@@ -6,12 +6,19 @@ import { registerAuth } from '../plugins/auth.js';
 import { errorHandler } from '../plugins/error-handler.js';
 import { communityModerationRoutes } from './community-moderation.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
+import { actorWith } from '@headless-lms/core/organizations';
+import type { Actor } from '@headless-lms/core/shared/actor';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const AT = '2026-10-29T12:00:00.000Z';
-const STAFF = { id: 'ou_staff', role: 'admin' };
+const EMMA = actorWith({
+  id: 'ou_emma',
+  orgId: ORG.id,
+  content: { cmy_1: ['communities:moderate'] },
+});
 const calls: { method: string; args: unknown[] }[] = [];
-let orgUser = { id: 'ou_staff', orgId: ORG.id, role: 'admin' };
+const orgUser = { id: 'ou_emma', orgId: ORG.id };
+let actor: Actor | null = EMMA;
 let membersPage: unknown = { rows: [], total: 0, page: 1, pageSize: 20 };
 
 function record(method: string, result: () => unknown) {
@@ -48,6 +55,7 @@ const container = {
     getByExternalId: async () => ORG,
     getById: async () => ORG,
     getOrgUser: async () => orgUser,
+    actorFor: async () => actor,
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },
@@ -96,7 +104,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   calls.length = 0;
-  orgUser = { id: 'ou_staff', orgId: ORG.id, role: 'admin' };
+  actor = EMMA;
   membersPage = { rows: [], total: 0, page: 1, pageSize: 20 };
 });
 
@@ -114,7 +122,8 @@ describe('community moderation routes', () => {
           lastName: 'Jones',
           email: 'sarah@example.com',
           image: null,
-          role: 'student',
+          team: false,
+          roleName: null,
         },
       ],
       total: 1,
@@ -128,9 +137,9 @@ describe('community moderation routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(membersPage);
     expect(last('communityMembers')).toEqual([
-      ORG.id,
       'cmy_1',
       { page: 2, pageSize: 5, search: 'sarah' },
+      EMMA,
     ]);
   });
 
@@ -148,20 +157,14 @@ describe('community moderation routes', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('manages space membership as the staff member', async () => {
+  it('manages space membership as the caller', async () => {
     const list = await app.inject({
       method: 'GET',
       url: '/api/communities/cmy_1/spaces/spc_1/members?page=2&pageSize=10',
     });
     expect(list.statusCode).toBe(200);
     expect(list.json()).toMatchObject({ total: 1, page: 2, pageSize: 10 });
-    expect(last('listSpaceMembers')).toEqual([
-      ORG.id,
-      STAFF,
-      'cmy_1',
-      'spc_1',
-      { page: 2, pageSize: 10 },
-    ]);
+    expect(last('listSpaceMembers')).toEqual(['cmy_1', 'spc_1', { page: 2, pageSize: 10 }, EMMA]);
     for (const [path, method] of [
       ['members', 'addSpaceMember'],
       ['invites', 'invite'],
@@ -172,7 +175,7 @@ describe('community moderation routes', () => {
         payload: { orgUserId: 'ou_sarah' },
       });
       expect(res.statusCode).toBe(201);
-      expect(last(method)).toEqual([ORG.id, STAFF, 'cmy_1', 'spc_1', 'ou_sarah']);
+      expect(last(method)).toEqual(['cmy_1', 'spc_1', 'ou_sarah', EMMA]);
     }
     for (const [action, method] of [
       ['approval', 'approveSpaceRequest'],
@@ -184,7 +187,7 @@ describe('community moderation routes', () => {
         url: `/api/communities/cmy_1/spaces/spc_1/members/ou_sarah/${action}`,
       });
       expect(res.statusCode).toBe(200);
-      expect(last(method)).toEqual([ORG.id, STAFF, 'cmy_1', 'spc_1', 'ou_sarah']);
+      expect(last(method)).toEqual(['cmy_1', 'spc_1', 'ou_sarah', EMMA]);
     }
   });
 
@@ -194,7 +197,7 @@ describe('community moderation routes', () => {
       url: '/api/communities/cmy_1/spaces/spc_1/queue',
     });
     expect(queue.statusCode).toBe(200);
-    expect(last('moderationQueue')).toEqual([ORG.id, STAFF, 'cmy_1', 'spc_1']);
+    expect(last('moderationQueue')).toEqual(['cmy_1', 'spc_1', EMMA]);
     const post = await app.inject({
       method: 'POST',
       url: '/api/communities/cmy_1/posts/pst_1/flags/resolution',
@@ -211,13 +214,13 @@ describe('community moderation routes', () => {
       payload: { resolution: 'dismissed' },
     });
     expect([post.statusCode, comment.statusCode, message.statusCode]).toEqual([204, 204, 204]);
-    expect(last('resolvePostFlags')).toEqual([ORG.id, 'pst_1', STAFF, 'dismissed', 'cmy_1']);
-    expect(last('resolveReports')).toEqual([ORG.id, 'cmt_1', STAFF, 'cmy_1']);
-    expect(last('resolveMessageFlags')).toEqual([ORG.id, STAFF, 'msg_1', 'dismissed', 'cmy_1']);
+    expect(last('resolvePostFlags')).toEqual(['pst_1', 'dismissed', 'cmy_1', EMMA]);
+    expect(last('resolveReports')).toEqual(['cmt_1', { communityId: 'cmy_1' }, EMMA]);
+    expect(last('resolveMessageFlags')).toEqual(['msg_1', 'dismissed', 'cmy_1', EMMA]);
   });
 
-  it('refuses a moderator, who works from the community app', async () => {
-    orgUser = { id: 'ou_james', orgId: ORG.id, role: 'moderator' };
+  it('refuses a person who is not an active member of the organization', async () => {
+    actor = null;
     const res = await app.inject({
       method: 'POST',
       url: '/api/communities/cmy_1/spaces/spc_1/members/ou_sarah/approval',

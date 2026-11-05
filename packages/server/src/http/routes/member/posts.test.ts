@@ -6,13 +6,58 @@ import { registerAuth } from '../../plugins/auth.js';
 import { errorHandler } from '../../plugins/error-handler.js';
 import { memberCommentsRoutes } from './comments.js';
 import { memberPostRoutes } from './posts.js';
+import { memberChatRoutes } from './chats.js';
 import { mcpEndpoints } from '../../../app/mcp-endpoints.js';
 import { ConflictError, UnavailableError } from '@headless-lms/core/shared/errors';
+import { actorWith } from '@headless-lms/core/organizations';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
-const ORG_USER = { id: 'ou_mod', role: 'moderator' };
+const ORG_USER = { id: 'ou_mod', orgId: ORG.id, userId: 'usr_1' };
+const ACTOR = actorWith({ id: ORG_USER.id, orgId: ORG.id });
 let orgUser: typeof ORG_USER | null = ORG_USER;
 const calls: { method: string; args: unknown[] }[] = [];
+
+const AT = '2026-10-29T12:00:00.000Z';
+const COMMENT = {
+  id: 'cmt_1',
+  orgId: ORG.id,
+  activityId: 'act_1',
+  postId: null,
+  communityId: null,
+  parentId: null,
+  orgUserId: 'ou_sarah',
+  body: 'Hi',
+  status: 'published',
+  removedBy: null,
+  createdAt: AT,
+  updatedAt: AT,
+};
+const COMMENT_VIEW = {
+  id: 'cmt_1',
+  activityId: 'act_1',
+  postId: null,
+  communityId: null,
+  parentId: null,
+  author: {
+    id: 'ou_sarah',
+    firstName: 'Sarah',
+    lastName: null,
+    displayName: null,
+    headline: null,
+    image: null,
+    imageAssetId: null,
+    imageUrl: null,
+    team: false,
+    roleName: null,
+  },
+  body: 'Hi',
+  status: 'published',
+  removedBy: null,
+  reactions: {},
+  mentions: [],
+  createdAt: AT,
+  updatedAt: AT,
+};
 
 function record(method: string, result: unknown) {
   return async (...args: unknown[]) => {
@@ -36,8 +81,15 @@ const container = {
   organizations: {
     getByExternalId: async () => ORG,
     getOrgUser: async () => orgUser,
+    actorFor: async () => ACTOR,
   },
-  discussion: { resolveReports: record('resolveReports', undefined) },
+  identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
+  discussion: {
+    resolveReports: record('resolveReports', undefined),
+    restore: record('restoreComment', COMMENT_VIEW),
+    approve: record('approveComment', COMMENT),
+  },
+  chats: { messageQueue: record('messageQueue', { entries: [] }) },
   posts: {
     spaceFeed: record('spaceFeed', { rows: [], total: 0, page: 1, pageSize: 5 }),
     moderationQueue: record('moderationQueue', { pending: [], flags: [], commentFlags: [] }),
@@ -67,6 +119,7 @@ beforeAll(async () => {
   registerAuth(app, container);
   await memberCommentsRoutes(app, container);
   await memberPostRoutes(app, container);
+  await memberChatRoutes(app, container);
   await app.ready();
 });
 
@@ -86,7 +139,32 @@ describe('member post and comment routes', () => {
       payload: { resolution: 'dismissed' },
     });
     expect(res.statusCode).toBe(204);
-    expect(last('resolveReports')).toEqual([ORG.id, 'cmt_1', ORG_USER]);
+    expect(last('resolveReports')).toEqual(['cmt_1', 'any', ACTOR]);
+  });
+
+  it('reads the message queue of a community from the member app', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/member/communities/cmy_1/message-queue',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ entries: [] });
+    expect(last('messageQueue')).toEqual(['cmy_1', ACTOR]);
+  });
+
+  it('restores and approves a comment from the member app', async () => {
+    const restored = await app.inject({
+      method: 'POST',
+      url: '/api/member/comments/cmt_1/restoration',
+    });
+    const approved = await app.inject({
+      method: 'POST',
+      url: '/api/member/comments/cmt_1/approval',
+    });
+    expect([restored.statusCode, approved.statusCode]).toEqual([200, 200]);
+    expect(restored.json()).toMatchObject({ id: 'cmt_1', author: { team: false, roleName: null } });
+    expect(last('restoreComment')).toEqual(['cmt_1', 'any', ACTOR]);
+    expect(last('approveComment')).toEqual(['cmt_1', ACTOR]);
   });
 
   it('passes the community of the path to the space feed and the queue', async () => {
@@ -97,18 +175,17 @@ describe('member post and comment routes', () => {
     expect(feed.statusCode).toBe(200);
     expect(feed.json()).toEqual({ rows: [], total: 0, page: 1, pageSize: 5 });
     expect(last('spaceFeed')).toEqual([
-      ORG.id,
-      ORG_USER,
       'cmy_1',
       'spc_1',
       { page: 2, pageSize: 5, topicId: 'tpc_1' },
+      ACTOR,
     ]);
     const queue = await app.inject({
       method: 'GET',
       url: '/api/member/communities/cmy_1/spaces/spc_1/queue',
     });
     expect(queue.statusCode).toBe(200);
-    expect(last('moderationQueue')).toEqual([ORG.id, ORG_USER, 'cmy_1', 'spc_1']);
+    expect(last('moderationQueue')).toEqual(['cmy_1', 'spc_1', ACTOR]);
   });
 
   it('pages your own posts and your bookmarks for a community', async () => {
@@ -123,15 +200,15 @@ describe('member post and comment routes', () => {
     expect([own.statusCode, saved.statusCode]).toEqual([200, 200]);
     expect(own.json()).toEqual({ rows: [], total: 0, page: 2, pageSize: 5 });
     expect(saved.json()).toEqual({ rows: [], total: 0, page: 1, pageSize: 20 });
-    expect(last('listOwn')).toEqual([ORG.id, ORG_USER, 'cmy_1', { page: 2, pageSize: 5 }]);
-    expect(last('listBookmarked')).toEqual([ORG.id, ORG_USER, 'cmy_1', { page: 1, pageSize: 20 }]);
+    expect(last('listOwn')).toEqual(['cmy_1', { page: 2, pageSize: 5 }, ACTOR]);
+    expect(last('listBookmarked')).toEqual(['cmy_1', { page: 1, pageSize: 20 }, ACTOR]);
   });
 
   it('unschedules a post for its author and answers 409 when it is not scheduled', async () => {
     const res = await app.inject({ method: 'POST', url: '/api/member/posts/pst_1/unschedule' });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toMatchObject({ error: 'conflict', message: 'This post is not scheduled' });
-    expect(last('unschedule')).toEqual([ORG.id, 'pst_1', ORG_USER]);
+    expect(last('unschedule')).toEqual(['pst_1', ACTOR]);
   });
 
   it('answers 503 when the scheduled time could not be set', async () => {
@@ -146,7 +223,7 @@ describe('member post and comment routes', () => {
       message: 'The post could not be scheduled; try again',
       details: { postId: 'pst_1' },
     });
-    expect(last('schedule')).toEqual([ORG.id, 'pst_1', ORG_USER, new Date('2030-01-01T09:00:00Z')]);
+    expect(last('schedule')).toEqual(['pst_1', new Date('2030-01-01T09:00:00Z'), ACTOR]);
   });
 
   it('accepts only a dismissal when resolving post flags', async () => {
@@ -162,7 +239,7 @@ describe('member post and comment routes', () => {
     const res = await app.inject({ method: 'DELETE', url: '/api/member/posts/pst_1/reaction' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ reactions: {} });
-    expect(last('setPostReaction')).toEqual([ORG.id, 'pst_1', ORG_USER, null]);
+    expect(last('setPostReaction')).toEqual(['pst_1', null, ACTOR]);
   });
 
   it('answers 403 to a signed-in person who is not in the organization', async () => {

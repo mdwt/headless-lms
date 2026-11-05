@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
+import { actorWith } from '@headless-lms/core/organizations';
 import type { Container } from '../../../app/container.js';
 import { registerAuth } from '../../plugins/auth.js';
 import { errorHandler } from '../../plugins/error-handler.js';
@@ -11,13 +12,15 @@ import { memberCommunityRoutes } from './community.js';
 import { memberPostRoutes } from './posts.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
-const ORG_USER = { id: 'ou_emma', role: 'student' };
+const USER = { id: 'usr_1', externalId: 'usr_1' };
+const ORG_USER = { id: 'ou_emma', orgId: ORG.id, userId: USER.id };
+const ACTOR = actorWith({ id: ORG_USER.id, orgId: ORG.id });
 const calls: { method: string; args: unknown[] }[] = [];
 
 function record(method: string) {
   return async (...args: unknown[]) => {
     calls.push({ method, args });
-    if (args[2] === 'missing') {
+    if (args[0] === 'missing') {
       throw new NotFoundError('Item', 'missing');
     }
   };
@@ -38,6 +41,10 @@ const container = {
   organizations: {
     getByExternalId: async () => ORG,
     getOrgUser: async () => ORG_USER,
+    actorFor: async () => ACTOR,
+  },
+  identity: {
+    getUserByExternalId: async () => USER,
   },
   subscriptions: {
     setPost: record('setPost'),
@@ -83,9 +90,9 @@ describe('member subscription routes', () => {
       expect(res.statusCode).toBe(204);
     }
     expect(calls.filter((call) => call.method === 'setPost').map((call) => call.args)).toEqual([
-      [ORG.id, ORG_USER, 'pst_1', { state: 'following' }],
-      [ORG.id, ORG_USER, 'pst_1', { state: 'muted', mutedUntil: new Date('2030-01-01T00:00:00Z') }],
-      [ORG.id, ORG_USER, 'pst_1', { state: 'none' }],
+      ['pst_1', { state: 'following' }, ACTOR],
+      ['pst_1', { state: 'muted', mutedUntil: new Date('2030-01-01T00:00:00Z') }, ACTOR],
+      ['pst_1', { state: 'none' }, ACTOR],
     ]);
   });
 
@@ -101,8 +108,8 @@ describe('member subscription routes', () => {
       payload: { state: 'none' },
     });
     expect([space.statusCode, chat.statusCode]).toEqual([204, 204]);
-    expect(last('setSpace')).toEqual([ORG.id, ORG_USER, 'spc_1', { state: 'muted' }]);
-    expect(last('setChat')).toEqual([ORG.id, ORG_USER, 'cht_1', { state: 'none' }]);
+    expect(last('setSpace')).toEqual(['spc_1', { state: 'muted' }, ACTOR]);
+    expect(last('setChat')).toEqual(['cht_1', { state: 'none' }, ACTOR]);
     const before = calls.length;
     for (const url of [
       '/api/member/spaces/spc_1/subscription',
