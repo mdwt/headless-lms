@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import {
   chatLastMessageSchema,
+  chatLiveEventSchema,
   chatSchema,
+  chatUnreadSummarySchema,
+  commentAuthorSchema,
   idSchema,
   messageFlagResolutionSchema,
   messageFlagSchema,
   messageViewSchema,
   subscriptionViewSchema,
 } from '@headless-lms/core/schemas';
-import { paginated } from './shared.js';
+import { PageQuery, paginated } from './shared.js';
 
 export const Chat = chatSchema;
 export const MessageFlag = messageFlagSchema;
@@ -18,6 +21,9 @@ export const MessagesPage = paginated(MessageView);
 export const ChatListItem = z.object({
   chat: Chat,
   participantIds: z.array(z.string()),
+  participants: z
+    .array(commentAuthorSchema)
+    .describe('The profiles of the people in `participantIds`'),
   lastReadMessageId: z.string().nullable(),
   subscription: subscriptionViewSchema
     .nullable()
@@ -26,6 +32,18 @@ export const ChatListItem = z.object({
   lastMessage: chatLastMessageSchema.nullable(),
 });
 export const ChatsPage = paginated(ChatListItem);
+
+export const ChatListQuery = PageQuery.extend({
+  requests: z
+    .stringbool()
+    .optional()
+    .describe(
+      '`true` for only the pending message requests to you, `false` for everything else; omit for every chat',
+    ),
+}).strict();
+
+export const ChatUnreadSummary = chatUnreadSummarySchema;
+export const ChatLiveEvent = chatLiveEventSchema;
 
 export const MessageQueueEntry = z.object({
   message: MessageView,
@@ -77,6 +95,12 @@ export const SendMessage = z
       .default(null)
       .describe('A message in the same chat this one answers'),
     assetIds: Attachments,
+    clientId: z
+      .uuid()
+      .optional()
+      .describe(
+        'Your id for this send. Sending again with the same id returns the message already sent.',
+      ),
   })
   .strict();
 
@@ -99,3 +123,4 @@ export const ChatIdParam = z.object({ chatId: z.string() });
 export const MessageIdParam = z.object({ messageId: z.string() });
 export const CommunityParam = z.object({ communityId: z.string() });
 export const BlockParam = z.object({ communityId: z.string(), orgUserId: z.string() });
+export const DirectChatParam = z.object({ communityId: z.string(), orgUserId: z.string() });

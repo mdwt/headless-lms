@@ -2,14 +2,20 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { resolveActor } from '../../scope.js';
+import { resolveActor, sessionOf } from '../../scope.js';
 import { describeOperation } from '../../operations.js';
+import { sse } from '../../sse.js';
 import {
   BlockParam,
   Chat,
   ChatIdParam,
+  ChatListItem,
+  ChatListQuery,
+  ChatLiveEvent,
   ChatsPage,
+  ChatUnreadSummary,
   CommunityParam,
+  DirectChatParam,
   EditMessage,
   FlagReason,
   PageQuery,
@@ -45,14 +51,114 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'List your chats in a community',
       description:
-        'For a member of the community. Every chat you are in, with your unread count and its last message.',
+        'For a member of the community. Every chat you are in, with your unread count and its last message. `requests=true` lists only the pending message requests to you, `requests=false` everything else.',
       params: CommunityParam,
-      querystring: PageQuery,
+      querystring: ChatListQuery,
       response: { 200: ChatsPage, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
       return chats.listChats(req.params.communityId, req.query, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/chats/events',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'chats.watch' },
+    schema: {
+      operationId: 'streamMemberChatEvents',
+      tags,
+      summary: 'Stream your chat events in a community',
+      description: `${describeOperation('chats.watch')} For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with \`ready\` and your \`unread\`; load your chats on \`ready\` and on \`resync\`. A \`: ping\` comment every 25 s keeps it open. Every 30 s it checks your session and access again, and ends with \`closed\` when either is gone or the server shuts down. 503 when this server has no live delivery.`,
+      params: CommunityParam,
+      response: {
+        200: { content: { 'text/event-stream': { schema: ChatLiveEvent } } },
+        ...refusals(403, 404, 503),
+      },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      const events = await chats.watch(req.params.communityId, sessionOf(container, req), actor);
+      await sse(reply, events);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/chats/unread',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'chats.unreadSummary' },
+    schema: {
+      operationId: 'getMemberChatUnread',
+      tags,
+      summary: 'Your unread chat total in a community',
+      description: `${describeOperation('chats.unreadSummary')} For a member of the community. \`unread\` counts the unread messages in your chats that are neither muted nor requests to you, plus your pending requests; \`requests\` is the number of pending requests to you.`,
+      params: CommunityParam,
+      response: { 200: ChatUnreadSummary, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return chats.unreadSummary(req.params.communityId, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/communities/:communityId/chats/direct/:orgUserId',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'chats.directChat' },
+    schema: {
+      operationId: 'getMemberDirectChat',
+      tags,
+      summary: 'Your direct chat with a person',
+      description: `${describeOperation('chats.directChat')} For a member of the community. Your direct chat with the person while you are in it; 404 when there is none.`,
+      params: DirectChatParam,
+      response: { 200: ChatListItem, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return chats.directChat(req.params.communityId, req.params.orgUserId, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/chats/:chatId',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'chats.chat' },
+    schema: {
+      operationId: 'getMemberChat',
+      tags,
+      summary: 'Read one of your chats',
+      description: `${describeOperation('chats.chat')} For a participant of the chat. The chat as it appears in your chat list.`,
+      params: ChatIdParam,
+      response: { 200: ChatListItem, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return chats.chat(req.params.chatId, actor);
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/member/chats/:chatId/typing',
+    preHandler: app.requireOrgSession,
+    config: { operation: 'chats.typing' },
+    schema: {
+      operationId: 'sendChatTyping',
+      tags,
+      summary: 'Tell the chat you are typing',
+      description: `${describeOperation('chats.typing')} For a participant while the chat is open and not locked (403 otherwise). The others see you typing for 5 s; a repeat within 2 s is dropped.`,
+      params: ChatIdParam,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      await chats.typing(req.params.chatId, actor);
+      return reply.code(204).send();
     },
   });
 
@@ -206,7 +312,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: 'Send a message',
       description:
-        "For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted.",
+        "For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted. Sending again with the same `clientId` returns the message already sent.",
       params: ChatIdParam,
       body: SendMessage,
       response: { 201: MessageView, ...refusals(403, 404) },

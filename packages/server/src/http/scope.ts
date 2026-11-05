@@ -1,6 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
 import type { Actor } from '@headless-lms/core/shared/actor';
+import type { LiveSession } from '@headless-lms/core/discussion';
 import type { Permission } from '@headless-lms/core/types';
 
 export interface Caller {
@@ -61,6 +62,33 @@ export async function resolveCaller(container: Container, req: FastifyRequest): 
 
 export async function resolveActor(container: Container, req: FastifyRequest): Promise<Actor> {
   return (await resolveCaller(container, req)).actor;
+}
+
+/** The request's session as a live stream sees it: the cookie verified again
+ *  with the session cookie cache bypassed, then the actor in the stream's org. */
+export function sessionOf(container: Container, req: FastifyRequest): LiveSession {
+  const headers = { ...req.headers };
+  const authOrgId = req.authOrgId;
+  return {
+    async current() {
+      const session = await container.auth.verify(headers, { bypassCookieCache: true });
+      if (!session) {
+        return { status: 'signed-out' };
+      }
+      if (!authOrgId) {
+        return { status: 'no-member' };
+      }
+      try {
+        const caller = await callerOf(container, session.user.id, authOrgId);
+        return { status: 'ok', actor: caller.actor };
+      } catch (error) {
+        if (error instanceof NoActiveOrgError) {
+          return { status: 'no-member' };
+        }
+        throw error;
+      }
+    },
+  };
 }
 
 export function resolveCallerFor(
