@@ -37,3 +37,15 @@ export function createCapturingLogger(): { logger: Logger; entries: CapturedLog[
   };
   return { logger: make({}), entries };
 }
+
+export function describeError(err: unknown): string {
+  if (err instanceof AggregateError && err.errors.length > 0) {
+    return [...new Set(err.errors.map(describeError))].join('; ');
+  }
+  if (err instanceof Error) {
+    const code = (err as { code?: unknown }).code;
+    const text = err.message || err.name;
+    return typeof code === 'string' && !text.includes(code) ? `${code}: ${text}` : text;
+  }
+  return String(err);
+}

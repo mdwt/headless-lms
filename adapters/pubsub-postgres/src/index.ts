@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import type { JsonValue, Logger, PubSub } from "@headless-lms/core/shared/ports";
-import { noopLogger } from "@headless-lms/core/shared/logger";
+import { describeError, noopLogger } from "@headless-lms/core/shared/logger";
 
 const PG_CHANNEL = "hlms_pubsub";
 const PART_SIZE = 7800;
@@ -77,7 +77,7 @@ export class PostgresPubSub implements PubSub {
       allowExitOnIdle: true,
     });
     this.pool.on("error", (error) => {
-      this.logger.warn("pubsub pool connection failed", { error: error.message });
+      this.logger.warn("pubsub pool connection failed", { error: describeError(error) });
     });
   }
 
@@ -143,7 +143,7 @@ export class PostgresPubSub implements PubSub {
       try {
         await client.query("UNLISTEN *");
       } catch (error) {
-        this.logger.debug("pubsub unlisten failed", { error: (error as Error).message });
+        this.logger.debug("pubsub unlisten failed", { error: describeError(error) });
       }
       await client.end().catch(() => {});
     }
@@ -177,7 +177,7 @@ export class PostgresPubSub implements PubSub {
     }
     const client = new pg.Client({ connectionString: this.connectionString, keepAlive: true });
     this.connecting = client;
-    client.on("error", (error) => this.lost(client, error.message));
+    client.on("error", (error) => this.lost(client, describeError(error)));
     client.on("end", () => this.lost(client, "connection ended"));
     client.on("notification", (message) => {
       if (client === this.listener && message.channel === PG_CHANNEL && message.payload) {
@@ -190,7 +190,7 @@ export class PostgresPubSub implements PubSub {
     } catch (error) {
       if (this.connecting === client) {
         this.connecting = null;
-        this.logger.warn("pubsub connect failed", { error: (error as Error).message });
+        this.logger.warn("pubsub connect failed", { error: describeError(error) });
         this.discard(client);
         this.scheduleReconnect();
       }
@@ -249,7 +249,7 @@ export class PostgresPubSub implements PubSub {
         try {
           subscriber.onReset();
         } catch (error) {
-          this.logger.error("pubsub reset handler failed", { error: (error as Error).message });
+          this.logger.error("pubsub reset handler failed", { error: describeError(error) });
         }
       }
     }
@@ -273,7 +273,7 @@ export class PostgresPubSub implements PubSub {
     try {
       await this.notify([{ p: `${this.instanceId}:${id}` }]);
     } catch (error) {
-      this.logger.warn("pubsub ping failed", { error: (error as Error).message });
+      this.logger.warn("pubsub ping failed", { error: describeError(error) });
     }
   }
 

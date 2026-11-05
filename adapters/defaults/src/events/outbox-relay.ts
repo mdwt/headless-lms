@@ -15,6 +15,7 @@ import type {
   OutboxRelay,
   OutboxStore,
 } from "@headless-lms/core/shared/ports";
+import { describeError } from "@headless-lms/core/shared/logger";
 import { OUTBOX_MAX_ATTEMPTS } from "@headless-lms/adapter-db";
 
 /** Backoff base: first retry 5s after the first failure, doubling per attempt. */
@@ -113,7 +114,7 @@ export class PollingOutboxRelay implements OutboxRelay {
       }
       await this.dispatchBatch(batch);
     } catch (err) {
-      this.logger.error("outbox poll failed", { error: String(err) });
+      this.logger.error("outbox poll failed", { error: describeError(err) });
     }
     this.schedule(fetched >= this.config.batchSize ? 0 : this.config.pollIntervalMs);
   }
@@ -151,7 +152,7 @@ export class PollingOutboxRelay implements OutboxRelay {
         type: message.payload.type,
       });
     } catch (err) {
-      const error = String(err);
+      const error = describeError(err);
       const nextAttemptAt = new Date(Date.now() + outboxBackoffMs(message.attempts));
       try {
         await this.store.markFailed(message.id, error, nextAttemptAt);
