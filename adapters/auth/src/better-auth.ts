@@ -4,13 +4,11 @@ import type {
   AccessTokenVerifier,
   ActiveSession,
   ApiKeySummary,
-  AppAccessAdmin,
   ConnectedApp,
   CreatedApiKey,
-  HeaderBag,
   Logger,
-  NewApiKey,
   NewOrganizationInput,
+  Permission,
   SessionVerifier,
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
@@ -23,6 +21,7 @@ import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
 import { NotFoundError } from "@headless-lms/core/shared/errors";
 import { customSession, jwt, magicLink, organization } from "better-auth/plugins";
+import { getOrgAdapter } from "better-auth/plugins/organization";
 import {
   type AccessTokenAuthorization,
   createDpopReplayStore,
@@ -36,7 +35,7 @@ import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { apiKey } from "@better-auth/api-key";
 import { eq } from "drizzle-orm";
-import { ac, roles } from "./access.js";
+import { ac, OWNER_MEMBERSHIP, PARTICIPANT_MEMBERSHIP, roles } from "./access.js";
 import {
   accessTokenAuthorization,
   consentOrgId,
@@ -49,14 +48,12 @@ import {
 } from "./access-grant.js";
 import { withLoopbackNativeDefault } from "./client-registration.js";
 import {
-  ACCESS_SCOPES,
+  ALL_PERMISSIONS,
+  type ApiKeys,
   type AuthHeaders,
   type AuthOrganization,
-  type MemberWriteContext,
   type OrgAdmin,
   OrganizationRuleError,
-  parseRole,
-  type Role,
   type UpdateOrganizationInput,
 } from "@headless-lms/core/organizations";
 import {
@@ -67,10 +64,17 @@ import {
 
 const JWT_ALG = "EdDSA";
 
-const UNMIRRORED_ORG_ENDPOINTS = new Set([
-  "/organization/leave",
-  "/organization/invite-member",
-  "/organization/accept-invitation",
+const OPEN_ORG_ENDPOINTS = new Set([
+  "/organization/set-active",
+  "/organization/list",
+  "/organization/get-active-member",
+]);
+
+const CORE_API_KEY_ENDPOINTS = new Set([
+  "/api-key/get",
+  "/api-key/list",
+  "/api-key/update",
+  "/api-key/delete",
 ]);
 
 const OAUTH_CLIENT_WRITES = new Set([
@@ -98,8 +102,8 @@ function mcpOAuthPlugins(opts: CreateAuthOptions): BetterAuthPlugin[] {
       resource: opts.mcp.resource,
       loginPage: opts.mcp.loginPage,
       consentPage: opts.mcp.consentPage,
-      scopes: [...ACCESS_SCOPES, "offline_access"],
-      clientRegistrationDefaultScopes: [...ACCESS_SCOPES, "offline_access"],
+      scopes: [...ALL_PERMISSIONS, "offline_access"],
+      clientRegistrationDefaultScopes: [...ALL_PERMISSIONS, "offline_access"],
       accessTokenExpiresIn: ACCESS_TOKEN_TTL_SECONDS,
       allowDynamicClientRegistration: true,
       allowUnauthenticatedClientRegistration: true,
@@ -197,7 +201,8 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       organization({
         ac,
         roles,
-        creatorRole: "owner",
+        creatorRole: OWNER_MEMBERSHIP,
+        membershipLimit: Number.MAX_SAFE_INTEGER,
         organizationHooks: opts.hooks,
       }),
       jwt({
@@ -206,14 +211,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       }) as BetterAuthPlugin,
       ...(opts.mcp.oauthEnabled ? mcpOAuthPlugins(opts) : []),
       apiKey({ enableMetadata: true, rateLimit: { enabled: false } }) as BetterAuthPlugin,
-      // Enrich get-session with the caller's memberships (role + org) so BFFs
-      // resolve auth in one call instead of fanning out to get-active-member /
-      // get-full-organization / organization/list. Custom fields bypass the
-      // cookie cache, so this costs one indexed query per get-session.
       customSession(async ({ user, session }) => {
         const memberships = await opts.db
           .select({
-            role: authSchema.member.role,
             id: authSchema.organization.id,
             name: authSchema.organization.name,
             slug: authSchema.organization.slug,
@@ -230,7 +230,6 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         return {
           user,
           session,
-          activeMemberRole: active?.role ?? null,
           activeOrganization: active
             ? { id: active.id, name: active.name, slug: active.slug }
             : null,
@@ -243,8 +242,15 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         if (ctx.path === "/api-key/create" && (ctx.request || ctx.headers)) {
           throw new APIError("FORBIDDEN", { message: "API keys are created through the LMS" });
         }
-        if (UNMIRRORED_ORG_ENDPOINTS.has(ctx.path)) {
-          throw new APIError("FORBIDDEN", { message: "Membership changes go through the LMS" });
+        if (
+          ctx.request &&
+          ctx.path.startsWith("/organization/") &&
+          !OPEN_ORG_ENDPOINTS.has(ctx.path)
+        ) {
+          throw new APIError("FORBIDDEN", { message: "Organizations are managed through the LMS" });
+        }
+        if (ctx.request && CORE_API_KEY_ENDPOINTS.has(ctx.path)) {
+          throw new APIError("FORBIDDEN", { message: "API keys are managed through the LMS" });
         }
         if (OAUTH_CLIENT_WRITES.has(ctx.path) && (ctx.request || ctx.headers)) {
           throw new APIError("FORBIDDEN", {
@@ -310,12 +316,43 @@ type PluginApi = {
       permissions: Record<string, string[]>;
     };
   }): Promise<PluginApiKey & { key: string }>;
-  listApiKeys(input: { headers: Headers }): Promise<{ apiKeys: PluginApiKey[] }>;
-  deleteApiKey(input: { body: { keyId: string }; headers: Headers }): Promise<unknown>;
 };
 
+type StoredApiKey = {
+  id: string;
+  name: string | null;
+  start: string | null;
+  referenceId: string;
+  metadata: unknown;
+  permissions: unknown;
+  createdAt: Date | string;
+  lastRequest: Date | string | null;
+};
+
+function parsedPermissions(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function toSummary(key: StoredApiKey): ApiKeySummary {
+  return {
+    id: key.id,
+    name: key.name ?? null,
+    start: key.start ?? null,
+    scopes: permissionsToScopes(parsedPermissions(key.permissions)),
+    createdAt: new Date(key.createdAt),
+    lastUsedAt: key.lastRequest ? new Date(key.lastRequest) : null,
+  };
+}
+
 export class BetterAuth
-  implements SessionVerifier, OrgAdmin, SessionAdmin, AccessTokenVerifier, AppAccessAdmin
+  implements SessionVerifier, OrgAdmin, SessionAdmin, AccessTokenVerifier, ApiKeys
 {
   protected auth: Auth;
   protected logger: Logger;
@@ -428,16 +465,54 @@ export class BetterAuth
     };
   }
 
-  protected async sessionUserId(headers: HeaderBag): Promise<string> {
-    const session = await this.auth.api.getSession({ headers: fromNodeHeaders(headers) });
-    if (!session) {
-      throw new OrganizationRuleError("No session");
-    }
-    return session.user.id;
+  protected async ownKeys(orgId: string, userExternalId: string): Promise<StoredApiKey[]> {
+    const ctx = await this.auth.$context;
+    const keys = await ctx.adapter.findMany<StoredApiKey>({
+      model: "apikey",
+      where: [{ field: "referenceId", value: userExternalId }],
+    });
+    return keys.filter((key) => orgIdFromMetadata(key.metadata) === orgId);
   }
 
-  async listConnectedApps(headers: HeaderBag, orgId: string): Promise<ConnectedApp[]> {
-    const userId = await this.sessionUserId(headers);
+  async list(orgId: string, userExternalId: string): Promise<ApiKeySummary[]> {
+    return (await this.ownKeys(orgId, userExternalId)).map(toSummary);
+  }
+
+  async create(
+    orgId: string,
+    userExternalId: string,
+    name: string,
+    scopes: Permission[],
+  ): Promise<CreatedApiKey> {
+    const created = await this.pluginApi.createApiKey({
+      body: {
+        name,
+        userId: userExternalId,
+        metadata: { organizationId: orgId },
+        permissions: scopesToPermissions(scopes),
+      },
+    });
+    return {
+      id: created.id,
+      name: created.name ?? null,
+      start: created.start ?? null,
+      scopes: permissionsToScopes(created.permissions),
+      createdAt: new Date(created.createdAt),
+      lastUsedAt: null,
+      key: created.key,
+    };
+  }
+
+  async revoke(orgId: string, userExternalId: string, keyId: string): Promise<void> {
+    const owned = await this.ownKeys(orgId, userExternalId);
+    if (!owned.some((key) => key.id === keyId)) {
+      throw new NotFoundError("API key", keyId);
+    }
+    const ctx = await this.auth.$context;
+    await ctx.adapter.delete({ model: "apikey", where: [{ field: "id", value: keyId }] });
+  }
+
+  async listApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]> {
     if (!this.mcp.oauthEnabled) {
       return [];
     }
@@ -449,7 +524,7 @@ export class BetterAuth
     }>({
       model: "oauthConsent",
       where: [
-        { field: "userId", value: userId },
+        { field: "userId", value: userExternalId },
         { field: "referenceId", value: orgId },
       ],
     });
@@ -470,15 +545,14 @@ export class BetterAuth
     );
   }
 
-  async revokeConnectedApp(headers: HeaderBag, orgId: string, clientId: string): Promise<void> {
-    const userId = await this.sessionUserId(headers);
+  async revokeApp(orgId: string, userExternalId: string, clientId: string): Promise<void> {
     if (!this.mcp.oauthEnabled) {
       return;
     }
     const ctx = await this.auth.$context;
     const where = [
       { field: "clientId", value: clientId },
-      { field: "userId", value: userId },
+      { field: "userId", value: userExternalId },
       { field: "referenceId", value: orgId },
     ];
     await ctx.adapter.deleteMany({ model: "oauthAccessToken", where });
@@ -486,46 +560,26 @@ export class BetterAuth
     await ctx.adapter.deleteMany({ model: "oauthConsent", where });
   }
 
-  async listApiKeys(headers: HeaderBag, orgId: string): Promise<ApiKeySummary[]> {
-    const res = await this.pluginApi.listApiKeys({ headers: fromNodeHeaders(headers) });
-    return res.apiKeys
-      .filter((key) => orgIdFromMetadata(key.metadata) === orgId)
-      .map((key) => ({
-        id: key.id,
-        name: key.name ?? null,
-        start: key.start ?? null,
-        scopes: permissionsToScopes(key.permissions),
-        createdAt: new Date(key.createdAt),
-        lastUsedAt: key.lastRequest ? new Date(key.lastRequest) : null,
-      }));
-  }
-
-  async createApiKey(input: NewApiKey): Promise<CreatedApiKey> {
-    const created = await this.pluginApi.createApiKey({
-      body: {
-        name: input.name,
-        userId: input.authUserId,
-        metadata: { organizationId: input.orgId },
-        permissions: scopesToPermissions(input.scopes),
-      },
-    });
-    return {
-      id: created.id,
-      name: created.name ?? null,
-      start: created.start ?? null,
-      scopes: permissionsToScopes(created.permissions),
-      createdAt: new Date(created.createdAt),
-      lastUsedAt: null,
-      key: created.key,
-    };
-  }
-
-  async deleteApiKey(headers: HeaderBag, orgId: string, keyId: string): Promise<void> {
-    const owned = await this.listApiKeys(headers, orgId);
-    if (!owned.some((key) => key.id === keyId)) {
-      throw new NotFoundError("API key", keyId);
+  async revokeAllFor(orgId: string, userExternalId: string): Promise<void> {
+    const ctx = await this.auth.$context;
+    const keys = await this.ownKeys(orgId, userExternalId);
+    for (const key of keys) {
+      await ctx.adapter.delete({ model: "apikey", where: [{ field: "id", value: key.id }] });
     }
-    await this.pluginApi.deleteApiKey({ body: { keyId }, headers: fromNodeHeaders(headers) });
+    if (this.mcp.oauthEnabled) {
+      const where = [
+        { field: "userId", value: userExternalId },
+        { field: "referenceId", value: orgId },
+      ];
+      await ctx.adapter.deleteMany({ model: "oauthAccessToken", where });
+      await ctx.adapter.deleteMany({ model: "oauthRefreshToken", where });
+      await ctx.adapter.deleteMany({ model: "oauthConsent", where });
+    }
+    this.logger.info("access revoked for person", {
+      orgId,
+      userExternalId,
+      apiKeys: keys.length,
+    });
   }
 
   async verify(headers: IncomingHttpHeaders): Promise<ActiveSession | null> {
@@ -585,27 +639,23 @@ export class BetterAuth
       headers: fromNodeHeaders(headers),
     });
   }
-  async updateOrganization(
-    headers: AuthHeaders,
-    externalId: string,
-    input: UpdateOrganizationInput,
-  ): Promise<AuthOrganization> {
-    try {
-      const org = await this.auth.api.updateOrganization({
-        body: { organizationId: externalId, data: { name: input.name, slug: input.slug } },
-        headers: fromNodeHeaders(headers),
-      });
-      if (!org) {
-        throw new Error(`Couldn't update organization`);
-      }
-      return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt };
-    } catch (err) {
-      // Surface Better Auth validation/permission failures (e.g. slug taken) as
-      // a domain rule error the route maps to 409 rather than a raw 500.
-      if (err instanceof APIError) {
-        throw new OrganizationRuleError(err.message || "Could not update organization");
-      }
-      throw err;
+  protected async orgAdapter() {
+    const context = await this.auth.$context;
+    return getOrgAdapter(context as unknown as Parameters<typeof getOrgAdapter>[0], {});
+  }
+
+  async updateOrganization(externalId: string, input: UpdateOrganizationInput): Promise<void> {
+    const data = {
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.slug !== undefined && { slug: input.slug }),
+    };
+    if (Object.keys(data).length === 0) {
+      return;
+    }
+    const adapter = await this.orgAdapter();
+    const updated = await adapter.updateOrganization(externalId, data);
+    if (!updated) {
+      throw new NotFoundError("Organization", externalId);
     }
   }
   async deleteOrganization(headers: AuthHeaders, externalId: string): Promise<void> {
@@ -621,70 +671,55 @@ export class BetterAuth
       throw err;
     }
   }
-  async grantMembership(
+  async grantMembership(orgExternalId: string, userExternalId: string): Promise<void> {
+    const adapter = await this.orgAdapter();
+    const existing = await adapter.findMemberByOrgId({
+      userId: userExternalId,
+      organizationId: orgExternalId,
+    });
+    if (existing) {
+      return;
+    }
+    await adapter.createMember({
+      organizationId: orgExternalId,
+      userId: userExternalId,
+      role: PARTICIPANT_MEMBERSHIP,
+    });
+  }
+
+  async setMembershipOwner(
     orgExternalId: string,
     userExternalId: string,
-    role: string,
+    owner: boolean,
   ): Promise<void> {
-    // Server-side (no session): the accepted invitation is the authorisation.
-    try {
-      await this.auth.api.addMember({
-        body: { userId: userExternalId, organizationId: orgExternalId, role: parseRole(role) },
-      });
-    } catch (err) {
-      if (
-        err instanceof APIError &&
-        err.body?.code === "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION"
-      ) {
-        return;
-      }
-      throw err;
+    const adapter = await this.orgAdapter();
+    const role = owner ? OWNER_MEMBERSHIP : PARTICIPANT_MEMBERSHIP;
+    const existing = await adapter.findMemberByOrgId({
+      userId: userExternalId,
+      organizationId: orgExternalId,
+    });
+    if (!existing) {
+      await adapter.createMember({ organizationId: orgExternalId, userId: userExternalId, role });
+      return;
+    }
+    if (existing.role !== role) {
+      await adapter.updateMember(existing.id, role);
     }
   }
-  async updateRole(ctx: MemberWriteContext, userExternalId: string, role: Role): Promise<void> {
-    await this.auth.api.updateMemberRole({
-      body: {
-        memberId: await this.resolveMemberId(ctx, userExternalId),
-        role,
-        organizationId: ctx.authOrgId,
-      },
-      headers: this.headersOf(ctx),
-    });
-  }
-  async removeMember(ctx: MemberWriteContext, userExternalId: string): Promise<void> {
-    await this.auth.api.removeMember({
-      body: {
-        memberIdOrEmail: await this.resolveMemberId(ctx, userExternalId),
-        organizationId: ctx.authOrgId,
-      },
-      headers: this.headersOf(ctx),
-    });
-  }
 
-  protected headersOf(ctx: MemberWriteContext): Headers {
-    return fromNodeHeaders(ctx.headers);
-  }
-
-  // Better Auth's member endpoints key on its own member id, which the domain
-  // deliberately does not store — `(org, user)` already identifies the record,
-  // so it is looked up here instead of mirrored into org_users.
-  protected async resolveMemberId(
-    ctx: MemberWriteContext,
-    userExternalId: string,
-  ): Promise<string> {
-    const res = await this.auth.api.listMembers({
-      query: {
-        organizationId: ctx.authOrgId,
-        filterField: "userId",
-        filterValue: userExternalId,
-        limit: 1,
-      },
-      headers: this.headersOf(ctx),
+  async removeMembership(orgExternalId: string, userExternalId: string): Promise<void> {
+    const adapter = await this.orgAdapter();
+    const existing = await adapter.findMemberByOrgId({
+      userId: userExternalId,
+      organizationId: orgExternalId,
     });
-    const memberId = res?.members?.[0]?.id;
-    if (!memberId) {
-      throw new OrganizationRuleError("That person is no longer a member of this organization");
+    if (!existing) {
+      return;
     }
-    return memberId;
+    await adapter.deleteMember({
+      memberId: existing.id,
+      organizationId: orgExternalId,
+      userId: userExternalId,
+    });
   }
 }

@@ -307,7 +307,7 @@ describe("organization endpoints", () => {
       headers: new Headers({ cookie: sarah.cookie }),
     });
     await auth.api.addMember({
-      body: { userId: james.userId, organizationId: org!.id, role: "admin" },
+      body: { userId: james.userId, organizationId: org!.id, role: "participant" },
     });
     const ctx = await auth.$context;
     const invitation = await ctx.adapter.create<Record<string, unknown>, { id: string }>({
@@ -315,7 +315,7 @@ describe("organization endpoints", () => {
       data: {
         organizationId: other!.id,
         email: "james@example.com",
-        role: "admin",
+        role: "participant",
         status: "pending",
         inviterId: sarah.userId,
         expiresAt: new Date(Date.now() + 60_000),
@@ -349,7 +349,7 @@ describe("organization endpoints", () => {
     const { orgId, asJames, invitations } = await orgWithAdmin();
     const res = await asJames("/organization/invite-member", {
       email: "emma@example.com",
-      role: "admin",
+      role: "participant",
       organizationId: orgId,
     });
     expect(res.status).toBe(403);
@@ -376,6 +376,25 @@ describe("organization endpoints", () => {
     expect(updated.status).toBe(403);
   });
 
+  it("refuses every organization write and member read over HTTP", async () => {
+    const { orgId, asJames } = await orgWithAdmin();
+    for (const path of [
+      "/organization/update",
+      "/organization/update-member-role",
+      "/organization/remove-member",
+      "/organization/delete",
+    ]) {
+      expect((await asJames(path, { organizationId: orgId })).status).toBe(403);
+    }
+  });
+
+  it("refuses the auth engine's own API key endpoints over HTTP", async () => {
+    const { asJames } = await orgWithAdmin();
+    for (const path of ["/api-key/update", "/api-key/delete"]) {
+      expect((await asJames(path, { keyId: "key_1" })).status).toBe(403);
+    }
+  });
+
   it("still lets a member switch their active organization", async () => {
     const { orgId, asJames } = await orgWithAdmin();
     expect((await asJames("/organization/set-active", { organizationId: orgId })).status).toBe(200);
@@ -385,12 +404,7 @@ describe("organization endpoints", () => {
 describe("api keys", () => {
   it("verifies a key to a grant holding exactly the scopes it was created with", async () => {
     const { verifier, verifyKey } = await setup();
-    const created = await verifier.createApiKey({
-      authUserId: "usr_1",
-      orgId: "org_1",
-      name: "CI",
-      scopes: ["courses:read"],
-    });
+    const created = await verifier.create("org_1", "usr_1", "CI", ["courses:read"]);
     expect(created.scopes).toEqual(["courses:read"]);
     expect(await verifyKey(created.key)).toEqual({
       userId: "usr_1",
@@ -402,12 +416,7 @@ describe("api keys", () => {
 
   it("verifies a key sent as a bearer token to the key's grant", async () => {
     const { verifier, verify } = await setup();
-    const created = await verifier.createApiKey({
-      authUserId: "usr_1",
-      orgId: "org_1",
-      name: "Connector",
-      scopes: ["analytics:read"],
-    });
+    const created = await verifier.create("org_1", "usr_1", "Connector", ["analytics:read"]);
     expect(await verify(`Bearer ${created.key}`)).toEqual({
       userId: "usr_1",
       orgId: "org_1",
@@ -426,12 +435,7 @@ describe("api keys", () => {
       ...options,
       mcp: { ...options.mcp, oauthEnabled: false },
     });
-    const created = await verifier.createApiKey({
-      authUserId: "usr_1",
-      orgId: "org_1",
-      name: "Connector",
-      scopes: ["courses:read"],
-    });
+    const created = await verifier.create("org_1", "usr_1", "Connector", ["courses:read"]);
     expect(await verify(`Bearer ${created.key}`)).toEqual({
       userId: "usr_1",
       orgId: "org_1",

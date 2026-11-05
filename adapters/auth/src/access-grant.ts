@@ -1,6 +1,7 @@
 import type { AccessGrant } from "@headless-lms/core/types";
 import { ORG_CLAIM } from "@headless-lms/core/identity";
-import { ACCESS_SCOPES, type AccessScope, isAccessScope } from "@headless-lms/core/organizations";
+import { ALL_PERMISSIONS, isPermission } from "@headless-lms/core/organizations";
+import type { Permission } from "@headless-lms/core/types";
 import { type AccessTokenAuthorization, parseAccessTokenAuthorization } from "better-auth/oauth2";
 
 export function accessTokenAuthorization(
@@ -29,7 +30,7 @@ export function grantFromClaims(claims: Record<string, unknown>): AccessGrant | 
     return null;
   }
   const scopes =
-    typeof claims.scope === "string" ? claims.scope.split(" ").filter(isAccessScope) : [];
+    typeof claims.scope === "string" ? claims.scope.split(" ").filter(isPermission) : [];
   return { userId, clientId, orgId, scopes };
 }
 
@@ -67,7 +68,7 @@ export function orgIdFromMetadata(metadata: unknown): string | null {
 
 export function scopesToPermissions(scopes: string[]): Record<string, string[]> {
   const permissions: Record<string, string[]> = {};
-  for (const scope of new Set(scopes.filter(isAccessScope))) {
+  for (const scope of new Set(scopes.filter(isPermission))) {
     const separator = scope.indexOf(":");
     const resource = scope.slice(0, separator);
     permissions[resource] = [...(permissions[resource] ?? []), scope.slice(separator + 1)];
@@ -75,7 +76,7 @@ export function scopesToPermissions(scopes: string[]): Record<string, string[]> 
   return permissions;
 }
 
-export function permissionsToScopes(permissions: unknown): AccessScope[] {
+export function permissionsToScopes(permissions: unknown): Permission[] {
   if (permissions === null || typeof permissions !== "object") {
     return [];
   }
@@ -87,5 +88,5 @@ export function permissionsToScopes(permissions: unknown): AccessScope[] {
       }
     }
   }
-  return ACCESS_SCOPES.filter((scope) => granted.has(scope));
+  return ALL_PERMISSIONS.filter((scope) => granted.has(scope));
 }

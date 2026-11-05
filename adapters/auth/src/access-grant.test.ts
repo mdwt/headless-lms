@@ -138,9 +138,9 @@ describe("scopesToPermissions", () => {
 describe("permissionsToScopes", () => {
   it("reads api key permissions back as scopes in catalogue order", () => {
     expect(permissionsToScopes({ media: ["read"], courses: ["write", "read"] })).toEqual([
+      "media:read",
       "courses:read",
       "courses:write",
-      "media:read",
     ]);
   });
   it("ignores permissions that are not catalogue scopes", () => {
@@ -151,7 +151,7 @@ describe("permissionsToScopes", () => {
     expect(permissionsToScopes(undefined)).toEqual([]);
   });
   it("round-trips the scopes an api key was created with", () => {
-    const scopes = ["students:read", "students:invite", "automations:delete"];
+    const scopes = ["people:read", "people:write", "automations:delete"];
     expect(permissionsToScopes(scopesToPermissions(scopes))).toEqual(scopes);
   });
 });

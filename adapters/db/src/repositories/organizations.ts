@@ -1,18 +1,16 @@
 // organizations — Drizzle repository (implements the core outbound port).
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import {
-  parseRole,
-  type CreateOrgUserInput,
-  type Invite,
-  type NewInviteRow,
-  type NewOrganizationRow,
-  type Organization,
-  type OrganizationsRepository,
-  type OrgUser,
-  type Role,
-  type UpdateOrganizationInput,
-  type UpdateOrgUserInput,
+import type {
+  CreateOrgUserInput,
+  Invite,
+  NewInviteRow,
+  NewOrganizationRow,
+  Organization,
+  OrganizationsRepository,
+  OrgUser,
+  UpdateOrganizationInput,
+  UpdateOrgUserInput,
 } from "@headless-lms/core/organizations";
 import { invites, organizations, orgUsers } from "../schema/organizations.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
@@ -30,7 +28,7 @@ function toInvite(row: typeof invites.$inferSelect): Invite {
     id: row.id,
     orgId: row.orgId,
     email: row.email,
-    role: row.role,
+    roleKey: row.roleKey,
     status: row.status,
     invitedBy: row.invitedBy,
     tokenHash: row.tokenHash,
@@ -118,7 +116,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .values({
         orgId,
         email: input.email,
-        role: input.role,
+        roleKey: input.roleKey,
         status: "pending",
         invitedBy: input.invitedBy,
         tokenHash: input.tokenHash,
@@ -128,7 +126,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         target: [invites.orgId, invites.email],
         targetWhere: sql`${invites.status} = 'pending'`,
         set: {
-          role: input.role,
+          roleKey: input.roleKey,
           invitedBy: input.invitedBy,
           tokenHash: input.tokenHash,
           expiresAt: input.expiresAt,
@@ -146,6 +144,15 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .update(invites)
       .set({ status: toStatus(status) })
       .where(and(eq(invites.orgId, orgId), eq(invites.id, id)))
+      .returning();
+    return row ? toInvite(row) : null;
+  }
+
+  async setInviteRole(orgId: string, id: string, roleKey: string): Promise<Invite | null> {
+    const [row] = await this.db
+      .update(invites)
+      .set({ roleKey })
+      .where(and(eq(invites.orgId, orgId), eq(invites.id, id), eq(invites.status, "pending")))
       .returning();
     return row ? toInvite(row) : null;
   }
@@ -179,10 +186,11 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     id: string,
     tokenHash: string,
     expiresAt: Date,
+    invitedBy: string,
   ): Promise<Invite | null> {
     const [row] = await this.db
       .update(invites)
-      .set({ tokenHash, expiresAt })
+      .set({ tokenHash, expiresAt, invitedBy })
       .where(and(eq(invites.orgId, orgId), eq(invites.id, id), eq(invites.status, "pending")))
       .returning();
     return row ? toInvite(row) : null;
@@ -194,7 +202,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .from(orgUsers)
       .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.userId, userId)))
       .limit(1);
-    return row ? { ...row, role: parseRole(row.role) } : null;
+    return row ?? null;
   }
 
   async findOrgUsersByUser(userId: string): Promise<OrgUser[]> {
@@ -203,7 +211,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .from(orgUsers)
       .where(eq(orgUsers.userId, userId))
       .orderBy(orgUsers.createdAt);
-    return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
+    return rows;
   }
 
   async findOrgUserById(orgId: string, id: string): Promise<OrgUser | null> {
@@ -212,7 +220,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .from(orgUsers)
       .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
       .limit(1);
-    return row ? { ...row, role: parseRole(row.role) } : null;
+    return row ?? null;
   }
 
   async findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]> {
@@ -223,25 +231,7 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .select()
       .from(orgUsers)
       .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, ids)));
-    return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
-  }
-
-  async findOrgUserIdsByRole(orgId: string, roles: Role[]): Promise<string[]> {
-    if (roles.length === 0) {
-      return [];
-    }
-    const rows = await this.db
-      .select({ id: orgUsers.id })
-      .from(orgUsers)
-      .where(
-        and(
-          eq(orgUsers.orgId, orgId),
-          eq(orgUsers.status, "active"),
-          inArray(orgUsers.role, roles),
-        ),
-      )
-      .orderBy(orgUsers.id);
-    return rows.map((row) => row.id);
+    return rows;
   }
 
   async createOrgUser(input: CreateOrgUserInput): Promise<OrgUser> {
@@ -251,14 +241,13 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
         .values({
           orgId: input.orgId,
           userId: input.userId,
-          role: input.role,
           status: input.status ?? "active",
         })
         .returning();
       if (!row) {
         throw new Error("failed to insert org user");
       }
-      return { ...row, role: parseRole(row.role) };
+      return row;
     } catch (err) {
       if (isUniqueViolation(err)) {
         throw new ConflictError("That account already belongs to this organization");
@@ -275,21 +264,11 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
     const [row] = await this.db
       .update(orgUsers)
       .set({
-        ...(patch.role !== undefined && { role: patch.role }),
         ...(patch.status !== undefined && { status: patch.status }),
       })
       .where(and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, id)))
       .returning();
-    return row ? { ...row, role: parseRole(row.role) } : null;
-  }
-
-  async findStudentOrgUsers(userId: string): Promise<OrgUser[]> {
-    const rows = await this.db
-      .select()
-      .from(orgUsers)
-      .where(and(eq(orgUsers.userId, userId), eq(orgUsers.role, "student")))
-      .orderBy(orgUsers.createdAt);
-    return rows.map((row) => ({ ...row, role: parseRole(row.role) }));
+    return row ?? null;
   }
 
   async deleteOrgUser(orgId: string, id: string): Promise<OrgUser | null> {
