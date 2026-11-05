@@ -63,6 +63,8 @@ export async function sse<T extends { type: string }>(
 
   let closed = false;
   let draining = false;
+  let ended: 'client' | 'server' | 'undrained' | 'error' = 'client';
+  let sent = 0;
   const close = () => {
     if (closed) {
       return;
@@ -96,6 +98,7 @@ export async function sse<T extends { type: string }>(
     });
     draining = false;
     if (!drained && !closed) {
+      ended = 'undrained';
       reply.log.warn('event stream not drained; closing it');
       close();
       res.destroy();
@@ -114,6 +117,9 @@ export async function sse<T extends { type: string }>(
     while (!closed) {
       const next = await iterator.next();
       if (next.done) {
+        if (!closed) {
+          ended = 'server';
+        }
         break;
       }
       const event = next.value;
@@ -121,13 +127,16 @@ export async function sse<T extends { type: string }>(
       if (!(await write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`))) {
         break;
       }
+      sent += 1;
     }
   } catch (error) {
+    ended = 'error';
     reply.log.error({ err: error }, 'event stream failed');
   } finally {
     close();
     if (!res.destroyed && !res.writableEnded) {
       res.end();
     }
+    reply.log.info({ responseTime: reply.elapsedTime, ended, events: sent }, 'event stream ended');
   }
 }

@@ -512,10 +512,22 @@ export class ChatHub {
       return;
     }
     if (state.status === 'signed-out') {
+      this.logger.info('chat stream closed', {
+        orgId: stream.orgId,
+        communityId: stream.communityId,
+        orgUserId: stream.orgUserId,
+        reason: 'session',
+      });
       stream.end({ type: 'closed', reason: 'session' });
       return;
     }
     if (state.status === 'no-member' || !allowed) {
+      this.logger.info('chat stream closed', {
+        orgId: stream.orgId,
+        communityId: stream.communityId,
+        orgUserId: stream.orgUserId,
+        reason: 'access',
+      });
       stream.end({ type: 'closed', reason: 'access' });
       return;
     }

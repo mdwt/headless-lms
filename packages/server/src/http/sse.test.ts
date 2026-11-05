@@ -47,16 +47,23 @@ class Source implements AsyncIterableIterator<Event> {
 
 let app: FastifyInstance | null = null;
 let socket: Socket | null = null;
+let logs: Array<Record<string, unknown>> = [];
 
 afterEach(async () => {
   socket?.destroy();
   socket = null;
   await app?.close();
   app = null;
+  logs = [];
 });
 
 async function serve(source: Source, options: SseOptions): Promise<number> {
-  app = Fastify();
+  app = Fastify({
+    logger: {
+      level: 'info',
+      stream: { write: (line: string) => logs.push(JSON.parse(line) as Record<string, unknown>) },
+    },
+  });
   app.get('/events', async (_req, reply) => {
     await sse(reply, source, options);
   });
@@ -81,6 +88,8 @@ function open(port: number, read: boolean): { text: () => string; closed: Promis
   return { text: () => text, closed };
 }
 
+const completed = () => logs.filter((line) => line['msg'] === 'event stream ended');
+
 async function until(check: () => boolean, ms = 5000): Promise<void> {
   const end = Date.now() + ms;
   while (!check()) {
@@ -101,6 +110,9 @@ describe('sse', () => {
     expect(client.text()).toContain('event: ready\ndata: {"type":"ready"}\n\n');
     socket!.destroy();
     await until(() => source.returned);
+    await until(() => completed().length === 1);
+    expect(completed()[0]).toMatchObject({ ended: 'client', events: 1 });
+    expect(typeof completed()[0]!['responseTime']).toBe('number');
   });
 
   it('ends the response when the source ends', async () => {
@@ -111,6 +123,8 @@ describe('sse', () => {
     await until(() => client.text().includes('event: closed'));
     void source.return();
     await until(() => client.text().endsWith('0\r\n\r\n'));
+    await until(() => completed().length === 1);
+    expect(completed()[0]).toMatchObject({ ended: 'server', events: 1 });
   });
 
   it('ends a stream whose client stops reading once a write stays undrained', async () => {
@@ -129,5 +143,7 @@ describe('sse', () => {
     expect(Date.now() - started).toBeLessThan(10_000);
     socket!.resume();
     await client.closed;
+    await until(() => completed().length === 1);
+    expect(completed()[0]).toMatchObject({ ended: 'undrained' });
   }, 20_000);
 });
