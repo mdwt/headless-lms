@@ -20,7 +20,8 @@ import {
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
-import { resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function automationsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -30,19 +31,19 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations',
+    config: { operation: 'automations.list' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomations',
       tags,
-      summary: 'List automations (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Optionally only workflows or only webhooks.',
+      summary: 'List automations',
+      description: `${describeOperation('automations.list')} Optionally only workflows or only webhooks.`,
       querystring: AutomationsQuery,
       response: { 200: z.array(Automation), ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return automations.list(scope.orgId, req.query);
+      const actor = await resolveActor(container, req);
+      return automations.list(req.query, actor);
     },
   });
 
@@ -50,53 +51,55 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/actions',
+    config: { operation: 'automations.availableActions' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomationActions',
       tags,
-      summary: 'List the actions automations can use (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'List the actions automations can use',
+      description: describeOperation('automations.availableActions'),
       response: { 200: z.array(AvailableAction), ...refusals(403) },
     },
     handler: async (req) => {
-      await resolveScope(container, req);
-      return automations.availableActions();
+      const actor = await resolveActor(container, req);
+      return automations.availableActions(actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/automations/triggers',
+    config: { operation: 'automations.availableTriggers' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomationTriggers',
       tags,
-      summary: 'List the domain events automations can react to (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'List the domain events automations can react to',
+      description: describeOperation('automations.availableTriggers'),
       response: { 200: AvailableTriggers, ...refusals(403) },
     },
     handler: async (req) => {
-      await resolveScope(container, req);
-      return automations.availableTriggers();
+      const actor = await resolveActor(container, req);
+      return automations.availableTriggers(actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/automations',
+    config: { operation: 'automations.create' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'createAutomation',
       tags,
-      summary: 'Create a workflow automation (staff)',
-      description:
-        'Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.',
+      summary: 'Create a workflow automation',
+      description: `${describeOperation('automations.create')} 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.`,
       body: CreateAutomationBody,
       response: { 201: Automation, ...refusals(400, 403) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const automation = await automations.create(scope.orgId, req.body);
+      const actor = await resolveActor(container, req);
+      const automation = await automations.create(req.body, actor);
       return reply.code(201).send(automation);
     },
   });
@@ -104,18 +107,19 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/:id',
+    config: { operation: 'automations.get' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getAutomation',
       tags,
-      summary: 'Get an automation (staff)',
-      description: 'Staff only (owner, admin, instructor). Workflows and webhooks alike.',
+      summary: 'Get an automation',
+      description: `${describeOperation('automations.get')} Workflows and webhooks alike.`,
       params: AutomationIdParam,
       response: { 200: Automation, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const automation = await automations.get(scope.orgId, req.params.id);
+      const actor = await resolveActor(container, req);
+      const automation = await automations.get(req.params.id, actor);
       if (!automation) {
         throw new NotFoundError('Automation', req.params.id);
       }
@@ -126,20 +130,20 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/automations/:id',
+    config: { operation: 'automations.update' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateAutomation',
       tags,
-      summary: 'Update a workflow automation (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.',
+      summary: 'Update a workflow automation',
+      description: `${describeOperation('automations.update')} Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.`,
       params: AutomationIdParam,
       body: UpdateAutomationBody,
       response: { 200: Automation, ...refusals(400, 403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const automation = await automations.update(scope.orgId, req.params.id, req.body);
+      const actor = await resolveActor(container, req);
+      const automation = await automations.update(req.params.id, req.body, actor);
       if (!automation) {
         throw new NotFoundError('Automation', req.params.id);
       }
@@ -150,19 +154,19 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/automations/:id',
+    config: { operation: 'automations.delete' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteAutomation',
       tags,
-      summary: 'Delete a workflow automation (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.',
+      summary: 'Delete a workflow automation',
+      description: `${describeOperation('automations.delete')} Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.`,
       params: AutomationIdParam,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const deleted = await automations.delete(scope.orgId, req.params.id);
+      const actor = await resolveActor(container, req);
+      const deleted = await automations.delete(req.params.id, actor);
       if (!deleted) {
         throw new NotFoundError('Automation', req.params.id);
       }
@@ -173,40 +177,40 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/:id/runs',
+    config: { operation: 'automations.listRuns' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomationRuns',
       tags,
-      summary: "List an automation's runs (staff)",
-      description:
-        "Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.",
+      summary: "List an automation's runs",
+      description: `${describeOperation('automations.listRuns')} A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.`,
       params: AutomationIdParam,
       querystring: AutomationRunsQuery,
       response: { 200: AutomationRunsPage, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       // No existence pre-check: runs deliberately survive automation deletion (audit trail).
-      return automations.listRuns(scope.orgId, req.params.id, req.query);
+      return automations.listRuns(req.params.id, req.query, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/automations/:id/runs/:runId/rerun',
+    config: { operation: 'automations.rerun' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'rerunAutomationRun',
       tags,
-      summary: 'Run a finished run again (staff)',
-      description:
-        "Staff only (owner, admin, instructor). Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).",
+      summary: 'Run a finished run again',
+      description: `${describeOperation('automations.rerun')} Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).`,
       params: AutomationRunParams,
       response: { 200: AutomationRun, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return automations.rerun(scope.orgId, req.params.id, req.params.runId);
+      const actor = await resolveActor(container, req);
+      return automations.rerun(req.params.id, req.params.runId, actor);
     },
   });
 }

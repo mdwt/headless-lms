@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   communityStatusSchema,
-  roleSchema,
   communityViewSchema,
   createCommunityInputSchema,
   createSpaceInputSchema,
@@ -67,7 +66,13 @@ export const CommunityCommentParam = z.object({ communityId: z.string(), comment
 export const CommunityMessageParam = z.object({ communityId: z.string(), messageId: z.string() });
 export const CommunityChatParam = z.object({ communityId: z.string(), chatId: z.string() });
 
-export const CommunityMember = OrgUserProfileSchema.extend({ role: roleSchema });
+export const CommunityMember = OrgUserProfileSchema.extend({
+  team: z.boolean().describe('Shown as team in the community.'),
+  roleName: z
+    .string()
+    .nullable()
+    .describe('The name of the role that makes them team in the community, or null.'),
+});
 type _CommunityMemberMatches = Matches<DomainCommunityMember, z.infer<typeof CommunityMember>> &
   Matches<z.infer<typeof CommunityMember>, DomainCommunityMember>;
 export const CommunityMembersQuery = PageQuery.extend({ search: z.string().trim().optional() });

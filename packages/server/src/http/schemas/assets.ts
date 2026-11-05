@@ -15,7 +15,7 @@ export const AssetKind = assetKindSchema.describe(
 export type AssetKind = z.infer<typeof AssetKind>;
 
 export const AssetSource = assetSourceSchema.describe(
-  "Where the file came from: `library` is the org's media uploaded by staff, `member` is a person's own upload.",
+  "Where the file came from: `library` is the org's media, `member` is a person's own upload.",
 );
 export type AssetSource = z.infer<typeof AssetSource>;
 
@@ -44,6 +44,7 @@ export type Asset = z.infer<typeof Asset>;
 export const AssetsQuery = ListQuery.extend({
   kind: AssetKind.optional(),
   source: AssetSource.optional().describe('Defaults to `library`.'),
+  contentId: z.string().optional().describe('Only the files uploaded for this content item.'),
 });
 export type AssetsQuery = z.infer<typeof AssetsQuery>;
 
@@ -58,6 +59,7 @@ const Filename = z.string().trim().min(1).max(255);
 export const RequestUpload = z.object({
   filename: Filename,
   contentType: z.string().min(1).max(255).describe('The media class is derived from this.'),
+  contentId: z.string().optional().describe('The course, download or community the file is for.'),
 });
 export type RequestUpload = z.infer<typeof RequestUpload>;
 

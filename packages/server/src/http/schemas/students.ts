@@ -1,6 +1,7 @@
 // Students resource schemas.
 import { z } from 'zod';
 import { ListQuery, paginated, OrgUserProfileSchema } from './shared.js';
+import { ItemRole } from './members.js';
 
 export const OrgUserStatus = z.enum(['invited', 'active']);
 export type OrgUserStatus = z.infer<typeof OrgUserStatus>;
@@ -13,6 +14,7 @@ export const Student = OrgUserProfileSchema.extend({
   status: OrgUserStatus,
   joinedAt: z.string(),
   lastActiveAt: z.string().nullable(),
+  items: z.array(ItemRole).describe('The roles they hold on content items.'),
 });
 export type Student = z.infer<typeof Student>;
 

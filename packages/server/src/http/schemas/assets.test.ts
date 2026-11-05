@@ -13,6 +13,7 @@ const asset = {
   size: 10,
   status: 'ready',
   uploadedBy: 'orm_1',
+  contentId: null,
   url: 'https://storage/get',
   downloadUrl: 'https://storage/get?download',
   createdAt: new Date('2026-10-22T00:00:00Z'),

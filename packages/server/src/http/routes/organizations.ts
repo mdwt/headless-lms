@@ -37,7 +37,6 @@ import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
 import { describeOperation } from '../operations.js';
-import { typesForList } from '@headless-lms/core/shared/notification-categories';
 
 function inviteView(invite: InviteRecord) {
   return {
@@ -495,94 +494,92 @@ export async function organizationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/notification-types',
+    config: { operation: 'notificationCatalog.types' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listNotificationTypes',
       tags: notificationTags,
-      summary: 'List the notification types a category list can cover (staff)',
-      description:
-        'Owner or admin only. `scope=org` lists the types the org list can cover, `scope=community` those a community list can cover. Each type carries all its scopes, so an editor can tell which types can be per space.',
+      summary: 'List the notification types a category list can cover',
+      description: `${describeOperation('notificationCatalog.types')} \`scope=org\` lists the types the org list can cover and needs \`notification_categories:read\`; \`scope=community\` lists those a community list can cover and also takes \`communities:read\` on any community. Each type carries all its scopes, so an editor can tell which types can be per space.`,
       querystring: NotificationListScopeQuery,
       response: { 200: NotificationTypeInfos, ...refusals(403) },
     },
     handler: async (req) => {
-      await resolveConfiguratorScope(container, req);
-      return typesForList(container.notificationTypes, req.query.scope);
+      const actor = await resolveActor(container, req);
+      return container.notificationCatalog.types(actor, req.query.scope);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/notification-channels',
+    config: { operation: 'notificationCatalog.channels' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listNotificationChannels',
       tags: notificationTags,
-      summary: 'List the notification channels this deployment can deliver on (staff)',
-      description: 'Owner or admin only. `inApp` is always first.',
+      summary: 'List the notification channels this deployment can deliver on',
+      description: `${describeOperation('notificationCatalog.channels')} \`communities:read\` on any community is enough. \`inApp\` is always first.`,
       response: { 200: NotificationChannelInfos, ...refusals(403) },
     },
     handler: async (req) => {
-      await resolveConfiguratorScope(container, req);
-      return container.notificationChannels.list().map((channel) => ({ channel }));
+      const actor = await resolveActor(container, req);
+      return container.notificationCatalog.channels(actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/notification-categories',
+    config: { operation: 'orgNotificationCategories.get' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getOrgNotificationCategories',
       tags: notificationTags,
-      summary: "Get the organization's notification categories (staff)",
-      description:
-        'Owner or admin only. The list in use for notifications outside any community, with `source` saying whether it is the default or a stored list.',
+      summary: "Get the organization's notification categories",
+      description: `${describeOperation('orgNotificationCategories.get')} The list in use for notifications outside any community, with \`source\` saying whether it is the default or a stored list.`,
       response: { 200: NotificationCategoryList, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveConfiguratorScope(container, req);
-      return container.notificationCategories.org.get(scope.orgId, scope.orgId);
+      const actor = await resolveActor(container, req);
+      return container.notificationCategories.org.get(actor.orgId, actor);
     },
   });
 
   r.route({
     method: 'PUT',
     url: '/api/notification-categories',
+    config: { operation: 'orgNotificationCategories.replace' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'replaceOrgNotificationCategories',
       tags: notificationTags,
-      summary: "Replace the organization's notification categories (staff)",
-      description:
-        'Owner or admin only. Stores the whole list. 422 when a key repeats, a type cannot be in the org list, a reason is not allowed for its type, a channel is not configured, or earlier categories already cover everything a category covers.',
+      summary: "Replace the organization's notification categories",
+      description: `${describeOperation('orgNotificationCategories.replace')} Stores the whole list. 422 when a key repeats, a type cannot be in the org list, a reason is not allowed for its type, a channel is not configured, or earlier categories already cover everything a category covers.`,
       body: ReplaceNotificationCategories,
       response: { 200: NotificationCategoryList, ...refusals(400, 403, 422) },
     },
     handler: async (req) => {
-      const scope = await resolveConfiguratorScope(container, req);
-      return container.notificationCategories.org.replace(
-        scope.orgId,
-        scope.orgId,
-        req.body.categories,
-      );
+      const actor = await resolveActor(container, req);
+      return container.notificationCategories.org.replace(actor.orgId, req.body.categories, actor);
     },
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/notification-categories',
+    config: { operation: 'orgNotificationCategories.reset' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'resetOrgNotificationCategories',
       tags: notificationTags,
-      summary: 'Go back to the default notification categories for the organization (staff)',
-      description: 'Owner or admin only. Removes the stored list; the default applies again.',
+      summary: 'Go back to the default notification categories for the organization',
+      description: `${describeOperation('orgNotificationCategories.reset')} Removes the stored list; the default applies again.`,
       response: { 204: z.void(), ...refusals(403) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveConfiguratorScope(container, req);
-      await container.notificationCategories.org.reset(scope.orgId, scope.orgId);
+      const actor = await resolveActor(container, req);
+      await container.notificationCategories.org.reset(actor.orgId, actor);
       return reply.code(204).send();
     },
   });
@@ -590,23 +587,19 @@ export async function organizationsRoutes(
   r.route({
     method: 'GET',
     url: '/api/notification-categories/defaults',
+    config: { operation: 'notificationCatalog.defaults' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getDefaultNotificationCategories',
       tags: notificationTags,
-      summary: 'Get the default notification categories (staff)',
-      description:
-        'Owner or admin only. The default org list (`scope=org`) or community list (`scope=community`), offering only the configured channels.',
+      summary: 'Get the default notification categories',
+      description: `${describeOperation('notificationCatalog.defaults')} The default org list (\`scope=org\`, which needs \`notification_categories:read\`) or community list (\`scope=community\`, which also takes \`communities:read\` on any community), offering only the configured channels.`,
       querystring: NotificationListScopeQuery,
       response: { 200: NotificationCategoryDefaults, ...refusals(403) },
     },
     handler: async (req) => {
-      await resolveConfiguratorScope(container, req);
-      const service =
-        req.query.scope === 'org'
-          ? container.notificationCategories.org
-          : container.notificationCategories.community;
-      return { categories: service.defaults() };
+      const actor = await resolveActor(container, req);
+      return { categories: container.notificationCatalog.defaults(actor, req.query.scope) };
     },
   });
 }

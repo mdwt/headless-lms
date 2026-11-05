@@ -10,7 +10,8 @@ import {
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
-import { resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function courseAnalyticsRoutes(
   app: FastifyInstance,
@@ -21,18 +22,19 @@ export async function courseAnalyticsRoutes(
   r.route({
     method: 'GET',
     url: '/api/courses/:id/analytics',
+    config: { operation: 'reporting.admin.courseAnalytics' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getCourseAnalytics',
       tags: ['Reporting'],
-      summary: 'Completion and engagement stats for a course (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'Completion and engagement stats for a course',
+      description: describeOperation('reporting.admin.courseAnalytics'),
       params: CourseIdParam,
       response: { 200: CourseAnalytics, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const analytics = await container.reporting.admin.courseAnalytics(scope.orgId, req.params.id);
+      const actor = await resolveActor(container, req);
+      const analytics = await container.reporting.admin.courseAnalytics(req.params.id, actor);
       if (!analytics) {
         throw new NotFoundError('Course', req.params.id);
       }
@@ -43,22 +45,23 @@ export async function courseAnalyticsRoutes(
   r.route({
     method: 'GET',
     url: '/api/courses/:id/analytics/enrollments',
+    config: { operation: 'reporting.admin.courseEnrollments' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getCourseEnrollmentSeries',
       tags: ['Reporting'],
-      summary: 'Enrollments granted per day for a course over a trailing window (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'Enrollments granted per day for a course over a trailing window',
+      description: describeOperation('reporting.admin.courseEnrollments'),
       params: CourseIdParam,
       querystring: EnrollmentSeriesQuery,
       response: { 200: EnrollmentSeries, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
+      const actor = await resolveActor(container, req);
       const series = await container.reporting.admin.courseEnrollments(
-        scope.orgId,
         req.params.id,
         req.query.days,
+        actor,
       );
       if (!series) {
         throw new NotFoundError('Course', req.params.id);

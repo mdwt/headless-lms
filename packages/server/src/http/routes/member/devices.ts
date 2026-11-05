@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
-import { actorOf } from './actor.js';
+import type { FastifyRequest } from 'fastify';
+import { resolveActor, resolveCaller } from '../../scope.js';
 import {
   Device,
   DeviceIdParam,
@@ -19,14 +20,15 @@ export async function memberDeviceRoutes(
   const r = app.withTypeProvider<ZodTypeProvider>();
   const tags = ['Notifications'];
 
-  async function memberOf(orgId: string, userId: string) {
-    const orgUser = await actorOf(container, orgId, userId);
-    return { id: orgUser.id, role: orgUser.role, userId };
+  async function memberOf(req: FastifyRequest) {
+    const caller = await resolveCaller(container, req);
+    return { ...caller.actor, userId: caller.userId };
   }
 
   r.route({
     method: 'GET',
     url: '/api/member/devices',
+    config: { operation: 'devices.list' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberDevices',
@@ -37,13 +39,14 @@ export async function memberDeviceRoutes(
       response: { 200: DeviceList, ...refusals(403) },
     },
     handler: async (req) => {
-      return container.devices.list(req.orgId, await memberOf(req.orgId, req.userId));
+      return container.devices.list(await memberOf(req));
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/member/devices',
+    config: { operation: 'devices.register' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'registerMemberDevice',
@@ -55,13 +58,14 @@ export async function memberDeviceRoutes(
       response: { 200: Device, ...refusals(400, 403, 422) },
     },
     handler: async (req) => {
-      return container.devices.register(req.orgId, await memberOf(req.orgId, req.userId), req.body);
+      return container.devices.register(req.body, await memberOf(req));
     },
   });
 
   r.route({
     method: 'DELETE',
     url: '/api/member/devices/:deviceId',
+    config: { operation: 'devices.remove' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removeMemberDevice',
@@ -73,11 +77,7 @@ export async function memberDeviceRoutes(
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      await container.devices.remove(
-        req.orgId,
-        await memberOf(req.orgId, req.userId),
-        req.params.deviceId,
-      );
+      await container.devices.remove(req.params.deviceId, await memberOf(req));
       return reply.code(204).send();
     },
   });
@@ -85,6 +85,7 @@ export async function memberDeviceRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/push-config',
+    config: { operation: 'devices.pushConfig' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberPushConfig',
@@ -95,7 +96,7 @@ export async function memberDeviceRoutes(
       response: { 200: PushConfigView, ...refusals(403) },
     },
     handler: async (req) => {
-      await actorOf(container, req.orgId, req.userId);
+      await resolveActor(container, req);
       return container.devices.pushConfig();
     },
   });

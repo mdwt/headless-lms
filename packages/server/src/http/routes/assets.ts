@@ -1,10 +1,7 @@
-// HTTP routes for the assets media library. All require a session with an
-// active organization; assets are stored under the org's private prefix and
-// served through stable staff URLs that redirect to a signed storage URL.
-//
-// `req.orgId` is already the domain organization id these tables key on — the
-// session guard translates it from better-auth's id once per request.
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+// HTTP routes for the assets media library. Assets are stored under the org's
+// private prefix and served through stable URLs that redirect to a signed
+// storage URL.
+import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
@@ -18,47 +15,29 @@ import {
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
-import { resolveScope } from '../scope.js';
-
-/** Resolve the session's active org to the domain org id, or 400 and return null. */
-async function resolveOrgId(req: FastifyRequest, reply: FastifyReply): Promise<string | null> {
-  if (!req.orgId) {
-    await reply.code(400).send({ error: 'no_active_org', message: 'No active organization' });
-    return null;
-  }
-  return req.orgId;
-}
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function assetsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const assets = container.assets;
   const tags = ['Assets'];
-  const staff = async (req: FastifyRequest) => {
-    await resolveScope(container, req);
-  };
 
-  // Register an asset + get a presigned upload URL. Kept at /api/uploads as the
-  // "start an upload" action; the resulting asset lives in the library below.
   r.route({
     method: 'POST',
     url: '/api/uploads',
-    preHandler: staff,
+    config: { operation: 'assets.requestUpload' },
     schema: {
       operationId: 'requestUpload',
       tags,
-      summary: 'Register a library asset and get a presigned upload URL (staff)',
-      description:
-        'Staff only (owner, admin, instructor). The asset stays pending until you upload the file and confirm it.',
+      summary: 'Register a library asset and get a presigned upload URL',
+      description: `${describeOperation('assets.requestUpload')} \`media:write\` uploads to the library; the write permission of a content item uploads for that item when \`contentId\` names it, and the asset records it. The asset stays pending until you upload the file and confirm it. 404 when \`contentId\` is not a content item of the organization.`,
       body: RequestUpload,
-      response: { 201: UploadTicket, ...refusals(403) },
+      response: { 201: UploadTicket, ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const ticket = await assets.requestUpload(scope.orgId, {
-        ...req.body,
-        source: 'library',
-        uploadedBy: scope.orgUserId,
-      });
+      const actor = await resolveActor(container, req);
+      const ticket = await assets.requestUpload(req.body, actor);
       return reply.code(201).send(ticket);
     },
   });
@@ -66,22 +45,18 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'POST',
     url: '/api/assets/:id/confirm',
-    preHandler: staff,
+    config: { operation: 'assets.confirm' },
     schema: {
       operationId: 'confirmAsset',
       tags,
-      summary: 'Confirm a library upload completed (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Captures the stored size and content type: a pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.',
+      summary: 'Confirm a library upload completed',
+      description: `${describeOperation('assets.confirm')} \`media:read\` reaches every file; the write permission of a content item reaches the files uploaded for it. Captures the stored size and content type: a pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.`,
       params: AssetIdParam,
       response: { 200: Asset, ...refusals(403, 404) },
     },
-    handler: async (req, reply) => {
-      const orgId = await resolveOrgId(req, reply);
-      if (!orgId) {
-        return;
-      }
-      const asset = await assets.confirm(orgId, req.params.id);
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      const asset = await assets.confirm(req.params.id, actor);
       if (!asset) {
         throw new NotFoundError('Asset', req.params.id);
       }
@@ -92,43 +67,36 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'GET',
     url: '/api/assets',
-    preHandler: staff,
+    config: { operation: 'assets.list' },
     schema: {
       operationId: 'listAssets',
       tags,
-      summary: "Browse the organization's media library (staff)",
-      description:
-        "Staff only (owner, admin, instructor). Library files by default; `source: member` lists members' uploads.",
+      summary: "Browse the organization's media library",
+      description: `${describeOperation('assets.list')} \`media:read\` lists the whole library, \`source: member\` members' uploads; the write permission of a content item lists the files uploaded for it, named by \`contentId\`.`,
       querystring: AssetsQuery,
       response: { 200: AssetsPage, ...refusals(403) },
     },
-    handler: async (req, reply) => {
-      const orgId = await resolveOrgId(req, reply);
-      if (!orgId) {
-        return;
-      }
-      return assets.list(orgId, req.query);
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return assets.list(req.query, actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/assets/:id',
-    preHandler: staff,
+    config: { operation: 'assets.get' },
     schema: {
       operationId: 'getAsset',
       tags,
-      summary: "Get an asset's metadata (staff)",
-      description: 'Staff only (owner, admin, instructor).',
+      summary: "Get an asset's metadata",
+      description: `${describeOperation('assets.get')} \`media:read\` reaches every file; the write permission of a content item reaches the files uploaded for it.`,
       params: AssetIdParam,
       response: { 200: Asset, ...refusals(403, 404) },
     },
-    handler: async (req, reply) => {
-      const orgId = await resolveOrgId(req, reply);
-      if (!orgId) {
-        return;
-      }
-      const asset = await assets.get(orgId, req.params.id);
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      const asset = await assets.get(req.params.id, actor);
       if (!asset) {
         throw new NotFoundError('Asset', req.params.id);
       }
@@ -139,22 +107,18 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
   r.route({
     method: 'DELETE',
     url: '/api/assets/:id',
-    preHandler: staff,
+    config: { operation: 'assets.remove' },
     schema: {
       operationId: 'deleteAsset',
       tags,
-      summary: 'Delete an asset nothing references (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Removes the row and the stored file. 409 while content still uses it.',
+      summary: 'Delete an asset nothing references',
+      description: `${describeOperation('assets.remove')} Removes the row and the stored file. 409 while content still uses it.`,
       params: AssetIdParam,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const orgId = await resolveOrgId(req, reply);
-      if (!orgId) {
-        return;
-      }
-      const removed = await assets.remove(orgId, req.params.id);
+      const actor = await resolveActor(container, req);
+      const removed = await assets.remove(req.params.id, actor);
       if (!removed) {
         throw new NotFoundError('Asset', req.params.id);
       }
@@ -167,34 +131,30 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       suffix: 'file',
       download: false,
       operationId: 'getLibraryFile',
-      summary: 'Redirect to a library file to show it (staff)',
+      summary: 'Redirect to a library file to show it',
     },
     {
       suffix: 'download',
       download: true,
       operationId: 'downloadLibraryFile',
-      summary: 'Redirect to a library file saved under its filename (staff)',
+      summary: 'Redirect to a library file saved under its filename',
     },
   ]) {
     r.route({
       method: 'GET',
       url: `/api/assets/:id/${suffix}`,
-      preHandler: staff,
+      config: { operation: 'assets.libraryFile' },
       schema: {
         operationId,
         tags,
         summary,
-        description:
-          'Staff only (owner, admin, instructor). Ready library files of the organization; member uploads and pending files answer 404.',
+        description: `${describeOperation('assets.libraryFile')} \`media:read\` reaches every file; the write permission of a content item reaches the files uploaded for it. Ready library files of the organization; member uploads and pending files answer 404.`,
         params: AssetIdParam,
         response: { 302: z.void(), ...refusals(403, 404) },
       },
       handler: async (req, reply) => {
-        const orgId = await resolveOrgId(req, reply);
-        if (!orgId) {
-          return;
-        }
-        const url = await assets.libraryFile(orgId, req.params.id, { download });
+        const actor = await resolveActor(container, req);
+        const url = await assets.libraryFile(req.params.id, { download }, actor);
         if (!url) {
           throw new NotFoundError('Asset', req.params.id);
         }

@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
 import { InvalidInputError, NotFoundError } from '@headless-lms/core/shared/errors';
-import { actorOf } from './actor.js';
+import { resolveCaller } from '../../scope.js';
 import {
   NotificationFilterQuery,
   NotificationIdParam,
@@ -24,6 +24,7 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/notifications',
+    config: { operation: 'reporting.member.notifications' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberNotifications',
@@ -35,36 +36,40 @@ export async function memberNotificationRoutes(
       response: { 200: NotificationsPage, ...refusals(400, 403) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
+      const caller = await resolveCaller(container, req);
       const { page, pageSize, ...filter } = req.query;
-      return container.reporting.member.notifications(req.orgId, actor, req.userId, filter, {
-        page,
-        pageSize,
-      });
+      return container.reporting.member.notifications(
+        caller.userId,
+        filter,
+        { page, pageSize },
+        caller.actor,
+      );
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/member/notifications/unread-counts',
+    config: { operation: 'reporting.member.notificationUnreadCounts' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberNotificationUnreadCounts',
       tags,
       summary: 'Count your unread notifications in the org list and in each community',
       description:
-        'For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open, staff included.',
+        'For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open.',
       response: { 200: NotificationUnreadCounts, ...refusals(403) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      return container.reporting.member.notificationUnreadCounts(req.orgId, actor, req.userId);
+      const caller = await resolveCaller(container, req);
+      return container.reporting.member.notificationUnreadCounts(caller.userId, caller.actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/member/notifications/:notificationId',
+    config: { operation: 'reporting.member.notification' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberNotification',
@@ -76,12 +81,11 @@ export async function memberNotificationRoutes(
       response: { 200: NotificationView, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
+      const caller = await resolveCaller(container, req);
       const view = await container.reporting.member.notification(
-        req.orgId,
-        actor,
-        req.userId,
+        caller.userId,
         req.params.notificationId,
+        caller.actor,
       );
       if (!view) {
         throw new NotFoundError('Notification', req.params.notificationId);
@@ -93,6 +97,7 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/notifications/:notificationId/read',
+    config: { operation: 'notificationList.markRead' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'markMemberNotificationRead',
@@ -104,8 +109,12 @@ export async function memberNotificationRoutes(
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      await actorOf(container, req.orgId, req.userId);
-      await container.notificationList.markRead(req.orgId, req.userId, req.params.notificationId);
+      const caller = await resolveCaller(container, req);
+      await container.notificationList.markRead(
+        caller.userId,
+        req.params.notificationId,
+        caller.actor,
+      );
       return reply.code(204).send();
     },
   });
@@ -113,6 +122,7 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/notifications/read',
+    config: { operation: 'notificationList.markAllRead' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'markAllMemberNotificationsRead',
@@ -125,12 +135,14 @@ export async function memberNotificationRoutes(
     },
     preValidation: async (req) => {
       if (req.body !== undefined) {
-        throw new InvalidInputError('Mark-read takes its filters in the query string, not in a body');
+        throw new InvalidInputError(
+          'Mark-read takes its filters in the query string, not in a body',
+        );
       }
     },
     handler: async (req, reply) => {
-      await actorOf(container, req.orgId, req.userId);
-      await container.notificationList.markAllRead(req.orgId, req.userId, req.query);
+      const caller = await resolveCaller(container, req);
+      await container.notificationList.markAllRead(caller.userId, req.query, caller.actor);
       return reply.code(204).send();
     },
   });

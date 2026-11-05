@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { NotFoundError, ValidationError } from '@headless-lms/core/shared/errors';
+import { actorWith } from '@headless-lms/core/organizations';
 import type { Container } from '../../../app/container.js';
 import { registerAuth } from '../../plugins/auth.js';
 import { errorHandler } from '../../plugins/error-handler.js';
@@ -10,7 +11,9 @@ import { memberNotificationSettingsRoutes } from './notification-settings.js';
 import { memberDeviceRoutes } from './devices.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
-const ORG_USER = { id: 'ou_sarah', role: 'student', userId: 'usr_1' };
+const ORG_USER = { id: 'ou_sarah', orgId: 'org_1', status: 'active', userId: 'usr_1' };
+const SARAH = actorWith({ id: 'ou_sarah', orgId: 'org_1' });
+const MEMBER = { ...SARAH, userId: 'usr_1' };
 const calls: { method: string; args: unknown[] }[] = [];
 let failWith: Error | null = null;
 
@@ -72,12 +75,13 @@ const container = {
   organizations: {
     getByExternalId: async () => ORG,
     getOrgUser: async () => ORG_USER,
+    actorFor: async () => SARAH,
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   reporting: {
     member: {
       communityNotificationSettings: async (...args: unknown[]) =>
-        args[3] === 'cmy_1' ? view : null,
+        args[1] === 'cmy_1' ? view : null,
       orgNotificationSettings: async () => ({ categories: [] }),
     },
   },
@@ -143,19 +147,14 @@ describe('member notification settings routes', () => {
       payload: { settings },
     });
     expect(res.statusCode).toBe(204);
-    expect(last('set')).toEqual([
-      'org_1',
-      { id: 'ou_sarah', role: 'student', userId: 'usr_1' },
-      { communityId: 'cmy_1' },
-      settings,
-    ]);
+    expect(last('set')).toEqual([{ communityId: 'cmy_1' }, settings, MEMBER]);
     const org = await app.inject({
       method: 'PATCH',
       url: '/api/member/settings/notifications',
       payload: { settings: [{ category: 'access', channel: 'inApp', enabled: true }] },
     });
     expect(org.statusCode).toBe(204);
-    expect(last('set')?.[2]).toBe('org');
+    expect(last('set')?.[0]).toBe('org');
   });
 
   it('answers 422 and 404 from identity, and 400 for a body out of shape', async () => {
@@ -200,11 +199,7 @@ describe('member device routes', () => {
     const res = await app.inject({ method: 'POST', url: '/api/member/devices', payload: body });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(device);
-    expect(last('register')).toEqual([
-      'org_1',
-      { id: 'ou_sarah', role: 'student', userId: 'usr_1' },
-      body,
-    ]);
+    expect(last('register')).toEqual([body, MEMBER]);
     const list = await app.inject({ method: 'GET', url: '/api/member/devices' });
     expect(list.json()).toEqual([{ ...device, lastSeenAt: '2026-11-03T12:00:00.000Z' }]);
   });
@@ -229,7 +224,7 @@ describe('member device routes', () => {
   it('removes a device with 204, 404 when it is not the caller’s', async () => {
     const res = await app.inject({ method: 'DELETE', url: '/api/member/devices/dev_1' });
     expect(res.statusCode).toBe(204);
-    expect(last('remove')?.[2]).toBe('dev_1');
+    expect(last('remove')?.[0]).toBe('dev_1');
     failWith = new NotFoundError('Device', 'dev_2');
     const missing = await app.inject({ method: 'DELETE', url: '/api/member/devices/dev_2' });
     expect(missing.statusCode).toBe(404);

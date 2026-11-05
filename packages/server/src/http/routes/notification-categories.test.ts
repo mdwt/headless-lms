@@ -7,7 +7,12 @@ import {
   NOTIFICATION_TYPES,
 } from '@headless-lms/core/automations';
 import { CommunityNotificationCategories } from '@headless-lms/core/content';
-import { OrgNotificationCategories } from '@headless-lms/core/organizations';
+import {
+  actorWith,
+  NotificationCatalog,
+  OrgNotificationCategories,
+} from '@headless-lms/core/organizations';
+import type { Actor } from '@headless-lms/core/shared/actor';
 import { SettingsService, type SettingsRepository } from '@headless-lms/core/shared/settings';
 import type { Container } from '../../app/container.js';
 import { buildNotificationRegistries } from '../../app/notification-channels.js';
@@ -18,7 +23,13 @@ import { communitiesRoutes } from './communities.js';
 import { organizationsRoutes } from './organizations.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
-let orgUser = { id: 'ou_staff', orgId: ORG.id, role: 'admin' };
+const orgUser = { id: 'ou_staff', orgId: ORG.id, status: 'active' };
+const ADMIN = actorWith({
+  id: orgUser.id,
+  orgId: ORG.id,
+  org: ['notification_categories:read', 'notification_categories:write', 'communities:write'],
+});
+let actor: Actor = ADMIN;
 const rows = new Map<string, Record<string, unknown>>();
 
 const settingsRepo: SettingsRepository = {
@@ -58,12 +69,17 @@ const container = {
     getByExternalId: async () => ORG,
     getById: async () => ORG,
     getOrgUser: async () => orgUser,
+    actorFor: async () => actor,
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },
   content: {},
   notificationTypes: registries.types,
   notificationChannels: registries.channels,
+  notificationCatalog: new NotificationCatalog({
+    types: registries.types,
+    channels: registries.channels,
+  }),
   notificationCategories: {
     community: new CommunityNotificationCategories({
       communities: {
@@ -104,7 +120,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   rows.clear();
-  orgUser = { id: 'ou_staff', orgId: ORG.id, role: 'admin' };
+  actor = ADMIN;
 });
 
 const mentions = {
@@ -133,14 +149,40 @@ describe('notification discovery routes', () => {
     expect(res.json()).toEqual([{ channel: 'inApp' }, { channel: 'email' }]);
   });
 
-  it('refuses an instructor', async () => {
-    orgUser = { id: 'ou_staff', orgId: ORG.id, role: 'instructor' };
+  it('refuses an instructor, who holds course permissions only', async () => {
+    actor = actorWith({
+      id: orgUser.id,
+      orgId: ORG.id,
+      org: ['courses:read', 'courses:write', 'courses:moderate', 'progress:read'],
+    });
     for (const url of [
       '/api/notification-types?scope=org',
       '/api/notification-channels',
       '/api/notification-categories',
       '/api/notification-categories/defaults?scope=org',
       '/api/communities/cmy_1/notification-categories',
+    ]) {
+      expect((await app.inject({ method: 'GET', url })).statusCode).toBe(403);
+    }
+  });
+});
+
+describe('a community editor', () => {
+  it('loads the community types, channels and defaults, and edits only their community', async () => {
+    actor = actorWith({ id: orgUser.id, orgId: ORG.id, content: { cmy_1: ['communities:write'] } });
+    for (const url of [
+      '/api/notification-types?scope=community',
+      '/api/notification-channels',
+      '/api/notification-categories/defaults?scope=community',
+      '/api/communities/cmy_1/notification-categories',
+    ]) {
+      expect((await app.inject({ method: 'GET', url })).statusCode).toBe(200);
+    }
+    for (const url of [
+      '/api/notification-types?scope=org',
+      '/api/notification-categories',
+      '/api/notification-categories/defaults?scope=org',
+      '/api/communities/cmy_2/notification-categories',
     ]) {
       expect((await app.inject({ method: 'GET', url })).statusCode).toBe(403);
     }
