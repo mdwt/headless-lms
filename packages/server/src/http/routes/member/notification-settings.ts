@@ -39,11 +39,9 @@ export async function memberNotificationSettingsRoutes(
       response: { 200: CommunityNotificationSettings, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const caller = await resolveCaller(container, req);
       const view = await container.reporting.member.communityNotificationSettings(
-        caller.userId,
         req.params.communityId,
-        caller.actor,
+        await memberOf(req),
       );
       if (!view) {
         throw new NotFoundError('Community', req.params.communityId);
@@ -91,8 +89,7 @@ export async function memberNotificationSettingsRoutes(
       response: { 200: OrgNotificationSettings, ...refusals(403) },
     },
     handler: async (req) => {
-      const caller = await resolveCaller(container, req);
-      return container.reporting.member.orgNotificationSettings(caller.userId, caller.actor);
+      return container.reporting.member.orgNotificationSettings(await memberOf(req));
     },
   });
 

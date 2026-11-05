@@ -12,6 +12,7 @@ import { memberNotificationRoutes } from './notifications.js';
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const ORG_USER = { id: 'ou_sarah', orgId: 'org_1', status: 'active', userId: 'usr_1' };
 const SARAH = actorWith({ id: 'ou_sarah', orgId: 'org_1' });
+const MEMBER = { ...SARAH, userId: 'usr_1' };
 const calls: { method: string; args: unknown[] }[] = [];
 
 const item = {
@@ -65,7 +66,7 @@ const container = {
         pageSize: 20,
         unreadCount: 1,
       })),
-      notification: record('notification', (_userId, id) => (id === 'ntf_1' ? item : null)),
+      notification: record('notification', (id) => (id === 'ntf_1' ? item : null)),
       notificationUnreadCounts: record('unreadCounts', () => ({
         org: 2,
         communities: [{ communityId: 'cmy_1', unread: 1 }],
@@ -73,7 +74,7 @@ const container = {
     },
   },
   notificationList: {
-    markRead: record('markRead', (_userId, id) => {
+    markRead: record('markRead', (id) => {
       if (id !== 'ntf_1') {
         throw new NotFoundError('Notification', String(id));
       }
@@ -115,7 +116,6 @@ describe('member notification routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ rows: [item], total: 1, page: 1, pageSize: 20, unreadCount: 1 });
     expect(last('notifications')).toEqual([
-      'usr_1',
       {
         communityId: 'cmy_1',
         reason: ['comment_author', 'thread_participant'],
@@ -124,13 +124,13 @@ describe('member notification routes', () => {
         unread: true,
       },
       { page: 2, pageSize: 10 },
-      SARAH,
+      MEMBER,
     ]);
   });
 
   it('lists with no filters and reads unread=false as false', async () => {
     await app.inject({ method: 'GET', url: '/api/member/notifications?unread=false&scope=org' });
-    expect(last('notifications')?.[1]).toEqual({ unread: false, scope: 'org' });
+    expect(last('notifications')?.[0]).toEqual({ unread: false, scope: 'org' });
   });
 
   it('refuses an unknown reason or scope', async () => {
@@ -169,7 +169,7 @@ describe('member notification routes', () => {
       url: '/api/member/notifications?communityId=cmy_1&includeOrg=true&unread=true',
     });
     expect(list.statusCode).toBe(200);
-    expect(last('notifications')?.[1]).toEqual({
+    expect(last('notifications')?.[0]).toEqual({
       communityId: 'cmy_1',
       includeOrg: true,
       unread: true,
@@ -179,11 +179,7 @@ describe('member notification routes', () => {
       url: '/api/member/notifications/read?communityId=cmy_1&includeOrg=true',
     });
     expect(read.statusCode).toBe(204);
-    expect(last('markAllRead')).toEqual([
-      'usr_1',
-      { communityId: 'cmy_1', includeOrg: true },
-      SARAH,
-    ]);
+    expect(last('markAllRead')).toEqual([{ communityId: 'cmy_1', includeOrg: true }, MEMBER]);
     calls.length = 0;
     for (const url of [
       '/api/member/notifications?includeOrg=true',
@@ -205,7 +201,7 @@ describe('member notification routes', () => {
     const res = await app.inject({ method: 'GET', url: '/api/member/notifications/ntf_1' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(item);
-    expect(last('notification')).toEqual(['usr_1', 'ntf_1', SARAH]);
+    expect(last('notification')).toEqual(['ntf_1', MEMBER]);
     const missing = await app.inject({ method: 'GET', url: '/api/member/notifications/ntf_x' });
     expect(missing.statusCode).toBe(404);
   });
@@ -217,7 +213,7 @@ describe('member notification routes', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ org: 2, communities: [{ communityId: 'cmy_1', unread: 1 }] });
-    expect(last('unreadCounts')).toEqual(['usr_1', SARAH]);
+    expect(last('unreadCounts')).toEqual([MEMBER]);
   });
 
   it('marks one notification read with 204, and 404 when it is not yours', async () => {
@@ -226,7 +222,7 @@ describe('member notification routes', () => {
       url: '/api/member/notifications/ntf_1/read',
     });
     expect(res.statusCode).toBe(204);
-    expect(last('markRead')).toEqual(['usr_1', 'ntf_1', SARAH]);
+    expect(last('markRead')).toEqual(['ntf_1', MEMBER]);
     const missing = await app.inject({
       method: 'POST',
       url: '/api/member/notifications/ntf_x/read',
@@ -240,11 +236,7 @@ describe('member notification routes', () => {
       url: '/api/member/notifications/read?category=followed_posts,new_posts',
     });
     expect(res.statusCode).toBe(204);
-    expect(last('markAllRead')).toEqual([
-      'usr_1',
-      { category: ['followed_posts', 'new_posts'] },
-      SARAH,
-    ]);
+    expect(last('markAllRead')).toEqual([{ category: ['followed_posts', 'new_posts'] }, MEMBER]);
   });
 
   it('refuses a mark-read request with a body instead of marking everything read', async () => {

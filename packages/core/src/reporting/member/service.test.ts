@@ -601,17 +601,15 @@ describe('file URLs', () => {
         content: { titlesFor: contentTitles },
       },
     });
-    const james = actorWith({ id: 'ou_james', orgId: 'o1' });
+    const james = { ...actorWith({ id: 'ou_james', orgId: 'o1' }), userId: 'usr_james' };
 
     const view = await svc.notifications(
-      'usr_james',
       { communityId: 'cmy_1', unread: true },
       { page: 2, pageSize: 10 },
       james,
     );
 
     expect(list).toHaveBeenCalledWith(
-      'usr_james',
       { communityId: 'cmy_1', unread: true },
       { page: 2, pageSize: 10 },
       james,
@@ -662,7 +660,7 @@ describe('file URLs', () => {
       createdAt: AT,
       readAt: AT,
     };
-    const get = vi.fn(async (_u: string, id: string) => (id === 'ntf_1' ? stored : null));
+    const get = vi.fn(async (id: string) => (id === 'ntf_1' ? stored : null));
     const svc = new MemberReportServiceImpl({
       repo: fakeEntitlementReader(),
       content: fakeContentService(),
@@ -674,9 +672,9 @@ describe('file URLs', () => {
         content: { titlesFor: async () => ({ 'course:crs_1': { title: 'Spanish basics' } }) },
       },
     });
-    const james = actorWith({ id: 'ou_james', orgId: 'o1' });
+    const james = { ...actorWith({ id: 'ou_james', orgId: 'o1' }), userId: 'usr_james' };
 
-    await expect(svc.notification('usr_james', 'ntf_1', james)).resolves.toEqual({
+    await expect(svc.notification('ntf_1', james)).resolves.toEqual({
       id: 'ntf_1',
       type: 'access.granted',
       scope: 'org',
@@ -692,12 +690,12 @@ describe('file URLs', () => {
       createdAt: AT,
       readAt: AT,
     });
-    expect(get).toHaveBeenCalledWith('usr_james', 'ntf_1', james);
-    await expect(svc.notification('usr_james', 'ntf_x', james)).resolves.toBeNull();
+    expect(get).toHaveBeenCalledWith('ntf_1', james);
+    await expect(svc.notification('ntf_x', james)).resolves.toBeNull();
   });
 
   it('counts unread notifications for the org and every community the person can open', async () => {
-    const unreadCounts = vi.fn(async (_u: string, ids: string[]) => ({
+    const unreadCounts = vi.fn(async (ids: string[]) => ({
       org: 3,
       communities: ids.map((communityId) => ({ communityId, unread: 1 })),
     }));
@@ -710,9 +708,9 @@ describe('file URLs', () => {
       access: { ...deps.access, openCommunityIds },
       notifications: { ...deps.notifications, unreadCounts },
     });
-    const owner = ownerActor;
+    const owner = { ...ownerActor, userId: 'usr_owner' };
 
-    await expect(svc.notificationUnreadCounts('usr_owner', owner)).resolves.toEqual({
+    await expect(svc.notificationUnreadCounts(owner)).resolves.toEqual({
       org: 3,
       communities: [
         { communityId: 'cmy_1', unread: 1 },
@@ -720,7 +718,7 @@ describe('file URLs', () => {
       ],
     });
     expect(openCommunityIds).toHaveBeenCalledWith(owner);
-    expect(unreadCounts).toHaveBeenCalledWith('usr_owner', ['cmy_1', 'cmy_2'], owner);
+    expect(unreadCounts).toHaveBeenCalledWith(['cmy_1', 'cmy_2'], owner);
   });
 });
 

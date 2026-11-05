@@ -2,7 +2,7 @@ import { NotFoundError } from '../../shared/errors.js';
 import { noopLogger } from '../../shared/logger.js';
 import type { Logger } from '../../shared/ports.js';
 import type { NotificationFilter } from '../../types/index.js';
-import type { Actor } from '../../shared/actor.js';
+import type { MemberActor } from '../../identity/index.js';
 import type {
   ListedNotification,
   NotificationPage,
@@ -21,21 +21,20 @@ export class NotificationsServiceImpl implements NotificationsService {
   }
 
   list(
-    userId: string,
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
-    actor: Actor,
+    actor: MemberActor,
   ): Promise<NotificationPage> {
-    return this.repo.page(actor.orgId, userId, filter, page);
+    return this.repo.page(actor.orgId, actor.userId, filter, page);
   }
 
-  get(userId: string, notificationId: string, actor: Actor): Promise<ListedNotification | null> {
-    return this.repo.find(actor.orgId, userId, notificationId);
+  get(notificationId: string, actor: MemberActor): Promise<ListedNotification | null> {
+    return this.repo.find(actor.orgId, actor.userId, notificationId);
   }
 
-  async unreadCounts(userId: string, communityIds: string[], actor: Actor): Promise<UnreadCounts> {
+  async unreadCounts(communityIds: string[], actor: MemberActor): Promise<UnreadCounts> {
     const ids = [...new Set(communityIds)];
-    const counts = await this.repo.unreadCounts(actor.orgId, userId, ids);
+    const counts = await this.repo.unreadCounts(actor.orgId, actor.userId, ids);
     const byCommunity = new Map(counts.communities.map((row) => [row.communityId, row.unread]));
     return {
       org: counts.org,
@@ -46,19 +45,19 @@ export class NotificationsServiceImpl implements NotificationsService {
     };
   }
 
-  async markRead(userId: string, notificationId: string, actor: Actor): Promise<void> {
-    if (!(await this.repo.markRead(actor.orgId, userId, notificationId, new Date()))) {
+  async markRead(notificationId: string, actor: MemberActor): Promise<void> {
+    if (!(await this.repo.markRead(actor.orgId, actor.userId, notificationId, new Date()))) {
       throw new NotFoundError('Notification', notificationId);
     }
   }
 
-  async markAllRead(
-    userId: string,
-    filter: NotificationFilter,
-    actor: Actor,
-  ): Promise<{ marked: number }> {
-    const marked = await this.repo.markAllRead(actor.orgId, userId, filter, new Date());
-    this.logger.debug('notifications marked read', { orgId: actor.orgId, userId, marked });
+  async markAllRead(filter: NotificationFilter, actor: MemberActor): Promise<{ marked: number }> {
+    const marked = await this.repo.markAllRead(actor.orgId, actor.userId, filter, new Date());
+    this.logger.debug('notifications marked read', {
+      orgId: actor.orgId,
+      userId: actor.userId,
+      marked,
+    });
     return { marked };
   }
 }

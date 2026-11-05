@@ -50,13 +50,13 @@ const device = {
   environment: 'production',
 };
 
-function record(method: string, result: () => unknown = () => undefined) {
+function record(method: string, result: (...args: unknown[]) => unknown = () => undefined) {
   return async (...args: unknown[]) => {
     calls.push({ method, args });
     if (failWith) {
       throw failWith;
     }
-    return result();
+    return result(...args);
   };
 }
 
@@ -80,9 +80,10 @@ const container = {
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   reporting: {
     member: {
-      communityNotificationSettings: async (...args: unknown[]) =>
-        args[1] === 'cmy_1' ? view : null,
-      orgNotificationSettings: async () => ({ categories: [] }),
+      communityNotificationSettings: record('communitySettings', (id) =>
+        id === 'cmy_1' ? view : null,
+      ),
+      orgNotificationSettings: record('orgSettings', () => ({ categories: [] })),
     },
   },
   notificationSettings: { set: record('set') },
@@ -128,6 +129,7 @@ describe('member notification settings routes', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(view);
+    expect(last('communitySettings')).toEqual(['cmy_1', MEMBER]);
     const missing = await app.inject({
       method: 'GET',
       url: '/api/member/communities/cmy_x/settings/notifications',
@@ -182,9 +184,10 @@ describe('member notification settings routes', () => {
     expect(shapeless.statusCode).toBe(400);
   });
 
-  it('serves the org settings view', async () => {
+  it('serves the org settings view as the caller', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/member/settings/notifications' });
     expect(res.json()).toEqual({ categories: [] });
+    expect(last('orgSettings')).toEqual([MEMBER]);
   });
 });
 

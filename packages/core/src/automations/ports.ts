@@ -32,6 +32,7 @@ import type {
 } from '../types/index.js';
 import type { CommunityMailReads } from './community-mail.js';
 import type { Actor } from '../shared/actor.js';
+import type { MemberActor } from '../identity/index.js';
 
 export type {
   AutomationDispatch,
@@ -137,19 +138,14 @@ export interface UnreadCounts {
 
 export interface NotificationsService {
   list(
-    userId: string,
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
-    actor: Actor,
+    actor: MemberActor,
   ): Promise<NotificationPage>;
-  get(userId: string, notificationId: string, actor: Actor): Promise<ListedNotification | null>;
-  unreadCounts(userId: string, communityIds: string[], actor: Actor): Promise<UnreadCounts>;
-  markRead(userId: string, notificationId: string, actor: Actor): Promise<void>;
-  markAllRead(
-    userId: string,
-    filter: NotificationFilter,
-    actor: Actor,
-  ): Promise<{ marked: number }>;
+  get(notificationId: string, actor: MemberActor): Promise<ListedNotification | null>;
+  unreadCounts(communityIds: string[], actor: MemberActor): Promise<UnreadCounts>;
+  markRead(notificationId: string, actor: MemberActor): Promise<void>;
+  markAllRead(filter: NotificationFilter, actor: MemberActor): Promise<{ marked: number }>;
 }
 
 export interface NotificationsRepository {

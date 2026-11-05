@@ -20,6 +20,7 @@ import type {
   OrgNotificationSettingsView,
 } from './model.js';
 import type { NotificationFilter } from '../../types/index.js';
+import type { MemberActor } from '../../identity/index.js';
 
 export interface MemberReportService {
   /** Who the caller is in the org, and the permissions they hold. */
@@ -58,25 +59,19 @@ export interface MemberReportService {
     actor: Actor,
   ): Promise<CommunityHomeSpace | null>;
   notifications(
-    userId: string,
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
-    actor: Actor,
+    actor: MemberActor,
   ): Promise<NotificationsView>;
-  notification(
-    userId: string,
-    notificationId: string,
-    actor: Actor,
-  ): Promise<NotificationView | null>;
-  notificationUnreadCounts(userId: string, actor: Actor): Promise<NotificationUnreadCounts>;
+  notification(notificationId: string, actor: MemberActor): Promise<NotificationView | null>;
+  notificationUnreadCounts(actor: MemberActor): Promise<NotificationUnreadCounts>;
   /** The person's notification settings in a community they can open, resolved per channel. */
   communityNotificationSettings(
-    userId: string,
     communityId: string,
-    actor: Actor,
+    actor: MemberActor,
   ): Promise<CommunityNotificationSettingsView | null>;
   /** The person's notification settings for the org's categories. */
-  orgNotificationSettings(userId: string, actor: Actor): Promise<OrgNotificationSettingsView>;
+  orgNotificationSettings(actor: MemberActor): Promise<OrgNotificationSettingsView>;
 }
 
 export interface MemberReportRepository {

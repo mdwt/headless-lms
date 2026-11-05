@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
@@ -21,6 +21,11 @@ export async function memberNotificationRoutes(
   const r = app.withTypeProvider<ZodTypeProvider>();
   const tags = ['Notifications'];
 
+  async function memberOf(req: FastifyRequest) {
+    const caller = await resolveCaller(container, req);
+    return { ...caller.actor, userId: caller.userId };
+  }
+
   r.route({
     method: 'GET',
     url: '/api/member/notifications',
@@ -36,13 +41,11 @@ export async function memberNotificationRoutes(
       response: { 200: NotificationsPage, ...refusals(400, 403) },
     },
     handler: async (req) => {
-      const caller = await resolveCaller(container, req);
       const { page, pageSize, ...filter } = req.query;
       return container.reporting.member.notifications(
-        caller.userId,
         filter,
         { page, pageSize },
-        caller.actor,
+        await memberOf(req),
       );
     },
   });
@@ -61,8 +64,7 @@ export async function memberNotificationRoutes(
       response: { 200: NotificationUnreadCounts, ...refusals(403) },
     },
     handler: async (req) => {
-      const caller = await resolveCaller(container, req);
-      return container.reporting.member.notificationUnreadCounts(caller.userId, caller.actor);
+      return container.reporting.member.notificationUnreadCounts(await memberOf(req));
     },
   });
 
@@ -81,11 +83,9 @@ export async function memberNotificationRoutes(
       response: { 200: NotificationView, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const caller = await resolveCaller(container, req);
       const view = await container.reporting.member.notification(
-        caller.userId,
         req.params.notificationId,
-        caller.actor,
+        await memberOf(req),
       );
       if (!view) {
         throw new NotFoundError('Notification', req.params.notificationId);
@@ -109,12 +109,7 @@ export async function memberNotificationRoutes(
       response: { 204: z.void(), ...refusals(403, 404) },
     },
     handler: async (req, reply) => {
-      const caller = await resolveCaller(container, req);
-      await container.notificationList.markRead(
-        caller.userId,
-        req.params.notificationId,
-        caller.actor,
-      );
+      await container.notificationList.markRead(req.params.notificationId, await memberOf(req));
       return reply.code(204).send();
     },
   });
@@ -141,8 +136,7 @@ export async function memberNotificationRoutes(
       }
     },
     handler: async (req, reply) => {
-      const caller = await resolveCaller(container, req);
-      await container.notificationList.markAllRead(caller.userId, req.query, caller.actor);
+      await container.notificationList.markAllRead(req.query, await memberOf(req));
       return reply.code(204).send();
     },
   });

@@ -9,7 +9,7 @@ import type {
   SubscriptionService,
 } from '../../discussion/index.js';
 import type { ItemTitles as ContentItemTitles } from '../../content/index.js';
-import type { NotificationSettingsService } from '../../identity/index.js';
+import type { MemberActor, NotificationSettingsService } from '../../identity/index.js';
 import {
   applicableCategories,
   type ListedNotification,
@@ -171,9 +171,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   }
 
   async communityNotificationSettings(
-    userId: string,
     communityId: string,
-    actor: Actor,
+    actor: MemberActor,
   ): Promise<CommunityNotificationSettingsView | null> {
     if (!(await this.access.isCommunityMember(communityId, actor))) {
       return null;
@@ -182,7 +181,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     const system = this.system(actor);
     const [list, settings, spaceIds, spaces, community] = await Promise.all([
       this.notificationCategories.community.get(communityId, system),
-      this.notificationSettings.get(orgId, userId, { communityId }),
+      this.notificationSettings.get(orgId, actor.userId, { communityId }),
       this.access.openSpaceIds(communityId, actor),
       this.content.listSpaces(communityId, system),
       this.content.getCommunity(communityId, system),
@@ -201,14 +200,11 @@ export class MemberReportServiceImpl implements MemberReportService {
     };
   }
 
-  async orgNotificationSettings(
-    userId: string,
-    actor: Actor,
-  ): Promise<OrgNotificationSettingsView> {
+  async orgNotificationSettings(actor: MemberActor): Promise<OrgNotificationSettingsView> {
     const orgId = actor.orgId;
     const [list, settings] = await Promise.all([
       this.notificationCategories.org.get(orgId, this.system(actor)),
-      this.notificationSettings.get(orgId, userId, 'org'),
+      this.notificationSettings.get(orgId, actor.userId, 'org'),
     ]);
     return {
       categories: this.settingsView(
@@ -262,12 +258,11 @@ export class MemberReportServiceImpl implements MemberReportService {
   }
 
   async notifications(
-    userId: string,
     filter: NotificationFilter,
     page: { page: number; pageSize: number },
-    actor: Actor,
+    actor: MemberActor,
   ): Promise<NotificationsView> {
-    const listed = await this.notificationList.list(userId, filter, page, actor);
+    const listed = await this.notificationList.list(filter, page, actor);
     return {
       rows: await this.describeNotifications(actor, listed.items),
       total: listed.total,
@@ -277,12 +272,8 @@ export class MemberReportServiceImpl implements MemberReportService {
     };
   }
 
-  async notification(
-    userId: string,
-    notificationId: string,
-    actor: Actor,
-  ): Promise<NotificationView | null> {
-    const found = await this.notificationList.get(userId, notificationId, actor);
+  async notification(notificationId: string, actor: MemberActor): Promise<NotificationView | null> {
+    const found = await this.notificationList.get(notificationId, actor);
     if (!found) {
       return null;
     }
@@ -290,9 +281,9 @@ export class MemberReportServiceImpl implements MemberReportService {
     return view ?? null;
   }
 
-  async notificationUnreadCounts(userId: string, actor: Actor): Promise<NotificationUnreadCounts> {
+  async notificationUnreadCounts(actor: MemberActor): Promise<NotificationUnreadCounts> {
     const communityIds = await this.access.openCommunityIds(actor);
-    return this.notificationList.unreadCounts(userId, communityIds, actor);
+    return this.notificationList.unreadCounts(communityIds, actor);
   }
 
   private async describeNotifications(
