@@ -40,6 +40,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       holders: reject,
       getRole: reject,
       getOrgUsersByIds: reject,
+      permissionsOfMany: reject,
     },
     identity: { displayName: reject, getUserById: reject },
     posts: { find: reject, publishedBetween: reject },
