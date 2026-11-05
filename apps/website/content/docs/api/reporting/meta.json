@@ -6,6 +6,7 @@
     "getOverview",
     "getEnrollmentSeries",
     "getCourseAnalytics",
-    "getCourseEnrollmentSeries"
+    "getCourseEnrollmentSeries",
+    "listCourseLearners"
   ]
 }

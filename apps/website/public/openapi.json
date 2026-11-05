@@ -772,6 +772,10 @@
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
+                      },
+                      "givable": {
+                        "type": "boolean",
+                        "description": "Whether the role can be given. False for the owner role, which moves only by transfer."
                       }
                     },
                     "required": [
@@ -785,7 +789,8 @@
                       "system",
                       "added",
                       "customized",
-                      "holders"
+                      "holders",
+                      "givable"
                     ],
                     "additionalProperties": false
                   }
@@ -1045,6 +1050,10 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "givable": {
+                      "type": "boolean",
+                      "description": "Whether the role can be given. False for the owner role, which moves only by transfer."
                     }
                   },
                   "required": [
@@ -1058,7 +1067,8 @@
                     "system",
                     "added",
                     "customized",
-                    "holders"
+                    "holders",
+                    "givable"
                   ],
                   "additionalProperties": false
                 }
@@ -1336,6 +1346,10 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "givable": {
+                      "type": "boolean",
+                      "description": "Whether the role can be given. False for the owner role, which moves only by transfer."
                     }
                   },
                   "required": [
@@ -1349,7 +1363,8 @@
                     "system",
                     "added",
                     "customized",
-                    "holders"
+                    "holders",
+                    "givable"
                   ],
                   "additionalProperties": false
                 }
@@ -1678,6 +1693,10 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "givable": {
+                      "type": "boolean",
+                      "description": "Whether the role can be given. False for the owner role, which moves only by transfer."
                     }
                   },
                   "required": [
@@ -1691,7 +1710,8 @@
                     "system",
                     "added",
                     "customized",
-                    "holders"
+                    "holders",
+                    "givable"
                   ],
                   "additionalProperties": false
                 }
@@ -2192,6 +2212,10 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "givable": {
+                      "type": "boolean",
+                      "description": "Whether the role can be given. False for the owner role, which moves only by transfer."
                     }
                   },
                   "required": [
@@ -2205,7 +2229,8 @@
                     "system",
                     "added",
                     "customized",
-                    "holders"
+                    "holders",
+                    "givable"
                   ],
                   "additionalProperties": false
                 }
@@ -7902,7 +7927,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Requires `communities:read`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.",
+        "description": "Requires one of `communities:read`, `communities:moderate`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.",
         "parameters": [
           {
             "schema": {
@@ -8613,7 +8638,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Requires `communities:read`. Any community of the organization, drafts included.",
+        "description": "Requires one of `communities:read`, `communities:moderate`. Any community of the organization, drafts included.",
         "parameters": [
           {
             "schema": {
@@ -12279,7 +12304,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Requires `communities:read`. Every space in order, with its topics and links.",
+        "description": "Requires one of `communities:read`, `communities:moderate`. Every space in order, with its topics and links.",
         "parameters": [
           {
             "schema": {
@@ -16143,6 +16168,10 @@
                             "nullable": true,
                             "description": "The name of the role that makes them team in the community, or null.",
                             "type": "string"
+                          },
+                          "opensEverySpace": {
+                            "type": "boolean",
+                            "description": "Opens every space of the community, so holds no place in its spaces."
                           }
                         },
                         "required": [
@@ -16152,7 +16181,8 @@
                           "email",
                           "image",
                           "team",
-                          "roleName"
+                          "roleName",
+                          "opensEverySpace"
                         ],
                         "additionalProperties": false
                       }
@@ -18456,6 +18486,64 @@
                                   "published",
                                   "removed"
                                 ]
+                              },
+                              "author": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "firstName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "lastName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "displayName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "headline": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "image": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "imageAssetId": {
+                                    "nullable": true,
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "imageUrl": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "team": {
+                                    "type": "boolean"
+                                  },
+                                  "roleName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "firstName",
+                                  "lastName",
+                                  "displayName",
+                                  "headline",
+                                  "image",
+                                  "imageAssetId",
+                                  "imageUrl",
+                                  "team",
+                                  "roleName"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -18463,7 +18551,8 @@
                               "postId",
                               "body",
                               "orgUserId",
-                              "status"
+                              "status",
+                              "author"
                             ],
                             "additionalProperties": false
                           }
@@ -19100,7 +19189,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Needs `communities:moderate` on the community. Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
+        "description": "The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
         "parameters": [
           {
             "schema": {
@@ -20206,7 +20295,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Needs `communities:moderate` on the community. Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.",
+        "description": "The author can remove their own comment; anyone else needs `communities:moderate` on the community. Hides the comment; removing someone else's comment resolves its open flags as `removed`. Removing a removed comment returns it unchanged.",
         "parameters": [
           {
             "schema": {
@@ -33470,6 +33559,64 @@
                                   "published",
                                   "removed"
                                 ]
+                              },
+                              "author": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "firstName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "lastName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "displayName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "headline": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "image": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "imageAssetId": {
+                                    "nullable": true,
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "imageUrl": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  },
+                                  "team": {
+                                    "type": "boolean"
+                                  },
+                                  "roleName": {
+                                    "nullable": true,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "firstName",
+                                  "lastName",
+                                  "displayName",
+                                  "headline",
+                                  "image",
+                                  "imageAssetId",
+                                  "imageUrl",
+                                  "team",
+                                  "roleName"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -33477,7 +33624,8 @@
                               "postId",
                               "body",
                               "orgUserId",
-                              "status"
+                              "status",
+                              "author"
                             ],
                             "additionalProperties": false
                           }
@@ -36930,7 +37078,7 @@
         "tags": [
           "Posts"
         ],
-        "description": "For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
+        "description": "The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
         "parameters": [
           {
             "schema": {
@@ -53355,7 +53503,7 @@
         "tags": [
           "Discussion"
         ],
-        "description": "For the author, or a holder of `courses:moderate` on the course for an activity comment or of `communities:moderate` on the community for a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.",
+        "description": "The author can delete their own comment; anyone else needs `communities:moderate` on the community for a post comment, or `courses:moderate` on the course for a lesson comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.",
         "parameters": [
           {
             "schema": {
@@ -71638,6 +71786,325 @@
                     ],
                     "additionalProperties": false
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/courses/{courseId}/learners": {
+      "get": {
+        "operationId": "listCourseLearners",
+        "summary": "List a course's learners with their access and progress",
+        "tags": [
+          "Reporting"
+        ],
+        "description": "Requires `progress:read`. Everyone with a grant that opens the course, directly or through a bundle, active or not, each with that grant and their progress. Paged and searched by name or email.",
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "courseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "firstName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "image": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "active",
+                              "expired",
+                              "revoked"
+                            ],
+                            "description": "The status of the grant that opens the course to them."
+                          },
+                          "source": {
+                            "type": "string",
+                            "description": "Where the grant came from."
+                          },
+                          "grantedAt": {
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "totalActivities": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Published activities in the course."
+                          },
+                          "completedActivities": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "progress": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "description": "Completed published activities over the total, 0–100."
+                          },
+                          "lastActivityAt": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "completedAt": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "firstName",
+                          "lastName",
+                          "email",
+                          "image",
+                          "status",
+                          "source",
+                          "grantedAt",
+                          "expiresAt",
+                          "totalActivities",
+                          "completedActivities",
+                          "progress",
+                          "lastActivityAt",
+                          "completedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
