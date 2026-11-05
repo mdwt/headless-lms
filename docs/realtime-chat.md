@@ -92,12 +92,9 @@ export interface PubSub {
 
 The contract sets no size limit on a message; an implementation that has one handles it internally.
 
-| Implementation | Package | Use |
-|---|---|---|
-| `InMemoryPubSub` | `@headless-lms/adapter-defaults/pubsub` | one process: development, tests, a single instance. The fallback when none is injected, as for `gen:openapi`, which builds a container with no adapters (`apps/api/scripts/gen-openapi.ts:11`). |
-| `PostgresPubSub` | `@headless-lms/adapter-pubsub-postgres` (new, `adapters/pubsub-postgres`) | more than one instance on Postgres |
+The one implementation is `PostgresPubSub` in the new package `@headless-lms/adapter-pubsub-postgres` (`adapters/pubsub-postgres`), and every deployment runs it, a single instance included.
 
-The container takes it as `adapters.pubsub`, beside `workflows` and `pushSender`, and exposes it as `container.pubsub`:
+The container takes it as `adapters.pubsub`, beside `workflows` and `pushSender`, and exposes it as `container.pubsub`. A container built without one, as `gen:openapi` builds it (`apps/api/scripts/gen-openapi.ts:11`), has no forwarder and no hub, and the stream route answers 503.
 
 ```ts
 import { PostgresPubSub } from '@headless-lms/adapter-pubsub-postgres';
@@ -245,7 +242,7 @@ The schema declares the response as content:
 ```ts
 response: {
   200: { content: { 'text/event-stream': { schema: ChatLiveEvent } } },
-  ...refusals(403, 404),
+  ...refusals(403, 404, 503),
 }
 ```
 
@@ -306,7 +303,6 @@ Sarah closes her laptop. James sends two messages in `cht_1` and edits one; Emma
 
 - The heartbeat (25 s) stays under the common 60 s proxy idle timeout; proxies must not buffer the route.
 - The API is served over HTTP/2 in production. Over HTTP/1.1 a browser allows six connections per origin across all tabs, and each open tab's stream holds one, so a sixth tab starves every request to the API.
-- A single instance needs no adapter; `InMemoryPubSub` delivers within the process.
 
 ### 3.14 The community app
 
@@ -349,16 +345,15 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 | `packages/core/src/types/schemas/discussion.ts` | `clientId` on message, `ChatLiveEvent`, `LiveMessage`, `ChatUnreadSummary` |
 | `adapters/db/src/schema/discussion.ts` + a migration generated after `0017_configurable_roles` | `messages.client_id` and its unique index |
 | `adapters/db/src/repositories/chats.ts` | the new repository reads; `client_id` on insert; `setRead` forward only; `setReaction` result; `requests` filter |
-| `adapters/defaults/src/pubsub/index.ts`, `adapters/defaults/package.json` | new: `InMemoryPubSub`, exported as `./pubsub` |
 | `adapters/pubsub-postgres/` | new package: `PostgresPubSub`, tests, `README.md` |
-| `packages/server/src/app/container.ts` | `adapters.pubsub` with the in-memory fallback; `container.pubsub`, `container.chatHub`; the forwarder on the bus; a unit of work for `SubscriptionService` |
+| `packages/server/src/app/container.ts` | `adapters.pubsub`; with it, `container.pubsub`, `container.chatHub` and the forwarder on the bus; a unit of work for `SubscriptionService` |
 | `packages/server/src/http/sse.ts` | new: frame writer, backpressure, heartbeat |
 | `packages/server/src/http/routes/member/chats.ts`, `packages/server/src/http/schemas/chats.ts`, `schemas/chats.test.ts` | the five routes; `requests` query; `participants` on `ChatListItem`; `clientId` on send |
 | `packages/server/src/http/server.ts` | `preClose` closes the hub; `onClose` stops relay, engine, then `PubSub` |
 | `packages/server/src/http/config.ts`, `apps/api/src/config.ts`, `.env.example` | `pubsubDatabaseUrl` from `PUBSUB_DATABASE_URL` |
 | `apps/api/src/main.ts`, `apps/api/package.json` | inject `PostgresPubSub`; start `PubSub` and the hub before `listen` |
 | `packages/create-headless-lms/templates/src/main.ts` | start `PubSub` and the hub |
-| `tsconfig.base.json`, `vitest.config.ts` | paths and aliases for `@headless-lms/adapter-pubsub-postgres` and `@headless-lms/adapter-defaults/pubsub` |
+| `tsconfig.base.json`, `vitest.config.ts` | path and alias for `@headless-lms/adapter-pubsub-postgres` |
 | `.github/workflows/ci.yml` | a Postgres service and `TEST_DATABASE_URL` for the Postgres suites |
 | `.changeset/config.json` | `@headless-lms/adapter-pubsub-postgres` added to `ignore`, like the other optional adapters |
 | `.changeset/*.md` | changesets for core, server, sdk, adapter-db, adapter-defaults and adapter-auth |
@@ -391,10 +386,10 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 
 | Where | What |
 |---|---|
-| `adapters/pubsub-postgres/README.md` | what it implements; constructor options; wiring into `createContainer` and starting it; the dedicated listening connection and poolers; encoding of large messages; liveness and reconnect; when a single instance needs no adapter |
+| `adapters/pubsub-postgres/README.md` | what it implements; constructor options; wiring into `createContainer` and starting it; the dedicated listening connection and poolers; encoding of large messages; liveness and reconnect |
 | `apps/website/content/docs/adapters/pubsub/postgres.mdx`, `pubsub/meta.json`, `adapters/meta.json`, `adapters/index.mdx` | the public page for the adapter, in the form of the Hatchet page; the `pubsub` slot listed with the other adapter slots and in the entry-point snippet |
 | `README.md`, `docs/project-structure.md`, `apps/website/content/docs/project-structure.mdx`, `packages/server/README.md` | the package in the adapter tables; the entry-point snippet starts `PubSub` and the hub |
-| `apps/website/content/docs/self-hosting.mdx` | more than one API instance needs a `PubSub` adapter; `PUBSUB_DATABASE_URL`; HTTP/2 for the API; proxy buffering and idle timeouts for the stream route |
+| `apps/website/content/docs/self-hosting.mdx` | live chat needs the `PubSub` adapter; `PUBSUB_DATABASE_URL`; HTTP/2 for the API; proxy buffering and idle timeouts for the stream route |
 | `apps/website/content/docs/building-a-frontend.mdx` | live chat: open the stream, load state on `ready` and `resync` with buffering, apply events, send with `clientId`, drive reconnects, poll as a fallback |
 | `apps/website/content/docs/architecture.mdx`, `docs/architecture.md` | the `PubSub` port beside the outbox and the bus |
 | `apps/website/content/docs/api/chats/` | the new operations, generated from `openapi.json` (`pnpm --filter website gen:api-docs`) |
@@ -404,14 +399,11 @@ When a mute on a loaded row lapses, the client fetches `getMemberChatUnread` at 
 
 Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped otherwise; CI sets it (4.1).
 
-**PubSub contract** (one suite, run against `InMemoryPubSub` and `PostgresPubSub`).
+**`PostgresPubSub`** (Postgres, two adapter instances on one database).
 
-- A message published on one instance reaches every subscriber of the channel on every instance, the publisher's included, and no subscriber of another channel.
+- A message published on one instance reaches every subscriber of the channel on both, the publisher's included, and no subscriber of another channel.
 - An unsubscribed handler receives nothing.
 - A 50 KB message of quotes, backslashes, emoji and CJK text arrives whole and once.
-
-**`PostgresPubSub`** (Postgres).
-
 - `pg_terminate_backend` on the listening connection: the adapter reconnects, `onReset` fires, later messages arrive.
 - A listener that stops receiving without an error (its pings blocked): within 40 s the adapter reconnects and `onReset` fires.
 - `publish` before `start` delivers once started; `start` with Postgres down resolves, and the adapter connects and fires `onReset` when Postgres is back.
@@ -440,7 +432,7 @@ Suites that need Postgres run when `TEST_DATABASE_URL` is set and are skipped ot
 
 **Access.**
 
-- No cookie: 401. A member of another community: 403.
+- No cookie: 401. A member of another community: 403. A server built without a `PubSub`: 503.
 - Revoke Sarah's grant, let it expire through the expiry job, or remove the community from her bundle: within 35 s her stream yields `closed { reason: 'access' }`; a new connect returns 403.
 - Sign Sarah out in the browser that holds the stream, or reset her password: her stream yields `closed { reason: 'session' }`; a new connect returns 401.
 
