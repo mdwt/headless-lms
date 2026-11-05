@@ -28,16 +28,12 @@ export interface OpenableSpace {
 }
 
 export interface CommunityAccessReader {
-  isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean>;
-  canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean>;
-  canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean>;
-  openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]>;
-  openSpacesFor(orgId: string, actor: Actor, communityId: string): Promise<Space[]>;
-  spaceStandings(
-    orgId: string,
-    actor: Actor,
-    communityId: string,
-  ): Promise<Record<string, SpaceMember['status']>>;
+  isCommunityMember(communityId: string, actor: Actor): Promise<boolean>;
+  canOpenSpace(spaceId: string, actor: Actor): Promise<boolean>;
+  canOpen(space: OpenableSpace, actor: Actor): Promise<boolean>;
+  openSpaceIds(communityId: string, actor: Actor): Promise<string[]>;
+  openSpacesFor(communityId: string, actor: Actor): Promise<Space[]>;
+  spaceStandings(communityId: string, actor: Actor): Promise<Record<string, SpaceMember['status']>>;
   communityMembersAmong(
     orgId: string,
     communityId: string,
@@ -162,7 +158,7 @@ export interface EntitlementsService extends CommunityAccessReader {
   communitiesOpenedBy(orgId: string, grant: GrantTarget): Promise<string[]>;
   communityModeratorIds(orgId: string, communityId: string): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
-  openCommunityIds(orgId: string, actor: Actor): Promise<string[]>;
+  openCommunityIds(actor: Actor): Promise<string[]>;
   communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
   contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;

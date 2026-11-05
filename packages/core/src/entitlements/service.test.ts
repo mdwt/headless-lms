@@ -326,8 +326,8 @@ describe('community access', () => {
   it('takes a grant from the repository for a person without communities:read', async () => {
     const repo = fakeRepo({ hasCommunityAccess: vi.fn(async (_o, id) => id === 'ou_member') });
     const { svc } = build(repo);
-    await expect(svc.isCommunityMember('org-1', student, 'cmy_1')).resolves.toBe(true);
-    await expect(svc.isCommunityMember('org-1', moderator, 'cmy_1')).resolves.toBe(false);
+    await expect(svc.isCommunityMember('cmy_1', student)).resolves.toBe(true);
+    await expect(svc.isCommunityMember('cmy_1', moderator)).resolves.toBe(false);
     expect(repo.hasCommunityAccess).toHaveBeenCalledWith('org-1', 'ou_member', 'cmy_1');
   });
 
@@ -335,27 +335,27 @@ describe('community access', () => {
     const repo = fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) });
     const { svc } = build(repo);
     const reader = actorWith({ orgId: 'org-1', content: { cmy_1: ['communities:read'] } });
-    await expect(svc.isCommunityMember('org-1', reader, 'cmy_1')).resolves.toBe(true);
-    await expect(svc.isCommunityMember('org-1', reader, 'cmy_2')).resolves.toBe(false);
-    await expect(svc.isCommunityMember('org-1', owner, 'cmy_1')).resolves.toBe(true);
+    await expect(svc.isCommunityMember('cmy_1', reader)).resolves.toBe(true);
+    await expect(svc.isCommunityMember('cmy_2', reader)).resolves.toBe(false);
+    await expect(svc.isCommunityMember('cmy_1', owner)).resolves.toBe(true);
     expect(repo.hasCommunityAccess).toHaveBeenCalledTimes(1);
   });
 
   it('requires a grant for a member and a moderator', async () => {
     const repo = fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) });
     const { svc } = build(repo);
-    await expect(svc.isCommunityMember('org-1', student, 'cmy_1')).resolves.toBe(false);
-    await expect(svc.isCommunityMember('org-1', moderator, 'cmy_1')).resolves.toBe(false);
+    await expect(svc.isCommunityMember('cmy_1', student)).resolves.toBe(false);
+    await expect(svc.isCommunityMember('cmy_1', moderator)).resolves.toBe(false);
   });
 
   it('refuses a space to someone the repository does not know', async () => {
     const { svc } = build(fakeRepo({ accessAmong: vi.fn().mockResolvedValue([]) }));
-    await expect(svc.canOpenSpace('org-1', student, 'spc_1')).resolves.toBe(false);
+    await expect(svc.canOpenSpace('spc_1', student)).resolves.toBe(false);
   });
 
   it('reads the space as the system actor', async () => {
     const { svc, content } = build();
-    await svc.canOpenSpace('org-1', student, 'spc_1');
+    await svc.canOpenSpace('spc_1', student);
     expect(content.getSpace).toHaveBeenCalledWith('spc_1', SYSTEM);
   });
 
@@ -378,13 +378,10 @@ describe('community access', () => {
         listSpaces: vi.fn().mockResolvedValue([open, joined, hidden]),
       }),
     );
-    await expect(svc.canOpenSpace('org-1', student, 'spc_open')).resolves.toBe(true);
-    await expect(svc.canOpenSpace('org-1', student, 'spc_joined')).resolves.toBe(true);
-    await expect(svc.canOpenSpace('org-1', student, 'spc_hidden')).resolves.toBe(false);
-    await expect(svc.openSpaceIds('org-1', student, 'cmy_1')).resolves.toEqual([
-      'spc_open',
-      'spc_joined',
-    ]);
+    await expect(svc.canOpenSpace('spc_open', student)).resolves.toBe(true);
+    await expect(svc.canOpenSpace('spc_joined', student)).resolves.toBe(true);
+    await expect(svc.canOpenSpace('spc_hidden', student)).resolves.toBe(false);
+    await expect(svc.openSpaceIds('cmy_1', student)).resolves.toEqual(['spc_open', 'spc_joined']);
   });
 
   it('lets a moderator with a grant open every space', async () => {
@@ -393,23 +390,20 @@ describe('community access', () => {
       fakeRepo(),
       fakeContent({ listSpaces: vi.fn().mockResolvedValue([SPACE, hidden]) }),
     );
-    await expect(svc.canOpenSpace('org-1', moderator, 'spc_1')).resolves.toBe(true);
-    await expect(svc.openSpaceIds('org-1', moderator, 'cmy_1')).resolves.toEqual([
-      'spc_1',
-      'spc_hidden',
-    ]);
+    await expect(svc.canOpenSpace('spc_1', moderator)).resolves.toBe(true);
+    await expect(svc.openSpaceIds('cmy_1', moderator)).resolves.toEqual(['spc_1', 'spc_hidden']);
   });
 
   it('refuses a moderator who holds no grant', async () => {
     const { svc } = build(fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) }));
-    await expect(svc.canOpenSpace('org-1', moderator, 'spc_1')).resolves.toBe(false);
-    await expect(svc.openSpaceIds('org-1', moderator, 'cmy_1')).resolves.toEqual([]);
+    await expect(svc.canOpenSpace('spc_1', moderator)).resolves.toBe(false);
+    await expect(svc.openSpaceIds('cmy_1', moderator)).resolves.toEqual([]);
   });
 
   it('lets a holder of communities:read open every space without a grant or a place', async () => {
     const { svc } = build(fakeRepo({ hasCommunityAccess: vi.fn().mockResolvedValue(false) }));
-    await expect(svc.canOpenSpace('org-1', owner, 'spc_1')).resolves.toBe(true);
-    await expect(svc.openSpaceIds('org-1', owner, 'cmy_1')).resolves.toEqual(['spc_1']);
+    await expect(svc.canOpenSpace('spc_1', owner)).resolves.toBe(true);
+    await expect(svc.openSpaceIds('cmy_1', owner)).resolves.toEqual(['spc_1']);
   });
 });
 
@@ -867,7 +861,7 @@ describe('open spaces', () => {
       repo,
       fakeContent({ listSpaces: vi.fn().mockResolvedValue([open, joined, SPACE]) }),
     );
-    await expect(svc.openSpacesFor('org-1', student, 'cmy_1')).resolves.toEqual([open, joined]);
+    await expect(svc.openSpacesFor('cmy_1', student)).resolves.toEqual([open, joined]);
   });
 
   it('ignores space-member rows in an all-members space', async () => {
@@ -876,7 +870,7 @@ describe('open spaces', () => {
       findSpaceMember: vi.fn().mockResolvedValue({ ...MEMBER, status: 'revoked' }),
     });
     const { svc } = build(repo, fakeContent({ getSpace: vi.fn().mockResolvedValue(open) }));
-    await expect(svc.canOpenSpace('org-1', student, 'spc_1')).resolves.toBe(true);
+    await expect(svc.canOpenSpace('spc_1', student)).resolves.toBe(true);
   });
 
   it('loads the space once when listing its members', async () => {
@@ -1214,8 +1208,8 @@ describe('opening every space', () => {
       listSpaceMembersFor: vi.fn().mockResolvedValue([{ ...MEMBER, status: 'active' }]),
     });
     const { svc } = build(repo);
-    await expect(svc.spaceStandings('org-1', moderator, 'cmy_1')).resolves.toEqual({});
-    await expect(svc.spaceStandings('org-1', student, 'cmy_1')).resolves.toEqual({
+    await expect(svc.spaceStandings('cmy_1', moderator)).resolves.toEqual({});
+    await expect(svc.spaceStandings('cmy_1', student)).resolves.toEqual({
       spc_1: 'active',
     });
   });
@@ -1257,12 +1251,12 @@ describe('holders passed to the repository', () => {
       orgId: 'org-1',
       content: { cmy_1: ['communities:read'] },
     });
-    await svc.openCommunityIds('org-1', reader);
+    await svc.openCommunityIds(reader);
     expect(repo.openCommunityIds).toHaveBeenCalledWith('org-1', 'ou_r', {
       all: false,
       ids: ['cmy_1'],
     });
-    await svc.openCommunityIds('org-1', owner);
+    await svc.openCommunityIds(owner);
     expect(repo.openCommunityIds).toHaveBeenLastCalledWith('org-1', 'ou_owner', {
       all: true,
       ids: [],

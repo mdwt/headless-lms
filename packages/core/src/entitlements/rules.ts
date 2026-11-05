@@ -18,9 +18,7 @@ export function seesSpace(
   accessRule: SpaceAccessRule,
   status: SpaceMemberStatus | undefined,
 ): boolean {
-  return (
-    everySpace || accessRule !== 'by_invite' || (status !== undefined && status !== 'revoked')
-  );
+  return everySpace || accessRule !== 'by_invite' || (status !== undefined && status !== 'revoked');
 }
 
 export function laterExpiry(a: Date | null, b: Date | null): Date | null {

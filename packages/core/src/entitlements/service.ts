@@ -209,26 +209,26 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   async opensEverySpace(actor: Actor, communityId: string): Promise<boolean> {
-    return (await this.standingOf(actor.orgId, actor, communityId, null)).everySpace;
+    return (await this.standingOf(actor, communityId, null)).everySpace;
   }
 
-  async isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean> {
+  async isCommunityMember(communityId: string, actor: Actor): Promise<boolean> {
     if (actor.permissions.has('communities:read', communityId)) {
       return true;
     }
-    return this.repo.hasCommunityAccess(orgId, actor.id, communityId);
+    return this.repo.hasCommunityAccess(actor.orgId, actor.id, communityId);
   }
 
-  async canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean> {
-    const space = await this.content.getSpace(spaceId, this.system(orgId));
+  async canOpenSpace(spaceId: string, actor: Actor): Promise<boolean> {
+    const space = await this.content.getSpace(spaceId, this.system(actor.orgId));
     if (!space) {
       return false;
     }
-    return this.canOpen(orgId, actor, space);
+    return this.canOpen(space, actor);
   }
 
-  async canOpen(orgId: string, actor: Actor, space: OpenableSpace): Promise<boolean> {
-    const standing = await this.standingOf(orgId, actor, space.communityId, space.id);
+  async canOpen(space: OpenableSpace, actor: Actor): Promise<boolean> {
+    const standing = await this.standingOf(actor, space.communityId, space.id);
     return opensSpace(
       standing.member,
       standing.everySpace,
@@ -238,19 +238,19 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   async spaceStandings(
-    orgId: string,
-    actor: Actor,
     communityId: string,
+    actor: Actor,
   ): Promise<Record<string, SpaceMember['status']>> {
-    if ((await this.standingOf(orgId, actor, communityId, null)).everySpace) {
+    if ((await this.standingOf(actor, communityId, null)).everySpace) {
       return {};
     }
-    const rows = await this.repo.listSpaceMembersFor(orgId, actor.id, communityId);
+    const rows = await this.repo.listSpaceMembersFor(actor.orgId, actor.id, communityId);
     return Object.fromEntries(rows.map((row) => [row.spaceId, row.status]));
   }
 
-  async openSpacesFor(orgId: string, actor: Actor, communityId: string): Promise<Space[]> {
-    const standing = await this.standingOf(orgId, actor, communityId, null);
+  async openSpacesFor(communityId: string, actor: Actor): Promise<Space[]> {
+    const orgId = actor.orgId;
+    const standing = await this.standingOf(actor, communityId, null);
     if (!standing.member) {
       return [];
     }
@@ -266,8 +266,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     );
   }
 
-  async openSpaceIds(orgId: string, actor: Actor, communityId: string): Promise<string[]> {
-    const spaces = await this.openSpacesFor(orgId, actor, communityId);
+  async openSpaceIds(communityId: string, actor: Actor): Promise<string[]> {
+    const spaces = await this.openSpacesFor(communityId, actor);
     return spaces.map((space) => space.id);
   }
 
@@ -333,9 +333,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return this.repo.communityIdsOpenedFor(orgId, orgUserId);
   }
 
-  openCommunityIds(orgId: string, actor: Actor): Promise<string[]> {
+  openCommunityIds(actor: Actor): Promise<string[]> {
     const readable = actor.permissions.where('communities:read');
-    return this.repo.openCommunityIds(orgId, actor.id, {
+    return this.repo.openCommunityIds(actor.orgId, actor.id, {
       all: readable.org,
       ids: readable.content,
     });
@@ -581,7 +581,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   ): Promise<Page<SpaceMember>> {
     const orgId = actor.orgId;
     const space = await this.requireVisibleSpaceIn(actor, communityId, spaceId);
-    if (!(await this.canOpen(orgId, actor, space))) {
+    if (!(await this.canOpen(space, actor))) {
       throw new NotFoundError('Space', spaceId);
     }
     const excluding = await this.everySpaceOpeners(orgId, space.communityId);
@@ -718,7 +718,6 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   private async standingOf(
-    orgId: string,
     actor: Actor,
     communityId: string,
     spaceId: string | null,
@@ -728,7 +727,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     if (reads) {
       return { member: true, everySpace: true, activeInSpace: false };
     }
-    const facts = await this.accessOf(orgId, actor.id, communityId, spaceId);
+    const facts = await this.accessOf(actor.orgId, actor.id, communityId, spaceId);
     const member = facts?.granted === true;
     return {
       member,
@@ -795,7 +794,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private async assertMember(actor: Actor, orgUserId: string, communityId: string): Promise<void> {
     const member =
       orgUserId === actor.id
-        ? await this.isCommunityMember(actor.orgId, actor, communityId)
+        ? await this.isCommunityMember(communityId, actor)
         : (await this.communityMembersAmong(actor.orgId, communityId, [orgUserId])).length > 0;
     if (!member) {
       throw new ForbiddenError(
@@ -825,7 +824,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   private async assertCanManage(actor: Actor, communityId: string): Promise<void> {
     if (
       actor.permissions.has('communities:moderate', communityId) &&
-      (await this.isCommunityMember(actor.orgId, actor, communityId))
+      (await this.isCommunityMember(communityId, actor))
     ) {
       return;
     }
