@@ -15,7 +15,7 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 |---|---|---|
 | 1 | Automated suites | passed |
 | 2 | Functional, two browsers | passed |
-| 3 | Connection lifecycle | open |
+| 3 | Connection lifecycle | passed |
 | 4 | Access and session | open |
 | 5 | Multiple instances behind a proxy | open |
 | 6 | Infrastructure | open |
@@ -27,6 +27,8 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 | # | Area | Issue | Status | Fix |
 |---|---|---|---|---|
 | 1 | Multiple instances | With two API instances, both outbox relays dispatched every event in the same millisecond: the rows were locked only for the select, so each poll took the same rows. Every live message reached a stream twice, and every automation ran twice before its unique key dropped the second. The `OutboxStore` port already says `fetchBatch` claims what it returns. | fixed | `521a1c11`: `fetchBatch` claims its rows for 60 s in the same transaction; a Postgres test with two stores fetching at once |
+| 2 | Logging | A chat stream left no line when it ended: the route takes over the response, so Fastify never logs `request completed` when the client disconnects, and the hub logged opens and closes at debug without the member or the reason. A stream closed for access or session left no trace at info. | fixed | `4149b561`: `event stream ended` at info with duration, events sent and how it ended; `chat stream closed` at info with the member and reason |
+| 3 | Shutdown | Stopping the API with SIGTERM never closed the server: nothing called `app.close()` on a signal, and the Hatchet worker's own handler exited the process once the worker stopped. Open streams got a reset instead of `closed { reason: 'shutdown' }`, which the self-hosting page promises; the relay, the engine and PubSub were never stopped. | fixed | `779799d9`: `closeOnSignals(app)` in both entry points, the Hatchet worker started with `handleKill: false`; the log now reads shutting down → chat hub closed → outbox relay stopped → hatchet worker stopped → pubsub stopped → shut down |
 
 ## Log
 
@@ -57,3 +59,14 @@ Script `02-functional.mjs` (six streams, real API), 49/49 after the fix for issu
 - Mia (community Moderator, not in the chat) locks and unlocks: both members get it live, Mia gets no row and the chat is not in her list, sends are refused while locked;
 - typing reaches the other member with `until` about 5 s ahead, a repeat within 2 s is dropped, the typist gets none;
 - no pushed message carries `viewerReaction`, no `message.deleted` carries a body, no stream gets another member's `chat.state`.
+
+### 3. Connection lifecycle
+
+nginx (`hlms-chat-nginx`, default buffering) on :8300 in front of A (:8200) and B (:8210); a cookie pins Sarah's browser to A and James's to B. The community app's `NEXT_PUBLIC_API_URL` and `API_URL` point at :8300.
+
+- Hidden tab: Sarah's tab hidden at 18:09:44; her stream ended at 18:10:44 (`event stream ended`, `ended: client`). James sent while hidden. Shown again: a new stream, then the inbox, the requests and the chat's latest page load, and James's message is there.
+- Chrome's offline mode does not cut an open stream (it kept delivering), so the network drop was done at the proxy instead.
+- Proxy stopped for 13 s while James sent two messages and edited one through B: three failed connects, then polling; 2 s after the proxy was back, the stream reconnected and both messages and the edit were shown.
+- Instance A killed with `kill -9` while Sarah's stream was on it; James sent two through B and deleted one; after A restarted, Sarah's chat showed the first and the second as deleted.
+- Stream route blocked at the proxy (502): three failed connects, then the app polls unread, inbox, requests and the open chat every 15 s; James's message showed by polling within 3 s of the next poll. Unblocked: back on the stream, no requests over the next 20 s, and the next message arrived live in 1.5 s.
+- Graceful restart of A (SIGTERM) with streams open, direct and through the proxy: after the fix for issue 3, each received `closed { reason: 'shutdown' }` 127 ms after the signal; the browser reconnected and caught up.
