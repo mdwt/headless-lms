@@ -63,12 +63,11 @@ function hasNoOrgRole(): SQL {
 }
 
 function invitedAs(roleKey: string): SQL {
-  return sql`coalesce((
-    select i.role from ${invites} i
-    where i.org_id = ${orgUsers.orgId} and lower(i.email) = lower(${users.email}) and i.status = 'pending'
-    order by i.created_at desc
-    limit 1
-  ), ${roleKey}) = ${roleKey}`;
+  return sql`not exists (
+    select 1 from ${invites} i
+    where i.org_id = ${orgUsers.orgId} and lower(i.email) = lower(${users.email})
+      and i.status = 'pending' and i.role <> ${roleKey}
+  )`;
 }
 
 function isStudent(memberRoleKey: string): SQL {
