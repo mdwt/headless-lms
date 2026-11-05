@@ -12,6 +12,34 @@ const CONTEXTS = [
 
 const CROSS_CONTEXT_DEEP_IMPORTS = CONTEXTS.flatMap((c) => [`../${c}/*`, `!../${c}/index.js`]);
 
+const ROLE_NAME = "/^(role|roleKey|roleName)$/";
+const ROLE_LITERAL_MESSAGE =
+  "decide with a permission check, never by comparing a role's name or key";
+const NO_ROLE_LITERALS = [
+  "error",
+  ...["left", "right"].flatMap((side) => {
+    const other = side === "left" ? "right" : "left";
+    return [
+      {
+        selector: `BinaryExpression[operator=/^[!=]==?$/][${side}.type='Identifier'][${side}.name=${ROLE_NAME}][${other}.type='Literal']`,
+        message: ROLE_LITERAL_MESSAGE,
+      },
+      {
+        selector: `BinaryExpression[operator=/^[!=]==?$/][${side}.type='MemberExpression'][${side}.property.name=${ROLE_NAME}][${other}.type='Literal']`,
+        message: ROLE_LITERAL_MESSAGE,
+      },
+    ];
+  }),
+  {
+    selector: `SwitchStatement[discriminant.property.name=${ROLE_NAME}]`,
+    message: ROLE_LITERAL_MESSAGE,
+  },
+  {
+    selector: `SwitchStatement[discriminant.name=${ROLE_NAME}]`,
+    message: ROLE_LITERAL_MESSAGE,
+  },
+];
+
 const REPORTING_CROSS_CONTEXT_DEEP_IMPORTS = CONTEXTS.flatMap((c) => [
   `../../${c}/*`,
   `!../../${c}/index.js`,
@@ -31,6 +59,7 @@ module.exports = {
       { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
     ],
     "@typescript-eslint/no-empty-object-type": "off",
+    "no-restricted-syntax": NO_ROLE_LITERALS,
   },
   overrides: [
     {
@@ -143,6 +172,10 @@ module.exports = {
           },
         ],
       },
+    },
+    {
+      files: ["adapters/auth/src/access.ts", "adapters/auth/src/better-auth.ts"],
+      rules: { "no-restricted-syntax": "off" },
     },
   ],
 };
