@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Activity, Comment, Message } from '../types/index.js';
+import { actorWith } from '../organizations/index.js';
 import { DiscussionItemTitles } from './titles.js';
 
 const AT = new Date('2026-11-01T09:00:00Z');
@@ -57,16 +58,23 @@ function titles(over: { courseAccess?: boolean } = {}) {
     cmt_removed: comment({ id: 'cmt_removed', status: 'removed' }),
     cmt_pending: comment({ id: 'cmt_pending', status: 'pending', orgUserId: 'ou_sarah' }),
     cmt_lesson: comment({ id: 'cmt_lesson', postId: null, activityId: 'act_1', communityId: null }),
+    cmt_lesson_held: comment({
+      id: 'cmt_lesson_held',
+      postId: null,
+      activityId: 'act_1',
+      communityId: null,
+      status: 'pending',
+    }),
   };
   const messages: Record<string, Message> = {
     msg_1: message({}),
     msg_deleted: message({ id: 'msg_deleted', deletedAt: AT }),
     msg_other: message({ id: 'msg_other', chatId: 'cht_other' }),
   };
-  const visibleTitles = vi.fn(async (_o: string, _a: unknown, ids: string[]) =>
+  const visibleTitles = vi.fn(async (ids: string[], _a: unknown) =>
     Object.fromEntries(ids.filter((id) => id === 'pst_1').map((id) => [id, 'My first recording'])),
   );
-  const titlesFor = vi.fn(async (_o: string, _a: unknown, ids: string[]) =>
+  const titlesFor = vi.fn(async (ids: string[], _a: unknown) =>
     Object.fromEntries(ids.filter((id) => id === 'cht_1').map((id) => [id, 'James'])),
   );
   const hasAccess = vi.fn(async () => over.courseAccess ?? false);
@@ -89,36 +97,39 @@ function titles(over: { courseAccess?: boolean } = {}) {
             image: null,
             imageAssetOrgId: null,
             imageAssetId: null,
-            role: 'student',
           },
         }),
       },
-      activities: { getActivity: async (_o, id) => (id === 'act_1' ? activity : null) },
+      activities: { getActivity: async (id) => (id === 'act_1' ? activity : null) },
       access: { hasAccess },
+      actors: { systemActor: (orgId) => actorWith({ owner: true, id: 'system', orgId }) },
     }),
   };
 }
 
-const sarah = { id: 'ou_sarah', role: 'student' as const };
+const sarah = actorWith({ id: 'ou_sarah', orgId: 'org_1' });
 
 describe('DiscussionItemTitles', () => {
   it('returns only the posts, chats, comments and messages the person can open', async () => {
     const { service } = titles();
-    const result = await service.titlesFor('org_1', sarah, [
-      { type: 'post', id: 'pst_1' },
-      { type: 'post', id: 'pst_hidden' },
-      { type: 'chat', id: 'cht_1' },
-      { type: 'chat', id: 'cht_other' },
-      { type: 'comment', id: 'cmt_1' },
-      { type: 'comment', id: 'cmt_hidden' },
-      { type: 'comment', id: 'cmt_removed' },
-      { type: 'comment', id: 'cmt_pending' },
-      { type: 'comment', id: 'cmt_missing' },
-      { type: 'message', id: 'msg_1' },
-      { type: 'message', id: 'msg_deleted' },
-      { type: 'message', id: 'msg_other' },
-      { type: 'course', id: 'crs_1' },
-    ]);
+    const result = await service.titlesFor(
+      [
+        { type: 'post', id: 'pst_1' },
+        { type: 'post', id: 'pst_hidden' },
+        { type: 'chat', id: 'cht_1' },
+        { type: 'chat', id: 'cht_other' },
+        { type: 'comment', id: 'cmt_1' },
+        { type: 'comment', id: 'cmt_hidden' },
+        { type: 'comment', id: 'cmt_removed' },
+        { type: 'comment', id: 'cmt_pending' },
+        { type: 'comment', id: 'cmt_missing' },
+        { type: 'message', id: 'msg_1' },
+        { type: 'message', id: 'msg_deleted' },
+        { type: 'message', id: 'msg_other' },
+        { type: 'course', id: 'crs_1' },
+      ],
+      sarah,
+    );
     expect(result).toEqual({
       'post:pst_1': { title: 'My first recording' },
       'chat:cht_1': { title: 'James' },
@@ -134,32 +145,66 @@ describe('DiscussionItemTitles', () => {
     });
   });
 
-  it('shows a moderator removed comments', async () => {
+  it('shows removed post comments to a holder of communities:moderate on that community only', async () => {
     const { service } = titles();
-    const result = await service.titlesFor('org_1', { id: 'ou_mod', role: 'moderator' }, [
-      { type: 'comment', id: 'cmt_removed' },
-    ]);
-    expect(Object.keys(result)).toEqual(['comment:cmt_removed']);
+    const emma = actorWith({
+      id: 'ou_emma',
+      orgId: 'org_1',
+      content: { cmy_1: ['communities:moderate'] },
+    });
+    const elsewhere = actorWith({
+      id: 'ou_mod',
+      orgId: 'org_1',
+      content: { cmy_2: ['communities:moderate'] },
+    });
+    const courseOnly = actorWith({
+      id: 'ou_james',
+      orgId: 'org_1',
+      org: ['courses:moderate'],
+    });
+    const refs = [{ type: 'comment' as const, id: 'cmt_removed' }];
+    expect(Object.keys(await service.titlesFor(refs, emma))).toEqual(['comment:cmt_removed']);
+    expect(await service.titlesFor(refs, elsewhere)).toEqual({});
+    expect(await service.titlesFor(refs, courseOnly)).toEqual({});
+  });
+
+  it('shows a held lesson comment to a holder of courses:moderate on its course only', async () => {
+    const { service } = titles();
+    const refs = [{ type: 'comment' as const, id: 'cmt_lesson_held' }];
+    const james = actorWith({
+      id: 'ou_james',
+      orgId: 'org_1',
+      content: { crs_1: ['courses:moderate'] },
+    });
+    const other = actorWith({
+      id: 'ou_other',
+      orgId: 'org_1',
+      content: { crs_2: ['courses:moderate'] },
+    });
+    expect(Object.keys(await service.titlesFor(refs, james))).toEqual(['comment:cmt_lesson_held']);
+    expect(await service.titlesFor(refs, other)).toEqual({});
+    expect(await service.titlesFor(refs, sarah)).toEqual({});
   });
 
   it('titles a comment on a course activity only for someone who can open the course', async () => {
     const closed = titles();
     await expect(
-      closed.service.titlesFor('org_1', sarah, [{ type: 'comment', id: 'cmt_lesson' }]),
+      closed.service.titlesFor([{ type: 'comment', id: 'cmt_lesson' }], sarah),
     ).resolves.toEqual({});
     expect(closed.hasAccess).toHaveBeenCalledWith('org_1', 'ou_sarah', 'crs_1');
     const open = titles({ courseAccess: true });
     await expect(
-      open.service.titlesFor('org_1', sarah, [{ type: 'comment', id: 'cmt_lesson' }]),
+      open.service.titlesFor([{ type: 'comment', id: 'cmt_lesson' }], sarah),
     ).resolves.toEqual({
       'comment:cmt_lesson': { title: 'Lesson 3', excerpt: 'Your rolled r is much better, @Sarah' },
     });
-    const staff = titles();
+    const reader = titles();
     await expect(
-      staff.service.titlesFor('org_1', { id: 'ou_owner', role: 'owner' }, [
-        { type: 'comment', id: 'cmt_lesson' },
-      ]),
+      reader.service.titlesFor(
+        [{ type: 'comment', id: 'cmt_lesson' }],
+        actorWith({ id: 'ou_james', orgId: 'org_1', content: { crs_1: ['courses:read'] } }),
+      ),
     ).resolves.toHaveProperty(['comment:cmt_lesson']);
-    expect(staff.hasAccess).not.toHaveBeenCalled();
+    expect(reader.hasAccess).not.toHaveBeenCalled();
   });
 });
