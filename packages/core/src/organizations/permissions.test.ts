@@ -111,11 +111,19 @@ describe('default set', () => {
     );
   });
 
-  it('refuses a member that holds something', () => {
+  it('refuses a member that holds something, and an owner that lacks something', () => {
     const set = DEFAULT_ROLES.map((r) =>
       r.key === 'member' ? { ...r, permissions: ['courses:read' as const] } : r,
     );
     expect(() => validateRoleSet(set)).toThrow(RoleSetError);
+    const owner = DEFAULT_ROLES.map((r) =>
+      r.key === 'owner' ? { ...r, permissions: r.permissions.slice(1) } : r,
+    );
+    expect(() => validateRoleSet(owner)).toThrow(/must hold every permission/);
+    const wider = DEFAULT_ROLES.map((r) =>
+      r.key === 'owner' ? { ...r, levels: ['org' as const, 'course' as const] } : r,
+    );
+    expect(() => validateRoleSet(wider)).toThrow(/org only/);
   });
 });
 
