@@ -398,6 +398,21 @@ describe('IntegrationsService permissions', () => {
     expect(repo.findById).not.toHaveBeenCalled();
   });
 
+  it('refuses an Instructor on one course every integration action', async () => {
+    const { svc, repo } = build();
+    const james = actorWith({
+      orgId: 'org-1',
+      content: { crs_1: ['courses:read', 'courses:write', 'courses:moderate', 'progress:read'] },
+    });
+    expect(() => svc.available(james)).toThrow(ForbiddenError);
+    await expect(
+      svc.connect({ integrationId: 'stripe', secrets: { apiKey: 'x' } }, james),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(svc.list(james)).rejects.toThrow(ForbiddenError);
+    await expect(svc.invoke('con_1', 'x', {}, james)).rejects.toThrow(ForbiddenError);
+    expect(repo.findById).not.toHaveBeenCalled();
+  });
+
   it('needs integrations:delete to disconnect, write alone is refused', async () => {
     const { svc } = build();
     const writer = actorWith({ orgId: 'org-1', org: ['integrations:write'] });

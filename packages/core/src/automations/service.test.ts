@@ -38,7 +38,7 @@ import type { IntegrationsService } from '../integrations/index.js';
 import type { Mailer, MailerLookups } from '../shared/mailer.js';
 import { automationEvents } from './events.js';
 import { emptyCommunityMail } from './community-mail.js';
-import { actorWith } from '../organizations/index.js';
+import { actorWith, organizationEvents } from '../organizations/index.js';
 
 const ADMIN = actorWith({
   orgId: 'org-1',
@@ -1901,6 +1901,70 @@ describe('AutomationsService permissions', () => {
         writer,
       ),
     ).rejects.toThrow(/access:read/);
+  });
+
+  it('refuses an Instructor on one course every workflow and webhook action', async () => {
+    const { svc, repo } = build();
+    const james = actorWith({
+      orgId: 'org-1',
+      content: { crs_1: ['courses:read', 'courses:write', 'courses:moderate', 'progress:read'] },
+    });
+    await expect(svc.list(undefined, james)).rejects.toThrow(ForbiddenError);
+    await expect(
+      svc.create({ name: 'x', triggers: ['entitlement.created'], actions: [] }, james),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(svc.delete('atm_1', james)).rejects.toThrow(ForbiddenError);
+    await expect(
+      svc.createWebhook({ url: 'https://x.test', events: ['content.course.updated'] }, james),
+    ).rejects.toThrow(ForbiddenError);
+    expect(repo.insert).not.toHaveBeenCalled();
+  });
+
+  it('matches nothing with a stored filter on role: the version 2 org events carry none', async () => {
+    const repo = fakeRepo({
+      listByTrigger: vi.fn().mockResolvedValue([{ ...AUTOMATION, filter: { role: 'admin' } }]),
+    });
+    const { svc, engine } = build(repo);
+    const at = new Date('2026-01-02T00:00:00.000Z');
+    const orgUser = {
+      id: 'orm_1',
+      orgId: 'org-1',
+      userId: 'usr_1',
+      status: 'active' as const,
+      createdAt: at,
+      updatedAt: at,
+    };
+    const invite = {
+      id: 'ivt_1',
+      orgId: 'org-1',
+      email: 'ivy@example.com',
+      roleKey: 'admin',
+      status: 'pending' as const,
+      invitedBy: 'usr_2',
+      tokenHash: null,
+      expiresAt: null,
+      createdAt: at,
+      updatedAt: at,
+    };
+    const made = [
+      organizationEvents.orgUserUpdated.make({
+        orgId: 'org-1',
+        data: { ...orgUser, orgRole: { key: 'admin' } },
+      }),
+      organizationEvents.orgUserLinked.make({
+        orgId: 'org-1',
+        data: { ...orgUser, orgRole: { key: 'admin' } },
+      }),
+      organizationEvents.inviteCreated.make({ orgId: 'org-1', data: invite }),
+      organizationEvents.studentCreated.make({ orgId: 'org-1', data: orgUser }),
+    ];
+    for (const [i, event] of made.entries()) {
+      expect(event.version, event.type).toBe(2);
+      expect(event.data, event.type).not.toHaveProperty('role');
+      await svc.handle({ ...event, id: `evt_${i}`, occurredAt: at.toISOString() } as never);
+    }
+    expect(repo.listByTrigger).toHaveBeenCalledTimes(made.length);
+    expect(engine.dispatch).not.toHaveBeenCalled();
   });
 
   it('offers "Role assigned" as a trigger', () => {
