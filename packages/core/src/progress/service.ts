@@ -11,14 +11,17 @@ import { NotFoundError } from '../shared/errors.js';
 import type { ProgressRecord } from './model.js';
 import type {
   ContentAccessReader,
+  CourseReader,
   ProgressRepository,
   ProgressService,
   ProgressUnitOfWork,
   ProgressWriteScope,
+  SystemActors,
 } from './ports.js';
 import type { ProgressReportItem, ProgressTarget, ReportProgressInput } from './types.js';
 import { progressEvents, type NewProgressEvent } from './events.js';
-import type { Activity, CourseManagementService, Module } from '../content/index.js';
+import type { Activity, Module } from '../content/index.js';
+import type { Actor } from '../shared/actor.js';
 import type { JsonValue } from '../types/index.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
@@ -62,18 +65,22 @@ function completionSatisfied(settings: unknown, claimed: boolean): boolean {
   return false;
 }
 
+type Reporter = ReportProgressInput & { orgUserId: string };
+
 export type ProgressServiceParams = {
   repo: ProgressRepository;
-  content: CourseManagementService;
+  content: CourseReader;
   access: ContentAccessReader;
+  system: SystemActors;
   uow: ProgressUnitOfWork;
   logger?: Logger;
 };
 
 export class ProgressServiceImpl implements ProgressService {
   private readonly repo: ProgressRepository;
-  private readonly content: CourseManagementService;
+  private readonly content: CourseReader;
   private readonly access: ContentAccessReader;
+  private readonly system: SystemActors;
   private readonly uow: ProgressUnitOfWork;
   private readonly logger: Logger;
 
@@ -81,26 +88,36 @@ export class ProgressServiceImpl implements ProgressService {
     this.repo = params.repo;
     this.content = params.content;
     this.access = params.access;
+    this.system = params.system;
     this.uow = params.uow;
     this.logger = params.logger ?? noopLogger;
   }
 
-  async report(orgId: string, input: ReportProgressInput): Promise<ProgressRecord> {
-    const activity = await this.content.getActivity(orgId, input.activityId);
+  async report(report: ReportProgressInput, actor: Actor): Promise<ProgressRecord> {
+    const orgId = actor.orgId;
+    const input: Reporter = { ...report, orgUserId: actor.id };
+    const system = this.system.systemActor(orgId);
+    const activity = await this.content.getActivity(input.activityId, system);
     if (!activity || !isActivityPublished(activity.settings)) {
       throw new NotFoundError('Activity', input.activityId);
     }
     const courseId = activity.courseId;
-    const course = await this.content.getCourse(orgId, courseId);
-    if (
-      !course ||
-      course.status !== 'published' ||
-      !(await this.access.hasAccess(orgId, input.orgUserId, courseId))
-    ) {
+    const course = await this.content.getCourse(courseId, system);
+    const opens =
+      course !== null &&
+      (actor.permissions.has('courses:read', courseId) ||
+        (course.status === 'published' &&
+          (await this.access.hasAccess(orgId, actor.id, courseId))));
+    if (!opens) {
+      this.logger.warn('progress report refused — course not open', {
+        orgId,
+        activityId: input.activityId,
+        actorId: actor.id,
+      });
       throw new NotFoundError('Activity', input.activityId);
     }
-    const modules = await this.content.listCourseModules(orgId, courseId);
-    const courseActivities = await this.content.listCourseActivities(orgId, courseId);
+    const modules = await this.content.listCourseModules(courseId, system);
+    const courseActivities = await this.content.listCourseActivities(courseId, system);
     return this.uow.run(async (scope) => {
       // Serializes concurrent reports for this student+course (locks are tx-scoped;
       // both racers lock in the same order, the loser waits and then sees committed state).
@@ -142,7 +159,7 @@ export class ProgressServiceImpl implements ProgressService {
 
   private async ensureActivityRecord(
     orgId: string,
-    input: ReportProgressInput,
+    input: Reporter,
     scope: ProgressWriteScope,
     events: NewProgressEvent[],
   ): Promise<ProgressRecord> {
@@ -186,7 +203,7 @@ export class ProgressServiceImpl implements ProgressService {
    *  (created complete) and a progress.completed event — same transaction. */
   private async completeContainers(
     orgId: string,
-    input: ReportProgressInput,
+    input: Reporter,
     courseId: string,
     modules: Module[],
     courseActivities: Activity[],
@@ -214,7 +231,7 @@ export class ProgressServiceImpl implements ProgressService {
 
   private async ensureContainerComplete(
     orgId: string,
-    input: ReportProgressInput,
+    input: Reporter,
     targetType: 'module' | 'course',
     targetId: string,
     scope: ProgressWriteScope,

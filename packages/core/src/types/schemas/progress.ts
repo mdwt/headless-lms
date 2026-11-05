@@ -40,7 +40,6 @@ export type ProgressReportItem = z.infer<typeof progressReportItemSchema>;
 
 export const reportProgressInputSchema = z
   .object({
-    orgUserId: idSchema,
     activityId: idSchema,
     reports: z.array(progressReportItemSchema),
   })

@@ -2,6 +2,8 @@
 // Inbound: the use-case interface the service implements.
 // Outbound: the persistence contract the repository fulfils.
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
+import type { Actor } from '../shared/actor.js';
+import type { CourseManagementService } from '../content/index.js';
 import type { ProgressRecord } from './model.js';
 import type { ProgressTarget, ReportProgressInput } from './types.js';
 
@@ -9,8 +11,9 @@ import type { ProgressTarget, ReportProgressInput } from './types.js';
 export interface ProgressService {
   /** Process a usage report: ensure the record, apply position, evaluate
    *  completion (activity rule, then module/course against current structure),
-   *  emit events. Returns the activity's record after the decision. */
-  report(orgId: string, input: ReportProgressInput): Promise<ProgressRecord>;
+   *  emit events. Returns the activity's record after the decision. The actor
+   *  reports on themselves. */
+  report(input: ReportProgressInput, actor: Actor): Promise<ProgressRecord>;
   /** Fetch the record for a single (student, target), or null. */
   get(orgId: string, target: ProgressTarget): Promise<ProgressRecord | null>;
   /** Records for a set of target ids — the read the reporting layer composes. */
@@ -42,6 +45,15 @@ export interface ProgressRepository {
  *  who can open the course. */
 export interface ContentAccessReader {
   hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
+}
+
+export type CourseReader = Pick<
+  CourseManagementService,
+  'getActivity' | 'getCourse' | 'listCourseModules' | 'listCourseActivities'
+>;
+
+export interface SystemActors {
+  systemActor(orgId: string): Actor;
 }
 
 /** Writes that emit events run through this scope so row + outbox entry commit
