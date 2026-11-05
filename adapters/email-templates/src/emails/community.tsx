@@ -279,15 +279,29 @@ export const addedToGroupChat = defineEmail<"addedToGroupChat">({
   },
 });
 
-export const youAreNowAModerator = defineEmail<"youAreNowAModerator">({
-  subject: () => "You are now a moderator",
-  heading: () => "You are now a moderator",
-  lines: (params) =>
-    params.communityTitles.length > 0
-      ? [`You moderate ${params.communityTitles.join(", ")}.`]
-      : ["You can moderate the communities you belong to."],
-  button: (ctx) => ({ href: portal(ctx, "/communities"), label: "Open communities" }),
-  preview: { communityTitles: ["Founders"] },
+const ROLE_PATH: Record<string, string> = {
+  course: "courses",
+  download: "downloads",
+  community: "communities",
+};
+
+export const roleAssigned = defineEmail<"roleAssigned">({
+  subject: (_ctx, params) => `You are now ${params.roleName} ${params.place}`,
+  heading: (params) => `You are now ${params.roleName}`,
+  lines: (params) => [`You are now ${params.roleName} ${params.place}.`],
+  button: (ctx, params) =>
+    params.contentId !== null && params.contentType !== null
+      ? {
+          href: `${ctx.baseUrl}/${ROLE_PATH[params.contentType] ?? ""}/${params.contentId}`,
+          label: "Open",
+        }
+      : { href: ctx.baseUrl, label: "Open" },
+  preview: {
+    roleName: "Moderator",
+    place: "of Founders",
+    contentId: "cmy_1",
+    contentType: "community",
+  },
 });
 
 type DigestParams = EmailTemplateParams["digest"];

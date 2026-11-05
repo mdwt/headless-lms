@@ -39,7 +39,7 @@ import {
   requestDeclined,
   somethingWasFlagged,
   welcomeToCommunity,
-  youAreNowAModerator,
+  roleAssigned,
   yourCommentWasRemoved,
   yourPostWasPublished,
   yourPostWasRemoved,
@@ -102,10 +102,7 @@ const registry: { [K in EmailTemplateId]: Entry<K> } = {
   messageRequest: { subject: messageRequest.subject, Component: messageRequest.Component },
   newMessage: { subject: newMessage.subject, Component: newMessage.Component },
   addedToGroupChat: { subject: addedToGroupChat.subject, Component: addedToGroupChat.Component },
-  youAreNowAModerator: {
-    subject: youAreNowAModerator.subject,
-    Component: youAreNowAModerator.Component,
-  },
+  roleAssigned: { subject: roleAssigned.subject, Component: roleAssigned.Component },
   digest: { subject: digest.subject, Component: digest.Component },
   postAwaitingReview: {
     subject: postAwaitingReview.subject,

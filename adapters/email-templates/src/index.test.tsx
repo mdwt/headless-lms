@@ -18,7 +18,7 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
   memberInvite: {
     inviteUrl: "http://localhost:8001/invite?token=t",
     inviterName: "Ann",
-    role: "admin",
+    role: "Admin",
   },
   passwordReset: { resetUrl: "http://localhost:8002/reset?token=t" },
   passwordChanged: {},
@@ -91,7 +91,12 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     chatId: "cht_1",
     communityId: "cmy_1",
   },
-  youAreNowAModerator: { communityTitles: ["Founders"] },
+  roleAssigned: {
+    roleName: "Moderator",
+    place: "of Founders",
+    contentId: "cmy_1",
+    contentType: "community",
+  },
   digest: {
     communityTitle: "Founders",
     communityId: "cmy_1",

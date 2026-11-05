@@ -23,6 +23,6 @@ MemberInvite.PreviewProps = {
   params: {
     inviteUrl: "http://localhost:8001/invite?token=demo",
     inviterName: "Ann",
-    role: "admin",
+    role: "Admin",
   },
 };
