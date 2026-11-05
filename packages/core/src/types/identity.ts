@@ -85,18 +85,3 @@ export type ApiKeySummary = {
 };
 
 export type CreatedApiKey = ApiKeySummary & { key: string };
-
-export type NewApiKey = {
-  authUserId: string;
-  orgId: string;
-  name: string;
-  scopes: string[];
-};
-
-export interface AppAccessAdmin {
-  listConnectedApps(headers: HeaderBag, orgId: string): Promise<ConnectedApp[]>;
-  revokeConnectedApp(headers: HeaderBag, orgId: string, clientId: string): Promise<void>;
-  listApiKeys(headers: HeaderBag, orgId: string): Promise<ApiKeySummary[]>;
-  createApiKey(input: NewApiKey): Promise<CreatedApiKey>;
-  deleteApiKey(headers: HeaderBag, orgId: string, keyId: string): Promise<void>;
-}

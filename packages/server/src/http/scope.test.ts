@@ -1,25 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { resolveScope, resolveScopeFor, NoActiveOrgError } from './scope.js';
-import type { Container } from '../app/container.js';
 import type { FastifyRequest } from 'fastify';
+import { actorWith } from '@headless-lms/core/organizations';
+import type { Permission } from '@headless-lms/core/types';
+import { resolveCaller, resolveCallerFor, NoActiveOrgError } from './scope.js';
+import type { Container } from '../app/container.js';
+
+type OrgUser = { id: string; orgId: string; status: 'active' | 'invited' };
 
 function container(opts: {
   org?: { id: string; name: string; slug: string } | null;
   user?: { id: string } | null;
-  // Keyed `${orgId}:${userId}` — the resolver must ask for a specific org.
-  orgUsers?: Record<string, { id: string; orgId: string; role: string }>;
+  orgUsers?: Record<string, OrgUser>;
+  seen?: Array<{ orgId: string; orgUserId: string; tokenScopes?: readonly Permission[] }>;
 }): Container {
   return {
     organizations: {
-      // The session guard resolves the org before resolveScope runs, so the
-      // lookup here is by domain id.
       getById: async () => opts.org ?? null,
       getByExternalId: async (id: string) => (id === opts.org?.id ? opts.org : null),
       getOrgUser: async (orgId: string, userId: string) =>
         opts.orgUsers?.[`${orgId}:${userId}`] ?? null,
+      actorFor: async (orgId: string, orgUserId: string, tokenScopes?: readonly Permission[]) => {
+        opts.seen?.push({ orgId, orgUserId, ...(tokenScopes && { tokenScopes }) });
+        const row = Object.values(opts.orgUsers ?? {}).find((u) => u.id === orgUserId);
+        return row?.status === 'active' ? actorWith({ id: orgUserId, orgId, owner: true }) : null;
+      },
     },
-    // The account-create hook hands the domain id back to better-auth and
-    // records it as the external id, so a user's external id is its own id.
     identity: {
       getUserByExternalId: async (id: string) => (id === opts.user?.id ? opts.user : null),
     },
@@ -31,159 +36,104 @@ function container(opts: {
   } as unknown as Container;
 }
 
-// Both ids as the session guard leaves them. Better Auth's org id and the
-// domain organizations.id are the same value — the org-create hook gives the
-// domain id to better-auth — so `authOrgId` and `orgId` match.
 const req = (authUser: unknown, authOrgId: string | null = 'org_1') =>
   ({ authUser, authOrgId, orgId: authOrgId ? 'org_1' : undefined }) as unknown as FastifyRequest;
 
 const acme = { id: 'org_1', name: 'Acme', slug: 'acme' };
-const owner = { 'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', role: 'owner' } };
+const active = { 'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', status: 'active' as const } };
 
-describe('resolveScope', () => {
-  it('resolves the acting org user for the session active org', async () => {
-    const scope = await resolveScope(
-      container({ org: acme, user: { id: 'usr_1' }, orgUsers: owner }),
+describe('resolveCaller', () => {
+  it("resolves the caller's actor in the session's active org", async () => {
+    const caller = await resolveCaller(
+      container({ org: acme, user: { id: 'usr_1' }, orgUsers: active }),
       req({ id: 'usr_1' }),
     );
-    expect(scope).toEqual({
+    expect(caller).toMatchObject({
       orgId: 'org_1',
       userId: 'usr_1',
       orgUserId: 'orm_1',
-      role: 'owner',
       authOrgId: 'org_1',
+      authUserId: 'usr_1',
     });
+    expect(caller.actor).toMatchObject({ id: 'orm_1', orgId: 'org_1' });
   });
 
-  it('picks the role held in the active org, not in some other org', async () => {
-    const scope = await resolveScope(
+  it('resolves the org user of the active org, not of another org', async () => {
+    const caller = await resolveCaller(
       container({
         org: acme,
         user: { id: 'usr_1' },
         orgUsers: {
-          'org_other:usr_1': { id: 'orm_other', orgId: 'org_other', role: 'owner' },
-          'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', role: 'instructor' },
+          'org_2:usr_1': { id: 'orm_2', orgId: 'org_2', status: 'active' },
+          ...active,
         },
       }),
       req({ id: 'usr_1' }),
     );
-    expect(scope.orgUserId).toBe('orm_1');
-    expect(scope.role).toBe('instructor');
+    expect(caller.orgUserId).toBe('orm_1');
   });
 
-  it('rejects a student org user — the back office is staff-only', async () => {
+  it('refuses an org user who has not accepted their invitation', async () => {
     await expect(
-      resolveScope(
+      resolveCaller(
         container({
           org: acme,
           user: { id: 'usr_1' },
-          orgUsers: { 'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', role: 'student' } },
+          orgUsers: { 'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', status: 'invited' } },
         }),
         req({ id: 'usr_1' }),
       ),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 
-  it('throws when the session user belongs to no org', async () => {
+  it('refuses a person with no org user in the active org', async () => {
     await expect(
-      resolveScope(
-        container({ org: acme, user: { id: 'usr_1' }, orgUsers: {} }),
-        req({ id: 'usr_1' }),
-      ),
-    ).rejects.toBeInstanceOf(NoActiveOrgError);
-  });
-
-  it('throws when the person belongs only to a different org', async () => {
-    await expect(
-      resolveScope(
+      resolveCaller(
         container({
           org: acme,
           user: { id: 'usr_1' },
-          orgUsers: { 'org_other:usr_1': { id: 'orm_x', orgId: 'org_other', role: 'owner' } },
+          orgUsers: { 'org_2:usr_1': { id: 'orm_2', orgId: 'org_2', status: 'active' } },
         }),
         req({ id: 'usr_1' }),
       ),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 
-  it('throws NoActiveOrgError when there is no session user', async () => {
-    await expect(resolveScope(container({ org: acme }), req(undefined))).rejects.toBeInstanceOf(
+  it('refuses without a session user, an active org, the org or the domain user', async () => {
+    const c = container({ org: acme, user: { id: 'usr_1' }, orgUsers: active });
+    await expect(resolveCaller(c, req(undefined))).rejects.toBeInstanceOf(NoActiveOrgError);
+    await expect(resolveCaller(c, req({ id: 'usr_1' }, null))).rejects.toBeInstanceOf(
       NoActiveOrgError,
     );
-  });
-
-  it('throws NoActiveOrgError when the session carries no active org', async () => {
     await expect(
-      resolveScope(
-        container({ org: acme, user: { id: 'usr_1' }, orgUsers: owner }),
-        req({ id: 'usr_1' }, null),
-      ),
+      resolveCaller(container({ org: null, user: { id: 'usr_1' } }), req({ id: 'usr_1' })),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
-  });
-
-  it('throws NoActiveOrgError when the active org is not found', async () => {
     await expect(
-      resolveScope(
-        container({ org: null, user: { id: 'usr_1' }, orgUsers: owner }),
-        req({ id: 'usr_1' }),
-      ),
-    ).rejects.toBeInstanceOf(NoActiveOrgError);
-  });
-
-  it('throws NoActiveOrgError when there is no domain user for the session user', async () => {
-    await expect(
-      resolveScope(container({ org: acme, user: null, orgUsers: owner }), req({ id: 'usr_1' })),
+      resolveCaller(container({ org: acme, user: null }), req({ id: 'usr_1' })),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 });
 
-describe('resolveScopeFor', () => {
-  const full = container({ org: acme, user: { id: 'usr_1' }, orgUsers: owner });
-
-  it('resolves the staff scope for an auth user and org', async () => {
-    const scope = await resolveScopeFor(full, 'usr_1', 'org_1');
-    expect(scope).toEqual({
-      orgId: 'org_1',
-      userId: 'usr_1',
-      orgUserId: 'orm_1',
-      role: 'owner',
-      authOrgId: 'org_1',
-    });
-  });
-
-  it('refuses a student org user', async () => {
-    await expect(
-      resolveScopeFor(
-        container({
-          org: acme,
-          user: { id: 'usr_1' },
-          orgUsers: { 'org_1:usr_1': { id: 'orm_1', orgId: 'org_1', role: 'student' } },
-        }),
-        'usr_1',
-        'org_1',
-      ),
-    ).rejects.toBeInstanceOf(NoActiveOrgError);
-  });
-
-  it('refuses a user with no org user in that org', async () => {
-    await expect(
-      resolveScopeFor(
-        container({ org: acme, user: { id: 'usr_1' }, orgUsers: {} }),
-        'usr_1',
-        'org_1',
-      ),
-    ).rejects.toBeInstanceOf(NoActiveOrgError);
-  });
-
-  it('refuses an unknown org', async () => {
-    await expect(resolveScopeFor(full, 'usr_1', 'org_missing')).rejects.toBeInstanceOf(
-      NoActiveOrgError,
+describe('resolveCallerFor', () => {
+  it("builds the actor with the token's scopes", async () => {
+    const seen: Array<{ orgId: string; orgUserId: string; tokenScopes?: readonly Permission[] }> =
+      [];
+    const caller = await resolveCallerFor(
+      container({ org: acme, user: { id: 'usr_1' }, orgUsers: active, seen }),
+      'usr_1',
+      'org_1',
+      ['courses:read'],
     );
+    expect(caller.orgUserId).toBe('orm_1');
+    expect(seen).toEqual([{ orgId: 'org_1', orgUserId: 'orm_1', tokenScopes: ['courses:read'] }]);
   });
 
-  it('refuses an unknown user', async () => {
-    await expect(resolveScopeFor(full, 'usr_missing', 'org_1')).rejects.toBeInstanceOf(
-      NoActiveOrgError,
-    );
+  it('refuses an unknown org or user', async () => {
+    await expect(
+      resolveCallerFor(container({ org: null }), 'usr_1', 'org_1', []),
+    ).rejects.toBeInstanceOf(NoActiveOrgError);
+    await expect(
+      resolveCallerFor(container({ org: acme, user: null }), 'usr_1', 'org_1', []),
+    ).rejects.toBeInstanceOf(NoActiveOrgError);
   });
 });
