@@ -1,5 +1,5 @@
 {
-  "id": "da4bb49f-17e7-4995-85de-36915cd9adb7",
+  "id": "8d3595e3-b77a-48b4-a05c-0d688634f7fc",
   "prevId": "29aabe70-45c3-4c1f-a2e1-9629de10c31d",
   "version": "7",
   "dialect": "postgresql",
@@ -30,7 +30,8 @@
           "name": "role",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'member'"
         },
         "status": {
           "name": "status",
@@ -163,12 +164,6 @@
         },
         "user_id": {
           "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
           "type": "text",
           "primaryKey": false,
           "notNull": true

@@ -90,14 +90,8 @@ export const roleAssignmentSchema = z
   .strict();
 export type RoleAssignment = z.output<typeof roleAssignmentSchema>;
 
-export const roleSchema = z.enum(['owner', 'admin', 'instructor', 'moderator', 'student']);
-export type Role = z.infer<typeof roleSchema>;
-
 export const orgUserStatusSchema = z.enum(['invited', 'active']);
 export type OrgUserStatus = z.infer<typeof orgUserStatusSchema>;
-
-export const inviteRoleSchema = z.enum(['admin', 'instructor', 'moderator', 'student']);
-export type InviteRole = z.infer<typeof inviteRoleSchema>;
 
 export const organizationSchema = z
   .object({
@@ -118,7 +112,6 @@ export const orgUserSchema = z
     id: idSchema,
     orgId: idSchema,
     userId: idSchema,
-    role: roleSchema,
     status: orgUserStatusSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
@@ -143,7 +136,7 @@ export const inviteSchema = z
     id: idSchema,
     orgId: idSchema,
     email: emailSchema,
-    role: inviteRoleSchema,
+    roleKey: z.string(),
     status: z.enum(['pending', 'accepted', 'rejected', 'canceled']),
     invitedBy: idSchema,
     tokenHash: z.string().nullable(),
@@ -168,7 +161,6 @@ export const addOrgUserInputSchema = z
   .object({
     orgId: idSchema,
     userId: idSchema,
-    role: roleSchema,
   })
   .strict();
 export type AddOrgUserInput = z.infer<typeof addOrgUserInputSchema>;
@@ -177,7 +169,6 @@ export const createOrgUserInputSchema = z
   .object({
     orgId: idSchema,
     userId: idSchema,
-    role: roleSchema,
     status: orgUserStatusSchema.optional(),
   })
   .strict();
@@ -185,7 +176,6 @@ export type CreateOrgUserInput = z.infer<typeof createOrgUserInputSchema>;
 
 export const updateOrgUserInputSchema = z
   .object({
-    role: roleSchema.optional(),
     status: orgUserStatusSchema.optional(),
   })
   .strict();
@@ -193,16 +183,14 @@ export type UpdateOrgUserInput = z.infer<typeof updateOrgUserInputSchema>;
 
 export const createInviteInputSchema = z
   .object({
-    orgId: idSchema,
     email: emailSchema,
-    role: inviteRoleSchema,
-    inviterUserId: idSchema,
+    roleKey: roleKeySchema.default('member'),
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     sendEmail: z.boolean().optional(),
   })
   .strict();
-export type CreateInviteInput = z.infer<typeof createInviteInputSchema>;
+export type CreateInviteInput = z.input<typeof createInviteInputSchema>;
 
 export const acceptInviteInputSchema = z
   .object({

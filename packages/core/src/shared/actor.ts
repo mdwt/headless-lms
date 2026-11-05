@@ -1,4 +1,4 @@
-import type { ContentId, Permission, Role } from '../types/index.js';
+import type { ContentId, Permission } from '../types/index.js';
 
 export interface RoleRef {
   key: string;
@@ -17,5 +17,6 @@ export interface EffectivePermissions {
 
 export interface Actor {
   id: string;
-  role: Role;
+  orgId: string;
+  permissions: EffectivePermissions;
 }

@@ -23,7 +23,7 @@ export const organizations = pgTable("organizations", {
     .$onUpdate(() => new Date()),
 });
 
-// A person's link to an organization under one role
+// A person's link to an organization
 export const orgUsers = pgTable(
   "org_users",
   {
@@ -37,12 +37,7 @@ export const orgUsers = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
-    role: text("role", {
-      enum: ["owner", "admin", "instructor", "moderator", "student"],
-    }).notNull(),
-    // 'invited' from the moment an admin adds a student until they accept.
-    // Staff rows are mirrored from an auth member record that only exists once
-    // they have joined, so they are created 'active'.
+    // 'invited' from the moment a person is invited until they accept.
     status: text("status", { enum: ["invited", "active"] })
       .notNull()
       .default("active"),
@@ -69,7 +64,7 @@ export const invites = pgTable(
       .notNull()
       .$defaultFn(() => genId("invite")),
     email: text("email").notNull(),
-    role: text("role", { enum: ["admin", "instructor", "moderator", "student"] }).notNull(),
+    roleKey: text("role").notNull().default("member"),
     status: text("status", {
       enum: ["pending", "accepted", "rejected", "canceled"],
     }).notNull(),

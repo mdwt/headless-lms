@@ -1,14 +1,20 @@
 // organizations context — public surface.
 export { OrganizationServiceImpl } from './service.js';
+export type { OrganizationServiceParams, InviteUrls } from './service.js';
 export { OrgNotificationCategories } from './notification-categories.js';
 export { organizationEvents } from './events.js';
 
 export type {
   OrganizationService,
   MembersRepository,
-  MemberRecord,
-  MemberWriteContext,
+  TeamRow,
   OrgAdmin,
+  ApiKeys,
+  GrantReader,
+  TransferOwnershipInput,
+  CreateApiKeyInput,
+  OrganizationsWriteScope,
+  OrganizationsUnitOfWork,
   AuthHeaders,
   AuthOrganization,
   OrganizationsRepository,
@@ -19,19 +25,18 @@ export type {
 } from './ports.js';
 export type { Organization, OrgUser, Invite } from './model.js';
 export { InviteError, OrganizationRuleError } from './members.js';
-export type { Member, MemberRoleChange, MemberStatus, MembersQuery, Page } from './members.js';
-export {
-  ROLES,
-  STAFF_ROLES,
-  STUDENT_ROLE,
-  isRole,
-  isStaffRole,
-  canModerate,
-  parseRole,
-  normalizeRole,
-  capability,
-} from './roles.js';
-export type { Role, StaffRole, TeamRole, Permission, Capability } from './roles.js';
+export type {
+  AssignmentView,
+  CreateRoleInput,
+  ItemRole,
+  Member,
+  MemberStatus,
+  MembersQuery,
+  Page,
+  RoleView,
+  UpdateRoleInput,
+  ViewerPermissions,
+} from './members.js';
 export type {
   OrganizationId,
   OrgUserId,
@@ -42,13 +47,9 @@ export type {
   AddOrgUserInput,
   CreateInviteInput,
   AcceptInviteInput,
-  InviteRole,
   CreateOrgUserInput,
   UpdateOrgUserInput,
   OrgUserStatus,
-  ResendStudentInviteInput,
-  LinkOrgUserInput,
-  UnlinkOrgUserInput,
 } from './types.js';
 export type {
   OrganizationEvent,
@@ -64,8 +65,13 @@ export type {
   StudentCreated,
   StudentDeleted,
   StudentLinked,
+  RoleUpdated,
+  RoleCreated,
+  RoleDeleted,
+  RoleAssigned,
+  RoleUnassigned,
+  OwnershipTransferred,
 } from './events.js';
-export * from './access-scopes.js';
 export {
   PERMISSIONS,
   ALL_PERMISSIONS,
