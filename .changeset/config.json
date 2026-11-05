@@ -24,6 +24,7 @@
     "@headless-lms/adapter-email-ses",
     "@headless-lms/adapter-email-templates",
     "@headless-lms/adapter-push",
+    "@headless-lms/adapter-pubsub-postgres",
     "@headless-lms/adapter-storage-s3",
     "@headless-lms/adapter-workflow-hatchet"
   ]

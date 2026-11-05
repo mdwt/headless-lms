@@ -39,6 +39,10 @@ export default defineConfig({
         replacement: r("./adapters/db/src/index.ts"),
       },
       {
+        find: "@headless-lms/adapter-pubsub-postgres",
+        replacement: r("./adapters/pubsub-postgres/src/index.ts"),
+      },
+      {
         find: "@headless-lms/adapter-defaults/events/outbox-relay",
         replacement: r("./adapters/defaults/src/events/outbox-relay.ts"),
       },
