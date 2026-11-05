@@ -4834,7 +4834,7 @@ export class Communities {
   /**
    * Remove a post
    *
-   * Needs `communities:moderate` on the community. Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   * The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
    */
   public static removeCommunityPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4959,7 +4959,7 @@ export class Communities {
   /**
    * Remove a comment on a post
    *
-   * Needs `communities:moderate` on the community. Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
+   * The author can remove their own comment; anyone else needs `communities:moderate` on the community. Hides the comment; removing someone else's comment resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
    */
   public static removeCommunityComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6271,7 +6271,7 @@ export class Posts {
   /**
    * Remove your post, or one in a space you moderate
    *
-   * For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   * The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
    */
   public static removePost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7713,7 +7713,7 @@ export class Discussion {
   /**
    * Delete your comment, or one you moderate
    *
-   * For the author, or a holder of `courses:moderate` on the course for an activity comment or of `communities:moderate` on the community for a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
+   * The author can delete their own comment; anyone else needs `communities:moderate` on the community for a post comment, or `courses:moderate` on the course for a lesson comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
    */
   public static deleteComment<ThrowOnError extends boolean = false>(
     parameters: {

@@ -19093,7 +19093,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Needs `communities:moderate` on the community. Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
+        "description": "The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
         "parameters": [
           {
             "schema": {
@@ -20199,7 +20199,7 @@
         "tags": [
           "Communities"
         ],
-        "description": "Needs `communities:moderate` on the community. Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.",
+        "description": "The author can remove their own comment; anyone else needs `communities:moderate` on the community. Hides the comment; removing someone else's comment resolves its open flags as `removed`. Removing a removed comment returns it unchanged.",
         "parameters": [
           {
             "schema": {
@@ -36923,7 +36923,7 @@
         "tags": [
           "Posts"
         ],
-        "description": "For the author or a moderator. Takes a published or pending post down; a moderator removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
+        "description": "The author can remove their own post; anyone else needs `communities:moderate` on the community. Takes a published or pending post down; removing someone else's post resolves its open flags as `removed`. 409 when it is already removed or was never submitted.",
         "parameters": [
           {
             "schema": {
@@ -51040,7 +51040,7 @@
         "tags": [
           "Discussion"
         ],
-        "description": "For the author, or a holder of `courses:moderate` on the course for an activity comment or of `communities:moderate` on the community for a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.",
+        "description": "The author can delete their own comment; anyone else needs `communities:moderate` on the community for a post comment, or `courses:moderate` on the course for a lesson comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.",
         "parameters": [
           {
             "schema": {
