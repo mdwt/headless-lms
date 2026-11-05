@@ -5,7 +5,12 @@ import type { AssetsRepository, AssetsUnitOfWork } from './ports.js';
 import type { Asset } from './model.js';
 import type { NewDomainEvent, ObjectStorage, OutboxAppender } from '../shared/ports.js';
 import { createCapturingLogger } from '../shared/logger.js';
-import { ConflictError, ForbiddenError, InvalidInputError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import { actorWith } from '../organizations/index.js';
 import type { ContentType } from '../types/index.js';
 
@@ -980,6 +985,19 @@ describe('AssetsService permissions', () => {
     await expect(
       svc.requestUpload({ filename: 'a.mp4', contentType: 'video/mp4' }, james),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('answers 404 for an unknown item, to media:write holders too, and stores nothing', async () => {
+    const { svc, assets } = service();
+    for (const actor of [admin(), james]) {
+      await expect(
+        svc.requestUpload(
+          { filename: 'a.mp4', contentType: 'video/mp4', contentId: 'crs_typo' },
+          actor,
+        ),
+      ).rejects.toThrow(NotFoundError);
+    }
+    expect(assets).toEqual([]);
   });
 
   it('refuses James a library file or a file uploaded for another course', async () => {

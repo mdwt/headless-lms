@@ -124,12 +124,15 @@ export class AssetsServiceImpl implements AssetsService {
     const orgId = actor.orgId;
     if (input.contentId === undefined) {
       actor.permissions.require('media:write');
-    } else if (!actor.permissions.has('media:write')) {
+    } else {
       const type = await this.repo.contentTypeOf(orgId, input.contentId);
       if (!type) {
         throw new NotFoundError('Content item', input.contentId);
       }
-      if (!actor.permissions.has(WRITE_PERMISSION[type], input.contentId)) {
+      if (
+        !actor.permissions.has('media:write') &&
+        !actor.permissions.has(WRITE_PERMISSION[type], input.contentId)
+      ) {
         this.logger.warn('asset upload refused', {
           orgId,
           orgUserId: actor.id,
