@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Download, ListParams } from "@/lib/api/types";
 
 import { downloadsColumns } from "./downloads-columns";
@@ -34,7 +33,7 @@ function DownloadsTableInner({
   params: ListParams;
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
 
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
 
@@ -58,7 +57,7 @@ function DownloadsTableInner({
   // Delete confirmation target.
   const [toDelete, setToDelete] = useState<Download | null>(null);
 
-  const canCreate = can.createDownload(user);
+  const canCreate = permissions.has("downloads:write");
 
   const openCreate = useCallback(() => {
     setEditing(undefined);
@@ -108,13 +107,13 @@ function DownloadsTableInner({
   const columns = useMemo(
     () =>
       downloadsColumns({
-        user,
+        permissions,
         onView: goToDetail,
         onEdit: openEdit,
         onTogglePublish,
         onDelete: setToDelete,
       }),
-    [user, goToDetail, openEdit, onTogglePublish],
+    [permissions, goToDetail, openEdit, onTogglePublish],
   );
 
   return (

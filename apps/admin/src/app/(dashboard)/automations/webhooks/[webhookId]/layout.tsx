@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/http";
 import type { Webhook } from "@/lib/api/types";
@@ -17,8 +17,9 @@ export default async function WebhookLayout({
 }) {
   const { webhookId } = await params;
 
+  await requirePermission("automations:read");
+
   const webhookPromise = serverApi.getWebhook(webhookId);
-  await requireManager(webhookPromise);
 
   let webhook: Webhook;
   try {

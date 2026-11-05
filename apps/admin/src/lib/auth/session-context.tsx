@@ -9,7 +9,7 @@ import type { Organization, SessionUser } from "../api/types";
  * Thin client session context, **seeded from the server-resolved session**
  * (`getServerSession` in the `(dashboard)` layout). There is no live better-auth
  * stitching here anymore — the server already validated the cookie and resolved
- * user + active org + role, and passes them down as props. Client components
+ * user + active org, and passes them down as props. Client components
  * read them synchronously via the hooks below.
  */
 
@@ -35,11 +35,6 @@ export function SessionProvider({
         name: session.user.name,
         email: session.user.email,
         image: session.user.image,
-        role: session.role,
-        // Instructor course scoping has no backing store — the server holds no
-        // course assignments — so this is always empty. Managers see everything
-        // regardless; `can.editCourse` is the only reader.
-        scopedCourseIds: [],
       },
       // Non-null in the authenticated status the layout mounts this under.
       organization: session.organization ?? { id: "", name: "", slug: "" },

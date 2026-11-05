@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getServerSession } from "@/lib/auth/server-session";
+import { getMyPermissions } from "@/lib/auth/server-permissions";
+import { PermissionsProvider } from "@/lib/auth/permissions-context";
 import { SessionProvider } from "@/lib/auth/session-context";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,5 +18,11 @@ export default async function BuilderLayout({ children }: { children: ReactNode 
   if (!session) redirect("/login");
   if (session.status !== "authenticated") redirect("/onboarding");
 
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+  const permissions = await getMyPermissions();
+
+  return (
+    <SessionProvider session={session}>
+      <PermissionsProvider permissions={permissions}>{children}</PermissionsProvider>
+    </SessionProvider>
+  );
 }

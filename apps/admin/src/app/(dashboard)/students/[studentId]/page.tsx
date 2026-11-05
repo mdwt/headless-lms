@@ -1,11 +1,11 @@
 import { serverApi } from "@/lib/api/server";
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 import { StudentDetailView } from "./student-detail-view";
 
 /**
- * Student detail — pure-RSC (option 2). The Server Component validates the
- * session/role, fetches the student and their entitlements from the API via the
+ * Student detail — pure-RSC (option 2). The Server Component gates on
+ * `people:read`, fetches the student and their entitlements from the API via the
  * SDK (cookie-forwarded), and hands them to the client view as PROPS. No
  * react-query, no HydrationBoundary. A missing student surfaces as a 404 thrown
  * by the SDK, so we let it propagate.
@@ -16,17 +16,16 @@ export default async function StudentDetailPage({
   params: Promise<{ studentId: string }>;
 }) {
   const { studentId } = await params;
+  const { permissions } = await requirePermission("people:read");
+  const canSeeAccess = permissions.has("access:read");
+  const canGrant = permissions.has("access:write");
 
-  // Start the data fetches immediately, gate on session/role, then await them —
-  // all API round-trips run in parallel instead of sequentially.
-  const dataPromise = Promise.all([
+  const [student, entitlements, content, analytics] = await Promise.all([
     serverApi.getStudent(studentId),
-    serverApi.studentEntitlements(studentId),
-    serverApi.contentLite(),
+    canSeeAccess ? serverApi.studentEntitlements(studentId) : Promise.resolve([]),
+    canGrant ? serverApi.contentLite() : Promise.resolve([]),
     serverApi.studentAnalytics(studentId),
   ]);
-  await requireManager(dataPromise);
-  const [student, entitlements, content, analytics] = await dataPromise;
 
   return (
     <StudentDetailView

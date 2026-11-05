@@ -6,18 +6,17 @@ import { CourseStatusBadge } from "@/components/status-badge";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { can } from "@/lib/roles";
 import { relativeTime } from "@/lib/format";
-import type { Community, SessionUser } from "@/lib/api/types";
+import type { Community } from "@/lib/api/types";
+import type { Permissions } from "@/lib/permissions";
 
 export function communitiesColumns(opts: {
-  user: SessionUser;
+  permissions: Permissions;
   onView: (community: Community) => void;
   onTogglePublish: (community: Community) => void;
   onDelete: (community: Community) => void;
 }): ColumnDef<Community, unknown>[] {
-  const { user, onView, onTogglePublish, onDelete } = opts;
-  const canManage = can.manageCommunities(user);
+  const { permissions, onView, onTogglePublish, onDelete } = opts;
 
   return [
     {
@@ -59,15 +58,19 @@ export function communitiesColumns(opts: {
       enableHiding: false,
       cell: ({ row }) => {
         const community = row.original;
+        const canManage = permissions.has("communities:write", community.id);
+        const canDelete = permissions.has("communities:delete", community.id);
         return (
           <div className="flex justify-end">
             <RowActions>
               <DropdownMenuItem onClick={() => onView(community)}>View</DropdownMenuItem>
               {canManage && (
+                <DropdownMenuItem onClick={() => onTogglePublish(community)}>
+                  {community.status === "published" ? "Unpublish" : "Publish"}
+                </DropdownMenuItem>
+              )}
+              {canDelete && (
                 <>
-                  <DropdownMenuItem onClick={() => onTogglePublish(community)}>
-                    {community.status === "published" ? "Unpublish" : "Publish"}
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="danger" onClick={() => onDelete(community)}>
                     Delete

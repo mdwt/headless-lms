@@ -7,12 +7,10 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ForbiddenView } from "@/components/full-page-states";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { isManager } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Automation, AutomationTriggerInfo, ListParams } from "@/lib/api/types";
 
 import { automationColumns } from "./automations-columns";
@@ -37,7 +35,9 @@ function AutomationsTableInner({
   triggers: AutomationTriggerInfo[];
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
+  const canWrite = permissions.has("automations:write");
+  const canDelete = permissions.has("automations:delete");
 
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
 
@@ -94,11 +94,13 @@ function AutomationsTableInner({
   const triggerInfo = useMemo(() => new Map(triggers.map((t) => [t.type, t])), [triggers]);
 
   const columns = useMemo(
-    () => automationColumns(triggerInfo, onToggleEnabled, onEdit, onDelete),
-    [triggerInfo, onToggleEnabled, onEdit, onDelete],
+    () =>
+      automationColumns(triggerInfo, onToggleEnabled, onEdit, onDelete, {
+        write: canWrite,
+        delete: canDelete,
+      }),
+    [triggerInfo, onToggleEnabled, onEdit, onDelete, canWrite, canDelete],
   );
-
-  if (!isManager(user.role)) return <ForbiddenView />;
 
   return (
     <div className="flex flex-col gap-6">
@@ -135,16 +137,20 @@ function AutomationsTableInner({
           },
         ]}
         toolbarActions={
-          <Button variant="primary" size="sm" asChild>
-            <Link href="/automations/workflows/new">New workflow</Link>
-          </Button>
+          canWrite ? (
+            <Button variant="primary" size="sm" asChild>
+              <Link href="/automations/workflows/new">New workflow</Link>
+            </Button>
+          ) : undefined
         }
         emptyTitle="No workflows yet"
         emptyDescription="Create a workflow to react to events — like emailing a student when they complete a course."
         emptyAction={
-          <Button variant="primary" asChild>
-            <Link href="/automations/workflows/new">New workflow</Link>
-          </Button>
+          canWrite ? (
+            <Button variant="primary" asChild>
+              <Link href="/automations/workflows/new">New workflow</Link>
+            </Button>
+          ) : undefined
         }
       />
 

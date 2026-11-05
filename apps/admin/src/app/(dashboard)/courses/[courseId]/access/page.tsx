@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { AccessGrantsList } from "@/components/access-grants-list";
 import { GrantAccessButton } from "@/components/grant-access-button";
 
@@ -10,10 +11,12 @@ export default async function CourseAccessTab({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
+  const { permissions } = await requirePermission(["access:read", "progress:read"], courseId);
+  const canGrant = permissions.has("access:write") && permissions.has("people:read");
 
   const [grants, students] = await Promise.all([
     serverApi.contentEntitlements(courseId),
-    serverApi.studentsLite(),
+    canGrant ? serverApi.studentsLite() : Promise.resolve([]),
   ]);
 
   // Anyone already on the list can't be granted twice — revoked grants are
@@ -25,14 +28,20 @@ export default async function CourseAccessTab({
     <AccessGrantsList
       grants={grants}
       emptyDescription="Students granted access to this course will appear here."
-      action={<GrantAccessButton contentId={courseId} contentNoun="course" students={candidates} />}
+      action={
+        canGrant ? (
+          <GrantAccessButton contentId={courseId} contentNoun="course" students={candidates} />
+        ) : undefined
+      }
       emptyAction={
-        <GrantAccessButton
-          contentId={courseId}
-          contentNoun="course"
-          students={candidates}
-          variant="secondary"
-        />
+        canGrant ? (
+          <GrantAccessButton
+            contentId={courseId}
+            contentNoun="course"
+            students={candidates}
+            variant="secondary"
+          />
+        ) : undefined
       }
     />
   );

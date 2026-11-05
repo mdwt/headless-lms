@@ -1,4 +1,4 @@
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { parseListParams } from "@/lib/table/parse-list-params";
 
@@ -16,8 +16,9 @@ export default async function WebhooksPage({
     initialSort: [{ id: "url", desc: false }],
   });
 
+  await requirePermission("automations:read");
+
   const dataPromise = Promise.all([serverApi.listWebhooks(), serverApi.automationTriggers()]);
-  await requireManager(dataPromise);
   const [all, triggers] = await dataPromise;
   const { rows, total } = shapeWebhooksList(all, params);
 

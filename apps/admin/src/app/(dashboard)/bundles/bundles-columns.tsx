@@ -5,22 +5,22 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { can } from "@/lib/roles";
 import { relativeTime } from "@/lib/format";
-import type { BundleRow, SessionUser } from "@/lib/api/types";
+import type { BundleRow } from "@/lib/api/types";
+import type { Permissions } from "@/lib/permissions";
 
 /**
  * Column set for the bundles list. Callbacks drive the row-title link and the
- * row-action menu; role gating (`can.*`) hides actions the caller can't perform.
+ * row-action menu; the caller's permissions hide actions they can't perform.
  */
 export function bundlesColumns(opts: {
-  user: SessionUser;
+  permissions: Permissions;
   onEdit: (bundle: BundleRow) => void;
   onDelete: (bundle: BundleRow) => void;
 }): ColumnDef<BundleRow, unknown>[] {
-  const { user, onEdit, onDelete } = opts;
-  const canEdit = can.editBundle(user);
-  const canDelete = can.deleteBundle(user);
+  const { permissions, onEdit, onDelete } = opts;
+  const canEdit = permissions.has("bundles:write");
+  const canDelete = permissions.has("bundles:delete");
 
   return [
     {

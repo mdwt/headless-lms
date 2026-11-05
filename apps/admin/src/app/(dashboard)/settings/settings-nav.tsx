@@ -8,54 +8,75 @@ import {
   Building2,
   KeyRound,
   PlugZap,
+  ShieldCheck,
   User,
   Users,
   type LucideIcon,
 } from "lucide-react";
 
+import { usePermissions } from "@/lib/auth/permissions-context";
+import type { Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  needs?: Permission;
 }
 interface NavGroup {
   label: string;
-  managerOnly: boolean;
   items: NavItem[];
 }
 
 const GROUPS: NavGroup[] = [
   {
     label: "Organization",
-    managerOnly: true,
     items: [
-      { href: "/settings/general", label: "General", icon: Building2 },
-      { href: "/settings/team", label: "Team", icon: Users },
-      { href: "/settings/integrations", label: "Integrations", icon: Blocks },
-      { href: "/settings/notifications", label: "Notifications", icon: Bell },
+      {
+        href: "/settings/general",
+        label: "General",
+        icon: Building2,
+        needs: "organizations:read",
+      },
+      { href: "/settings/team", label: "Team", icon: Users, needs: "people:read" },
+      { href: "/settings/roles", label: "Roles", icon: ShieldCheck, needs: "roles:read" },
+      {
+        href: "/settings/integrations",
+        label: "Integrations",
+        icon: Blocks,
+        needs: "integrations:read",
+      },
+      {
+        href: "/settings/notifications",
+        label: "Notifications",
+        icon: Bell,
+        needs: "notification_categories:read",
+      },
     ],
   },
   {
     label: "Account",
-    managerOnly: false,
     items: [
       { href: "/settings/account", label: "Profile", icon: User },
       { href: "/settings/connected-apps", label: "Connected apps", icon: PlugZap },
-      { href: "/settings/api-keys", label: "API keys", icon: KeyRound },
+      { href: "/settings/api-keys", label: "API keys", icon: KeyRound, needs: "api_keys:read" },
     ],
   },
 ];
 
 /**
  * Grouped settings sub-navigation (Vercel/Linear pattern): a vertical list of
- * real routes grouped into sections. The Organization section is manager-only.
+ * real routes grouped into sections, each item shown by its own permission.
  * Active state is derived from the pathname.
  */
-export function SettingsNav({ manager }: { manager: boolean }) {
+export function SettingsNav() {
   const pathname = usePathname();
-  const groups = GROUPS.filter((g) => manager || !g.managerOnly);
+  const permissions = usePermissions();
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((item) => !item.needs || permissions.has(item.needs)),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <nav className="flex flex-col gap-6" aria-label="Settings">

@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { CourseStatusBadge } from "@/components/status-badge";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Download } from "@/lib/api/types";
 import { formatBytes, formatNumber, relativeTime } from "@/lib/format";
 
@@ -27,9 +26,9 @@ export function DownloadHeader({
 }: {
   download: Download;
   /** Composed client-side from the assets + grants resources (not on the row). */
-  stats: { assetCount: number; totalSize: number; entitledCount: number };
+  stats: { assetCount: number; totalSize: number; entitledCount: number | null };
 }) {
-  const user = useCurrentUser();
+  const permissions = usePermissions();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -81,20 +80,24 @@ export function DownloadHeader({
             <span className="tabular-nums">{formatNumber(stats.assetCount)} files</span>
             <Dot />
             <span className="tabular-nums">{formatBytes(stats.totalSize)}</span>
-            <Dot />
-            <span className="tabular-nums">{formatNumber(stats.entitledCount)} entitled</span>
+            {stats.entitledCount !== null ? (
+              <>
+                <Dot />
+                <span className="tabular-nums">{formatNumber(stats.entitledCount)} entitled</span>
+              </>
+            ) : null}
             <Dot />
             <span>Updated {relativeTime(download.updatedAt)}</span>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {can.publishDownload(user) && (
+          {permissions.has("downloads:write", download.id) && (
             <Button variant="primary" onClick={onTogglePublish} disabled={isPending}>
               {download.status === "published" ? "Unpublish" : "Publish"}
             </Button>
           )}
-          {can.deleteDownload(user) && (
+          {permissions.has("downloads:delete", download.id) && (
             <Button
               variant="destructive"
               onClick={() => setConfirmingDelete(true)}

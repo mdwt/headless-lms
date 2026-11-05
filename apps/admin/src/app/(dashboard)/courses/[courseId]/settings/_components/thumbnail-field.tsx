@@ -75,6 +75,7 @@ export function ThumbnailField({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type,
+        contentId: courseId,
       });
       await putToStorage(ticket.uploadUrl, ticket.headers, file, setProgress);
       const asset = await confirmAssetAction(ticket.asset.id);
@@ -165,6 +166,7 @@ export function ThumbnailField({
           kind="image"
           onOpenChange={setPickerOpen}
           onSelect={onSelect}
+          contentId={courseId}
         />
       </div>
     </SettingsSection>

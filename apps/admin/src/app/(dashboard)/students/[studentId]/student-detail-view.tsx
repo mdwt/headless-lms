@@ -8,15 +8,13 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { RowActions } from "@/components/data-table/row-actions";
-import { ForbiddenView } from "@/components/full-page-states";
 import { EntitlementStatusBadge } from "@/components/status-badge";
 import { NameAvatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { isManager } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import { formatDate, fullName, relativeTime, relativeTimeCompact } from "@/lib/format";
 import type {
   Entitlement,
@@ -27,13 +25,13 @@ import type {
 
 import { GrantAccessDialog, type LiteContent } from "../_components/grant-access-dialog";
 import { setEntitlementStatusAction } from "../../entitlements/actions";
-import { deleteStudentAction, resendStudentInviteAction } from "../actions";
+import { removePersonAction, resendInviteAction } from "../../settings/team/actions";
 
 /**
  * Student detail client view (option 2). The student and their entitlements
  * arrive as PROPS from the Server Component — no `useStudent`/
  * `useStudentEntitlements`, no client query cache, so no loading/error states.
- * The role check stays as belt-and-suspenders (the RSC already gated managers).
+ * Actions show from the viewer's permissions; the RSC gates the page on `people:read`.
  */
 export function StudentDetailView({
   student,
@@ -46,7 +44,9 @@ export function StudentDetailView({
   content: LiteContent[];
   analytics: StudentAnalytics;
 }) {
-  const user = useCurrentUser();
+  const permissions = usePermissions();
+  const canSeeAccess = permissions.has("access:read");
+  const canGrant = permissions.has("access:write");
   const router = useRouter();
   const [grantOpen, setGrantOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -55,12 +55,10 @@ export function StudentDetailView({
   const [resending, startResend] = useTransition();
   const [updatingAccess, startAccessUpdate] = useTransition();
 
-  if (!isManager(user.role)) return <ForbiddenView />;
-
   const onResendInvite = () =>
     startResend(async () => {
       try {
-        await resendStudentInviteAction(student.id);
+        await resendInviteAction(student.id);
         toast.success("Invite sent", { description: student.email });
         router.refresh();
       } catch (err) {
@@ -98,11 +96,11 @@ export function StudentDetailView({
   const onDelete = () =>
     startDelete(async () => {
       try {
-        await deleteStudentAction(student.id);
-        toast.success("Student deleted");
+        await removePersonAction(student.id);
+        toast.success("Removed from org");
         router.push("/students");
       } catch (err) {
-        toast.error("Couldn't delete student", { description: (err as Error).message });
+        toast.error("Couldn't remove student", { description: (err as Error).message });
       }
     });
 
@@ -120,13 +118,13 @@ export function StudentDetailView({
       <StudentHeader
         student={student}
         resending={resending}
-        onResendInvite={onResendInvite}
-        onDelete={() => setConfirmDelete(true)}
+        onResendInvite={permissions.has("people:write") ? onResendInvite : undefined}
+        onDelete={permissions.has("people:delete") ? () => setConfirmDelete(true) : undefined}
       />
 
-      <Tabs defaultValue="access" className="flex flex-col gap-6">
+      <Tabs defaultValue={canSeeAccess ? "access" : "analytics"} className="flex flex-col gap-6">
         <TabsList>
-          <TabsTrigger value="access">Access</TabsTrigger>
+          {canSeeAccess ? <TabsTrigger value="access">Access</TabsTrigger> : null}
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -137,9 +135,11 @@ export function StudentDetailView({
               {entitlements.length > 0 ? (
                 <span className="text-sm text-ink-3">{entitlements.length} total</span>
               ) : null}
-              <Button variant="primary" size="sm" onClick={() => setGrantOpen(true)}>
-                Grant access
-              </Button>
+              {canGrant ? (
+                <Button variant="primary" size="sm" onClick={() => setGrantOpen(true)}>
+                  Grant access
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -151,6 +151,7 @@ export function StudentDetailView({
                 <EntitlementRow
                   key={e.id}
                   entitlement={e}
+                  canChange={canGrant}
                   onRevoke={() => setRevokeTarget(e)}
                   onReinstate={() => onReinstate(e)}
                 />
@@ -194,15 +195,14 @@ export function StudentDetailView({
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title="Delete student?"
+        title="Remove from org?"
         description={
           <>
-            This permanently deletes{" "}
-            <span className="font-medium text-ink">{fullName(student)}</span>, along with their
-            entitlements and progress. This can&apos;t be undone.
+            This removes <span className="font-medium text-ink">{fullName(student)}</span> from the
+            organization, along with their entitlements and progress. This can&apos;t be undone.
           </>
         }
-        confirmLabel="Delete student"
+        confirmLabel="Remove from org"
         destructive
         pending={deleting}
         onConfirm={onDelete}
@@ -219,8 +219,8 @@ function StudentHeader({
 }: {
   student: Student;
   resending: boolean;
-  onResendInvite: () => void;
-  onDelete: () => void;
+  onResendInvite?: () => void;
+  onDelete?: () => void;
 }) {
   // A student exists from the moment an admin adds them, so the page has to say
   // whether they have actually arrived.
@@ -251,16 +251,18 @@ function StudentHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {pending && (
+          {pending && onResendInvite ? (
             <Button variant="secondary" size="sm" onClick={onResendInvite} disabled={resending}>
               Resend invite
             </Button>
-          )}
-          <RowActions label="Student actions">
-            <DropdownMenuItem variant="danger" onClick={onDelete}>
-              Delete student
-            </DropdownMenuItem>
-          </RowActions>
+          ) : null}
+          {onDelete ? (
+            <RowActions label="Student actions">
+              <DropdownMenuItem variant="danger" onClick={onDelete}>
+                Remove from org
+              </DropdownMenuItem>
+            </RowActions>
+          ) : null}
         </div>
       </div>
 
@@ -283,10 +285,12 @@ function StudentHeader({
 
 function EntitlementRow({
   entitlement: e,
+  canChange,
   onRevoke,
   onReinstate,
 }: {
   entitlement: Entitlement;
+  canChange: boolean;
   onRevoke: () => void;
   onReinstate: () => void;
 }) {
@@ -304,18 +308,20 @@ function EntitlementRow({
           {e.expiresAt ? `Expires ${relativeTime(e.expiresAt)}` : "No expiry"}
         </p>
       </div>
-      <div className="flex shrink-0 justify-end">
-        <RowActions label="Entitlement actions">
-          {e.status === "active" ? (
-            <DropdownMenuItem variant="danger" onSelect={onRevoke}>
-              Revoke access
-            </DropdownMenuItem>
-          ) : null}
-          {canReinstate ? (
-            <DropdownMenuItem onSelect={onReinstate}>Reinstate access</DropdownMenuItem>
-          ) : null}
-        </RowActions>
-      </div>
+      {canChange ? (
+        <div className="flex shrink-0 justify-end">
+          <RowActions label="Entitlement actions">
+            {e.status === "active" ? (
+              <DropdownMenuItem variant="danger" onSelect={onRevoke}>
+                Revoke access
+              </DropdownMenuItem>
+            ) : null}
+            {canReinstate ? (
+              <DropdownMenuItem onSelect={onReinstate}>Reinstate access</DropdownMenuItem>
+            ) : null}
+          </RowActions>
+        </div>
+      ) : null}
     </li>
   );
 }

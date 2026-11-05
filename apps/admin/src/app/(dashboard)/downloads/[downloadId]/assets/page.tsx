@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 import { DownloadAssetsPanel } from "../_components/download-assets-panel";
 
@@ -10,8 +11,15 @@ export default async function DownloadAssetsTab({
   params: Promise<{ downloadId: string }>;
 }) {
   const { downloadId } = await params;
+  const { permissions } = await requirePermission("downloads:read", downloadId);
 
   const assets = await serverApi.listDownloadAssets(downloadId);
 
-  return <DownloadAssetsPanel downloadId={downloadId} assets={assets} />;
+  return (
+    <DownloadAssetsPanel
+      downloadId={downloadId}
+      assets={assets}
+      canEdit={permissions.has("downloads:write", downloadId)}
+    />
+  );
 }

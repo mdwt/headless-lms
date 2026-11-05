@@ -7,12 +7,10 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ForbiddenView } from "@/components/full-page-states";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { schemaDefaults } from "@/components/forms/schema-fields";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { isManager } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import { cn } from "@/lib/utils";
 import type {
   Automation,
@@ -51,7 +49,9 @@ export function AutomationEditor({
   connections: IntegrationConnection[];
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
+  const canWrite = permissions.has("automations:write");
+  const canDelete = permissions.has("automations:delete");
 
   const initial = useMemo(() => draftFromAutomation(automation), [automation]);
   const [draft, setDraft] = useState<AutomationDraft>(initial);
@@ -198,8 +198,6 @@ export function AutomationEditor({
     [draft.triggers, triggers],
   );
 
-  if (!isManager(user.role)) return <ForbiddenView />;
-
   return (
     <div className="flex flex-col gap-5">
       {/* Header: back, editable name/description, enabled + save/delete. */}
@@ -239,7 +237,7 @@ export function AutomationEditor({
               aria-label="Enabled"
             />
           </label>
-          {automation ? (
+          {automation && canDelete ? (
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
               Delete
             </Button>
@@ -248,7 +246,7 @@ export function AutomationEditor({
             variant="primary"
             size="sm"
             onClick={save}
-            disabled={pending || (automation != null && !dirty)}
+            disabled={!canWrite || pending || (automation != null && !dirty)}
           >
             {pending && <Loader2 className="animate-spin" />}
             {automation ? "Save" : "Create workflow"}

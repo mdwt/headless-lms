@@ -1,4 +1,4 @@
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { parseListParams } from "@/lib/table/parse-list-params";
 
@@ -10,21 +10,19 @@ export default async function EntitlementsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const { permissions } = await requirePermission("access:read");
+  const canGrant = permissions.has("access:write") && permissions.has("people:read");
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 10,
     initialSort: [{ id: "grantedAt", desc: true }],
   });
 
-  // Start the data fetches immediately, gate on session/role, then await them —
-  // all API round-trips run in parallel instead of sequentially.
-  const dataPromise = Promise.all([
+  const [{ rows, total }, students, content] = await Promise.all([
     serverApi.listEntitlements(params),
-    serverApi.studentsLite(),
-    serverApi.contentLite(),
+    canGrant ? serverApi.studentsLite() : Promise.resolve([]),
+    canGrant ? serverApi.contentLite() : Promise.resolve([]),
   ]);
-  await requireManager(dataPromise);
-  const [{ rows, total }, students, content] = await dataPromise;
 
   return (
     <EntitlementsTable
@@ -33,6 +31,7 @@ export default async function EntitlementsPage({
       params={params}
       students={students}
       content={content}
+      canGrant={canGrant}
     />
   );
 }

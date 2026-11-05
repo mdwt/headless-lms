@@ -7,14 +7,16 @@ import { ScopePicker } from "@/components/forms/scope-picker";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { defaultSelected } from "@/lib/auth/oauth-flow";
+import type { PermissionDefinition } from "@/lib/permissions";
 
 export function ConsentForm({
-  scopes,
+  permissions,
   offlineAccess,
 }: {
-  scopes: string[];
+  permissions: PermissionDefinition[];
   offlineAccess: boolean;
 }) {
+  const scopes: string[] = permissions.map((p) => p.key);
   const [selected, setSelected] = useState(() => scopes.filter(defaultSelected));
   const [pending, setPending] = useState<"allow" | "deny" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,9 @@ export function ConsentForm({
 
   return (
     <div className="mt-6 flex flex-col gap-6">
-      {scopes.length > 0 && <ScopePicker scopes={scopes} value={selected} onChange={setSelected} />}
+      {scopes.length > 0 && (
+        <ScopePicker permissions={permissions} value={selected} onChange={setSelected} />
+      )}
       <div className="flex flex-col gap-3">
         {error && (
           <div className="flex items-start gap-2.5 rounded-lg border border-danger/20 bg-danger-soft px-3 py-2.5 text-sm text-danger">

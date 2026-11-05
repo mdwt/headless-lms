@@ -11,55 +11,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MemberStatusBadge, RoleBadge } from "@/components/status-badge";
+import { ItemRoleBadges, MemberStatusBadge, RoleBadge } from "@/components/status-badge";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { fullName, relativeTime } from "@/lib/format";
-import type { Member } from "@/lib/api/types";
+import type { Member, OrgRole } from "@/lib/api/types";
 
-/** Roles a manager may assign to an existing member — never owner (that's fixed). */
-const ASSIGNABLE_ROLES = [
-  { label: "Admin", value: "admin" },
-  { label: "Instructor", value: "instructor" },
-  { label: "Moderator", value: "moderator" },
-] as const;
-
-export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]["value"];
-
-/**
- * Inline role control. Owners are fixed (badge only, never editable); when the
- * viewer can't manage roles we also fall back to a read-only badge. The change
- * is optimistic — the island applies `useOptimistic` and calls the Server Action.
- */
 function RoleCell({
   member,
   editable,
+  roles,
+  team,
   onChange,
 }: {
   member: Member;
   editable: boolean;
-  onChange: (id: string, role: AssignableRole) => void;
+  roles: OrgRole[];
+  team: boolean;
+  onChange: (member: Member, roleKey: string) => void;
 }) {
-  if (!editable || member.role === "owner") {
-    return <RoleBadge role={member.role} />;
+  if (!editable || roles.length === 0) {
+    return <RoleBadge name={member.orgRole.name} isOwner={member.isOwner} team={team} />;
   }
 
   return (
-    <Select
-      value={member.role}
-      onValueChange={(role) => onChange(member.id, role as AssignableRole)}
-    >
+    <Select value={member.orgRole.key} onValueChange={(roleKey) => onChange(member, roleKey)}>
       <SelectTrigger
         size="sm"
-        className="w-[9.5rem]"
-        aria-label={`Change role for ${fullName(member)}`}
+        className="w-[11rem]"
+        aria-label={`Change org role for ${fullName(member)}`}
       >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {ASSIGNABLE_ROLES.map((r) => (
-          <SelectItem key={r.value} value={r.value}>
-            {r.label}
+        {roles.map((r) => (
+          <SelectItem key={r.key} value={r.key}>
+            {r.name}
           </SelectItem>
         ))}
       </SelectContent>
@@ -68,20 +55,33 @@ function RoleCell({
 }
 
 export function memberColumns({
-  canManageRoles,
+  canSetRole,
+  canInvite,
+  canRemove,
   currentUserEmail,
+  roles,
+  teamRoleKeys,
+  titles,
   onRemove,
   onChangeRole,
-  onRemoveModerator,
+  onResend,
+  onCancelInvite,
 }: {
-  canManageRoles: boolean;
+  canSetRole: boolean;
+  canInvite: boolean;
+  canRemove: boolean;
   /** Matched on rather than an id: `Member.id` is the org_users row, while the
    *  session carries the auth account id — the two never compare equal. */
   currentUserEmail: string;
+  roles: OrgRole[];
+  teamRoleKeys: Set<string>;
+  titles: Record<string, string>;
   onRemove: (member: Member) => void;
-  onChangeRole: (id: string, role: AssignableRole) => void;
-  onRemoveModerator: (member: Member) => void;
+  onChangeRole: (member: Member, roleKey: string) => void;
+  onResend: (member: Member) => void;
+  onCancelInvite: (member: Member) => void;
 }): ColumnDef<Member, unknown>[] {
+  const isSelf = (m: Member) => m.email.toLowerCase() === currentUserEmail.toLowerCase();
   return [
     {
       id: "name",
@@ -103,13 +103,27 @@ export function memberColumns({
       },
     },
     {
-      id: "role",
-      accessorKey: "role",
-      header: ({ column }) => <ColumnHeader column={column} title="Role" />,
+      id: "roleKey",
+      header: ({ column }) => <ColumnHeader column={column} title="Org role" />,
       enableSorting: false,
-      cell: ({ row }) => (
-        <RoleCell member={row.original} editable={canManageRoles} onChange={onChangeRole} />
-      ),
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <RoleCell
+            member={m}
+            editable={canSetRole && !m.isOwner && !isSelf(m)}
+            roles={roles}
+            team={teamRoleKeys.has(m.orgRole.key)}
+            onChange={onChangeRole}
+          />
+        );
+      },
+    },
+    {
+      id: "items",
+      header: ({ column }) => <ColumnHeader column={column} title="Roles on items" />,
+      enableSorting: false,
+      cell: ({ row }) => <ItemRoleBadges items={row.original.items} titles={titles} />,
     },
     {
       id: "status",
@@ -141,35 +155,31 @@ export function memberColumns({
       meta: { align: "right" },
       cell: ({ row }) => {
         const m = row.original;
-        const isOwner = m.role === "owner";
-        const isSelf = m.email.toLowerCase() === currentUserEmail.toLowerCase();
-        // Owners are fixed and can never be removed; nor can you remove yourself.
-        const disabledRemove = isOwner || isSelf;
+        const invited = m.status === "invited" && canInvite;
+        const removable = canRemove && !m.isOwner && !isSelf(m);
+        if (!invited && !removable) return null;
         return (
           <RowActions label={`Actions for ${fullName(m)}`}>
-            {canManageRoles && m.role === "moderator" && m.status === "active" ? (
+            {invited ? (
               <>
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    onRemoveModerator(m);
-                  }}
-                >
-                  Remove moderator role
+                <DropdownMenuItem onSelect={() => onResend(m)}>Resend invite</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onCancelInvite(m)}>
+                  Cancel invite
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
               </>
             ) : null}
-            <DropdownMenuItem
-              variant="danger"
-              disabled={disabledRemove}
-              onSelect={(e) => {
-                e.preventDefault();
-                if (!disabledRemove) onRemove(m);
-              }}
-            >
-              Remove from org
-            </DropdownMenuItem>
+            {invited && removable ? <DropdownMenuSeparator /> : null}
+            {removable ? (
+              <DropdownMenuItem
+                variant="danger"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onRemove(m);
+                }}
+              >
+                Remove from org
+              </DropdownMenuItem>
+            ) : null}
           </RowActions>
         );
       },

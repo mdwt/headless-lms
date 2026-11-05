@@ -4,19 +4,15 @@ import { useId } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  isDeleteScope,
-  SCOPE_ACTION_LABELS,
-  SCOPE_NOTES,
-  SCOPE_RESOURCES,
-} from "@/lib/auth/oauth-flow";
+import { isDeleteScope, SCOPE_NOTES } from "@/lib/auth/oauth-flow";
+import { permissionGroupLabel, type PermissionDefinition } from "@/lib/permissions";
 
 export function ScopePicker({
-  scopes,
+  permissions,
   value,
   onChange,
 }: {
-  scopes: string[];
+  permissions: PermissionDefinition[];
   value: string[];
   onChange: (value: string[]) => void;
 }) {
@@ -26,64 +22,54 @@ export function ScopePicker({
   const toggle = (scope: string) =>
     onChange(selected.has(scope) ? value.filter((item) => item !== scope) : [...value, scope]);
 
-  const groups = SCOPE_RESOURCES.map(({ resource, label }) => ({
-    resource,
-    label,
-    scopes: scopes.filter((scope) => scope.startsWith(`${resource}:`) && !isDeleteScope(scope)),
-  })).filter((group) => group.scopes.length > 0);
+  const groups = [
+    ...Map.groupBy(
+      permissions.filter((p) => !isDeleteScope(p.key)),
+      (p) => p.group,
+    ),
+  ].map(([group, items]) => ({ group, label: permissionGroupLabel(group), items }));
+  const deletable = permissions.filter((p) => isDeleteScope(p.key));
 
-  const deletable = SCOPE_RESOURCES.flatMap(({ resource, label }) =>
-    scopes
-      .filter((scope) => scope.startsWith(`${resource}:`) && isDeleteScope(scope))
-      .map((scope) => ({ scope, label })),
-  );
-
-  const option = (scope: string, text: string) => (
+  const option = (permission: PermissionDefinition) => (
     <label
-      key={scope}
-      htmlFor={`${id}-${scope}`}
+      key={permission.key}
+      htmlFor={`${id}-${permission.key}`}
+      title={permission.description}
       className="flex items-center gap-2.5 text-sm text-ink-2"
     >
       <Checkbox
-        id={`${id}-${scope}`}
-        checked={selected.has(scope)}
-        onChange={() => toggle(scope)}
+        id={`${id}-${permission.key}`}
+        checked={selected.has(permission.key)}
+        onChange={() => toggle(permission.key)}
       />
-      {text}
+      {permission.label}
     </label>
   );
 
   return (
     <div className="flex flex-col gap-6">
       {groups.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {groups.map((group) => (
             <div
-              key={group.resource}
+              key={group.group}
               role="group"
-              aria-labelledby={`${id}-${group.resource}`}
+              aria-labelledby={`${id}-${group.group}`}
               className="flex items-start gap-4"
             >
               <span
-                id={`${id}-${group.resource}`}
-                className="w-24 shrink-0 text-sm font-medium text-ink"
+                id={`${id}-${group.group}`}
+                className="w-28 shrink-0 text-sm font-medium text-ink"
               >
                 {group.label}
               </span>
               <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {group.scopes.map((scope) =>
-                    option(
-                      scope,
-                      SCOPE_ACTION_LABELS[scope.slice(group.resource.length + 1)] ?? scope,
-                    ),
-                  )}
-                </div>
-                {group.scopes
-                  .filter((scope) => SCOPE_NOTES[scope])
-                  .map((scope) => (
-                    <p key={`${scope}-note`} className="text-xs text-ink-3">
-                      {SCOPE_NOTES[scope]}
+                <div className="flex flex-wrap gap-x-4 gap-y-2">{group.items.map(option)}</div>
+                {group.items
+                  .filter((p) => SCOPE_NOTES[p.key])
+                  .map((p) => (
+                    <p key={`${p.key}-note`} className="text-xs text-ink-3">
+                      {p.label}: {SCOPE_NOTES[p.key]}
                     </p>
                   ))}
               </div>
@@ -102,9 +88,7 @@ export function ScopePicker({
               Lets the app permanently delete what you tick.
             </p>
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {deletable.map(({ scope, label }) => option(scope, label))}
-          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">{deletable.map(option)}</div>
         </div>
       )}
     </div>

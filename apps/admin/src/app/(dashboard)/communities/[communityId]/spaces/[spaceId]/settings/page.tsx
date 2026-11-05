@@ -1,4 +1,4 @@
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { SettingsSurface } from "@/components/forms/settings-section";
 
@@ -14,10 +14,11 @@ export default async function SpaceSettingsTab({
   params: Promise<{ communityId: string; spaceId: string }>;
 }) {
   const { communityId, spaceId } = await params;
-  const spacePromise = serverApi.getSpace(communityId, spaceId);
-  const contentPromise = serverApi.linkableContent();
-  await requireManager(spacePromise, contentPromise);
-  const [space, content] = await Promise.all([spacePromise, contentPromise]);
+  await requirePermission("communities:write", communityId);
+  const [space, content] = await Promise.all([
+    serverApi.getSpace(communityId, spaceId),
+    serverApi.linkableContent(),
+  ]);
   const links = await serverApi.spaceLinks(space);
 
   return (

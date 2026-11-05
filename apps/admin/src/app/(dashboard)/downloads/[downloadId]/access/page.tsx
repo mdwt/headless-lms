@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { AccessGrantsList } from "@/components/access-grants-list";
 import { GrantAccessButton } from "@/components/grant-access-button";
 
@@ -10,10 +11,12 @@ export default async function DownloadAccessTab({
   params: Promise<{ downloadId: string }>;
 }) {
   const { downloadId } = await params;
+  const { permissions } = await requirePermission("access:read");
+  const canGrant = permissions.has("access:write") && permissions.has("people:read");
 
   const [grants, students] = await Promise.all([
     serverApi.contentEntitlements(downloadId),
-    serverApi.studentsLite(),
+    canGrant ? serverApi.studentsLite() : Promise.resolve([]),
   ]);
 
   const granted = new Set(grants.map((g) => g.orgUserId));
@@ -24,15 +27,19 @@ export default async function DownloadAccessTab({
       grants={grants}
       emptyDescription="Students granted access to this download will appear here."
       action={
-        <GrantAccessButton contentId={downloadId} contentNoun="download" students={candidates} />
+        canGrant ? (
+          <GrantAccessButton contentId={downloadId} contentNoun="download" students={candidates} />
+        ) : undefined
       }
       emptyAction={
-        <GrantAccessButton
-          contentId={downloadId}
-          contentNoun="download"
-          students={candidates}
-          variant="secondary"
-        />
+        canGrant ? (
+          <GrantAccessButton
+            contentId={downloadId}
+            contentNoun="download"
+            students={candidates}
+            variant="secondary"
+          />
+        ) : undefined
       }
     />
   );

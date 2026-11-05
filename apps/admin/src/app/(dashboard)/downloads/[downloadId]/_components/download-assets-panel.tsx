@@ -65,15 +65,18 @@ const DND_MODIFIERS = [restrictToVerticalAxis, restrictToParentElement];
 
 function AssetRow({
   asset,
+  canEdit,
   onRename,
   onRemove,
 }: {
   asset: DownloadAsset;
+  canEdit: boolean;
   onRename: (asset: DownloadAsset) => void;
   onRemove: (asset: DownloadAsset) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: asset.assetId,
+    disabled: !canEdit,
   });
 
   return (
@@ -85,15 +88,17 @@ function AssetRow({
         isDragging && "relative z-10 shadow-lg",
       )}
     >
-      <button
-        type="button"
-        aria-label="Reorder file"
-        className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md text-ink-4 outline-none transition-colors hover:bg-hover hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-ring/40 active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
+      {canEdit ? (
+        <button
+          type="button"
+          aria-label="Reorder file"
+          className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md text-ink-4 outline-none transition-colors hover:bg-hover hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-ring/40 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      ) : null}
 
       <FileIcon className="size-4 shrink-0 text-ink-4" />
 
@@ -106,12 +111,14 @@ function AssetRow({
         </span>
       </div>
 
-      <RowActions label="File actions">
-        <DropdownMenuItem onClick={() => onRename(asset)}>Rename</DropdownMenuItem>
-        <DropdownMenuItem variant="danger" onClick={() => onRemove(asset)}>
-          Remove
-        </DropdownMenuItem>
-      </RowActions>
+      {canEdit ? (
+        <RowActions label="File actions">
+          <DropdownMenuItem onClick={() => onRename(asset)}>Rename</DropdownMenuItem>
+          <DropdownMenuItem variant="danger" onClick={() => onRemove(asset)}>
+            Remove
+          </DropdownMenuItem>
+        </RowActions>
+      ) : null}
     </div>
   );
 }
@@ -206,9 +213,11 @@ function RenameDialog({
 export function DownloadAssetsPanel({
   downloadId,
   assets: initialAssets,
+  canEdit,
 }: {
   downloadId: string;
   assets: DownloadAsset[];
+  canEdit: boolean;
 }) {
   const router = useRouter();
   const sensors = useDndSensors();
@@ -257,6 +266,7 @@ export function DownloadAssetsPanel({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type || "application/octet-stream",
+        contentId: downloadId,
       });
       await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file);
       await confirmAssetAction(ticket.asset.id);
@@ -321,10 +331,12 @@ export function DownloadAssetsPanel({
           <p className="max-w-sm text-sm text-ink-3 text-pretty">
             Add the files a student downloads when they buy this.
           </p>
-          <Button variant="secondary" onClick={() => inputRef.current?.click()} disabled={adding}>
-            {adding ? <Loader2 className="animate-spin" /> : <Plus className="size-4" />}
-            Add file
-          </Button>
+          {canEdit ? (
+            <Button variant="secondary" onClick={() => inputRef.current?.click()} disabled={adding}>
+              {adding ? <Loader2 className="animate-spin" /> : <Plus className="size-4" />}
+              Add file
+            </Button>
+          ) : null}
         </div>
       ) : (
         <>
@@ -344,6 +356,7 @@ export function DownloadAssetsPanel({
                   <AssetRow
                     key={asset.assetId}
                     asset={asset}
+                    canEdit={canEdit}
                     onRename={setRenaming}
                     onRemove={setRemoving}
                   />
@@ -352,12 +365,18 @@ export function DownloadAssetsPanel({
             </SortableContext>
           </DndContext>
 
-          <div className="pt-1">
-            <Button variant="secondary" onClick={() => inputRef.current?.click()} disabled={adding}>
-              {adding ? <Loader2 className="animate-spin" /> : <Plus className="size-4" />}
-              Add file
-            </Button>
-          </div>
+          {canEdit ? (
+            <div className="pt-1">
+              <Button
+                variant="secondary"
+                onClick={() => inputRef.current?.click()}
+                disabled={adding}
+              >
+                {adding ? <Loader2 className="animate-spin" /> : <Plus className="size-4" />}
+                Add file
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
 

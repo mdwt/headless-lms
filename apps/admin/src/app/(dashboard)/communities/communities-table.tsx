@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Community, ListParams } from "@/lib/api/types";
 
 import { communitiesColumns } from "./communities-columns";
@@ -32,7 +31,7 @@ function CommunitiesTableInner({
   params: ListParams;
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
   const isStale = !sameParams(table.params, params);
 
@@ -45,7 +44,7 @@ function CommunitiesTableInner({
   const [creating, setCreating] = useState(false);
   const [toDelete, setToDelete] = useState<Community | null>(null);
 
-  const canCreate = can.manageCommunities(user);
+  const canCreate = permissions.has("communities:write");
 
   const open = useCallback(
     (community: Community) => router.push(`/communities/${community.id}`),
@@ -83,8 +82,8 @@ function CommunitiesTableInner({
   }, [toDelete]);
 
   const columns = useMemo(
-    () => communitiesColumns({ user, onView: open, onTogglePublish, onDelete: setToDelete }),
-    [user, open, onTogglePublish],
+    () => communitiesColumns({ permissions, onView: open, onTogglePublish, onDelete: setToDelete }),
+    [permissions, open, onTogglePublish],
   );
 
   return (

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 import { signOut } from "@/lib/auth/client";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import { useCurrentUser, useOrganization } from "@/lib/auth/session-context";
-import { ROLE_LABEL } from "@/lib/roles";
 import { NameAvatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 export function AccountView() {
   const user = useCurrentUser();
   const organization = useOrganization();
+  const permissions = usePermissions();
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -35,7 +36,7 @@ export function AccountView() {
 
       <dl className="flex flex-col divide-y divide-line rounded-card border border-line bg-surface px-5">
         <Row label="Organization" value={organization.name} />
-        <Row label="Role" value={ROLE_LABEL[user.role]} />
+        <Row label="Org role" value={permissions.orgRole.name} />
       </dl>
 
       <div className="flex items-center justify-between gap-4">

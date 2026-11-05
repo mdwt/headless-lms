@@ -17,6 +17,7 @@ import type {
   GetCommunityMessageQueueResponse,
   GetCommunityNotificationCategoriesResponse,
   GetCommunityResponse,
+  GetMemberCommunityHomeResponse,
   GetCommunitySpaceQueueResponse,
   GetPostResponse,
   GetDownloadResponse,
@@ -26,7 +27,6 @@ import type {
   GetStudentAnalyticsResponse,
   GetStudentResponse,
   GetWebhookResponse,
-  ListAccessScopesResponse,
   ListActivitiesResponse,
   ListActivityAssetsResponse,
   ListAssetsResponse,
@@ -47,17 +47,19 @@ import type {
   ListDownloadAssetsResponse,
   ListDownloadsResponse,
   ListEntitlementsResponse,
-  ListMembersResponse,
+  ListTeamResponse,
+  ListRolesResponse,
+  ListRolesOnResponse,
   ListModulesResponse,
   ListStudentsResponse,
   RequestUploadResponse,
   UpdateCourseSettingsResponse,
 } from "@headless-lms/sdk";
+import type { Permission } from "../permissions";
 
 // --- entities (straight from the SDK responses) ----------------------------
 
-export type ScopeOption = ListAccessScopesResponse[number];
-export type AccessScope = ScopeOption["scope"];
+export type AccessScope = Permission;
 export type ConnectedApp = ListConnectedAppsResponse[number];
 export type ApiKeySummary = ListApiKeysResponse[number];
 
@@ -159,9 +161,11 @@ export type Entitlement = Omit<EntitlementGrant, "status"> & {
   content: { id: string; type: ContentType | "bundle"; title: string };
 };
 
-export type Member = ListMembersResponse["rows"][number];
+export type Member = ListTeamResponse["rows"][number];
 export type MemberStatus = Member["status"];
-export type Role = Member["role"];
+export type ItemRole = Member["items"][number];
+export type OrgRole = ListRolesResponse[number];
+export type RoleOnItem = ListRolesOnResponse[number];
 
 export type OverviewStats = GetOverviewResponse;
 export type EnrollmentSeries = GetEnrollmentSeriesResponse;
@@ -202,7 +206,7 @@ export type DownloadsPage = ListDownloadsResponse;
 export type BundlesPage = ListBundlesResponse;
 export type StudentsPage = ListStudentsResponse;
 export type EntitlementsPage = ListEntitlementsResponse;
-export type MembersPage = ListMembersResponse;
+export type MembersPage = ListTeamResponse;
 export type AssetsPage = ListAssetsResponse;
 
 // --- discussion --------------------------------------------------------------
@@ -223,6 +227,7 @@ export type DmSettings = Community["settings"]["dm"];
 export type DigestSchedule = NonNullable<Community["settings"]["digest"]>;
 export type CommunityAnalytics = GetCommunityAnalyticsResponse;
 export type CommunityMember = ListCommunityMembersResponse["rows"][number];
+export type MemberCommunityHome = GetMemberCommunityHomeResponse;
 
 export type Space = ListCommunitySpacesResponse[number];
 export type SpaceAccessRule = Space["accessRule"];
@@ -261,9 +266,6 @@ export interface SessionUser {
   name: string;
   email: string;
   image: string | null;
-  /** Active org role + the courses an instructor is scoped to. */
-  role: Role;
-  scopedCourseIds: string[];
 }
 
 export interface Organization {

@@ -7,19 +7,29 @@ import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { NameAvatar } from "@/components/ui/avatar";
 import { fullName, relativeTime } from "@/lib/format";
+import { ItemRoleBadges } from "@/components/status-badge";
 import type { Student } from "@/lib/api/types";
 
 import { ProgressCell } from "./progress-meter";
 
 /**
- * Column set for the students list. `onView`/`onMakeModerator`/`onDelete` drive
- * the row-action menu; row clicks are wired separately on the table (onRowClick).
+ * Column set for the students list. The callbacks drive the row-action menu and
+ * are absent when the viewer lacks the permission; row clicks are wired
+ * separately on the table (onRowClick).
  */
-export function studentColumns(
-  onView: (id: string) => void,
-  onMakeModerator: (student: Student) => void,
-  onDelete: (student: Student) => void,
-): ColumnDef<Student, unknown>[] {
+export function studentColumns({
+  titles,
+  onView,
+  onSetRole,
+  onResend,
+  onRemove,
+}: {
+  titles: Record<string, string>;
+  onView: (id: string) => void;
+  onSetRole?: (student: Student) => void;
+  onResend?: (student: Student) => void;
+  onRemove?: (student: Student) => void;
+}): ColumnDef<Student, unknown>[] {
   return [
     {
       accessorKey: "name",
@@ -36,6 +46,12 @@ export function studentColumns(
           </div>
         );
       },
+    },
+    {
+      id: "items",
+      header: ({ column }) => <ColumnHeader column={column} title="Roles on items" />,
+      enableSorting: false,
+      cell: ({ row }) => <ItemRoleBadges items={row.original.items} titles={titles} />,
     },
     {
       accessorKey: "entitlementCount",
@@ -76,16 +92,22 @@ export function studentColumns(
             <DropdownMenuItem onClick={() => onView(row.original.id)}>
               View student
             </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={row.original.status !== "active"}
-              onClick={() => onMakeModerator(row.original)}
-            >
-              Make moderator
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="danger" onClick={() => onDelete(row.original)}>
-              Delete
-            </DropdownMenuItem>
+            {onSetRole ? (
+              <DropdownMenuItem onClick={() => onSetRole(row.original)}>Set role</DropdownMenuItem>
+            ) : null}
+            {onResend && row.original.status === "invited" ? (
+              <DropdownMenuItem onClick={() => onResend(row.original)}>
+                Resend invite
+              </DropdownMenuItem>
+            ) : null}
+            {onRemove ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="danger" onClick={() => onRemove(row.original)}>
+                  Remove from org
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </RowActions>
         </div>
       ),

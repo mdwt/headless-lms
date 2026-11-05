@@ -9,22 +9,9 @@ import { useDataTable } from "@/components/data-table/use-data-table";
 import { GrantAccessButton } from "@/components/grant-access-button";
 import type { LiteStudent } from "@/components/grant-access-dialog";
 import { NameAvatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { useCurrentUser } from "@/lib/auth/session-context";
+import { RoleBadge } from "@/components/status-badge";
 import { fullName } from "@/lib/format";
-import { can } from "@/lib/roles";
 import type { CommunityMember, ListParams } from "@/lib/api/types";
-
-const ROLE: Record<
-  CommunityMember["role"],
-  { label: string; variant: "brand" | "neutral" | "outline" }
-> = {
-  owner: { label: "Owner", variant: "outline" },
-  admin: { label: "Admin", variant: "outline" },
-  instructor: { label: "Instructor", variant: "outline" },
-  moderator: { label: "Moderator", variant: "brand" },
-  student: { label: "Member", variant: "neutral" },
-};
 
 const columns: ColumnDef<CommunityMember, unknown>[] = [
   {
@@ -49,10 +36,12 @@ const columns: ColumnDef<CommunityMember, unknown>[] = [
     id: "role",
     header: "Role",
     enableSorting: false,
-    cell: ({ row }) => {
-      const role = ROLE[row.original.role];
-      return <Badge variant={role.variant}>{role.label}</Badge>;
-    },
+    cell: ({ row }) =>
+      row.original.team && row.original.roleName ? (
+        <RoleBadge name={row.original.roleName} team />
+      ) : (
+        <span className="text-ink-4">Member</span>
+      ),
   },
 ];
 
@@ -66,17 +55,17 @@ function CommunityMembersTableInner({
   total,
   params,
   grantCandidates,
+  canGrant,
 }: {
   communityId: string;
   rows: CommunityMember[];
   total: number;
   params: ListParams;
   grantCandidates: LiteStudent[];
+  canGrant: boolean;
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
-  const canGrant = can.manageEntitlements(user);
   const memoColumns = useMemo(() => columns, []);
 
   return (
@@ -118,6 +107,7 @@ export function CommunityMembersTable(props: {
   total: number;
   params: ListParams;
   grantCandidates: LiteStudent[];
+  canGrant: boolean;
 }) {
   return (
     <Suspense fallback={null}>

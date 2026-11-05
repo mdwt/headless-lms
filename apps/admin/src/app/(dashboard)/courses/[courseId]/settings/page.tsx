@@ -1,5 +1,6 @@
 // Settings tab: every course-level setting, one section per group.
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { courseSettingsOf } from "@/lib/api/compose";
 import { SettingsSurface } from "@/components/forms/settings-section";
 
@@ -14,6 +15,7 @@ export default async function CourseSettingsTab({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
+  await requirePermission("courses:write", courseId);
 
   const course = await serverApi.getCourse(courseId);
 

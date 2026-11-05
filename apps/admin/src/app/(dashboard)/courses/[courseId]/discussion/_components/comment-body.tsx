@@ -86,11 +86,9 @@ function Reply({ reply }: { reply: CommentListItem }) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-ink">{fullName(reply.author)}</span>
-          {reply.author.role !== "student" && (
-            <Badge variant="brand" className="capitalize">
-              {reply.author.role}
-            </Badge>
-          )}
+          {reply.author.team && reply.author.roleName ? (
+            <Badge variant="brand">{reply.author.roleName}</Badge>
+          ) : null}
           <span className="text-xs text-ink-3">{relativeTime(reply.createdAt)}</span>
         </div>
         <p className="mt-1 text-[13px] leading-relaxed whitespace-pre-wrap text-ink-2">

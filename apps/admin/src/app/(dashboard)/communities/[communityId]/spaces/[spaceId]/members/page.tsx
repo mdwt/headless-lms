@@ -1,11 +1,9 @@
 import { Users } from "lucide-react";
 
-import { requireAuth } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 
 import { SpaceMembers } from "./_components/space-members";
-
-const STAFF = new Set(["owner", "admin", "instructor"]);
 
 export default async function SpaceMembersTab({
   params,
@@ -13,9 +11,8 @@ export default async function SpaceMembersTab({
   params: Promise<{ communityId: string; spaceId: string }>;
 }) {
   const { communityId, spaceId } = await params;
-  const spacePromise = serverApi.getSpace(communityId, spaceId);
-  await requireAuth(spacePromise);
-  const space = await spacePromise;
+  await requirePermission("communities:moderate", communityId);
+  const space = await serverApi.getSpace(communityId, spaceId);
 
   if (space.accessRule === "all_members") {
     return (
@@ -34,7 +31,7 @@ export default async function SpaceMembersTab({
 
   const [members, holders] = await Promise.all([
     serverApi.spaceMembers(communityId, spaceId),
-    serverApi.communityMembersLite(communityId),
+    serverApi.spaceCandidates(communityId),
   ]);
   const placed = new Set(members.filter((m) => m.status !== "revoked").map((m) => m.orgUserId));
 
@@ -43,7 +40,7 @@ export default async function SpaceMembersTab({
       communityId={communityId}
       space={space}
       members={members}
-      candidates={holders.filter((h) => !placed.has(h.id) && !STAFF.has(h.role))}
+      candidates={holders.filter((h) => !placed.has(h.id))}
     />
   );
 }

@@ -3,9 +3,8 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import type { EnrollmentSeries, OverviewStats, SessionUser } from "@/lib/api/types";
-import type { ServerRole } from "@/lib/auth/server-session";
-import { can, isManager } from "@/lib/roles";
+import { EmptyState } from "@/components/data-table/states";
+import type { EnrollmentSeries, OverviewStats } from "@/lib/api/types";
 
 import { type EnrollmentRangeKey } from "./enrollment-ranges";
 import { EnrollmentsChart } from "./enrollments-chart";
@@ -19,46 +18,42 @@ function greeting(): string {
   return "Good evening";
 }
 
-const STAT_CONFIG: { key: keyof OverviewStats; label: string; managerOnly?: boolean }[] = [
+const STAT_CONFIG: { key: keyof OverviewStats; label: string }[] = [
   { key: "publishedCourses", label: "Published courses" },
   { key: "draftCourses", label: "Draft courses" },
-  { key: "activeStudents", label: "Active students", managerOnly: true },
-  { key: "expiringSoon", label: "Expiring soon", managerOnly: true },
+  { key: "activeStudents", label: "Active students" },
+  { key: "expiringSoon", label: "Expiring soon" },
 ];
 
 interface OverviewViewProps {
-  role: ServerRole;
   user: { id: string; name: string; email: string; image: string | null };
-  stats: OverviewStats;
+  organization: string;
+  stats: OverviewStats | null;
   enrollments: EnrollmentSeries | null;
   range: EnrollmentRangeKey;
+  canCreateCourse: boolean;
+  canSeeAccess: boolean;
+  manages: boolean;
 }
 
-// Overview view: role/user/org and stats come in as props; presentational Server Component.
 export function OverviewView({
-  role,
   user,
+  organization,
   stats: overview,
   enrollments,
   range,
+  canCreateCourse,
+  canSeeAccess,
+  manages,
 }: OverviewViewProps) {
-  const manager = isManager(role);
-
-  // Rehydrate a SessionUser so the shared `can.*` gates stay the single source
-  // of truth for capability checks (scoping is API-sourced; not wired → []).
-  const sessionUser: SessionUser = { ...user, role, scopedCourseIds: [] };
-
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
-  const visibleStatKeys = STAT_CONFIG.filter((s) => manager || !s.managerOnly);
-
-  const stats: Stat[] = visibleStatKeys.map((s) => ({ label: s.label, value: overview[s.key] }));
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
         title={`${greeting()}, ${firstName}`}
         actions={
-          can.createCourse(sessionUser) ? (
+          canCreateCourse ? (
             <Button asChild variant="primary">
               <Link href="/courses">New course</Link>
             </Button>
@@ -66,24 +61,38 @@ export function OverviewView({
         }
       />
 
-      <Section>
-        <StatStrip stats={stats} />
+      {overview ? (
+        <Section>
+          <StatStrip
+            stats={STAT_CONFIG.map((s): Stat => ({ label: s.label, value: overview[s.key] }))}
+          />
 
-        {manager && enrollments ? <EnrollmentsChart data={enrollments} range={range} /> : null}
+          {enrollments ? <EnrollmentsChart data={enrollments} range={range} /> : null}
 
-        {manager ? (
-          <div className="@container">
-            <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
-              <FocusPanel
-                href="/entitlements"
-                title="Expiring soon"
-                description="Active entitlements lapsing within 30 days."
-                count={overview.expiringSoon}
-              />
+          {canSeeAccess ? (
+            <div className="@container">
+              <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
+                <FocusPanel
+                  href="/entitlements"
+                  title="Expiring soon"
+                  description="Active entitlements lapsing within 30 days."
+                  count={overview.expiringSoon}
+                />
+              </div>
             </div>
-          </div>
-        ) : null}
-      </Section>
+          ) : null}
+        </Section>
+      ) : manages ? (
+        <EmptyState
+          title="No overview to show"
+          description="The org's reports aren't part of what you manage. Use the menu to open what you can work on."
+        />
+      ) : (
+        <EmptyState
+          title="Nothing to manage yet"
+          description={`You're a member of ${organization}. When you're given a role, what it lets you manage shows up here.`}
+        />
+      )}
     </div>
   );
 }

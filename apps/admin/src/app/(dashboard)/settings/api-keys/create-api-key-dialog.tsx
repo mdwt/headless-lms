@@ -14,6 +14,7 @@ import { ScopePicker } from "@/components/forms/scope-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AccessScope } from "@/lib/api/types";
+import type { PermissionDefinition } from "@/lib/permissions";
 import { defaultSelected } from "@/lib/auth/oauth-flow";
 
 import { createApiKeyAction } from "./actions";
@@ -30,12 +31,13 @@ type FormValues = z.infer<typeof schema>;
 export function CreateApiKeyDialog({
   open,
   onOpenChange,
-  scopes,
+  permissions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  scopes: AccessScope[];
+  permissions: PermissionDefinition[];
 }) {
+  const scopes: AccessScope[] = permissions.map((p) => p.key);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -140,7 +142,11 @@ export function CreateApiKeyDialog({
           name="scopes"
           render={({ field }) => (
             <Field id="scopes" label="Permissions" required error={errors.scopes?.message}>
-              <ScopePicker scopes={scopes} value={field.value} onChange={field.onChange} />
+              <ScopePicker
+                permissions={permissions}
+                value={field.value}
+                onChange={field.onChange}
+              />
             </Field>
           )}
         />

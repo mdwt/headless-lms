@@ -13,6 +13,7 @@ export function webhookColumns(
   onToggleEnabled: (webhook: Webhook, enabled: boolean) => void,
   onEdit: (webhook: Webhook) => void,
   onDelete: (webhook: Webhook) => void,
+  can: { write: boolean; delete: boolean },
 ): ColumnDef<Webhook, unknown>[] {
   return [
     {
@@ -59,6 +60,7 @@ export function webhookColumns(
           <div className="flex" onClick={(e) => e.stopPropagation()}>
             <Switch
               checked={w.enabled}
+              disabled={!can.write}
               onCheckedChange={(enabled) => onToggleEnabled(w, enabled)}
               aria-label={w.enabled ? `Disable ${w.url}` : `Enable ${w.url}`}
             />
@@ -77,11 +79,17 @@ export function webhookColumns(
         return (
           <div className="flex justify-end">
             <RowActions>
-              <DropdownMenuItem onSelect={() => onEdit(w)}>Edit</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="danger" onSelect={() => onDelete(w)}>
-                Delete
+              <DropdownMenuItem onSelect={() => onEdit(w)}>
+                {can.write ? "Edit" : "View"}
               </DropdownMenuItem>
+              {can.delete ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="danger" onSelect={() => onDelete(w)}>
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </RowActions>
           </div>
         );

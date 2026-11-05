@@ -38,9 +38,11 @@ const DND_MODIFIERS = [restrictToVerticalAxis, restrictToParentElement];
 export function SpaceList({
   communityId,
   spaces: initial,
+  canEdit,
 }: {
   communityId: string;
   spaces: Space[];
+  canEdit: boolean;
 }) {
   const router = useRouter();
   const sensors = useSensors(
@@ -89,21 +91,25 @@ export function SpaceList({
               announcements, introductions or questions.
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
-            <Plus />
-            New space
-          </Button>
+          {canEdit ? (
+            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+              <Plus />
+              New space
+            </Button>
+          ) : null}
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-ink-3">
-              Members see the spaces in this order. Drag to reorder.
+              Members see the spaces in this order.{canEdit ? " Drag to reorder." : ""}
             </p>
-            <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
-              <Plus />
-              New space
-            </Button>
+            {canEdit ? (
+              <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
+                <Plus />
+                New space
+              </Button>
+            ) : null}
           </div>
           <DndContext
             id="community-spaces"
@@ -115,7 +121,12 @@ export function SpaceList({
             <SortableContext items={spaces.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               <ul role="list" className="flex flex-col gap-2">
                 {spaces.map((space) => (
-                  <SpaceRow key={space.id} communityId={communityId} space={space} />
+                  <SpaceRow
+                    key={space.id}
+                    communityId={communityId}
+                    space={space}
+                    canEdit={canEdit}
+                  />
                 ))}
               </ul>
             </SortableContext>
@@ -123,14 +134,25 @@ export function SpaceList({
         </>
       )}
 
-      <SpaceFormDialog communityId={communityId} open={creating} onOpenChange={setCreating} />
+      {canEdit ? (
+        <SpaceFormDialog communityId={communityId} open={creating} onOpenChange={setCreating} />
+      ) : null}
     </section>
   );
 }
 
-function SpaceRow({ communityId, space }: { communityId: string; space: Space }) {
+function SpaceRow({
+  communityId,
+  space,
+  canEdit,
+}: {
+  communityId: string;
+  space: Space;
+  canEdit: boolean;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: space.id,
+    disabled: !canEdit,
   });
 
   return (
@@ -142,15 +164,17 @@ function SpaceRow({ communityId, space }: { communityId: string; space: Space })
         isDragging && "relative z-10 shadow-lg",
       )}
     >
-      <button
-        type="button"
-        aria-label={`Reorder ${space.name}`}
-        className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md text-ink-4 outline-none hover:bg-hover hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-ring/40 active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
+      {canEdit ? (
+        <button
+          type="button"
+          aria-label={`Reorder ${space.name}`}
+          className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-md text-ink-4 outline-none hover:bg-hover hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-ring/40 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      ) : null}
 
       <Link
         href={`/communities/${communityId}/spaces/${space.id}`}

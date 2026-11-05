@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { ApiError } from "@/lib/api/http";
 import type {
@@ -20,13 +20,14 @@ export default async function EditAutomationPage({
 }) {
   const { automationId } = await params;
 
+  await requirePermission("automations:read");
+
   const dataPromise = Promise.all([
     serverApi.automationTriggers(),
     serverApi.automationActions(),
     serverApi.getAutomation(automationId),
     serverApi.listConnections(),
   ]);
-  await requireManager(dataPromise);
 
   let triggers: AutomationTriggerInfo[];
   let actions: AvailableAction[];

@@ -29,7 +29,7 @@ interface PickRequest {
   resolve: (file: UploadedEditorFile | null) => void;
 }
 
-export function useAssetPicker(): {
+export function useAssetPicker(contentId: string): {
   pickAsset: (opts: { kind: EditorMediaKind }) => Promise<UploadedEditorFile | null>;
   picker: ReactNode;
 } {
@@ -77,6 +77,7 @@ export function useAssetPicker(): {
         if (!open) settle(null);
       }}
       onSelect={onSelect}
+      contentId={contentId}
     />
   );
 

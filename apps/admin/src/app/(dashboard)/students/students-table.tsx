@@ -6,31 +6,39 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
-import { ForbiddenView } from "@/components/full-page-states";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { isManager } from "@/lib/roles";
-import type { ListParams, Student } from "@/lib/api/types";
+import { usePermissions } from "@/lib/auth/permissions-context";
+import type { ListParams, OrgRole, Student } from "@/lib/api/types";
+import { defaultOrgRole, givableOrgRoles } from "@/lib/org-roles";
 import { fullName } from "@/lib/format";
 
 import { studentColumns } from "./_components/student-columns";
 import { AddStudentDialog } from "./_components/add-student-dialog";
-import { deleteStudentAction, makeModeratorAction } from "./actions";
+import { removePersonAction, resendInviteAction } from "../settings/team/actions";
+import { SetRoleDialog } from "../settings/team/_components/set-role-dialog";
 
 // Students table (client): rows come in as props.
 function StudentsTableInner({
   rows,
   total,
   params,
+  roles,
+  titles,
 }: {
   rows: Student[];
   total: number;
   params: ListParams;
+  roles: OrgRole[];
+  titles: Record<string, string>;
 }) {
-  const user = useCurrentUser();
+  const permissions = usePermissions();
+  const canWrite = permissions.has("people:write");
+  const orgRoles = useMemo(() => givableOrgRoles(roles), [roles]);
+  const memberKey = defaultOrgRole(roles)?.key ?? "";
+  const [roleTarget, setRoleTarget] = useState<Student | null>(null);
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -53,46 +61,61 @@ function StudentsTableInner({
     const student = toDelete;
     startTransition(async () => {
       try {
-        await deleteStudentAction(student.id);
-        toast.success("Student deleted");
+        await removePersonAction(student.id);
+        toast.success("Removed from org");
         setToDelete(null);
       } catch (e) {
-        toast.error("Couldn't delete student", { description: (e as Error).message });
+        toast.error("Couldn't remove student", { description: (e as Error).message });
       }
     });
   }, [toDelete]);
 
-  const makeModerator = useCallback((student: Student) => {
+  const resend = useCallback((student: Student) => {
     startTransition(async () => {
       try {
-        await makeModeratorAction(student.id);
-        toast.success(`${fullName(student)} is now a moderator`);
+        await resendInviteAction(student.id);
+        toast.success("Invitation resent", { description: student.email });
       } catch (e) {
-        toast.error("Couldn't give the moderator role", { description: (e as Error).message });
+        toast.error("Couldn't resend invite", { description: (e as Error).message });
       }
     });
   }, []);
 
+  const canSetRole = canWrite && orgRoles.length > 0;
+  const canRemove = permissions.has("people:delete");
   const columns = useMemo(
-    () => studentColumns(goToStudent, makeModerator, setToDelete),
-    [goToStudent, makeModerator],
+    () =>
+      studentColumns({
+        titles,
+        onView: goToStudent,
+        onSetRole: canSetRole ? setRoleTarget : undefined,
+        onResend: canWrite ? resend : undefined,
+        onRemove: canRemove ? setToDelete : undefined,
+      }),
+    [titles, goToStudent, canSetRole, canWrite, canRemove, resend],
   );
-
-  // Defense-in-depth: the Server Component already 404s non-managers.
-  if (!isManager(user.role)) return <ForbiddenView />;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Students"
         actions={
-          <Button variant="primary" onClick={() => setAddOpen(true)}>
-            <Plus />
-            Add student
-          </Button>
+          canWrite ? (
+            <Button variant="primary" onClick={() => setAddOpen(true)}>
+              <Plus />
+              Add student
+            </Button>
+          ) : undefined
         }
       />
-      <AddStudentDialog open={addOpen} onOpenChange={setAddOpen} />
+      {canWrite ? <AddStudentDialog open={addOpen} onOpenChange={setAddOpen} /> : null}
+      <SetRoleDialog
+        person={
+          roleTarget ? { id: roleTarget.id, name: fullName(roleTarget), roleKey: memberKey } : null
+        }
+        roles={orgRoles}
+        onOpenChange={(open) => !open && setRoleTarget(null)}
+      />
 
       <DataTable<Student>
         columns={columns}
@@ -115,17 +138,17 @@ function StudentsTableInner({
         onOpenChange={(o) => {
           if (!o) setToDelete(null);
         }}
-        title="Delete student?"
+        title="Remove from org?"
         description={
           toDelete ? (
             <>
-              This permanently deletes{" "}
-              <span className="font-medium text-ink">{fullName(toDelete)}</span>, along with their
-              entitlements and progress. This can&apos;t be undone.
+              This removes <span className="font-medium text-ink">{fullName(toDelete)}</span> from
+              the organization, along with their entitlements and progress. This can&apos;t be
+              undone.
             </>
           ) : null
         }
-        confirmLabel="Delete student"
+        confirmLabel="Remove from org"
         destructive
         pending={isPending}
         onConfirm={confirmDelete}
@@ -134,7 +157,13 @@ function StudentsTableInner({
   );
 }
 
-export function StudentsTable(props: { rows: Student[]; total: number; params: ListParams }) {
+export function StudentsTable(props: {
+  rows: Student[];
+  total: number;
+  params: ListParams;
+  roles: OrgRole[];
+  titles: Record<string, string>;
+}) {
   // `useDataTable` reads `useSearchParams()`, which requires a Suspense
   // boundary in the App Router.
   return (

@@ -21,16 +21,16 @@ const TOGGLES: { key: ToggleKey; label: string; hint: string }[] = [
   {
     key: "memberToMember",
     label: "Members can message members",
-    hint: "Off means members can only message staff.",
+    hint: "Off means members can only message the team.",
   },
   {
-    key: "memberToStaff",
-    label: "Members can message staff",
-    hint: "Owners, admins and instructors.",
+    key: "memberToTeam",
+    label: "Members can message the team",
+    hint: "People whose role here shows them as team.",
   },
   {
-    key: "staffToAnyone",
-    label: "Staff can message anyone",
+    key: "teamToAnyone",
+    label: "The team can message anyone",
     hint: "Including members who haven't messaged them.",
   },
   {

@@ -1,5 +1,5 @@
 // Branded 404 — rendered for unknown URLs and every `notFound()` call (editor
-// and preview pages with missing activities, `requireManager` for non-managers).
+// and preview pages with missing activities, `requirePermission` when it is not held).
 import Link from "next/link";
 import { SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";

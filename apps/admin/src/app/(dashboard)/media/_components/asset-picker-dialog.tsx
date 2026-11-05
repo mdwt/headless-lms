@@ -14,12 +14,7 @@ import { Loader2, Search } from "lucide-react";
 
 import type { Asset, AssetKind } from "@/lib/api/types";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Pagination } from "@/components/data-table/pagination";
 import { AssetCard } from "./asset-card";
 import { listAssetsAction } from "../actions";
@@ -39,11 +34,13 @@ export function AssetPickerDialog({
   kind,
   onOpenChange,
   onSelect,
+  contentId,
 }: {
   open: boolean;
   kind: AssetKind;
   onOpenChange: (open: boolean) => void;
   onSelect: (asset: Asset) => void;
+  contentId?: string;
 }) {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -86,12 +83,15 @@ export function AssetPickerDialog({
     if (!open) return;
     let cancelled = false;
 
-    void listAssetsAction({
-      page,
-      pageSize,
-      search: debounced || undefined,
-      filters: { kind: [kind] },
-    })
+    void listAssetsAction(
+      {
+        page,
+        pageSize,
+        search: debounced || undefined,
+        filters: { kind: [kind] },
+      },
+      contentId,
+    )
       .then((res) => {
         if (cancelled) return;
         setResult({ key: requestKey, rows: res.rows, total: res.total, error: null });
@@ -109,7 +109,7 @@ export function AssetPickerDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, kind, debounced, page, pageSize, requestKey]);
+  }, [open, kind, debounced, page, pageSize, requestKey, contentId]);
 
   const noun = KIND_LABEL[kind];
 

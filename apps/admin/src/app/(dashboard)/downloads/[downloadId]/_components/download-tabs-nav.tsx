@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, KeyRound, Settings2, type LucideIcon } from "lucide-react";
+import { FileText, KeyRound, Settings2, UserCog, type LucideIcon } from "lucide-react";
 
+import { usePermissions } from "@/lib/auth/permissions-context";
+import type { Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 // Route-per-tab navigation for the download. Each tab is its own segment; the
@@ -12,14 +14,17 @@ import { cn } from "@/lib/utils";
 // expects. Styled to match the shadcn Tabs (underlined active tab) but backed
 // by real navigation, so tabs are deep-linkable and each server-renders its
 // own data.
-const TABS: { segment: string; label: string; icon: LucideIcon }[] = [
-  { segment: "assets", label: "Files", icon: FileText },
-  { segment: "details", label: "Details", icon: Settings2 },
-  { segment: "access", label: "Access", icon: KeyRound },
+const TABS: { segment: string; label: string; icon: LucideIcon; needs: Permission[] }[] = [
+  { segment: "assets", label: "Files", icon: FileText, needs: ["downloads:read"] },
+  { segment: "details", label: "Details", icon: Settings2, needs: ["downloads:write"] },
+  { segment: "access", label: "Access", icon: KeyRound, needs: ["access:read"] },
+  { segment: "people", label: "People", icon: UserCog, needs: ["people:read"] },
 ];
 
 export function DownloadTabsNav({ downloadId }: { downloadId: string }) {
   const pathname = usePathname();
+  const permissions = usePermissions();
+  const tabs = TABS.filter((tab) => permissions.hasAny(tab.needs, downloadId));
   const base = `/downloads/${downloadId}`;
 
   return (
@@ -27,7 +32,7 @@ export function DownloadTabsNav({ downloadId }: { downloadId: string }) {
       aria-label="Download sections"
       className="flex items-center gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-line)]"
     >
-      {TABS.map(({ segment, label, icon: Icon }) => {
+      {tabs.map(({ segment, label, icon: Icon }) => {
         const href = `${base}/${segment}`;
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (

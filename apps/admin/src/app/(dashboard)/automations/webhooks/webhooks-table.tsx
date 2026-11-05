@@ -7,12 +7,10 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ForbiddenView } from "@/components/full-page-states";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { isManager } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { AutomationTriggerInfo, ListParams, Webhook } from "@/lib/api/types";
 
 import { webhookColumns } from "./webhooks-columns";
@@ -31,7 +29,9 @@ function WebhooksTableInner({
   triggers: AutomationTriggerInfo[];
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
+  const canWrite = permissions.has("automations:write");
+  const canDelete = permissions.has("automations:delete");
 
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
   const isStale = JSON.stringify(table.params) !== JSON.stringify(params);
@@ -83,11 +83,13 @@ function WebhooksTableInner({
   const triggerInfo = useMemo(() => new Map(triggers.map((t) => [t.type, t])), [triggers]);
 
   const columns = useMemo(
-    () => webhookColumns(triggerInfo, onToggleEnabled, onEdit, setDeleteTarget),
-    [triggerInfo, onToggleEnabled, onEdit],
+    () =>
+      webhookColumns(triggerInfo, onToggleEnabled, onEdit, setDeleteTarget, {
+        write: canWrite,
+        delete: canDelete,
+      }),
+    [triggerInfo, onToggleEnabled, onEdit, canWrite, canDelete],
   );
-
-  if (!isManager(user.role)) return <ForbiddenView />;
 
   return (
     <div className="flex flex-col gap-6">
@@ -121,17 +123,21 @@ function WebhooksTableInner({
           },
         ]}
         toolbarActions={
-          <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus />
-            Add webhook
-          </Button>
+          canWrite ? (
+            <Button variant="primary" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus />
+              Add webhook
+            </Button>
+          ) : undefined
         }
         emptyTitle="No webhooks yet"
         emptyDescription="Add a webhook to send events — like a student being granted access — to your own systems."
         emptyAction={
-          <Button variant="primary" onClick={() => setCreateOpen(true)}>
-            Add webhook
-          </Button>
+          canWrite ? (
+            <Button variant="primary" onClick={() => setCreateOpen(true)}>
+              Add webhook
+            </Button>
+          ) : undefined
         }
       />
 

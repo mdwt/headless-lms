@@ -9,9 +9,11 @@ import { serverApi } from "@/lib/api/server";
 import {
   clientDisplayName,
   clientHosts,
+  heldPermissions,
   pickerScopes,
   toSearchParams,
 } from "@/lib/auth/oauth-flow";
+import { getMyPermissions } from "@/lib/auth/server-permissions";
 import { getServerSession } from "@/lib/auth/server-session";
 import { ConsentForm } from "./consent-form";
 
@@ -46,8 +48,17 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
 
   const clientId = typeof sp.client_id === "string" ? sp.client_id : "";
   const requested = typeof sp.scope === "string" ? sp.scope : "";
-  const [name, options] = await Promise.all([clientName(clientId), serverApi.listAccessScopes()]);
-  const scopes = pickerScopes(requested, options);
+  const [name, catalogue, mine] = await Promise.all([
+    clientName(clientId),
+    serverApi.permissionList(),
+    getMyPermissions(),
+  ]);
+  const scopes = pickerScopes(
+    requested,
+    catalogue.map((p) => p.key),
+    heldPermissions(mine),
+  );
+  const offered = catalogue.filter((p) => scopes.includes(p.key));
   const offlineAccess = requested.split(" ").includes("offline_access");
   const org = session.organization.name;
   const { redirectHost, clientIdHost } = clientHosts(sp);
@@ -71,7 +82,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
         <p className="text-sm text-ink-3 text-pretty">
           {scopes.length > 0
             ? `${name} will act in ${org} as you. Choose what it can do.`
-            : `${name} asked only for access your role in ${org} doesn't include.`}
+            : `${name} asked only for permissions you don't hold in ${org}.`}
         </p>
         {session.organizations.length > 1 && (
           <Link
@@ -82,7 +93,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
           </Link>
         )}
       </div>
-      <ConsentForm scopes={scopes} offlineAccess={offlineAccess} />
+      <ConsentForm permissions={offered} offlineAccess={offlineAccess} />
     </>
   );
 }

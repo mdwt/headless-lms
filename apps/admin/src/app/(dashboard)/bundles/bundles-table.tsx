@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { BundleRow, ListParams } from "@/lib/api/types";
 
 import { bundlesColumns } from "./bundles-columns";
@@ -37,7 +36,7 @@ function BundlesTableInner({
   content: LiteContent[];
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
 
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
 
@@ -53,8 +52,8 @@ function BundlesTableInner({
   // Delete confirmation target.
   const [toDelete, setToDelete] = useState<BundleRow | null>(null);
 
-  const canCreate = can.createBundle(user);
-  const canEdit = can.editBundle(user);
+  const canCreate = permissions.has("bundles:write");
+  const canEdit = permissions.has("bundles:write");
 
   const openCreate = useCallback(() => {
     setEditing(undefined);
@@ -83,11 +82,11 @@ function BundlesTableInner({
   const columns = useMemo(
     () =>
       bundlesColumns({
-        user,
+        permissions,
         onEdit: openEdit,
         onDelete: setToDelete,
       }),
-    [user, openEdit],
+    [permissions, openEdit],
   );
 
   return (

@@ -128,7 +128,7 @@ export function ActivityBuilder({
 }) {
   const router = useRouter();
   const isDesktop = useIsDesktop();
-  const { pickAsset, picker } = useAssetPicker();
+  const { pickAsset, picker } = useAssetPicker(course.id);
 
   const [panel, setPanel] = useState<BuilderPanel | null>(() => {
     if (initialPanel === "none") return null;
@@ -333,17 +333,15 @@ export function ActivityBuilder({
           </p>
         ) : null}
         <Button asChild variant="secondary" size="sm">
-          <Link href={`${base}/${activity.id}/preview?panel=${panel ?? "none"}`} onClick={guardLink}>
+          <Link
+            href={`${base}/${activity.id}/preview?panel=${panel ?? "none"}`}
+            onClick={guardLink}
+          >
             <Eye />
             Preview
           </Link>
         </Button>
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={saving || !dirty}
-          onClick={() => void save()}
-        >
+        <Button variant="primary" size="sm" disabled={saving || !dirty} onClick={() => void save()}>
           {saving ? "Saving…" : "Save"}
         </Button>
       </header>
@@ -397,24 +395,22 @@ export function ActivityBuilder({
           <div className={cn("flex-1 px-3 pb-6 sm:px-6", !hasToolbar && "pt-6")}>
             <article className="mx-auto flex w-full max-w-4xl flex-col gap-2 rounded-card bg-surface px-5 pt-8 shadow-card ring-1 ring-ink/5 sm:px-16 sm:pt-12">
               <div className="flex flex-col gap-1">
-                {currentModule ? (
-                  <p className="text-sm text-ink-3">{currentModule.title}</p>
-                ) : null}
+                {currentModule ? <p className="text-sm text-ink-3">{currentModule.title}</p> : null}
                 <textarea
-                {...titleField}
-                ref={(el) => {
-                  registerTitleRef(el);
-                  titleEl.current = el;
-                }}
-                rows={1}
-                aria-label="Activity title"
-                aria-invalid={errors.title ? true : undefined}
-                placeholder="Untitled activity"
-                onInput={fitTitle}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
-                }}
-                className="w-full resize-none overflow-hidden bg-transparent text-3xl font-semibold tracking-tight text-ink outline-none placeholder:text-ink-faint sm:text-4xl"
+                  {...titleField}
+                  ref={(el) => {
+                    registerTitleRef(el);
+                    titleEl.current = el;
+                  }}
+                  rows={1}
+                  aria-label="Activity title"
+                  aria-invalid={errors.title ? true : undefined}
+                  placeholder="Untitled activity"
+                  onInput={fitTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.preventDefault();
+                  }}
+                  className="w-full resize-none overflow-hidden bg-transparent text-3xl font-semibold tracking-tight text-ink outline-none placeholder:text-ink-faint sm:text-4xl"
                 />
                 {errors.title ? (
                   <p role="alert" className="text-sm text-danger">
@@ -434,7 +430,7 @@ export function ActivityBuilder({
                 onSave={onEditorSave}
                 pickAsset={pickAsset}
                 assetUrls={activity.assetUrls}
-                uploadFile={uploadEditorFile}
+                uploadFile={(file, opts) => uploadEditorFile(course.id, file, opts)}
                 slots={slots}
               />
             </article>

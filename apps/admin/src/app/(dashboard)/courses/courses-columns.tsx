@@ -6,25 +6,22 @@ import { CourseStatusBadge } from "@/components/status-badge";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { can } from "@/lib/roles";
 import { relativeTime } from "@/lib/format";
-import type { Course, SessionUser } from "@/lib/api/types";
+import type { Course } from "@/lib/api/types";
+import type { Permissions } from "@/lib/permissions";
 
 /**
  * Column set for the courses list. Callbacks drive the row-title link and the
- * row-action menu; role gating (`can.*`) hides actions the caller can't perform.
- * `user` is the server-resolved session user threaded down from the island.
+ * row-action menu; the caller's permissions on each course hide what they can't do.
  */
 export function coursesColumns(opts: {
-  user: SessionUser;
+  permissions: Permissions;
   onView: (course: Course) => void;
   onEdit: (course: Course) => void;
   onTogglePublish: (course: Course) => void;
   onDelete: (course: Course) => void;
 }): ColumnDef<Course, unknown>[] {
-  const { user, onView, onEdit, onTogglePublish, onDelete } = opts;
-  const canPublish = can.publishCourse(user);
-  const canDelete = can.deleteCourse(user);
+  const { permissions, onView, onEdit, onTogglePublish, onDelete } = opts;
 
   return [
     {
@@ -71,13 +68,14 @@ export function coursesColumns(opts: {
       enableHiding: false,
       cell: ({ row }) => {
         const course = row.original;
-        const canEdit = can.editCourse(user, course.id);
+        const canEdit = permissions.has("courses:write", course.id);
+        const canDelete = permissions.has("courses:delete", course.id);
         return (
           <div className="flex justify-end">
             <RowActions>
               <DropdownMenuItem onClick={() => onView(course)}>View</DropdownMenuItem>
               {canEdit && <DropdownMenuItem onClick={() => onEdit(course)}>Edit</DropdownMenuItem>}
-              {canPublish && (
+              {canEdit && (
                 <DropdownMenuItem onClick={() => onTogglePublish(course)}>
                   {course.status === "published" ? "Unpublish" : "Publish"}
                 </DropdownMenuItem>

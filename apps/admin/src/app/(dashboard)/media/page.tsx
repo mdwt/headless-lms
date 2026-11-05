@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { parseListParams } from "@/lib/table/parse-list-params";
 
 import { MediaView } from "./media-view";
@@ -9,6 +10,7 @@ export default async function MediaPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requirePermission("media:read");
   const sp = await searchParams;
   const params = parseListParams(sp, { pageSize: 24 });
 

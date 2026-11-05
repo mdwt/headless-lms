@@ -130,7 +130,7 @@ export function TableForbidden({ colSpan }: { colSpan: number }) {
       colSpan={colSpan}
       icon={<Ban />}
       title="You don't have access to this"
-      description="Your role doesn't permit viewing these records. Contact an owner or admin if you need access."
+      description="You don't have permission to see these records. Ask someone who manages people in your organization if you need it."
     />
   );
 }

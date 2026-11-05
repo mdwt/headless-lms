@@ -19,6 +19,7 @@ export function automationColumns(
   onToggleEnabled: (automation: Automation, enabled: boolean) => void,
   onEdit: (automation: Automation) => void,
   onDelete: (automation: Automation) => void,
+  can: { write: boolean; delete: boolean },
 ): ColumnDef<Automation, unknown>[] {
   return [
     {
@@ -90,6 +91,7 @@ export function automationColumns(
           <div className="flex" onClick={(e) => e.stopPropagation()}>
             <Switch
               checked={a.enabled}
+              disabled={!can.write}
               onCheckedChange={(enabled) => onToggleEnabled(a, enabled)}
               aria-label={a.enabled ? `Disable ${a.name}` : `Enable ${a.name}`}
             />
@@ -108,11 +110,17 @@ export function automationColumns(
         return (
           <div className="flex justify-end">
             <RowActions>
-              <DropdownMenuItem onSelect={() => onEdit(a)}>Edit</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="danger" onSelect={() => onDelete(a)}>
-                Delete
+              <DropdownMenuItem onSelect={() => onEdit(a)}>
+                {can.write ? "Edit" : "View"}
               </DropdownMenuItem>
+              {can.delete ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="danger" onSelect={() => onDelete(a)}>
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </RowActions>
           </div>
         );

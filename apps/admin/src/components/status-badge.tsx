@@ -1,13 +1,12 @@
 import type { ReactNode } from "react";
 import { Badge, Dot } from "@/components/ui/badge";
-import { ROLE_LABEL } from "@/lib/roles";
 import type {
   AutomationRunStatus,
   CourseStatus,
   EntitlementStatus,
   IntegrationStatus,
   MemberStatus,
-  Role,
+  ItemRole,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -85,9 +84,43 @@ export function IntegrationStatusBadge({ status }: { status: IntegrationStatus }
   );
 }
 
-export function RoleBadge({ role }: { role: Role }) {
-  const variant = role === "owner" ? "brand" : role === "admin" ? "neutral" : "outline";
-  return <Badge variant={variant as "brand" | "neutral" | "outline"}>{ROLE_LABEL[role]}</Badge>;
+export function RoleBadge({
+  name,
+  isOwner = false,
+  team = false,
+}: {
+  name: string;
+  isOwner?: boolean;
+  team?: boolean;
+}) {
+  return <Badge variant={isOwner ? "brand" : team ? "neutral" : "outline"}>{name}</Badge>;
+}
+
+const CONTENT_NOUN: Record<ItemRole["contentType"], string> = {
+  course: "Course",
+  download: "Download",
+  community: "Community",
+};
+
+export function ItemRoleBadges({
+  items,
+  titles,
+}: {
+  items: ItemRole[];
+  titles: Record<string, string>;
+}) {
+  if (items.length === 0) return <span className="text-ink-4">—</span>;
+  return (
+    <div className="flex max-w-[22rem] flex-wrap gap-1.5">
+      {items.map((item) => (
+        <Badge key={item.contentId} variant="outline" className="max-w-full">
+          <span className="truncate">
+            {item.roleName} · {titles[item.contentId] ?? CONTENT_NOUN[item.contentType]}
+          </span>
+        </Badge>
+      ))}
+    </div>
+  );
 }
 
 export function EnabledBadge({ enabled }: { enabled: boolean }) {

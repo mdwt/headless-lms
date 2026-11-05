@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getServerSession } from "@/lib/auth/server-session";
+import { getMyPermissions } from "@/lib/auth/server-permissions";
+import { PermissionsProvider } from "@/lib/auth/permissions-context";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { AppShell } from "@/components/app-shell/app-shell";
 
@@ -16,18 +18,21 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Server-side auth gate for the back office. Two outcomes only: no session at
-// all goes to /login, and anything short of a resolved active org + staff role
-// goes to /onboarding, which decides whether to route the user or reset them.
+// all goes to /login, and anything short of a resolved active org goes to
+// /onboarding, which decides whether to route the user or reset them.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession();
   if (!session) redirect("/login");
   if (session.status !== "authenticated") redirect("/onboarding");
+  const permissions = await getMyPermissions();
 
   return (
     <SessionProvider session={session}>
-      <AppShell user={session.user} organization={session.organization!} role={session.role}>
-        {children}
-      </AppShell>
+      <PermissionsProvider permissions={permissions}>
+        <AppShell user={session.user} organization={session.organization!}>
+          {children}
+        </AppShell>
+      </PermissionsProvider>
     </SessionProvider>
   );
 }

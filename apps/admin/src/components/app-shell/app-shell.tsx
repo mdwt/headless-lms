@@ -3,8 +3,9 @@
 import { useState, type ReactNode } from "react";
 import { Menu } from "lucide-react";
 
-import type { Organization, Role, SessionUser } from "@/lib/api/types";
-import { navForRole } from "./nav";
+import type { Organization } from "@/lib/api/types";
+import { usePermissions } from "@/lib/auth/permissions-context";
+import { navFor } from "./nav";
 import { SidebarNav } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
 import { Logo } from "./logo";
@@ -14,25 +15,22 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 /**
  * Authenticated layout shell. Fixed sidebar on desktop; a hamburger-triggered
  * sheet on mobile (every app must have a mobile nav). Takes the server-resolved
- * `user`/`organization`/`role` as props (no client session hook): shows the org,
- * the current user, and sign-out.
+ * `user`/`organization` as props and reads the nav from the person's permissions:
+ * shows the org, the current user, and sign-out.
  */
 export function AppShell({
   user,
   organization,
-  role,
   children,
 }: {
-  /** Server-resolved user identity (role is passed separately). */
   user: { id: string; name: string; email: string; image: string | null };
   organization: Organization;
-  role: Role;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const items = navForRole(role);
-  // Compose the SessionUser the UserMenu consumes (role + not-yet-wired scope).
-  const menuUser: SessionUser = { ...user, role, scopedCourseIds: [] };
+  const permissions = usePermissions();
+  const items = navFor(permissions);
+  const menuUser = { ...user, roleName: permissions.orgRole.name };
 
   return (
     <div className="isolate min-h-dvh">

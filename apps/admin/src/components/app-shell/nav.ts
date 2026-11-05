@@ -7,12 +7,12 @@ import {
   Workflow,
   type LucideIcon,
 } from "lucide-react";
-import type { Role } from "@/lib/api/types";
-import { visibleNav } from "@/lib/roles";
+import type { Permission, Permissions } from "@/lib/permissions";
 
 export interface NavChild {
   href: string;
   label: string;
+  needs?: Permission[];
 }
 
 export interface NavItem {
@@ -20,7 +20,8 @@ export interface NavItem {
   href?: string;
   label: string;
   icon: LucideIcon;
-  key: keyof ReturnType<typeof visibleNav>;
+  key: string;
+  needs?: Permission[];
   /** Present = the item expands into a submenu instead of linking anywhere. */
   children?: NavChild[];
 }
@@ -30,30 +31,45 @@ const ALL_NAV: NavItem[] = [
   {
     label: "Content",
     icon: Library,
-    key: "courses",
+    key: "content",
     children: [
-      { href: "/courses", label: "Courses" },
-      { href: "/downloads", label: "Downloads" },
-      { href: "/communities", label: "Communities" },
-      { href: "/bundles", label: "Bundles" },
+      { href: "/courses", label: "Courses", needs: ["courses:read"] },
+      { href: "/downloads", label: "Downloads", needs: ["downloads:read"] },
+      {
+        href: "/communities",
+        label: "Communities",
+        needs: ["communities:read", "communities:moderate"],
+      },
+      { href: "/bundles", label: "Bundles", needs: ["bundles:read"] },
     ],
   },
-  { href: "/media", label: "Media", icon: Image, key: "media" },
-  { href: "/students", label: "Students", icon: GraduationCap, key: "students" },
+  { href: "/media", label: "Media", icon: Image, key: "media", needs: ["media:read"] },
+  {
+    href: "/students",
+    label: "Students",
+    icon: GraduationCap,
+    key: "students",
+    needs: ["people:read"],
+  },
   {
     label: "Automations",
     icon: Workflow,
     key: "automations",
     children: [
-      { href: "/automations/workflows", label: "Workflows" },
-      { href: "/automations/webhooks", label: "Webhooks" },
+      { href: "/automations/workflows", label: "Workflows", needs: ["automations:read"] },
+      { href: "/automations/webhooks", label: "Webhooks", needs: ["automations:read"] },
     ],
   },
   { href: "/settings", label: "Settings", icon: Settings, key: "settings" },
 ];
 
-/** Filter nav by what the role is allowed to see. */
-export function navForRole(role: Role): NavItem[] {
-  const vis = visibleNav(role);
-  return ALL_NAV.filter((item) => vis[item.key]);
+/** The nav items the person's permissions reach, anywhere in the org. */
+export function navFor(permissions: Permissions): NavItem[] {
+  const reaches = (needs?: Permission[]) => !needs || permissions.anywhereAny(needs);
+  return ALL_NAV.flatMap((item) => {
+    if (!reaches(item.needs)) return [];
+    if (!item.children) return [item];
+    const children = item.children.filter((child) => reaches(child.needs));
+    return children.length > 0 ? [{ ...item, children }] : [];
+  });
 }

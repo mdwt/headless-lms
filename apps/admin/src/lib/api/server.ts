@@ -33,9 +33,10 @@ import {
   Entitlements,
   Integrations,
   Notifications,
-  Organizations,
+  People,
   Posts,
   Reporting,
+  Roles,
 } from "@headless-lms/sdk";
 
 import { toQuery } from "./shared";
@@ -63,6 +64,9 @@ import type {
   IntegrationConnection,
   ListParams,
   Member,
+  MemberCommunityHome,
+  OrgRole,
+  RoleOnItem,
   NotificationCategoryList,
   NotificationTypeInfo,
   ModuleTree,
@@ -73,7 +77,6 @@ import type {
   CommunityMember,
   CommunityModeration,
   ContentType,
-  ScopeOption,
   Space,
   SpaceLinkRow,
   SpaceMember,
@@ -81,6 +84,7 @@ import type {
   StudentAnalytics,
   Webhook,
 } from "./types";
+import type { PermissionDefinition, Permissions } from "@/lib/permissions";
 
 /** Title of one content item, read from the resource its type names. */
 async function contentTitleOf(
@@ -120,7 +124,7 @@ async function composeEntitlements(grants: EntitlementGrant[]): Promise<Entitlem
     Promise.all(
       studentIds.map(async (id) => {
         try {
-          return await Organizations.getStudent({ id }, headers);
+          return await People.getStudent({ id }, headers);
         } catch {
           return null;
         }
@@ -167,14 +171,14 @@ async function peopleById(
   const unique = [...new Set(ids)];
   const people = new Map<string, { name: string; email: string }>();
   if (unique.length === 0) return people;
-  const team = await Organizations.listMembers({ pageSize: 100 }, headers);
+  const team = await People.listTeam({ pageSize: 100 }, headers);
   for (const m of team.rows) people.set(m.id, { name: fullName(m), email: m.email });
   const students = await Promise.all(
     unique
       .filter((id) => !people.has(id))
       .map(async (id) => {
         try {
-          return await Organizations.getStudent({ id }, headers);
+          return await People.getStudent({ id }, headers);
         } catch {
           return null;
         }
@@ -309,27 +313,30 @@ export const serverApi = {
   /** Header stats for one download, composed from its assets + grants. */
   async downloadStats(
     downloadId: string,
-  ): Promise<{ assetCount: number; totalSize: number; entitledCount: number }> {
+    withGrants: boolean,
+  ): Promise<{ assetCount: number; totalSize: number; entitledCount: number | null }> {
     const [assets, entitled] = await Promise.all([
       this.listDownloadAssets(downloadId),
-      Entitlements.listEntitlements(
-        { contentId: downloadId, status: "active", page: 1, pageSize: 1 },
-        await authHeaders(),
-      ),
+      withGrants
+        ? Entitlements.listEntitlements(
+            { contentId: downloadId, status: "active", page: 1, pageSize: 1 },
+            await authHeaders(),
+          )
+        : Promise.resolve(null),
     ]);
     return {
       assetCount: assets.length,
       totalSize: assets.reduce((sum, a) => sum + a.size, 0),
-      entitledCount: entitled.total,
+      entitledCount: entitled?.total ?? null,
     };
   },
 
   // students
   async listStudents(params: ListParams): Promise<Paginated<Student>> {
-    return await Organizations.listStudents(toQuery(params, []), await authHeaders());
+    return await People.listStudents(toQuery(params, []), await authHeaders());
   },
   async getStudent(id: string): Promise<Student> {
-    return await Organizations.getStudent({ id }, await authHeaders());
+    return await People.getStudent({ id }, await authHeaders());
   },
   async studentAnalytics(id: string): Promise<StudentAnalytics> {
     return await Reporting.getStudentAnalytics({ id }, await authHeaders());
@@ -342,7 +349,7 @@ export const serverApi = {
     return composeEntitlements(page.rows);
   },
   async studentsLite(search?: string): Promise<{ id: string; name: string; email: string }[]> {
-    const page = await Organizations.listStudents(
+    const page = await People.listStudents(
       { page: 1, pageSize: 100, search: search || undefined, sort: "name" },
       await authHeaders(),
     );
@@ -383,16 +390,63 @@ export const serverApi = {
 
   // members
   async listMembers(params: ListParams): Promise<Paginated<Member>> {
-    return await Organizations.listMembers(
-      toQuery(params, ["role", "status"]),
+    return await People.listTeam(toQuery(params, ["roleKey", "status"]), await authHeaders());
+  },
+  async teamLite(): Promise<{ id: string; name: string; email: string; isOwner: boolean }[]> {
+    const page = await People.listTeam(
+      { page: 1, pageSize: 100, status: "active" },
       await authHeaders(),
     );
+    return page.rows.map((m) => ({
+      id: m.id,
+      name: fullName(m),
+      email: m.email,
+      isOwner: m.isOwner,
+    }));
   },
-  async instructorsLite(): Promise<{ id: string; name: string }[]> {
-    const page = await Organizations.listMembers({ pageSize: 100 }, await authHeaders());
-    return page.rows
-      .filter((m) => m.role === "owner" || m.role === "admin" || m.role === "instructor")
-      .map((m) => ({ id: m.id, name: fullName(m) }));
+  async peopleLite(): Promise<{ id: string; name: string; email: string }[]> {
+    const headers = await authHeaders();
+    const [team, students] = await Promise.all([
+      People.listTeam({ page: 1, pageSize: 100 }, headers),
+      People.listStudents({ page: 1, pageSize: 100, sort: "name" }, headers),
+    ]);
+    const people = new Map<string, { id: string; name: string; email: string }>();
+    for (const m of [...team.rows, ...students.rows]) {
+      people.set(m.id, { id: m.id, name: fullName(m), email: m.email });
+    }
+    return [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  async contentTitles(permissions: Permissions): Promise<Record<string, string>> {
+    const headers = await authHeaders();
+    const none = Promise.resolve({ rows: [] as { id: string; title: string }[] });
+    const [courses, downloads, communities] = await Promise.all([
+      permissions.anywhere("courses:read")
+        ? Content.listCourses({ pageSize: 100, sort: "title" }, headers)
+        : none,
+      permissions.anywhere("downloads:read")
+        ? Content.listDownloads({ pageSize: 100, sort: "title" }, headers)
+        : none,
+      permissions.anywhere("communities:read")
+        ? Communities.listCommunities({ pageSize: 100, sort: "title" }, headers)
+        : none,
+    ]);
+    return Object.fromEntries(
+      [...courses.rows, ...downloads.rows, ...communities.rows].map(
+        (c) => [c.id, c.title] as const,
+      ),
+    );
+  },
+
+  // roles
+  async listRoles(): Promise<OrgRole[]> {
+    return await Roles.listRoles(await authHeaders());
+  },
+  async rolesOn(contentId: string): Promise<RoleOnItem[]> {
+    return await People.listRolesOn({ contentId }, await authHeaders());
+  },
+  async permissionList(): Promise<PermissionDefinition[]> {
+    return await Access.listPermissions(await authHeaders());
   },
 
   // communities
@@ -429,14 +483,36 @@ export const serverApi = {
       await authHeaders(),
     );
   },
-  async communityMembersLite(
+  async spaceCandidates(
     communityId: string,
-  ): Promise<{ id: string; name: string; email: string; role: CommunityMember["role"] }[]> {
-    const page = await Communities.listCommunityMembers(
-      { communityId, page: 1, pageSize: 100 },
-      await authHeaders(),
+  ): Promise<{ id: string; name: string; email: string }[]> {
+    const headers = await authHeaders();
+    const [page, directory] = await Promise.all([
+      Communities.listCommunityMembers({ communityId, page: 1, pageSize: 100 }, headers),
+      Communities.getMemberCommunityDirectory({ communityId, page: 1, pageSize: 100 }, headers),
+    ]);
+    const opensEverySpace = new Set(
+      directory.rows.filter((r) => r.opensEverySpace).map((r) => r.orgUserId),
     );
-    return page.rows.map((m) => ({ id: m.id, name: fullName(m), email: m.email, role: m.role }));
+    return page.rows
+      .filter((m) => !opensEverySpace.has(m.id))
+      .map((m) => ({ id: m.id, name: fullName(m), email: m.email }));
+  },
+  async communityMemberIds(communityId: string): Promise<Set<string>> {
+    const headers = await authHeaders();
+    const ids = new Set<string>();
+    for (let page = 1; ; page++) {
+      const batch = await Communities.getMemberCommunityDirectory(
+        { communityId, page, pageSize: 100 },
+        headers,
+      );
+      for (const r of batch.rows) ids.add(r.orgUserId);
+      if (ids.size >= batch.total || batch.rows.length === 0) break;
+    }
+    return ids;
+  },
+  async memberCommunityHome(communityId: string): Promise<MemberCommunityHome> {
+    return await Communities.getMemberCommunityHome({ communityId }, await authHeaders());
   },
   async spaceMembers(communityId: string, spaceId: string): Promise<SpaceMember[]> {
     const headers = await authHeaders();
@@ -474,12 +550,13 @@ export const serverApi = {
   async linkableContent(): Promise<{ id: string; title: string; type: ContentType }[]> {
     return await linkableTitles(await authHeaders());
   },
-  async communityModeration(communityId: string): Promise<CommunityModeration> {
+  async communityModeration(
+    communityId: string,
+    spaces: { id: string; name: string }[],
+    canReadPeople: boolean,
+  ): Promise<CommunityModeration> {
     const headers = await authHeaders();
-    const [spaces, messages] = await Promise.all([
-      Communities.listCommunitySpaces({ communityId }, headers),
-      Communities.getCommunityMessageQueue({ communityId }, headers),
-    ]);
+    const messages = await Communities.getCommunityMessageQueue({ communityId }, headers);
     const queues = await Promise.all(
       spaces.map((space) =>
         Communities.getCommunitySpaceQueue({ communityId, spaceId: space.id }, headers),
@@ -496,10 +573,12 @@ export const serverApi = {
           }
         }),
       ),
-      peopleById(
-        queues.flatMap((q) => q.commentFlags.map((f) => f.comment.orgUserId)),
-        headers,
-      ),
+      canReadPeople
+        ? peopleById(
+            queues.flatMap((q) => q.commentFlags.map((f) => f.comment.orgUserId)),
+            headers,
+          )
+        : Promise.resolve(new Map<string, { name: string; email: string }>()),
     ]);
     const postById = new Map(posts.filter((p) => p !== null).map((p) => [p.id, p]));
     return {
@@ -583,9 +662,6 @@ export const serverApi = {
     return triggers;
   },
 
-  async listAccessScopes(): Promise<ScopeOption[]> {
-    return await Access.listAccessScopes(await authHeaders());
-  },
   async listConnectedApps(): Promise<ConnectedApp[]> {
     return await Access.listConnectedApps(await authHeaders());
   },

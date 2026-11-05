@@ -9,7 +9,7 @@ import {
   loginRedirect,
   pickerScopes,
   SCOPE_NOTES,
-  SCOPE_RESOURCES,
+  heldPermissions,
   toSearchParams,
 } from "./oauth-flow";
 
@@ -103,23 +103,43 @@ describe("isOAuthFlow", () => {
 });
 
 describe("pickerScopes", () => {
-  const options = [
-    { scope: "courses:read", allowed: true },
-    { scope: "courses:write", allowed: false },
-    { scope: "courses:delete", allowed: false },
-    { scope: "students:read", allowed: true },
-    { scope: "comments:read", allowed: true },
+  const catalogue = [
+    "courses:read",
+    "courses:write",
+    "courses:delete",
+    "people:read",
+    "courses:moderate",
   ];
+  const held = ["courses:read", "people:read", "courses:moderate"];
 
-  it("keeps the requested scopes the role allows, in catalogue order", () => {
+  it("keeps the requested scopes the person holds, in catalogue order", () => {
     expect(
-      pickerScopes("comments:read offline_access courses:write courses:read openid", options),
-    ).toEqual(["courses:read", "comments:read"]);
+      pickerScopes(
+        "courses:moderate offline_access courses:write courses:read openid",
+        catalogue,
+        held,
+      ),
+    ).toEqual(["courses:read", "courses:moderate"]);
   });
-  it("is empty when nothing requested is allowed", () => {
-    expect(pickerScopes("courses:write courses:delete offline_access", options)).toEqual([]);
-    expect(pickerScopes(null, options)).toEqual([]);
-    expect(pickerScopes(undefined, options)).toEqual([]);
+  it("is empty when nothing requested is held", () => {
+    expect(pickerScopes("courses:write courses:delete offline_access", catalogue, held)).toEqual(
+      [],
+    );
+    expect(pickerScopes(null, catalogue, held)).toEqual([]);
+    expect(pickerScopes(undefined, catalogue, held)).toEqual([]);
+  });
+});
+
+describe("heldPermissions", () => {
+  it("joins the org's permissions with every item's, once each", () => {
+    expect(
+      heldPermissions({
+        orgRole: { key: "k", name: "Tutor" },
+        isOwner: false,
+        org: ["api_keys:read"],
+        content: { crs_1: ["courses:read", "courses:write"], crs_2: ["courses:read"] },
+      }),
+    ).toEqual(["api_keys:read", "courses:read", "courses:write"]);
   });
 });
 
@@ -130,8 +150,8 @@ describe("scope presentation", () => {
         "courses:read",
         "courses:write",
         "courses:delete",
-        "students:invite",
-        "comments:moderate",
+        "people:write",
+        "courses:moderate",
         "analytics:read",
       ].filter(defaultSelected),
     ).toEqual(["courses:read", "analytics:read"]);
@@ -141,31 +161,15 @@ describe("scope presentation", () => {
       ["bundles:delete", "bundles:write", "automations:delete", "media:read"].filter(isDeleteScope),
     ).toEqual(["bundles:delete", "automations:delete"]);
   });
-  it("notes every write scope that can remove something", () => {
+  it("notes every scope that can remove something", () => {
     expect(Object.keys(SCOPE_NOTES)).toEqual([
+      "courses:write",
+      "courses:moderate",
       "downloads:write",
       "bundles:write",
       "access:write",
-      "comments:moderate",
       "communities:write",
-      "community_members:write",
-      "community_moderation:write",
-    ]);
-  });
-  it("orders the resources as the catalogue does", () => {
-    expect(SCOPE_RESOURCES.map(({ resource, label }) => `${resource}=${label}`)).toEqual([
-      "courses=Courses",
-      "downloads=Downloads",
-      "bundles=Bundles",
-      "media=Media",
-      "students=Students",
-      "access=Access",
-      "analytics=Analytics",
-      "automations=Workflows and webhooks",
-      "comments=Comments",
-      "communities=Communities",
-      "community_members=Community members",
-      "community_moderation=Community moderation",
+      "communities:moderate",
     ]);
   });
 });

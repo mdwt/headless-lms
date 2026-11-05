@@ -5,6 +5,7 @@
 // Everything here renders on the server except three leaves: row selection,
 // the per-row action strip, and the bulk bar.
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import type { ListParams } from "@/lib/api/types";
 import { parseListParams } from "@/lib/table/parse-list-params";
 
@@ -34,6 +35,7 @@ export default async function CourseCommentsTab({
   searchParams: Promise<RawSearchParams>;
 }) {
   const { courseId } = await params;
+  await requirePermission("courses:moderate", courseId);
   const search = await searchParams;
   const listParams = parseListParams(search, {
     pageSize: 20,

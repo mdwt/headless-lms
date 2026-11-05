@@ -133,6 +133,7 @@ function ThumbnailField({
       const ticket = await requestUploadAction({
         filename: file.name,
         contentType: file.type || "application/octet-stream",
+        contentId: downloadId,
       });
       await putToStorage(ticket.uploadUrl, ticket.headers ?? {}, file);
       const asset = await confirmAssetAction(ticket.asset.id);

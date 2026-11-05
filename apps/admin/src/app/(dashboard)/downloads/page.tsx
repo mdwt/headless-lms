@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { parseListParams } from "@/lib/table/parse-list-params";
 
 import { DownloadsTable } from "./downloads-table";
@@ -9,6 +10,7 @@ export default async function DownloadsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requirePermission("downloads:read");
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 20,

@@ -1,34 +1,13 @@
-export const SCOPE_RESOURCES: { resource: string; label: string }[] = [
-  { resource: "courses", label: "Courses" },
-  { resource: "downloads", label: "Downloads" },
-  { resource: "bundles", label: "Bundles" },
-  { resource: "media", label: "Media" },
-  { resource: "students", label: "Students" },
-  { resource: "access", label: "Access" },
-  { resource: "analytics", label: "Analytics" },
-  { resource: "automations", label: "Workflows and webhooks" },
-  { resource: "comments", label: "Comments" },
-  { resource: "communities", label: "Communities" },
-  { resource: "community_members", label: "Community members" },
-  { resource: "community_moderation", label: "Community moderation" },
-];
-
-export const SCOPE_ACTION_LABELS: Record<string, string> = {
-  read: "View",
-  write: "Change",
-  delete: "Delete",
-  invite: "Invite (sends email)",
-  moderate: "Moderate",
-};
+import type { MyPermissions } from "../permissions";
 
 export const SCOPE_NOTES: Record<string, string> = {
-  "downloads:write": "Change includes removing files from a download.",
-  "bundles:write": "Change includes removing items from a bundle.",
-  "access:write": "Change includes revoking a student's access.",
-  "comments:moderate": "Moderate includes removing comments.",
-  "communities:write": "Change includes removing links from a space.",
-  "community_members:write": "Change includes removing people from a space.",
-  "community_moderation:write": "Change includes removing posts and comments and locking chats.",
+  "courses:write": "Includes removing modules and activities from a course.",
+  "courses:moderate": "Includes removing comments.",
+  "downloads:write": "Includes removing files from a download.",
+  "bundles:write": "Includes removing items from a bundle.",
+  "access:write": "Includes revoking a student's access.",
+  "communities:write": "Includes removing spaces and links from a community.",
+  "communities:moderate": "Includes removing posts, comments and space members, and locking chats.",
 };
 
 export const EXPIRED_SIGN_IN_LINK =
@@ -64,14 +43,18 @@ export function isDeleteScope(scope: string): boolean {
   return scope.endsWith(":delete");
 }
 
+export function heldPermissions(mine: MyPermissions): string[] {
+  return [...new Set([...mine.org, ...Object.values(mine.content).flat()])];
+}
+
 export function pickerScopes(
   requested: string | null | undefined,
-  options: { scope: string; allowed: boolean }[],
+  catalogue: string[],
+  held: string[],
 ): string[] {
   const wanted = new Set((requested ?? "").split(" "));
-  return options
-    .filter((option) => option.allowed && wanted.has(option.scope))
-    .map((option) => option.scope);
+  const holds = new Set(held);
+  return catalogue.filter((scope) => holds.has(scope) && wanted.has(scope));
 }
 
 export function clientDisplayName(clientId: string, ok: boolean, body: unknown): string {

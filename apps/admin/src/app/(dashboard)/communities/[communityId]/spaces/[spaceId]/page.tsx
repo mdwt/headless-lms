@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { requireAuth } from "@/lib/auth/server-session";
-import { isManager } from "@/lib/roles";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 export default async function SpaceIndex({
   params,
@@ -9,8 +8,8 @@ export default async function SpaceIndex({
   params: Promise<{ communityId: string; spaceId: string }>;
 }) {
   const { communityId, spaceId } = await params;
-  const session = await requireAuth();
+  const { permissions } = await requirePermission("communities:read", communityId);
   redirect(
-    `/communities/${communityId}/spaces/${spaceId}/${isManager(session.role) ? "settings" : "members"}`,
+    `/communities/${communityId}/spaces/${spaceId}/${permissions.has("communities:write", communityId) ? "settings" : "members"}`,
   );
 }

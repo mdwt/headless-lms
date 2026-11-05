@@ -33,7 +33,7 @@ export function AssetPreviewDialog({
   asset: Asset | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDelete: (asset: Asset) => void;
+  onDelete?: (asset: Asset) => void;
 }) {
   const url = asset?.url ?? null;
   const downloadUrl = asset?.downloadUrl ?? null;
@@ -96,11 +96,13 @@ export function AssetPreviewDialog({
         </div>
 
         <DialogFooter className="sm:justify-between">
-          {asset && (
+          {asset && onDelete ? (
             <Button variant="destructive" size="sm" onClick={() => onDelete(asset)}>
               <Trash2 />
               Delete
             </Button>
+          ) : (
+            <span />
           )}
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={copyLink} disabled={!url}>

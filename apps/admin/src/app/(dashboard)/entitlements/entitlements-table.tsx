@@ -6,12 +6,9 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { ForbiddenView } from "@/components/full-page-states";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { isManager } from "@/lib/roles";
 import type { Entitlement, ListParams } from "@/lib/api/types";
 
 import { entitlementColumns } from "./entitlements-columns";
@@ -36,15 +33,16 @@ function EntitlementsTableInner({
   params,
   students,
   content,
+  canGrant,
 }: {
   rows: Entitlement[];
   total: number;
   params: ListParams;
   students: LiteStudent[];
   content: LiteContent[];
+  canGrant: boolean;
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
 
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
 
@@ -96,9 +94,10 @@ function EntitlementsTableInner({
     });
   }, [revokeTarget, applyOptimistic]);
 
-  const columns = useMemo(() => entitlementColumns(onRevoke, onReinstate), [onRevoke, onReinstate]);
-
-  if (!isManager(user.role)) return <ForbiddenView />;
+  const columns = useMemo(
+    () => entitlementColumns(onRevoke, onReinstate).filter((c) => canGrant || c.id !== "actions"),
+    [onRevoke, onReinstate, canGrant],
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -135,16 +134,20 @@ function EntitlementsTableInner({
           },
         ]}
         toolbarActions={
-          <Button variant="primary" size="sm" onClick={() => setGrantOpen(true)}>
-            Grant access
-          </Button>
+          canGrant ? (
+            <Button variant="primary" size="sm" onClick={() => setGrantOpen(true)}>
+              Grant access
+            </Button>
+          ) : undefined
         }
         emptyTitle="No entitlements yet"
         emptyDescription="Grant a student access to a course to see it here."
         emptyAction={
-          <Button variant="primary" onClick={() => setGrantOpen(true)}>
-            Grant access
-          </Button>
+          canGrant ? (
+            <Button variant="primary" onClick={() => setGrantOpen(true)}>
+              Grant access
+            </Button>
+          ) : undefined
         }
       />
 
@@ -179,6 +182,7 @@ export function EntitlementsTable(props: {
   params: ListParams;
   students: LiteStudent[];
   content: LiteContent[];
+  canGrant: boolean;
 }) {
   // `useDataTable` reads `useSearchParams()`, which requires a Suspense boundary.
   return (

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/forms/field";
-import { SettingsSection, SettingsSurface } from "@/components/forms/settings-section";
+import { SettingsSection } from "@/components/forms/settings-section";
 
 import { updateOrganizationAction } from "./actions";
 
@@ -25,7 +25,15 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 
 /** Organization → General: edit the active org's name and slug. */
-export function GeneralView({ name, slug }: { name: string; slug: string }) {
+export function GeneralView({
+  name,
+  slug,
+  canEdit,
+}: {
+  name: string;
+  slug: string;
+  canEdit: boolean;
+}) {
   const router = useRouter();
   const {
     register,
@@ -49,32 +57,32 @@ export function GeneralView({ name, slug }: { name: string; slug: string }) {
   }
 
   return (
-    <SettingsSurface>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        <SettingsSection
-          title="Organization"
-          description="Your organization's name and URL slug."
-          footer={
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <SettingsSection
+        title="Organization"
+        description="Your organization's name and URL slug."
+        footer={
+          canEdit ? (
             <Button type="submit" variant="primary" disabled={isSubmitting || !isDirty}>
               {isSubmitting && <Loader2 className="animate-spin" />}
               Save
             </Button>
-          }
+          ) : undefined
+        }
+      >
+        <Field id="org-name" label="Name" error={errors.name?.message} required>
+          <Input id="org-name" disabled={!canEdit} {...register("name")} />
+        </Field>
+        <Field
+          id="org-slug"
+          label="Slug"
+          error={errors.slug?.message}
+          hint="Used to identify your organization in URLs."
+          required
         >
-          <Field id="org-name" label="Name" error={errors.name?.message} required>
-            <Input id="org-name" {...register("name")} />
-          </Field>
-          <Field
-            id="org-slug"
-            label="Slug"
-            error={errors.slug?.message}
-            hint="Used to identify your organization in URLs."
-            required
-          >
-            <Input id="org-slug" {...register("slug")} />
-          </Field>
-        </SettingsSection>
-      </form>
-    </SettingsSurface>
+          <Input id="org-slug" disabled={!canEdit} {...register("slug")} />
+        </Field>
+      </SettingsSection>
+    </form>
   );
 }

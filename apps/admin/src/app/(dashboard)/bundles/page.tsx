@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { parseListParams } from "@/lib/table/parse-list-params";
 
 import { BundlesTable } from "./bundles-table";
@@ -9,6 +10,7 @@ export default async function BundlesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const { permissions } = await requirePermission("bundles:read");
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 20,
@@ -17,7 +19,7 @@ export default async function BundlesPage({
 
   const [{ rows, total }, content] = await Promise.all([
     serverApi.listBundles(params),
-    serverApi.contentLite(),
+    permissions.has("bundles:write") ? serverApi.contentLite() : Promise.resolve([]),
   ]);
 
   // A bundle's contents are single items — bundles can't contain bundles.

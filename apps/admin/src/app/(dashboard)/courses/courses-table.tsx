@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DataTable, isBlank } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Course, ListParams } from "@/lib/api/types";
 
 import { coursesColumns } from "./courses-columns";
@@ -46,7 +45,7 @@ function CoursesTableInner({
   params: ListParams;
 }) {
   const router = useRouter();
-  const user = useCurrentUser();
+  const permissions = usePermissions();
 
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
 
@@ -70,7 +69,7 @@ function CoursesTableInner({
   // Delete confirmation target.
   const [toDelete, setToDelete] = useState<Course | null>(null);
 
-  const canCreate = can.createCourse(user);
+  const canCreate = permissions.has("courses:write");
 
   const openCreate = useCallback(() => {
     setEditing(undefined);
@@ -120,13 +119,13 @@ function CoursesTableInner({
   const columns = useMemo(
     () =>
       coursesColumns({
-        user,
+        permissions,
         onView: goToBuilder,
         onEdit: openEdit,
         onTogglePublish,
         onDelete: setToDelete,
       }),
-    [user, goToBuilder, openEdit, onTogglePublish],
+    [permissions, goToBuilder, openEdit, onTogglePublish],
   );
 
   return (

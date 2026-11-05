@@ -12,7 +12,7 @@ export function FullPageLoader({ label = "Loading…" }: { label?: string }) {
   );
 }
 
-/** Full-page forbidden state for a route a role can't reach. */
+/** Full-page forbidden state for a route the person's permissions don't reach. */
 export function ForbiddenView({ description }: { description?: string }) {
   return (
     <div className="grid min-h-[60vh] place-items-center">
@@ -24,7 +24,7 @@ export function ForbiddenView({ description }: { description?: string }) {
           <h1 className="text-lg font-semibold tracking-tight text-ink">Access restricted</h1>
           <p className="text-sm text-ink-3 text-pretty">
             {description ??
-              "Your role doesn't permit access to this area. Contact an owner or admin if you need it."}
+              "You don't have permission to open this area. Ask someone who manages people in your organization if you need it."}
           </p>
         </div>
       </div>

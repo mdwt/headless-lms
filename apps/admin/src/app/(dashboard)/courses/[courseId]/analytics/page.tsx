@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { formatNumber } from "@/lib/format";
 
 import { ENROLLMENT_RANGES } from "../../../_components/enrollment-ranges";
@@ -16,6 +17,7 @@ export default async function CourseAnalyticsTab({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { courseId } = await params;
+  await requirePermission("progress:read", courseId);
   const sp = await searchParams;
   const range = ENROLLMENT_RANGES.find((r) => r.key === sp.range) ?? ENROLLMENT_RANGES[1];
 

@@ -13,6 +13,7 @@ import { CheckCircle2, Loader2, Search, Upload, UploadCloud, X } from "lucide-re
 import { toast } from "sonner";
 
 import { ApiError } from "@/lib/api/http";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Asset, AssetKind, ListParams } from "@/lib/api/types";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,9 @@ function MediaViewInner({
   total: number;
   params: ListParams;
 }) {
+  const permissions = usePermissions();
+  const canUpload = permissions.has("media:write");
+  const canDelete = permissions.has("media:delete");
   const state = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
 
   // Navigation in flight: URL is ahead of the rows the server rendered.
@@ -122,7 +126,7 @@ function MediaViewInner({
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDragging(false);
-    handleFiles(e.dataTransfer.files);
+    if (canUpload) handleFiles(e.dataTransfer.files);
   }
 
   const confirmDelete = useCallback(() => {
@@ -147,7 +151,7 @@ function MediaViewInner({
       className="flex flex-col gap-6"
       onDragOver={(e) => {
         e.preventDefault();
-        if (!dragging) setDragging(true);
+        if (canUpload && !dragging) setDragging(true);
       }}
       onDragLeave={(e) => {
         if (e.currentTarget === e.target) setDragging(false);
@@ -169,10 +173,12 @@ function MediaViewInner({
       <PageHeader
         title="Media library"
         actions={
-          <Button variant="primary" onClick={() => inputRef.current?.click()}>
-            <Upload />
-            Upload
-          </Button>
+          canUpload ? (
+            <Button variant="primary" onClick={() => inputRef.current?.click()}>
+              <Upload />
+              Upload
+            </Button>
+          ) : undefined
         }
       />
 
@@ -229,7 +235,7 @@ function MediaViewInner({
                     toast.error("Couldn't copy link");
                   }
                 }}
-                onDelete={(a) => setToDelete(a)}
+                onDelete={canDelete ? (a) => setToDelete(a) : undefined}
               />
             ))}
           </div>
@@ -244,8 +250,10 @@ function MediaViewInner({
         </>
       ) : hasFilters ? (
         <StatePanel title="No matching media" description="Try a different search or filter." />
-      ) : (
+      ) : canUpload ? (
         <Dropzone onBrowse={() => inputRef.current?.click()} />
+      ) : (
+        <StatePanel title="No media yet" description="Files uploaded to the library appear here." />
       )}
 
       {/* full-page drag overlay */}
@@ -267,10 +275,14 @@ function MediaViewInner({
         asset={preview}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        onDelete={(a) => {
-          setPreviewOpen(false);
-          setToDelete(a);
-        }}
+        onDelete={
+          canDelete
+            ? (a) => {
+                setPreviewOpen(false);
+                setToDelete(a);
+              }
+            : undefined
+        }
       />
 
       <ConfirmDialog

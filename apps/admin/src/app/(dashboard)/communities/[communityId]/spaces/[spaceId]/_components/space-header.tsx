@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Community, Space } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -18,16 +17,17 @@ import { deleteSpaceAndRedirectAction } from "../../../../actions";
 import { SpaceAccessBadge } from "../../../_components/space-access";
 
 export function SpaceHeader({ community, space }: { community: Community; space: Space }) {
-  const user = useCurrentUser();
+  const permissions = usePermissions();
   const pathname = usePathname();
-  const canManage = can.manageCommunities(user);
+  const canManage = permissions.has("communities:write", community.id);
+  const canModerate = permissions.has("communities:moderate", community.id);
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const base = `/communities/${community.id}/spaces/${space.id}`;
 
   const tabs = [
     ...(canManage ? [{ segment: "settings", label: "Settings", icon: Settings2 }] : []),
-    { segment: "members", label: "Members", icon: Users },
+    ...(canModerate ? [{ segment: "members", label: "Members", icon: Users }] : []),
   ];
 
   function onDelete() {
@@ -44,7 +44,7 @@ export function SpaceHeader({ community, space }: { community: Community; space:
   return (
     <div className="flex flex-col gap-5">
       <Link
-        href={`/communities/${community.id}/${canManage ? "spaces" : "moderation"}`}
+        href={`/communities/${community.id}/spaces`}
         className="inline-flex w-fit items-center gap-1 rounded-md text-sm text-ink-3 outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <ChevronLeft className="size-4" />

@@ -16,8 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import { formatNumber, relativeTime } from "@/lib/format";
 import type { Community } from "@/lib/api/types";
 
@@ -25,24 +24,29 @@ import { deleteCommunityAndRedirectAction, setCommunityPublishedAction } from ".
 import { CommunityTabsNav } from "./community-tabs-nav";
 
 export function CommunityHeader({
+  id,
+  title,
   community,
   stats,
 }: {
-  community: Community;
-  stats: { spaceCount: number; memberCount: number };
+  id: string;
+  title: string;
+  community: Community | null;
+  stats: { spaceCount: number; memberCount: number | null };
 }) {
-  const user = useCurrentUser();
+  const permissions = usePermissions();
   const router = useRouter();
-  const canManage = can.manageCommunities(user);
+  const canManage = community !== null && permissions.has("communities:write", id);
+  const canDelete = community !== null && permissions.has("communities:delete", id);
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const published = community.status === "published";
+  const published = community?.status === "published";
 
   function onTogglePublish() {
     const next: Community["status"] = published ? "draft" : "published";
     startTransition(async () => {
       try {
-        await setCommunityPublishedAction(community.id, next);
+        await setCommunityPublishedAction(id, next);
         toast.success(next === "published" ? "Community published" : "Moved to draft");
       } catch (e) {
         toast.error("Couldn't update status", { description: (e as Error).message });
@@ -54,7 +58,7 @@ export function CommunityHeader({
   function onDelete() {
     startTransition(async () => {
       try {
-        await deleteCommunityAndRedirectAction(community.id);
+        await deleteCommunityAndRedirectAction(id);
       } catch (e) {
         toast.error("Couldn't delete community", { description: (e as Error).message });
         setConfirmingDelete(false);
@@ -74,21 +78,31 @@ export function CommunityHeader({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
-          <h1 className="text-xl font-semibold tracking-tight text-balance text-ink">
-            {community.title}
-          </h1>
+          <h1 className="text-xl font-semibold tracking-tight text-balance text-ink">{title}</h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-ink-3">
-            <CourseStatusBadge status={community.status} />
-            <Dot />
+            {community ? (
+              <>
+                <CourseStatusBadge status={community.status} />
+                <Dot />
+              </>
+            ) : null}
             <span className="tabular-nums">
               {formatNumber(stats.spaceCount)} {stats.spaceCount === 1 ? "space" : "spaces"}
             </span>
-            <Dot />
-            <span className="tabular-nums">
-              {formatNumber(stats.memberCount)} {stats.memberCount === 1 ? "member" : "members"}
-            </span>
-            <Dot />
-            <span>Updated {relativeTime(community.updatedAt)}</span>
+            {stats.memberCount !== null ? (
+              <>
+                <Dot />
+                <span className="tabular-nums">
+                  {formatNumber(stats.memberCount)} {stats.memberCount === 1 ? "member" : "members"}
+                </span>
+              </>
+            ) : null}
+            {community ? (
+              <>
+                <Dot />
+                <span>Updated {relativeTime(community.updatedAt)}</span>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -109,23 +123,27 @@ export function CommunityHeader({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem asChild>
-                  <Link href={`/communities/${community.id}/settings/notifications`}>
+                  <Link href={`/communities/${id}/settings/notifications`}>
                     <Bell />
                     Notifications
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="danger" onSelect={() => setConfirmingDelete(true)}>
-                  <Trash2 />
-                  Delete community
-                </DropdownMenuItem>
+                {canDelete ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="danger" onSelect={() => setConfirmingDelete(true)}>
+                      <Trash2 />
+                      Delete community
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         )}
       </div>
 
-      <CommunityTabsNav communityId={community.id} canManage={canManage} />
+      <CommunityTabsNav communityId={id} />
 
       <ConfirmDialog
         open={confirmingDelete}
@@ -133,8 +151,8 @@ export function CommunityHeader({
         title="Delete community?"
         description={
           <>
-            This permanently deletes <span className="font-medium text-ink">{community.title}</span>
-            , its spaces, and everything members posted in them. This can&apos;t be undone.
+            This permanently deletes <span className="font-medium text-ink">{title}</span>, its
+            spaces, and everything members posted in them. This can&apos;t be undone.
           </>
         }
         confirmLabel="Delete community"

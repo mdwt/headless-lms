@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
 
-import { getServerSession } from "@/lib/auth/server-session";
-import { isManager } from "@/lib/roles";
+import { getPermissions } from "@/lib/auth/server-permissions";
+import { requireAuth } from "@/lib/auth/server-session";
 
-// Bare /settings has no panel of its own — send managers to the org's General
-// settings and everyone else to their account Profile.
 export default async function SettingsPage() {
-  const session = await getServerSession();
-  const manager = session ? isManager(session.role) : false;
-  redirect(manager ? "/settings/general" : "/settings/account");
+  await requireAuth();
+  const permissions = await getPermissions();
+  redirect(permissions.has("organizations:read") ? "/settings/general" : "/settings/account");
 }

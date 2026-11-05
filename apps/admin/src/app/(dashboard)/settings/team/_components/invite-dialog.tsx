@@ -16,19 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { OrgRole } from "@/lib/api/types";
 import { inviteMemberAction } from "../actions";
 
 const FORM_ID = "invite-member-form";
 
-/** Roles that can be invited — never owner (fixed) or student (not back-office). */
-const INVITE_ROLES = [
-  { value: "admin", label: "Admin" },
-  { value: "instructor", label: "Instructor" },
-] as const;
-
 const schema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email address"),
-  role: z.enum(["admin", "instructor"]),
+  roleKey: z.string().min(1, "Select a role"),
 });
 
 type InviteValues = z.infer<typeof schema>;
@@ -36,10 +31,13 @@ type InviteValues = z.infer<typeof schema>;
 export function InviteDialog({
   open,
   onOpenChange,
+  roles,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  roles: OrgRole[];
 }) {
+  const initialRole = (roles.find((r) => r.permissions.length > 0) ?? roles[0])?.key ?? "";
   const [pending, startTransition] = useTransition();
   const {
     register,
@@ -49,13 +47,13 @@ export function InviteDialog({
     formState: { errors },
   } = useForm<InviteValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", role: "instructor" },
+    defaultValues: { email: "", roleKey: initialRole },
   });
 
   // Reset the form each time the sheet is (re)opened.
   useEffect(() => {
-    if (open) reset({ email: "", role: "instructor" });
-  }, [open, reset]);
+    if (open) reset({ email: "", roleKey: initialRole });
+  }, [open, reset, initialRole]);
 
   const onSubmit = handleSubmit((values) => {
     startTransition(async () => {
@@ -97,32 +95,35 @@ export function InviteDialog({
           />
         </Field>
 
-        <Field
-          id="invite-role"
-          label="Role"
-          required
-          error={errors.role?.message}
-          hint="Admins manage the whole org. Instructors manage only their assigned courses."
-        >
-          <Controller
-            control={control}
-            name="role"
-            render={({ field }) => (
+        <Controller
+          control={control}
+          name="roleKey"
+          render={({ field }) => (
+            <Field
+              id="invite-role"
+              label="Org role"
+              required
+              error={errors.roleKey?.message}
+              hint={
+                roles.find((r) => r.key === field.value)?.description ||
+                "The role they hold across the whole org once they accept."
+              }
+            >
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="invite-role" aria-invalid={!!errors.role}>
+                <SelectTrigger id="invite-role" aria-invalid={!!errors.roleKey}>
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INVITE_ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      {r.label}
+                  {roles.map((r) => (
+                    <SelectItem key={r.key} value={r.key}>
+                      {r.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
-          />
-        </Field>
+            </Field>
+          )}
+        />
       </form>
     </FormDialog>
   );

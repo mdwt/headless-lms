@@ -14,8 +14,11 @@ import type { Asset, ListParams, Paginated, UploadTicket } from "@/lib/api/types
  * SSR; this exists for client surfaces that filter and page on their own —
  * currently the editor's library picker dialog.
  */
-export async function listAssetsAction(params: ListParams): Promise<Paginated<Asset>> {
-  return await Assets.listAssets(toQuery(params, ["kind"]), await authHeaders());
+export async function listAssetsAction(
+  params: ListParams,
+  contentId?: string,
+): Promise<Paginated<Asset>> {
+  return await Assets.listAssets({ ...toQuery(params, ["kind"]), contentId }, await authHeaders());
 }
 
 export async function deleteAssetAction(id: string): Promise<void> {
@@ -26,6 +29,7 @@ export async function deleteAssetAction(id: string): Promise<void> {
 export interface UploadMeta {
   filename: string;
   contentType: string;
+  contentId?: string;
 }
 
 /**

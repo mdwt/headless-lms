@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { useCurrentUser } from "@/lib/auth/session-context";
-import { can } from "@/lib/roles";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { Course } from "@/lib/api/types";
 
 import { deleteCourseAction } from "../../actions";
@@ -23,14 +22,14 @@ export function CourseHeaderActions({
   title: string;
   status: Course["status"];
 }) {
-  const user = useCurrentUser();
+  const permissions = usePermissions();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const canPublish = can.publishCourse(user);
-  const canDuplicate = can.createCourse(user);
-  const canDelete = can.deleteCourse(user);
+  const canPublish = permissions.has("courses:write", courseId);
+  const canDuplicate = permissions.has("courses:write");
+  const canDelete = permissions.has("courses:delete", courseId);
   if (!canPublish && !canDuplicate && !canDelete) return null;
 
   function onTogglePublish() {

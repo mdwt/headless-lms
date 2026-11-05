@@ -62,7 +62,11 @@ export function CommunityThumbnail({
     setBusy("upload");
     setProgress(0);
     try {
-      const ticket = await requestUploadAction({ filename: file.name, contentType: file.type });
+      const ticket = await requestUploadAction({
+        filename: file.name,
+        contentType: file.type,
+        contentId: communityId,
+      });
       await putToStorage(ticket.uploadUrl, ticket.headers, file, setProgress);
       const asset = await confirmAssetAction(ticket.asset.id);
       if (!asset.url) throw new Error(`${file.name} has not finished uploading`);
@@ -147,6 +151,7 @@ export function CommunityThumbnail({
           kind="image"
           onOpenChange={setPickerOpen}
           onSelect={onSelect}
+          contentId={communityId}
         />
       </div>
     </SettingsSection>

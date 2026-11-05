@@ -1,4 +1,4 @@
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { SettingsSurface } from "@/components/forms/settings-section";
 
@@ -11,8 +11,8 @@ export default async function CommunityNotificationSettings({
   params: Promise<{ communityId: string }>;
 }) {
   const { communityId } = await params;
+  await requirePermission("communities:write", communityId);
   const communityPromise = serverApi.getCommunity(communityId);
-  await requireManager(communityPromise);
   const [community, list, types, channels, spaces] = await Promise.all([
     communityPromise,
     serverApi.communityNotificationCategories(communityId),

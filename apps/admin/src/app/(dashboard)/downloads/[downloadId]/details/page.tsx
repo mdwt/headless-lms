@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/api/server";
+import { requirePermission } from "@/lib/auth/server-permissions";
 
 import { DownloadDetailsForm } from "../_components/download-details-form";
 
@@ -9,6 +10,7 @@ export default async function DownloadDetailsTab({
   params: Promise<{ downloadId: string }>;
 }) {
   const { downloadId } = await params;
+  await requirePermission("downloads:write", downloadId);
 
   const download = await serverApi.getDownload(downloadId);
 

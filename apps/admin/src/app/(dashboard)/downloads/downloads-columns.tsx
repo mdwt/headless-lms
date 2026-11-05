@@ -6,28 +6,24 @@ import { CourseStatusBadge } from "@/components/status-badge";
 import { ColumnHeader } from "@/components/data-table/column-header";
 import { RowActions } from "@/components/data-table/row-actions";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { can } from "@/lib/roles";
 import { relativeTime } from "@/lib/format";
-import type { Download, SessionUser } from "@/lib/api/types";
+import type { Download } from "@/lib/api/types";
+import type { Permissions } from "@/lib/permissions";
 
 /**
  * Column set for the downloads list. Callbacks drive the row-title link and
- * the row-action menu; role gating (`can.*`) hides actions the caller can't
- * perform. `user` is the server-resolved session user threaded down from the
- * island. Reuses `CourseStatusBadge` — both content types share the same
+ * the row-action menu; the caller's permissions on each download hide what
+ * they can't do. Reuses `CourseStatusBadge` — both content types share the same
  * draft/published status shape.
  */
 export function downloadsColumns(opts: {
-  user: SessionUser;
+  permissions: Permissions;
   onView: (download: Download) => void;
   onEdit: (download: Download) => void;
   onTogglePublish: (download: Download) => void;
   onDelete: (download: Download) => void;
 }): ColumnDef<Download, unknown>[] {
-  const { user, onView, onEdit, onTogglePublish, onDelete } = opts;
-  const canEdit = can.editDownload(user);
-  const canPublish = can.publishDownload(user);
-  const canDelete = can.deleteDownload(user);
+  const { permissions, onView, onEdit, onTogglePublish, onDelete } = opts;
 
   return [
     {
@@ -74,6 +70,9 @@ export function downloadsColumns(opts: {
       enableHiding: false,
       cell: ({ row }) => {
         const download = row.original;
+        const canEdit = permissions.has("downloads:write", download.id);
+        const canPublish = canEdit;
+        const canDelete = permissions.has("downloads:delete", download.id);
         return (
           <div className="flex justify-end">
             <RowActions>

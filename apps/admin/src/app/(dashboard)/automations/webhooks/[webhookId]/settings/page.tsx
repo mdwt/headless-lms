@@ -1,4 +1,4 @@
-import { requireManager } from "@/lib/auth/server-session";
+import { requirePermission } from "@/lib/auth/server-permissions";
 import { serverApi } from "@/lib/api/server";
 import { SettingsSurface } from "@/components/forms/settings-section";
 
@@ -12,11 +12,12 @@ export default async function WebhookSettingsPage({
 }) {
   const { webhookId } = await params;
 
+  await requirePermission("automations:read");
+
   const dataPromise = Promise.all([
     serverApi.getWebhook(webhookId),
     serverApi.automationTriggers(),
   ]);
-  await requireManager(dataPromise);
   const [webhook, triggers] = await dataPromise;
 
   return (

@@ -16,12 +16,14 @@ import { confirmAssetAction, requestUploadAction } from "@/app/(dashboard)/media
 import { putToStorage } from "@/app/(dashboard)/media/upload-to-storage";
 
 export async function uploadEditorFile(
+  courseId: string,
   file: File,
   opts: { onProgress?: (fraction: number) => void } = {},
 ): Promise<UploadedEditorFile> {
   const ticket = await requestUploadAction({
     filename: file.name,
     contentType: file.type || "application/octet-stream",
+    contentId: courseId,
   });
 
   await putToStorage(ticket.uploadUrl, ticket.headers, file, opts.onProgress);
