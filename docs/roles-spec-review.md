@@ -11,16 +11,13 @@ Each item carries a status: `open`, `fixed`, `decided` or `dropped`, with a note
 | 3. Code check | Uncovered role decisions, routes without a permission or actor, wrong claims | All corrected in the spec |
 | 4. Review 3 | 9 items (6 blocking) | All fixed; checked in part 5 |
 | 5. Review 4 | 13 items (4 blocking), 1 decision | All fixed or decided |
+| 6. Review 5 | 15 items (2 blocking), 1 decision | All fixed or decided |
 
 
 
 ## Unresolved
 
-Nothing is open. Applied since part 5:
-- **Naming rules** (spec 5.1). Resources are domain nouns, never carry a level, and hold the records that belong to them; the actions are `read`, `write`, `delete` and `moderate`. The whole list follows them: `members:*` replaces `team:*` and `students:*`; `progress:read` replaces `course_learners:read`; `org:write` replaces `org:update`; `read` opens a content item without a grant, replacing `courses:preview`, `downloads:preview` and `communities:enter`; community analytics are `communities:read`, and space members fall under `communities:moderate`; `delete` exists for every resource that can be removed (`api_keys`, `integrations`, `members`, `roles`, `media` gain it). Today's scopes that break the rules are renamed, and keys carrying them lose them.
-- **Part 5's findings 1 to 13 and D1**, each noted on its item.
-
-The edits since part 5 have not had an independent review.
+Nothing is open. Part 6's findings and decision are applied, each noted on its item.
 
 ## 1. Review 1
 
@@ -1370,3 +1367,169 @@ No, not as written. Items 1 to 4 block it:
 Items 5 to 13 are corrections in the same sections. Each has a fix above that needs no decision, except D1.
 
 Everything else holds: the permission list, levels, resolution, escalation rules, locks, events, wire changes, apps, the Better Auth adapter mechanism and the moderation merge. They are consistent with each other and with the code, and the `file:line` references in the spec check out. Once 1 to 13 are fixed and D1 is decided, the spec can be implemented.
+
+## 6. Review 5
+
+The final readiness review, after the naming rules and part 5's fixes.
+
+### Previous fixes
+
+Checked against the worktree at `451cdc5a`, `HC/` at `89cf14f`, and Better Auth 1.7.7 (`BA/`). `spec:N` is a line of `docs/roles-spec.md` as it stands.
+
+- **1, membership idempotency (9.2, 13):** holds. `findMemberByOrgId({ userId, organizationId })` exists (`BA/adapter.mjs:241-264`), `createMember` is a plain insert (`:286-294`), and `ba_member` has no unique key (`adapters/db/src/schema/better-auth.ts:87-97`).
+- **2, the owner can't be removed (10.2 rule 5):** holds for `removePerson` and `setOrgRole`. An invite to the owner, or with `owner`, gets around it (item 10).
+- **3, people and invite operations (10.1):** present, with four faults. The Team and Students rows share one route and duplicate today's Students list (item 4). Invited staff land in Students (item 5). Cancelling skips rule 2 (item 6). Resend and cancel are keyed on an id the lists don't carry (item 12).
+- **4, the `ApiKeys` port and `api_keys:delete` (5.1, 7.4, 9.3):** holds. `apikey.reference_id` exists (`schema/better-auth.ts:306`), and `better-auth.ts:523-529` is today's owner check. Better Auth's own `/api-key/*` endpoints still get around the new permissions (item 9).
+- **5, transfer order (10.3):** holds. Both Better Auth writes are `updateMember(memberId, role)` (`BA/adapter.mjs:295-304`), so repeating them is harmless.
+- **6, no MCP tool for transfer or deleting the org (10.1):** holds.
+- **7, connected apps are the person's own (5.1, 7.4, 11):** holds. `better-auth.ts:439-487` already filters by user.
+- **8, `NotificationCatalog` (7.4):** holds. The defaults come from the shared type registry (`shared/notification-categories.ts:20`; `content/notification-categories.ts:85-86`; `organizations/notification-categories.ts:76-77`), so organizations doesn't need to import content.
+- **9, the slug check (7.4):** holds. `getBySlug` is at `organizations/service.ts:516`.
+- **10, declaration kinds (7.5):** holds. The permission list on `requestUpload` is missing `communities:write` (item 1).
+- **11, `deleteOrganization` (7.4, 10.1):** present, but it can never succeed (item 2).
+- **12, small fixes (8, 9.3, 15.1, 16):** hold. Both admin pages exist (`apps/admin/src/app/(dashboard)/courses/[courseId]/discussion`, `communities/[communityId]/(community)/moderation`).
+- **13, tests (19):** present. 19.1 can't pass (item 8), and 19.7's learner list has no method behind it (item 3).
+- **D1, `courses:moderate` implies `courses:read`:** holds (5.2, 19.3).
+- **Naming rules (5.1):** five problems:
+  - `org:write` breaks rules 2, 3 and 6 (item 7).
+  - `communities:moderate` breaks rule 5's definition of `moderate` (item 11).
+  - 19.1 tests the rule wrongly (item 8).
+  - The community roster lands on two permissions (item 13).
+  - `members` is a role's name (D1).
+
+  Every other key in the spec is in the table and is used with the meaning the table gives it: code blocks, 4.3, 6 to 20, the worked example, the tests and the decisions. Old names appear only in 5.1's rename line and as alternatives in 20. Folding preview and enter into `read` widens nothing for a default role or an existing scope. Keys reach only `/mcp`, and no MCP tool opens content. The move of `delete_module` and `delete_space` to `:write` is stated in 11. The section 8 and 9 `file:line` claims I checked all match the code.
+
+### Wrong
+
+#### Blocking
+
+**1 · fixed · Course-scoped people can't finish an upload or re-save a lesson**
+Fixed in spec 5.1 (`communities:write` uploads), 7.4 (confirm, reads and added-ids-only saves), 7.5, 16 step 5 and 19.7.
+Where: 5.1 (`courses:write`, `communities:write`), 7.4 "Media", 7.5, 16 step 5.
+Problem:
+- 7.4 gives the item's write permission to `requestUpload` only. An upload then needs `confirm` (`POST /api/assets/:id/confirm`, `assets/service.ts:166-176`) before it is ready. The spec gives `confirm`, `getAsset` and the file redirects (`routes/assets.ts:66-170`) no rule. Under deny-by-default (7.5) they need `media:*`, which no Instructor holds. So James's upload never becomes ready, and step 5 of the worked example fails.
+- `saveActivity` checks every asset id in the body (`content/service.ts:383`, `assertLibraryAssets` at `:357-374`), and the body replaces the whole list (`adapters/db/src/repositories/content.ts:488-502, 660-661`). Under 7.4, James can't re-save any lesson that already holds a file not uploaded for `crs_1`. That includes every asset that exists today, since `assets.content_id` starts null and nothing is migrated (17.3), and any file an Admin attached. This affects every Instructor, because the default Instructor holds no `media:read`.
+- Community thumbnails are library assets too (`content/service.ts:840`). The `communities:write` row lacks the "upload media for it" clause that `courses:write` and `downloads:write` carry, and 7.5's `requestUpload` list leaves out `communities:write`.
+
+Fix: in 7.4:
+- `confirm`, `getAsset` and the file redirects accept the write permission on the item recorded on the asset, as `requestUpload` does.
+- Saving an activity, a thumbnail or a download file checks only the asset ids it adds. Ids already attached to that item pass.
+- Add "upload media for it and attach media uploaded for it" to `communities:write` in 5.1.
+- Add `communities:write` to `requestUpload`'s declaration in 7.5.
+- Name `confirm` in 16 step 5. Add a case to 19.7: James re-saves a lesson that holds an Admin's library file.
+
+**2 · fixed · `deleteOrganization` can never succeed**
+Fixed: deleting an org stays as it works today; `deleteOrganization` and its route are removed (5.1, 7.1, 7.4, 7.5, 9.3, 10.1, 19).
+Where: 5.1, 7.4, 7.5, 10.1, 19.9.
+Problem: `org_users.org_id` and every content, discussion, entitlement, progress and asset table reference `organizations.id` with `ON DELETE no action` (`adapters/db/drizzle/0000_baseline.sql:449, 457`; `schema/organizations.ts:29-31`; `schema/content.ts:62`, and so on). Every org has at least the owner's org user (4.4), so core's delete (`repositories/organizations.ts:75-82`) always fails on a foreign key. If the adapter delete (`BA/adapter.mjs:370-395`) runs first, Better Auth's org and memberships are gone while core's org stays. Today the same delete fails inside `beforeDeleteOrganization` (`container.ts:836-838`), before Better Auth writes anything. So "the owner deletes the org" (19.9) can't pass, and the operation as specified leaves the two stores out of step.
+Fix: deleting an org is outside roles, so it stays as it works today. Remove `DELETE /api/organizations` and `deleteOrganization` from 7.4, 7.5, 10.1 and 18, and the case from 19.9. Keep `/organization/delete` refused over HTTP (9.3). 5.1 keeps "deleting the org" as owner-only.
+
+#### Errors and gaps
+
+**3 · fixed · `progress:read` promises a learner list that no method serves**
+Fixed in spec 7.4 and 15.1: `EntitlementService.list` for a course passes with `progress:read` on it; test 19.7.
+Where: 4.3 (Instructor: "see a course's learners"), 5.1 (`progress:read`), 19.7.
+Problem: today the only per-course list of learners is the course Access page. It reads `GET /api/entitlements?contentId=` (`apps/admin/src/app/(dashboard)/courses/[courseId]/access/page.tsx:15`; `lib/api/server.ts:360-366`; `routes/entitlements.ts:24-39`), which falls under `access:read` (5.1). `courseAnalytics` holds counts only (`reporting/admin/model.ts:47-54`), and `listStudents` has no course filter (`http/schemas/students.ts:41`). Today an Instructor, as staff, sees this list. Under the default set, no Instructor can, and 19.7's "`progress:read` on a course lists that course's learners" has no method to call.
+Fix: in 7.4, `EntitlementService.list` with a `contentId` that is a course passes with `progress:read` on that course. Without one, it needs `access:read`. The declaration names both, and 15.1 gates the course Access page on either.
+
+**4 · fixed · One route serves two methods, and Students duplicates today's list**
+Fixed in spec 10.1: Team is `GET /api/organizations/people`; Students stays `GET /api/students` in reporting/admin under `people:read`.
+Where: 10.1 (the `list=team` and `list=students` rows), 7.5, 8 (the "Team and Students lists" row).
+Problem:
+- `GET /api/organizations/members?list=team|students` maps to `listTeam` or `listStudents`. The handler would have to pick the method, which breaks 7.5's one `operation` per route and "routes carry no logic". Review 4 item 8 refused the same pattern for the notification defaults.
+- The Students page reads `GET /api/students` → `reporting.admin.listStudents` (`routes/students.ts:24-39`; `apps/admin/src/app/(dashboard)/students/page.tsx:21`). 8 points that list's queries (`admin.ts:296, 371, 394`) at 10.4. 10.1 creates a second `listStudents` in organizations and doesn't say what happens to `GET /api/students`, `/:id` or `/:id/analytics`.
+
+Fix: Team is `GET /api/organizations/members` → `organizations.listTeam` (`members:read`). Students stays `GET /api/students` → `reporting.admin.listStudents` (`members:read`), with 10.4's definition applied to `admin.ts`. Delete the `list=students` row. Name `getStudent` and `studentAnalytics` under `members:read`.
+
+**5 · fixed · Invited staff appear in Students, not Team**
+Fixed in spec 10.4: invited org users are listed by their pending invite's role; test 19.7.
+Where: 10.4, 13, 4.5.
+Problem: an invite stores only the role key, and acceptance writes the org row (13). Member is never stored (4.5). So an invited Instructor is an `invited` org user whose org role resolves to Member until they accept. 10.4 puts "active and invited org users whose org role is Member" in Students, and builds Team from org users' roles, "no longer the `invites` table". Every pending staff invite therefore shows as a student. That contradicts 10.4's own "a role change on an `invited` org user updates the role their invite carries".
+Fix: in 10.4, an `invited` org user is listed by the role key on their pending invite. Team and Students join `invites` for invited rows. Add the case to 19.7.
+
+**6 · fixed · Cancelling an invite removes item roles without rule 2**
+Fixed in spec 13: cancelling keeps an org user who holds a grant or an item role; test 19.7.
+Where: 13 ("deletes an org user who is still `invited` and holds no grant"), 10.2 rule 2, 17.2.
+Problem: item roles can be given to an invited org user ("after the person exists", 13). Their assignments cascade with the org user (17.2). `cancelInvite` needs only `members:write` and rule 2 "for the role it carries" (10.4), which is the org role. A holder of `members:write` without `courses:write` can't `unassignRole` James's Instructor on `crs_1`, but can delete it by cancelling his invite.
+Fix: in 13, cancelling also applies rule 2 to every item role the invited org user holds, or keeps an org user who holds any assignment, as it keeps one with a grant. Add the case to 19.8.
+
+**7 · fixed · `org:write` breaks rules 2, 3 and 6**
+Fixed in spec 5.1: `organizations:read` and `organizations:write`.
+Where: 5.1 (`org:write`), 5.2, 19.1.
+Problem:
+- The resource `org` is singular (rule 2) and is the level `org` itself (rule 3).
+- `org:read` doesn't exist, so rule 6 ("each `write` … implies the resource's `read`") has nothing to imply. As 5.2 states the implication, `implies: ['org:read']` doesn't compile against `readonly Permission[]`, and 19.1's "every implication names an existing permission" fails.
+
+Fix: rename the key to `organizations:write` (the API noun, `/api/organizations`), and add `organizations:read`: "See the org's name, slug and general settings", about `org`, held by Admin, implied by `organizations:write`. 15.1's General panel gates on it. Update the uses in 7.4 (`updateOrganization`), 10.1 and 19.6.
+
+**8 · fixed · Test 19.1 fails on every content permission**
+Fixed in spec 19.1.
+Where: 19.1 ("no resource starts with a content type's name").
+Problem: `courses`, `downloads` and `communities` start with `course`, `download` and `community`. Rule 3 forbids a level used as a prefix (`course_`), not the plural resource.
+Fix: "no resource is a level followed by `_`, such as `course_learners`".
+
+**9 · fixed · Better Auth's own API-key endpoints get around `api_keys:read` and `api_keys:delete`**
+Fixed in spec 9.3: `/api-key/get|list|update|delete` refused over HTTP; test 19.13.
+Where: 9.3 (the `before` hook), 5.1, 7.4.
+Problem: `/api/auth/*` is served straight to Better Auth (`http/plugins/auth.ts:31`). The hook refuses only `/api-key/create` and metadata updates (`better-auth.ts:243-257`). `/api-key/list`, `/api-key/get`, `/api-key/update` and `/api-key/delete` (`@better-auth/api-key/dist/index.mjs:887, 957, 1122, 1354`) stay open to any session for its own keys. Someone without `api_keys:read` or `api_keys:delete` can still list and revoke keys over HTTP, so the check isn't only in core (requirement 8).
+Fix: in 9.3, the hook also refuses `/api-key/get`, `/api-key/list`, `/api-key/update` and `/api-key/delete` when `ctx.request` is set. Add them to 19.13's refused paths.
+
+**10 · fixed · Invites can target the owner or carry `owner`**
+Fixed in spec 13: invites with `owner` or to the owner are refused, and acceptance refuses the owner's row; test 19.9.
+Where: 13, 10.2 rule 5, 4.2.
+Problem: today `createInvite` refuses an owner invite (`organizations/service.ts:250`, `assertNotOwner`). 13 doesn't. An Admin holds every permission, so they pass rule 2 against the owner's org row. They can therefore invite the owner's email as Member, or anyone as `owner`. Acceptance "sets the invited org role the way `setOrgRole` does". Member deletes the owner's row, and `owner` gives ownership outside transfer. Rule 5's refusal names only `setOrgRole` and removal.
+Fix: in 13, `createInvite` refuses an invite with `owner` and an invite to the current owner (409), as today. Acceptance refuses the owner's row as `setOrgRole` does. Add both to 19.9.
+
+**11 · fixed · `communities:moderate` holds space membership, which rule 5's `moderate` doesn't cover**
+Fixed in spec 5.1 rule 5: `moderate` covers who takes part.
+Where: 5.1 rule 5 and the `communities:moderate` row, rule 4.
+Problem: rule 5 defines `moderate` as acting "on what other people post in a content item: approving, removing, restoring, pinning, locking and reports". The `communities:moderate` row also covers opening every space, seeing every space member and locked rosters, and inviting, adding, approving, declining and removing space members. Those are about who takes part, not what was posted. Read literally, rule 4 puts space members under `communities` and rule 5 leaves them only `read` and `write`. That would move them to `communities:write`, which Moderator doesn't hold.
+Fix: keep the decided fold, and widen rule 5's `moderate` to the fold: "acts on what other people post in a content item and on who takes part in it: approving, removing, restoring, pinning, locking, reports, space members and join requests."
+
+**12 · fixed · Resend and cancel are keyed on an id the lists don't carry, and resend keeps a stale inviter**
+Fixed in spec 10.1 and 13: resend and cancel keyed on the org user; resending sets `invited_by`; test 19.8.
+Where: 10.1 (`/invites/:inviteId/resend`, `/invites/:inviteId`), 13 (acceptance re-check).
+Problem:
+- Students and Team rows are org users. Today resend is keyed on the org user, "because the admin app knows the student, not the invitation" (`routes/students.ts:86-114`), and `resend_student_invite` takes an org user id (`mcp/tools/people.ts:49-60`). 10.4 gives the rows no invite id.
+- Acceptance fails when the inviter no longer holds what the invite needs (13), and 19.8 tests it. Resending doesn't change `invited_by` (`repositories/organizations.ts:177-189` sets only the token and expiry). So an invite whose inviter left can't be accepted even after an Admin resends it.
+
+Fix: in 10.1, key resend and cancel on the org user id (`/api/organizations/members/:orgUserId/invite/resend`, `DELETE …/invite`); there is one pending invite per email (`upsertPendingInvite`). In 13, resending sets `invited_by` to the resender, who has passed rule 2. Add to 19.8: an invite whose inviter left is accepted after an Admin resends it.
+
+**13 · fixed · The community roster lands on two permissions**
+Fixed in spec 5.1 and 11: the roster is `access:read`; `list_community_members` takes its method's permission.
+Where: 5.1 (rename line, `access:read` row), 11.
+Problem: `list_community_members` (`mcp/tools/community-members.ts:13-24`) and `GET /api/communities/:communityId/members` (`routes/community-moderation.ts:38-63`) call `reporting.admin.communityMembers`. 5.1's rename line maps their scope, `community_members:read`, to `communities:moderate`. The `access:read` row says it covers "a community's roster of grant holders". 11 doesn't list the tool among those that change permission. An implementer can't tell which permission the method declares.
+Fix: `reporting.admin.communityMembers` requires `access:read`, as the table says. In 5.1, say `community_members:*` maps to `communities:moderate` for space members only. Add `list_community_members` to 11's list of tools that take their method's permission.
+
+**14 · fixed · Removal has no order, and a refused removal can leave the person half-removed**
+Fixed in spec 9.2: core deletes the org user first, then the membership and tokens; test 19.9.
+Where: 9.2 ("in the same core operation"), 10.2 rule 3.
+Problem: deleting an org user who wrote posts, comments or messages is refused with 409 (`repositories/organizations.ts:295-311`). The Better Auth membership delete and `revokeAllFor` go through Better Auth's adapter, outside core's transaction (`BA/adapter.mjs:305-351`). If they run first, a refused removal leaves the person with an active org user but no membership and no keys. Today the refusal is thrown in `beforeRemoveMember` (`container.ts:851-853`) before Better Auth deletes anything.
+Fix: in 9.2, `removePerson` deletes the org user in core's transaction first, so a refusal changes nothing. It then deletes the membership found with `findMemberByOrgId` and calls `revokeAllFor`. A leftover membership after a failure is harmless: `resolveActor` refuses, and a later `grantMembership` reuses it (9.2). Add to 19.9: removing an author is refused and leaves their membership and keys.
+
+**15 · fixed · `revokeAllFor` leaves OAuth access tokens**
+Fixed in spec 9.3: `revokeAllFor` deletes access tokens too; test 19.12.
+Where: 9.3, 10.2 rule 3.
+Problem: `revokeAllFor` removes "keys, app consents and refresh tokens". Today `revokeConnectedApp` also deletes `oauthAccessToken` rows (`better-auth.ts:471-484`). Access tokens live 900 seconds (`identity/access.ts:2`), and the org claim resolves to whichever org user the person has. A person removed and re-invited within that window keeps a working token.
+Fix: in 9.3, `revokeAllFor` also deletes the person's access tokens for the org, as `revokeApp` does.
+
+### Open for a decision
+
+**D1 · decided · `members` is also the name of a role**
+Decided: (a). The resource is `people` (`people:read`, `people:write`, `people:delete`).
+Rule 2 says a resource "is never a database table, a screen or a role". Member is a system role (3, 4.2), and 10.4 defines Students as the people whose org role is Member. So `members:read` reads as "the Member role's holders", while it actually covers everyone in the org.
+Options:
+- (a) Rename the resource to `people` (`people:read`, `people:write`, `people:delete`), with 10.1's routes under `/api/organizations/people`. The group is already "People", and 10.1 already speaks of people.
+- (b) Keep `members:*` and rename the system role's key and default name, for example to `learner`, across 4, 7.7, 10.2, 13, 16 and 17.
+
+Recommendation: (a). It changes only names the spec introduces, and Member stays the role every org starts with.
+
+### Verdict
+
+No, not as written. Two items block it:
+- An Instructor scoped to a course can't finish an upload or re-save a lesson (1).
+- Deleting an org can never succeed (2).
+
+Items 3 to 15 are corrections in the sections named. Each has a fix that needs no decision. Two of them are naming-rule breaks (7, 11). The rest are gaps in the new people operations, the invite rules and the Better Auth boundary. D1 is the one product choice left.
+
+Everything else holds: every part-5 fix, the permission list's uses across sections 6 to 20, the levels, resolution, escalation, transfer, the Better Auth adapter plan and the `file:line` claims I checked against the code. Once 1 to 15 are fixed and D1 is decided, the spec can be implemented.

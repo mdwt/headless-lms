@@ -137,12 +137,12 @@ An assignment is `(org user, role, scope)`, where scope is the org or one conten
 - Every org user has exactly one assignment on the org. It is Member unless they were given another role. Member is never stored: an org user without an org row has Member. The owner's org row has the role `owner`, and exactly one such row exists per org.
 - An org user has at most one assignment per content item.
 - **A role is given only at a level it lists.** Instructor lists `org` and `course`, so it can be given on the org or on a course, and giving it on a community is refused. Owner and Member list `org` only.
-- **A role's permissions fit its levels.** A role may hold a permission about a content type when its levels include that type or `org`, and a permission about the org only when its levels include `org`. A role whose only level is `course` can't hold `members:write`; saving it is refused. Adding the wrong permission to a role therefore can't widen where it applies.
+- **A role's permissions fit its levels.** A role may hold a permission about a content type when its levels include that type or `org`, and a permission about the org only when its levels include `org`. A role whose only level is `course` can't hold `people:write`; saving it is refused. Adding the wrong permission to a role therefore can't widen where it applies.
 - An assignment never grants access by itself. James can edit Spanish Basics because he holds `courses:write` on it. He opens it as a learner does with a grant, or through `courses:read` on it (section 6).
 
 ### 4.6 Effective permissions
 
-- **On the org.** A role given on the org applies everywhere. Its permissions about a content type cover every item of that type: Instructor on the org covers every course. Its permissions about the org itself, such as `members:write`, apply too.
+- **On the org.** A role given on the org applies everywhere. Its permissions about a content type cover every item of that type: Instructor on the org covers every course. Its permissions about the org itself, such as `people:write`, apply too.
 - **On a content item.** A role given on an item contributes only its permissions about that item's type, and only for that item. Instructor on Spanish Basics gives course permissions for `crs_1` and nothing else, never `api_keys:write`.
 - **On an item, a person holds** their org role's permissions plus those of the role given to them on that item. Nothing is subtracted.
 - The owner's org role holds every permission in the list. A permission that implies another (section 5.2) grants both.
@@ -165,23 +165,24 @@ A person is team on a content item when either the role given to them on that it
 **Naming rules.** Every permission follows them, and a permission added later is named by them:
 
 1. A key is `resource:action`.
-2. The resource is a domain noun the API exposes, in the plural: `courses`, `members`, `automations`. It is never a database table, a screen or a role.
+2. The resource is a domain noun the API exposes, in the plural: `courses`, `people`, `automations`. It is never a database table, a screen or a role.
 3. The resource never carries a level. Where a permission applies comes only from its `about` and from where the role is given, so there is no `course_` or `community_` prefix: a course's learners are `progress` about `course`, not `course_learners`.
 4. A record that belongs to a resource falls under that resource's permissions: modules, activities and lesson comments under `courses`, spaces, topics, posts, chats and space members under `communities`. A part gets its own resource only when it is a domain noun of its own that a role or a token needs apart from its parent; learners' progress is the one case, because it is personal data the course's content permissions shouldn't carry.
 5. The actions are `read`, `write` and `delete`, and one special action, `moderate`. No other action exists.
    - `read` sees the resource. On a content type it also opens the item the way a learner does, without a grant and unpublished included (section 6).
    - `write` creates and changes it. Creating a content item needs `write` on the org.
    - `delete` permanently removes the resource itself. Removing a record that belongs to it, such as a module or a space, changes the resource and is `write`; so is revoking a grant. A resource that can't be removed has no `delete`.
-   - `moderate` acts on what other people post in a content item: approving, removing, restoring, pinning, locking and reports. The holder's own posts skip review there.
+   - `moderate` acts on what other people post in a content item and on who takes part in it: approving, removing, restoring, pinning, locking, reports, space members and join requests. The holder's own posts skip review there.
 6. Each `write` and `delete` implies the resource's `read`. No other implication exists unless 5.2 lists it with its reason.
 
-Today's API scopes that break these rules are renamed: `students:read` to `members:read`, `students:invite` to `members:write`, `comments:read` and `comments:moderate` to `courses:moderate`, `community_moderation:read`, `community_moderation:write`, `community_members:read` and `community_members:write` to `communities:moderate`. Keys and app consents that carry the old names lose them. The other scopes keep their names.
+Today's API scopes that break these rules are renamed: `students:read` to `people:read`, `students:invite` to `people:write`, `comments:read` and `comments:moderate` to `courses:moderate`, `community_moderation:read`, `community_moderation:write`, `community_members:read` and `community_members:write` to `communities:moderate`, which covers space members; a community's roster of grant holders is `access:read`. Keys and app consents that carry the old names lose them. The other scopes keep their names.
 
 "About" is the content type the permission is about, or `org` for permissions about the org itself; a role's permissions are checked against its levels with it (section 4.5). The last three columns are the product's default set.
 
 | Group | Permission | Allows | About | Admin | Instructor | Moderator |
 |---|---|---|---|:-:|:-:|:-:|
-| Organization | `org:write` | Change the org's name, slug and general settings. | org | ✓ | | |
+| Organization | `organizations:read` | See the org's name, slug and general settings. | org | ✓ | | |
+| Organization | `organizations:write` | Change the org's name, slug and general settings. | org | ✓ | | |
 | Organization | `api_keys:read` | List your own API keys. | org | ✓ | ✓ | |
 | Organization | `api_keys:write` | Create your own API keys. | org | ✓ | ✓ | |
 | Organization | `api_keys:delete` | Revoke your own API keys. | org | ✓ | ✓ | |
@@ -191,9 +192,9 @@ Today's API scopes that break these rules are renamed: `students:read` to `membe
 | Organization | `integrations:write` | Connect, configure and run actions on integrations. | org | ✓ | | |
 | Organization | `integrations:delete` | Disconnect integrations. | org | ✓ | | |
 | Organization | `analytics:read` | See the org's overview report. | org | ✓ | | |
-| People | `members:read` | List the org's people and pending invites, with each person's roles, and open any person's record. | org | ✓ | | |
-| People | `members:write` | Invite people, resend and cancel invites, set a person's org role and give and remove roles on content items, under rule 2. | org | ✓ | | |
-| People | `members:delete` | Remove a person from the org, under rule 3. | org | ✓ | | |
+| People | `people:read` | List the org's people and pending invites, with each person's roles, and open any person's record. | org | ✓ | | |
+| People | `people:write` | Invite people, resend and cancel invites, set a person's org role and give and remove roles on content items, under rule 2. | org | ✓ | | |
+| People | `people:delete` | Remove a person from the org, under rule 3. | org | ✓ | | |
 | People | `roles:read` | See the org's roles and their permissions. | org | ✓ | | |
 | People | `roles:write` | Rename roles; change, reset and add roles through the API. | org | ✓ | | |
 | People | `roles:delete` | Delete a role the org added. | org | ✓ | | |
@@ -214,14 +215,14 @@ Today's API scopes that break these rules are renamed: `students:read` to `membe
 | Downloads | `downloads:write` | Edit and publish the download; upload files for it and attach files uploaded for it. | download | ✓ | | |
 | Downloads | `downloads:delete` | Delete the download. | download | ✓ | | |
 | Communities | `communities:read` | See the community, its spaces, notification categories and analytics in the admin app; be a member of it without a grant, unpublished included, open every space in it and see its thumbnail while unpublished. | community | ✓ | | |
-| Communities | `communities:write` | Configure the community, its spaces, topics, links, settings and notification categories; publish it; delete its spaces. | community | ✓ | | |
+| Communities | `communities:write` | Configure the community, its spaces, topics, links, settings and notification categories; publish it; delete its spaces; upload media for it and attach media uploaded for it. | community | ✓ | | |
 | Communities | `communities:delete` | Delete the community. | community | ✓ | | |
 | Communities | `communities:moderate` | See the review queue, pending and removed posts, held comments and their titles; open every space; approve, remove, restore, pin and lock posts and comments; turn comments and reactions on and off; delete any message, see deleted messages, read reported attachments, lock chats, see the message queue; see every space member with their status and locked spaces' rosters; invite, add, approve, decline and remove space members; resolve reports; be notified of reviews, reports and join requests. | community | ✓ | | ✓ |
 | Automations | `automations:read` | See workflows, webhooks and their runs. | org | ✓ | | |
 | Automations | `automations:write` | Create and edit workflows and webhooks, and reveal a webhook's signing secret. | org | ✓ | | |
 | Automations | `automations:delete` | Delete workflows and webhooks. | org | ✓ | | |
 
-Connected apps are the person's own consents, not a resource of the org: any active org user lists and disconnects their own (section 11). Owner-only actions are not permissions, because no role can hold them: transferring ownership and deleting the org. Creating an org needs no permission: any signed-in person can create one and becomes its owner.
+Connected apps are the person's own consents, not a resource of the org: any active org user lists and disconnects their own (section 11). Owner-only actions are not permissions, because no role can hold them: transferring ownership. Deleting an org stays as it works today. Creating an org needs no permission: any signed-in person can create one and becomes its owner.
 
 ### 5.2 Shape in code
 
@@ -231,7 +232,7 @@ The keys are `permissionSchema` in `packages/core/src/types/schemas/organization
 // packages/core/src/types/schemas/organizations.ts
 export const levelSchema = z.union([z.literal('org'), contentTypeSchema]);
 export type Level = z.infer<typeof levelSchema>;
-export const permissionSchema = z.enum(['courses:read', 'courses:write', 'members:write', /* … every key in 5.1 */]);
+export const permissionSchema = z.enum(['courses:read', 'courses:write', 'people:write', /* … every key in 5.1 */]);
 export type Permission = z.infer<typeof permissionSchema>;
 ```
 
@@ -245,12 +246,12 @@ export const PERMISSIONS = {
     about: 'course',
     implies: ['courses:read'],
   },
-  'members:write': {
+  'people:write': {
     group: 'people',
     label: 'Manage people',
     description: 'Invite people, manage invites, and set and give roles you hold.',
     about: 'org',
-    implies: ['members:read'],
+    implies: ['people:read'],
   },
 } as const satisfies Record<Permission, PermissionDefinition>;
 
@@ -277,7 +278,7 @@ instructor: {
 - Each permission names what it implies, and every implied key exists. The implications:
   - every `*:write` and `*:delete` implies its `*:read` (rule 6);
   - `courses:moderate` implies `courses:read`, because lesson comments are moderated from the admin app, where the moderator holds no grant;
-  - `members:read` implies `progress:read`, because a person's record shows their progress in every course.
+  - `people:read` implies `progress:read`, because a person's record shows their progress in every course.
 - `communities:moderate` doesn't imply `communities:read`: a moderator moderates as a member of the community, through their grant (section 6).
 - `GET /api/access/permissions/list` serves the definitions to any org user, for the role screens, the key-creation screen and the consent screen.
 
@@ -340,7 +341,7 @@ export interface EffectivePermissions {
 - `anywhere` answers "on the org or on any item".
 - `where` lists where the person holds it, for filtering lists.
 - `roleOn` returns the role given on that item, or the org role when there is none, with its name and team flag. `isTeam` and the badge label read it.
-- `isOwner` is true for the owner, and false whenever token scopes apply, so an owner's API key or app token can never transfer ownership or delete the org. The owner-only actions check it; nothing compares `roleOn().key`.
+- `isOwner` is true for the owner, and false whenever token scopes apply, so an owner's API key or app token can never transfer ownership. The owner-only actions check it; nothing compares `roleOn().key`.
 
 `Actor` and `EffectivePermissions` are in `core/shared`; `Permission`, `Level` and `ContentId` are in `core/types`. The implementation is in `core/organizations`. No other context imports organizations for role helpers.
 
@@ -465,12 +466,13 @@ async listCourses(query: CourseQuery, actor: Actor): Promise<Page<CourseView>> {
 
 **Creating** a course, download or community needs the write permission on the org, because there is no item yet: `actor.permissions.require('courses:write')`.
 
-**Media.** An upload may name the content item it is for. `requestUpload` requires `media:write` on the org, or the item's write permission on that item, and records the item on the asset. Saving an activity, a download's files or a thumbnail accepts an asset only when the actor holds `media:read` on the org or the asset was uploaded for that same item. The picker lists the whole library to `media:read` holders, otherwise the files uploaded for that item.
+**Media.** An upload may name the content item it is for. `requestUpload` requires `media:write` on the org, or the item's write permission on that item, and records the item on the asset. `confirm`, `getAsset` and the file redirects accept the same: `media:read` or `media:write` on the org, or the write permission on the item recorded on the asset. Saving an activity, a download's files or a thumbnail checks only the asset ids it adds: an added asset passes when the actor holds `media:read` on the org or the asset was uploaded for that same item, and ids already attached to the item pass. The picker lists the whole library to `media:read` holders, otherwise the files uploaded for that item.
+
+**A course's learners.** `EntitlementService.list` with a `contentId` that is a course passes with `progress:read` on that course; without one it needs `access:read`. The declaration names both, and the course Access page gates on either.
 
 **Operations that end in Better Auth or another adapter** go through a core method that takes the actor, checks, and then calls the port:
 
-- `OrganizationService.updateOrganization(input, actor)` requires `org:write`. A slug another org holds is refused with `OrganizationRuleError` (409) before either row is written, because the adapter write skips Better Auth's own slug check. It then writes Better Auth and core's org row;
-- `OrganizationService.deleteOrganization(actor)` requires `isOwner()`, deletes the org through the adapter and deletes core's side in the same operation;
+- `OrganizationService.updateOrganization(input, actor)` requires `organizations:write`. A slug another org holds is refused with `OrganizationRuleError` (409) before either row is written, because the adapter write skips Better Auth's own slug check. It then writes Better Auth and core's org row;
 - `OrganizationService.createApiKey`, `listApiKeys`, `deleteApiKey`, `listConnectedApps` and `revokeConnectedApp` sit behind an `ApiKeys` port the auth adapter implements. Creating a key requires `api_keys:write` and that its scopes are held (section 11); listing requires `api_keys:read`; revoking requires `api_keys:delete` and acts only on the caller's own keys. The connected-app methods are `member` and act only on the caller's own consents;
 - `NotificationCategoryService.get`, `replace`, `reset` and `defaults` take the actor: `notification_categories:read` or `:write` on the org, `communities:read` or `:write` on a community. `NotificationCatalog.types(actor, scope)`, `channels(actor)` and `defaults(actor, scope)`, in organizations, wrap the type and channel registries and the defaults. For the org scope they require `notification_categories:read`; for the community scope, and for `channels`, they also accept `communities:read` anywhere, because the community defaults and types belong to no community. The defaults route calls `NotificationCatalog.defaults`.
 - Replying to a lesson comment is `DiscussionService.replyToComment(commentId, body, actor)`. It finds the thread's root, which the route does today (`routes/discussion.ts:129-136`), and requires `courses:moderate` on the course. The route and the MCP tool `reply_to_comment` both call it.
@@ -483,7 +485,7 @@ async listCourses(query: CourseQuery, actor: Actor): Promise<Page<CourseView>> {
 
 ### 7.5 Nothing left unchecked
 
-- Each service declares, beside its methods, what each public method requires: one or more permissions, any of which lets the method run its own checks (`createInvite` declares `members:write`; `requestUpload` declares `media:write`, `courses:write` and `downloads:write`); `owner` (`transferOwnership`, `deleteOrganization`, checked with `isOwner()`); `member` (any active org user, with the method's own checks); `system` (reached only by the system actor); or `public` (no org user yet: `createOrganization` for a signed-in person, `peekInvite` and `acceptInvite` for an invite token).
+- Each service declares, beside its methods, what each public method requires: one or more permissions, any of which lets the method run its own checks (`createInvite` declares `people:write`; `requestUpload` declares `media:write`, `courses:write`, `downloads:write` and `communities:write`); `owner` (`transferOwnership`, checked with `isOwner()`); `member` (any active org user, with the method's own checks); `system` (reached only by the system actor); or `public` (no org user yet: `createOrganization` for a signed-in person, `peekInvite` and `acceptInvite` for an invite token).
 - A core test reads each service class's public methods and fails for a method missing from the declaration.
 - On seeded fixtures (an org, one item of each content type, a post, a comment, a chat), a core test calls every method declared with a permission with an actor who holds nothing and expects `ForbiddenError`.
 - Each route's config and each MCP tool name the core method they call (`operation: 'content.deleteCourse'`). A server test fails for a route or tool without one. Core exposes `permissionFor(operation)`, which returns the declaration; the OpenAPI descriptions name its permissions, and MCP lists the tools for which the caller holds any of them anywhere. `POST /api/organizations` names `organizations.createOrganization`, which it reaches through the `beforeCreateOrganization` hook. Neither protects anything: the method checks when it runs.
@@ -552,7 +554,7 @@ Nothing is cached across requests, so every change applies from the next request
 | Skips review | `posts.ts:949, 480-486`, `discussion/service.ts:303` | `skipsReview`: `communities:moderate` or `courses:moderate` where the author posts |
 | Configures communities | `content/service.ts:88-92` owner or admin | `communities:write` |
 | Configures notifications | `resolveConfiguratorScope` owner or admin | `notification_categories:read`/`:write` for the org's; `communities:read`/`:write` for a community's |
-| Manages people | `assertManagesUsers` | `members:write`, `members:delete` (section 10.2) |
+| Manages people | `assertManagesUsers` | `people:write`, `people:delete` (section 10.2) |
 | Shown as team, DM rules, no message requests | `chats.ts:146, 974, 977`, community app `roleLabel`, members page | `isTeam` on the item (section 4.7) |
 | Team and Students lists | `members.ts:24, 59, 75, 136-140`, `admin.ts:36, 296, 371, 394` | Section 10.4 |
 | Staff recipients | `staffOrgUserIds`, `staffIds` | `holders(orgId, 'courses:moderate', courseId)`, `holders(orgId, 'communities:moderate', communityId)` |
@@ -604,18 +606,18 @@ Under this design every org user holds a Better Auth membership once they accept
 - The mirror hooks stop parsing roles (`container.ts:839-850`). `addOrgUser` keeps the org user's existing status instead of forcing `active`, so only acceptance activates a person. Memberships core creates through the organization adapter don't run the hooks; core writes the org user itself.
 - Learners sign up with email and password, as today; magic link stays sign-in only (`disableSignUp: true`).
 - `beforeCreateSession` keeps stamping the active organization for a person with exactly one org user (`container.ts:802-818`), and the accept route keeps stamping the session on acceptance (`routes/organizations.ts:293-301`), so a learner's first session still gets its org. The student app keeps relying on the stamp. The community app keeps calling `set-active`, which now works for learners.
-- Removing a person removes the Better Auth membership through the organization adapter and deletes the org user in the same core operation. There is no student branch.
+- Removing a person first deletes the org user in core's transaction, so a refusal, such as for someone whose posts must be kept (409), changes nothing. It then deletes the membership found with `findMemberByOrgId` and calls `revokeAllFor`. A membership left behind by a failure is harmless: `resolveActor` refuses, and a later `grantMembership` reuses it. There is no student branch.
 - Changing someone's role never touches Better Auth. Ownership transfer moves the `owner` value (section 10.3).
 
 ### 9.3 Better Auth configuration
 
 - `organization({ ac, roles: { owner, participant }, creatorRole: 'owner', membershipLimit: Number.MAX_SAFE_INTEGER })`. Better Auth's default limit of 100 would refuse the 101st member.
 - `adapters/auth/src/access.ts` keeps Better Auth's `defaultStatements`, `ownerAc` for `owner` and `memberAc` for `participant`. The custom `course`, `progress` and `community` statements, which nothing checks, are dropped.
-- Core makes its Better Auth writes for updating and deleting an org, adding and removing a membership, and changing the membership's `role` value through Better Auth's organization adapter (`getOrgAdapter`). The person or the system actor behind the write has already passed core's check, so the adapter writes without Better Auth checking them again. The adapter runs no organization hooks either, so core writes its own side (the org row, the org user) in the same operation instead of waiting for a mirror hook. These writes work the same from REST, MCP and the system actor. Core is the only gate. `resolveMemberId`'s `list-members` call (`better-auth.ts:679`) is replaced by a lookup by user id.
+- Core makes its Better Auth writes for updating an org, adding and removing a membership, and changing the membership's `role` value through Better Auth's organization adapter (`getOrgAdapter`). The person or the system actor behind the write has already passed core's check, so the adapter writes without Better Auth checking them again. The adapter runs no organization hooks either, so core writes its own side (the org row, the org user) in the same operation instead of waiting for a mirror hook. These writes work the same from REST, MCP and the system actor. Core is the only gate. `resolveMemberId`'s `list-members` call (`better-auth.ts:679`) is replaced by a lookup by user id.
 - Creating an org stays a Better Auth call made with the creator's own session (`POST /api/organizations`), with the `beforeCreateOrganization` hook as today; `createOrganization` then writes the owner (section 4.4).
-- The `ApiKeys` port is keyed on ids, not on the caller's session: `list(orgId, userId)`, `create(orgId, userId, name, scopes)`, `revoke(orgId, userId, keyId)`, `listApps(orgId, userId)`, `revokeApp(orgId, userId, clientId)` and `revokeAllFor(orgId, userId)`, which removes a person's keys, app consents and refresh tokens for the org. `revoke` deletes only a key whose `referenceId` is the user and whose metadata names the org, and is NotFound otherwise, as `deleteApiKey` is today (`better-auth.ts:523-529`).
+- The `ApiKeys` port is keyed on ids, not on the caller's session: `list(orgId, userId)`, `create(orgId, userId, name, scopes)`, `revoke(orgId, userId, keyId)`, `listApps(orgId, userId)`, `revokeApp(orgId, userId, clientId)` and `revokeAllFor(orgId, userId)`, which removes a person's keys, app consents, refresh tokens and access tokens for the org, as `revokeConnectedApp` does today (`better-auth.ts:471-484`). `revoke` deletes only a key whose `referenceId` is the user and whose metadata names the org, and is NotFound otherwise, as `deleteApiKey` is today (`better-auth.ts:523-529`).
 - `dynamicAccessControl` stays off.
-- The `before` hook refuses every `/organization/*` path except `/organization/set-active`, `/organization/list` and `/organization/get-active-member` when the call arrived over HTTP (`ctx.request` is set). It must not use `ctx.request || ctx.headers`, which also refuses server calls made with headers. Refused over HTTP include `list-members`, `get-full-organization`, `update`, `update-member-role`, `remove-member`, `invite-member`, `accept-invitation`, `leave` and the role endpoints.
+- The `before` hook refuses every `/organization/*` path except `/organization/set-active`, `/organization/list` and `/organization/get-active-member` when the call arrived over HTTP (`ctx.request` is set). It must not use `ctx.request || ctx.headers`, which also refuses server calls made with headers. It also refuses `/api-key/get`, `/api-key/list`, `/api-key/update` and `/api-key/delete` over HTTP, beside today's `/api-key/create`, so keys are only reached through core's checks. Refused over HTTP include `list-members`, `get-full-organization`, `update`, `update-member-role`, `remove-member`, `invite-member`, `accept-invitation`, `leave` and the role endpoints.
 - `customSession` drops `activeMemberRole`. Permissions are never put in the session or its cookie.
 
 ### 9.4 Why not dynamic access control
@@ -645,28 +647,27 @@ Better Auth 1.7.7 includes `dynamicAccessControl`, which stores roles per org. I
 | Add a role | `POST /api/organizations/roles` with a `base` | `createRole` | `roles:write`, rule 1 |
 | Reset a role to the deployment's version | `DELETE /api/organizations/roles/:key/customization` | `resetRole` | `roles:write`, rule 1 |
 | Delete a role the org added | `DELETE /api/organizations/roles/:key` | `deleteRole` | `roles:delete` |
-| List the team (section 10.4) | `GET /api/organizations/members?list=team` | `listTeam` | `members:read` |
-| List the students (section 10.4) | `GET /api/organizations/members?list=students` | `listStudents` | `members:read` |
-| List a person's assignments | `GET /api/organizations/members/:orgUserId/roles` | `listAssignments` | `members:read` |
-| Set a person's org role | `PUT /api/organizations/members/:orgUserId/roles/org` | `setOrgRole` | `members:write`, rule 2 |
-| Give a role on a content item | `PUT /api/organizations/members/:orgUserId/roles/content/:contentId` | `assignRole` | `members:write`, rule 2 |
-| Remove a role from a content item | `DELETE /api/organizations/members/:orgUserId/roles/content/:contentId` | `unassignRole` | `members:write`, rule 2 |
-| List the people with a role on a content item | `GET /api/organizations/content/:contentId/roles` | `listAssignmentsOn` | `members:read` |
-| Invite a person | `POST /api/organizations/invites` | `createInvite` | `members:write`, rule 2 |
-| Resend an invite | `POST /api/organizations/invites/:inviteId/resend` | `resendInvite` | `members:write`, rule 2 |
-| Cancel an invite | `DELETE /api/organizations/invites/:inviteId` | `cancelInvite` | `members:write`, rule 2 |
-| Remove a person | `DELETE /api/organizations/members/:orgUserId` | `removePerson` | `members:delete`, rule 3 |
+| List the team (section 10.4) | `GET /api/organizations/people` | `listTeam` | `people:read` |
+| List the students, a student's record and analytics (section 10.4) | `GET /api/students`, `/:id`, `/:id/analytics` | `reporting.admin.listStudents`, `getStudent`, `studentAnalytics` | `people:read` |
+| List a person's assignments | `GET /api/organizations/people/:orgUserId/roles` | `listAssignments` | `people:read` |
+| Set a person's org role | `PUT /api/organizations/people/:orgUserId/roles/org` | `setOrgRole` | `people:write`, rule 2 |
+| Give a role on a content item | `PUT /api/organizations/people/:orgUserId/roles/content/:contentId` | `assignRole` | `people:write`, rule 2 |
+| Remove a role from a content item | `DELETE /api/organizations/people/:orgUserId/roles/content/:contentId` | `unassignRole` | `people:write`, rule 2 |
+| List the people with a role on a content item | `GET /api/organizations/content/:contentId/roles` | `listAssignmentsOn` | `people:read` |
+| Invite a person | `POST /api/organizations/invites` | `createInvite` | `people:write`, rule 2 |
+| Resend an invite | `POST /api/organizations/people/:orgUserId/invite/resend` | `resendInvite` | `people:write`, rule 2 |
+| Cancel an invite | `DELETE /api/organizations/people/:orgUserId/invite` | `cancelInvite` | `people:write`, rule 2 |
+| Remove a person | `DELETE /api/organizations/people/:orgUserId` | `removePerson` | `people:delete`, rule 3 |
 | Transfer ownership | `POST /api/organizations/ownership` | `transferOwnership` | owner |
-| Rename the org | `PATCH /api/organizations` | `updateOrganization` | `org:write` |
-| Delete the org | `DELETE /api/organizations` | `deleteOrganization` | owner |
+| Rename the org | `PATCH /api/organizations` | `updateOrganization` | `organizations:write` |
 
-Each route calls one core method, which checks, and has its own `requireOrgSession` preHandler, because `organizationsRoutes` is registered without the hook (`routes.ts:25-28`). The MCP server gets the same operations as tools, each calling the same core method, except `transferOwnership` and `deleteOrganization`, which a token can never pass (section 7.1). Today's `GET/PATCH/DELETE /api/organizations/members…` routes, invite routes and `DELETE /api/students/:id` are replaced by these.
+Each route calls one core method, which checks, and has its own `requireOrgSession` preHandler, because `organizationsRoutes` is registered without the hook (`routes.ts:25-28`). The MCP server gets the same operations as tools, each calling the same core method, except `transferOwnership`, which a token can never pass (section 7.1). Today's `GET/PATCH/DELETE /api/organizations/members…` routes, invite routes, `POST /api/students/:id/resend-invite` and `DELETE /api/students/:id` are replaced by these. Resend and cancel are keyed on the org user, because the lists show people, and there is one pending invite per email (`upsertPendingInvite`).
 
 ### 10.2 Rules
 
 1. **No escalation in roles.** Renaming needs `roles:write` only. Changing, adding or resetting a role needs every permission the role holds both before and after the change, on the org. The error names the missing permissions.
-2. **No escalation in giving.** Giving or removing a role, on the org or on an item, and inviting with a role, needs `members:write` and every permission that the replaced assignment and the new one contribute there. On an item, that is the role's permissions about the item's type. Member contributes nothing, so inviting with Member needs only `members:write`.
-3. **No managing above you.** Removing a person needs `members:delete` and, for each place the person holds a permission, the remover holds it there or on the org. Removal deletes the person's Better Auth membership and calls `ApiKeys.revokeAllFor` for their keys, connected-app consents and refresh tokens for the org.
+2. **No escalation in giving.** Giving or removing a role, on the org or on an item, and inviting with a role, needs `people:write` and every permission that the replaced assignment and the new one contribute there. On an item, that is the role's permissions about the item's type. Member contributes nothing, so inviting with Member needs only `people:write`.
+3. **No managing above you.** Removing a person needs `people:delete` and, for each place the person holds a permission, the remover holds it there or on the org. Removal deletes the person's Better Auth membership and calls `ApiKeys.revokeAllFor` for their keys, connected-app consents and tokens for the org (section 9.2 gives the order).
 4. **Nobody changes their own assignments.**
 5. **Owner** can be renamed only. Ownership moves only by transfer. The owner can't be removed, and `setOrgRole` refuses the owner's org row (409), whoever asks: today's "The owner cannot be removed" (`organizations/service.ts:676-682`) stays.
 6. **Member** can be renamed only. Setting someone's org role to Member deletes their org row.
@@ -689,10 +690,11 @@ Core's owner row is authoritative, and nothing reads the Better Auth value (sect
 
 ### 10.4 Lists of people
 
-- **Students** are active and invited org users whose org role is Member, with a column for any roles they hold on content items. `members:read` covers both lists and opens any person's record, whatever their roles.
+- An `invited` org user is listed by the role key on their pending invite; Team and Students join `invites` for invited rows.
+- **Students** are active and invited org users whose org role is Member, with a column for any roles they hold on content items. `people:read` covers both lists and opens any person's record, whatever their roles.
 - **Team** is org users with any other org role or any role on a content item, invited ones included. It reads org users, no longer the `invites` table, and sorts by the role's name in the org. A row for someone who holds only item roles shows Member as the org role and lists the items.
 - A role change on an `invited` org user updates the role their invite carries, under rule 2.
-- Resending and cancelling an invite need `members:write` and rule 2 for the role it carries.
+- Resending and cancelling an invite need `people:write` and rule 2 for the role it carries.
 
 ### 10.5 Admin app
 
@@ -707,7 +709,7 @@ API keys and connected apps keep working as today. They reach `/mcp`; REST accep
 - A key's or app's scopes are permissions, from the same list. Existing scope keys keep their names except the ones the naming rules rename (section 5.1). A token may carry any permission in the list. `well-known.ts:11` (`scopes_supported`), `better-auth.ts:101-102` (`scopes`, `clientRegistrationDefaultScopes`) and `access-grant.ts` read it.
 - "Capped by the creator" is checked against permissions instead of a role. Creating a key requires `api_keys:write` and that every requested scope is held anywhere (`assertHoldsPermissions(actor, scopes)`, in `OrganizationService.createApiKey`). At each request, the key's effective permissions are its scopes intersected with the creator's current effective permissions. Connecting an app through the consent screen needs no permission, as today; the same intersection applies to its tokens. Every active org user lists and disconnects their own connected apps.
 
-The key-creation and consent screens read `GET /api/access/permissions` and `GET /api/access/permissions/list` to offer only the scopes the person holds. MCP tools take the permission of the core method they call, so the moderation tools in `community-moderation.ts` require `communities:moderate` and the lesson-comment tools in `comments.ts` `courses:moderate`, and the tools whose method had a different scope over REST (`delete_module`, `delete_space`, `get_student_analytics`, `get_course_analytics`, `get_course_enrollment_trend`, `get_community_analytics`) take the method's. `invite_student` invites with the Member org role. The published catalogue (`mcp/catalogue.ts`, `apps/website/lib/mcp-catalogue.json`) lists each tool's permission instead of roles.
+The key-creation and consent screens read `GET /api/access/permissions` and `GET /api/access/permissions/list` to offer only the scopes the person holds. MCP tools take the permission of the core method they call, so the moderation tools in `community-moderation.ts` require `communities:moderate` and the lesson-comment tools in `comments.ts` `courses:moderate`, and the tools whose method had a different scope over REST (`delete_module`, `delete_space`, `get_student_analytics`, `get_course_analytics`, `get_course_enrollment_trend`, `get_community_analytics`, `list_community_members`) take the method's. `invite_student` invites with the Member org role. The published catalogue (`mcp/catalogue.ts`, `apps/website/lib/mcp-catalogue.json`) lists each tool's permission instead of roles.
 
 ## 12. Events, notifications and emails
 
@@ -746,11 +748,12 @@ Deleting a content item deletes its assignments in the database (section 17.2), 
 
 ## 13. Invites and joining
 
-- An invite carries an org role key, default `member`. Inviting needs `members:write` and rule 2 for that role.
+- An invite carries an org role key, default `member`. Inviting needs `people:write` and rule 2 for that role. An invite with `owner`, or to the current owner, is refused (409), as today (`organizations/service.ts:250`).
 - Every invite creates the person and an `invited` org user straight away, whatever the role. An invite with a role other than Member no longer waits for acceptance to create anything.
 - An invite for someone who is already an org user follows rule 2 against their current org role, whatever the role invited, and stores only the role, which takes effect on acceptance.
-- Accepting finds the inviter's org user from `(org_id, invites.invited_by)`, which holds a user id, builds their actor with `actorFor`, and fails when the inviter no longer holds what the invite needs. It then activates the org user, creates the Better Auth membership if they have none (section 9.2) and sets the invited org role the way `setOrgRole` does: Member deletes any org row, any other role stores it.
-- Cancelling an invite is `cancelInvite` (section 10.1). It deletes the invite, and deletes an org user who is still `invited` and holds no grant.
+- Accepting finds the inviter's org user from `(org_id, invites.invited_by)`, which holds a user id, builds their actor with `actorFor`, and fails when the inviter no longer holds what the invite needs. It then activates the org user, creates the Better Auth membership if they have none (section 9.2) and sets the invited org role the way `setOrgRole` does: Member deletes any org row, any other role stores it, and the owner's row is refused.
+- Resending sets `invited_by` to the resender, who has passed rule 2, so an invite whose inviter left can be accepted once it is resent.
+- Cancelling an invite is `cancelInvite` (section 10.1). It deletes the invite. It deletes an org user who is still `invited` and holds no grant and no role on a content item; one who holds either stays `invited`.
 - Roles on content items are given after the person exists, from the person or from the item.
 
 ## 14. Wire changes
@@ -782,7 +785,7 @@ Route descriptions that name roles ("Staff only (owner, admin, instructor)", "Ow
 
 - `lib/roles.ts` (`isManager`, `can.*`, `ROLE_LABEL`, `ROLE_RANK`, `visibleNav`) is replaced by a `usePermissions()` hook and a `requirePermission(permission, contentId?)` server helper, fed from `GET /api/access/permissions`.
 - `server-session.ts` (`:66-135`) stops reading `activeMemberRole` and drops the learner states (`denied`, `/onboarding/no-access`) built on "learners have no membership". The admin app opens for any org user and shows what their permissions reach; a Member sees nothing to manage. The user menu and account page show `orgRole.name`.
-- Every page gates on the permission of the data it reads, the `requireAuth`-only pages included: the landing page shows the overview only with `analytics:read` and each section with its own permission; Media, Downloads, Communities and Bundles read their list permissions; the course discussion page (`courses/[courseId]/discussion`) reads `courses:moderate` and the community moderation page (`communities/[communityId]/(community)/moderation`) `communities:moderate`. Every `requireManager` page, `ForbiddenView` repeat and `isManager` branch names its permission. The settings group shows each panel by its own permission. The course builder and course pages use `has('courses:write', courseId)`.
+- Every page gates on the permission of the data it reads, the `requireAuth`-only pages included: the landing page shows the overview only with `analytics:read` and each section with its own permission; Media, Downloads, Communities and Bundles read their list permissions; the course discussion page (`courses/[courseId]/discussion`) reads `courses:moderate` and the community moderation page (`communities/[communityId]/(community)/moderation`) `communities:moderate`. Every `requireManager` page, `ForbiddenView` repeat and `isManager` branch names its permission. The settings group shows each panel by its own permission, the General panel by `organizations:read`. The course Access page shows with `access:read` or `progress:read` on the course. The course builder and course pages use `has('courses:write', courseId)`.
 - Role pickers list the org's roles. Badges show the role's name on that item; `RoleBadge` styles by `isOwner` and `team`. The owner's row is read from `isOwner`.
 - "Add student" invites with `member`. "Make moderator" and "Remove moderator role" become "Set role" and the item's role panel (section 10.5).
 - The API-key and consent screens read the permission list (section 11).
@@ -811,18 +814,18 @@ Sarah owns Spanish in 90 Days. The org calls its Instructor role "Tutor".
 | # | Who | Action | Context and method | Reads | Writes |
 |---|---|---|---|---|---|
 | 1 | Sarah | Renames Instructor to "Tutor" | organizations, `updateRole`: Sarah holds `roles:write`; a rename checks nothing else | `org_roles` | `org_roles` (`instructor`, name "Tutor", no permission changes); `organization.role.updated` |
-| 2 | Sarah | Gives Instructor to James on Spanish Basics | organizations, `assignRole`: Sarah holds `members:write` and every Instructor course permission; `crs_1` is a course in `content_items`; Instructor lists `course` | `role_assignments`, `org_roles`, `content_items` | `role_assignments` (James, `instructor`, `crs_1`, `course`); `organization.role.assigned` |
+| 2 | Sarah | Gives Instructor to James on Spanish Basics | organizations, `assignRole`: Sarah holds `people:write` and every Instructor course permission; `crs_1` is a course in `content_items`; Instructor lists `course` | `role_assignments`, `org_roles`, `content_items` | `role_assignments` (James, `instructor`, `crs_1`, `course`); `organization.role.assigned` |
 | 3 | system | Notifies James | automations, `role.assigned` rule, as the system actor: James gained `courses:write` on `crs_1` | `role_assignments`, names | James's notification and email "You are now Tutor of Spanish Basics" |
 | 4 | James | Opens the admin app and lists courses | organizations, `actorFor`: org role Member, Instructor on `crs_1`. content, `listCourses` filters by `where('courses:read')` | `role_assignments`, `org_roles`, `content_items` | |
-| 5 | James | Uploads a video for a lesson in Spanish Basics and saves the lesson | assets, `requestUpload` with `contentId: 'crs_1'`: `courses:write` on `crs_1`. content, `saveActivity`: `has('courses:write', 'crs_1')`, and the asset was uploaded for `crs_1` | `assets` | `assets` (for `crs_1`); `activities` |
+| 5 | James | Uploads a video for a lesson in Spanish Basics and saves the lesson | assets, `requestUpload` with `contentId: 'crs_1'` and `confirm`: `courses:write` on `crs_1`. content, `saveActivity`: `has('courses:write', 'crs_1')`, and the asset was uploaded for `crs_1` | `assets` | `assets` (for `crs_1`); `activities` |
 | 6 | James | Tries to edit a lesson in Spanish Grammar | content, `saveActivity`: `has('courses:write', 'crs_2')` is false, 403 | | |
 | 7 | Sarah | Tries to give Instructor to Emma on Spring cohort | organizations, `assignRole`: `cmy_1` is a community and Instructor doesn't list `community`, refused | `content_items` | |
-| 8 | Sarah | Gives Moderator to Emma on Spring cohort | organizations, `assignRole`: Sarah holds `members:write` and `communities:moderate`; Moderator lists `community` | `role_assignments`, `org_roles`, `content_items` | `role_assignments` (Emma, `moderator`, `cmy_1`, `community`); `organization.role.assigned` |
+| 8 | Sarah | Gives Moderator to Emma on Spring cohort | organizations, `assignRole`: Sarah holds `people:write` and `communities:moderate`; Moderator lists `community` | `role_assignments`, `org_roles`, `content_items` | `role_assignments` (Emma, `moderator`, `cmy_1`, `community`); `organization.role.assigned` |
 | 9 | Emma | Removes Oliver's post in Practice | discussion, `PostService.remove`: Emma is a member of `cmy_1` through her grant; `has('communities:moderate', 'cmy_1')` is true | `entitlements`, `posts` | `posts.status = removed` |
 | 10 | Emma | Tries to remove a post in Autumn cohort | discussion, `PostService.remove`: `has('communities:moderate', 'cmy_2')` is false, 403 | | |
 | 11 | Oliver | Reports a message in Spring cohort | automations, `message.flagged` rule, as the system actor: `holders(orgId, 'communities:moderate', 'cmy_1')` among its members: Emma, and Sarah, who holds everything and is a member of every community through `communities:read` | `role_assignments`, `org_roles` | Emma's and Sarah's notifications |
-| 12 | Emma | Tries to make Oliver an Admin | organizations, `setOrgRole`: Emma lacks `members:write`, 403 | | |
-| 13 | Sarah | Gives Instructor to James on the org | organizations, `setOrgRole`: Sarah holds `members:write` and every Instructor permission | `role_assignments`, `org_roles` | `role_assignments` (James, `instructor`, org); `organization.role.assigned`; James's "You are now Tutor in Spanish in 90 Days". Step 6 now succeeds, and James holds course permissions on every course. |
+| 12 | Emma | Tries to make Oliver an Admin | organizations, `setOrgRole`: Emma lacks `people:write`, 403 | | |
+| 13 | Sarah | Gives Instructor to James on the org | organizations, `setOrgRole`: Sarah holds `people:write` and every Instructor permission | `role_assignments`, `org_roles` | `role_assignments` (James, `instructor`, org); `organization.role.assigned`; James's "You are now Tutor in Spanish in 90 Days". Step 6 now succeeds, and James holds course permissions on every course. |
 
 ## 17. Data model
 
@@ -896,19 +899,19 @@ The foreign key to `content_items`, the registry every course, download and comm
 
 ## 19. Test plan
 
-1. **Permission list.** Every permission has a label, description, group and an `about` that is a level; every implication names an existing permission. Every key's action is `read`, `write`, `delete` or `moderate`, and no resource starts with a content type's name. Every public method of every service is in its declaration. Every route and MCP tool names an operation.
+1. **Permission list.** Every permission has a label, description, group and an `about` that is a level; every implication names an existing permission. Every key's action is `read`, `write`, `delete` or `moderate`, and no resource is a level followed by `_`, such as `course_learners`. Every public method of every service is in its declaration. Every route and MCP tool names an operation.
 2. **Default set.** The server refuses a set without `owner` or `member`, with a repeated key, an unknown permission, a level that is neither `org` nor a content type, a role without a level, or a permission that doesn't fit its role's levels. A replaced set reaches every org that hasn't changed that role. A set that drops a key or a level leaves the affected assignments contributing nothing, and logs them.
-3. **Resolution.** Org role only; org role plus a role on a course; a role on a course contributing only its course permissions and only for that course; a role on the org covering every item of its permissions' types; the owner holds a permission added in the test; implications, including `members:read` covering every course's progress and `courses:moderate` opening the course. Emma holding Moderator on two communities and Instructor on a course gets each set only where it applies. `roleOn` gives the item's role, or the org role. A role change applies on the holder's next request.
+3. **Resolution.** Org role only; org role plus a role on a course; a role on a course contributing only its course permissions and only for that course; a role on the org covering every item of its permissions' types; the owner holds a permission added in the test; implications, including `people:read` covering every course's progress and `courses:moderate` opening the course. Emma holding Moderator on two communities and Instructor on a course gets each set only where it applies. `roleOn` gives the item's role, or the org role. A role change applies on the holder's next request.
 4. **Levels.** Instructor on a community and Moderator on a course are refused; Owner and Member on any item are refused. Saving a role with a permission that doesn't fit its levels is refused, and so is a level that isn't `org` or a content type. Removing a level while the role is given at it is refused. A content type added in the test is a valid level, and a role that lists it can be given on an item of that type.
 5. **Org roles.** A rename stores only the name. A rename to a name the org already has, in any case, is refused. A changed role keeps its saved choices and resolves unsaved permissions from its base. Reset removes the row.
 6. **Deny by default.** On seeded fixtures, every method declared with a permission, called with an actor who holds nothing, throws `ForbiddenError`. A learner with a grant opens their course, its lessons and its community through reporting/member, reports progress, posts a lesson comment and requests a place in a space, with every internal read passing the system actor. An Instructor on one course can't delete another course, edit bundles, grants, automations or integrations, or read other courses' learners. A person whose org role is Member is refused `updateOrganization`. The system actor passes every check; automations granting access, mail lookups and grant expiry work.
-7. **Lists and media.** James lists courses and sees only `crs_1`; `progress:read` on a course lists that course's learners. James, with only an item role, is in Team with Member as his org role; a Member is in Students. Cancelling an invite deletes an `invited` org user who holds no grant and keeps one who holds a grant. James uploads for `crs_1`, is refused an upload for `crs_2`, and is refused attaching an asset that wasn't uploaded for `crs_1`.
-8. **Escalation and races.** Changing or adding a role with a permission the editor lacks is refused, and so is removing a permission the editor lacks from a role; reset is checked the same way. Giving a role is refused when the giver lacks a permission the replaced or new assignment contributes there. Removing someone who holds more than you is refused. Changing your own assignment is refused. An invite whose inviter was demoted fails on acceptance. A Member invite to an existing Admin needs rule 2. Concurrent level removal and assignment, concurrent deletion and assignment, and two concurrent org-role sets end in one consistent state.
-9. **System roles.** A new org has its creator as owner, with an active org user and the `owner` row. Owner and Member can be renamed only. Transfer to someone who already holds an org role succeeds; to an `invited` org user it is refused. The owner's API key can't transfer ownership or delete the org. Transfer moves the owner row and the Better Auth value and gives the previous owner the named role, Member by default; after a failure at any step the previous owner repeats it and it completes. An Admin is refused removing the owner and setting the owner's org role. The owner deletes the org.
+7. **Lists and media.** James lists courses and sees only `crs_1`; `progress:read` on a course lists that course's learners. James, with only an item role, is in Team with Member as his org role; a Member is in Students. Cancelling an invite deletes an `invited` org user who holds no grant and keeps one who holds a grant. James uploads and confirms for `crs_1`, is refused an upload for `crs_2`, is refused attaching an asset that wasn't uploaded for `crs_1`, and re-saves a lesson that already holds an Admin's library file. An invited Instructor is listed in Team. James, with `progress:read` on `crs_1`, lists its learners through `EntitlementService.list`. Cancelling the invite of someone who holds an item role keeps them `invited`.
+8. **Escalation and races.** Changing or adding a role with a permission the editor lacks is refused, and so is removing a permission the editor lacks from a role; reset is checked the same way. Giving a role is refused when the giver lacks a permission the replaced or new assignment contributes there. Removing someone who holds more than you is refused. Changing your own assignment is refused. An invite whose inviter was demoted fails on acceptance, and is accepted after an Admin resends it. A Member invite to an existing Admin needs rule 2. Concurrent level removal and assignment, concurrent deletion and assignment, and two concurrent org-role sets end in one consistent state.
+9. **System roles.** A new org has its creator as owner, with an active org user and the `owner` row. Owner and Member can be renamed only. Transfer to someone who already holds an org role succeeds; to an `invited` org user it is refused. The owner's API key can't transfer ownership. Transfer moves the owner row and the Better Auth value and gives the previous owner the named role, Member by default; after a failure at any step the previous owner repeats it and it completes. An Admin is refused removing the owner, setting the owner's org role, inviting with `owner` and inviting the owner. Removing an author who must be kept is refused and leaves their membership and keys.
 10. **Deletion.** Deleting an assigned role the org added is refused with the holder count. Deleting a course, download or community deletes its assignments.
 11. **Every former staff meaning** (section 8), one test each, with a role that holds only that permission and with a person who holds none.
-12. **Session and MCP.** For a role, the same method answers the same through a REST session and through the matching MCP tool, with an API key holding all of the role's permissions or, for a role without `api_keys:write`, a connected app's token. Demoting the creator narrows the key on the next request. The owner's key with only `courses:read` is refused `deleteCourse` and `setOrgRole`. A removed and re-invited person's old key is refused. Revoking another person's key by id is NotFound. A Moderator lists and disconnects their own connected app. Removal works from MCP; transfer and deleting the org have no tool.
-13. **Better Auth.** Each refused path answers 403 over HTTP, and core's update, transfer and remove succeed through the organization adapter and leave core's org row and org user consistent. A member past 100 is added. Re-inviting an active Member with another role and accepting leaves exactly one membership. Renaming the org to a taken slug answers 409. A learner who accepts has a membership with value `participant`; the student app gets its org at sign-in and at acceptance; linking an account without accepting leaves the person `invited`. A role change leaves the Better Auth membership untouched.
+12. **Session and MCP.** For a role, the same method answers the same through a REST session and through the matching MCP tool, with an API key holding all of the role's permissions or, for a role without `api_keys:write`, a connected app's token. Demoting the creator narrows the key on the next request. The owner's key with only `courses:read` is refused `deleteCourse` and `setOrgRole`. A removed and re-invited person's old key and access token are refused. Revoking another person's key by id is NotFound. A Moderator lists and disconnects their own connected app. Removal works from MCP; transfer has no tool.
+13. **Better Auth.** Each refused path, the `/api-key/*` ones included, answers 403 over HTTP, and core's update, transfer and remove succeed through the organization adapter and leave core's org row and org user consistent. A member past 100 is added. Re-inviting an active Member with another role and accepting leaves exactly one membership. Renaming the org to a taken slug answers 409. A learner who accepts has a membership with value `participant`; the student app gets its org at sign-in and at acceptance; linking an account without accepting leaves the person `invited`. A role change leaves the Better Auth membership untouched.
 14. **Team.** James is team in Spanish Basics and not in Spanish Grammar. Emma is team in Spring cohort, and a first DM to her is not a message request.
 15. **Notifications.** Recipients for review, reports and join requests are permission holders among the community's active members. The server sends a viewer only the notification categories that apply to them. A community editor holding `communities:write` on one community loads the community's notification types, channels and defaults. `role.assigned` fires on a gained permission and not on a loss.
 16. **Events.** `organization.user.*`, `organization.invite.*` and `organization.student.*` publish version 2 without `role`; a stored filter on `role` matches nothing; "Role assigned" filters on `roleKey`, `contentType` and `contentId`.
@@ -931,7 +934,7 @@ The foreign key to `content_items`, the registry every course, download and comm
 | Permission names | The naming rules of section 5.1: domain nouns, no level in the name, children under their parent, the actions `read`, `write`, `delete` and `moderate` | Keep today's scope names, with prefixed resources and per-feature actions |
 | Moderation permissions | One `moderate` action per content type, `courses:moderate` and `communities:moderate`; holders skip review | Today's `comments:*` and `community_moderation:*` scopes, plus `chats:moderate` and two skip-review permissions |
 | Deleting an assigned role | Refused | Holders fall back to Member |
-| Who gives roles | `members:write`, under rule 2 | Also `access:write` on that item |
+| Who gives roles | `people:write`, under rule 2 | Also `access:write` on that item |
 | A community role for a non-member | Allowed; the response says they aren't a member | Refused; or Moderator also holds `communities:read` there |
 | Moderator default | Skips post review and moderates chats | Today's split, where neither holds |
 | Work the system does itself | The system actor, which holds every permission; work for a person runs as that person | Separate unchecked methods for internal callers |
