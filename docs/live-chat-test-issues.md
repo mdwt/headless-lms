@@ -20,7 +20,7 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 | 5 | Multiple instances behind a proxy | passed |
 | 6 | Infrastructure | passed |
 | 7 | Load and measurements | passed |
-| 8 | Regression | open |
+| 8 | Regression | passed |
 
 ## Issues
 
@@ -32,6 +32,7 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 | 4 | Infrastructure | Stopping Postgres crashed both API instances: the shared database pool had no `error` listener, so Postgres terminating an idle pooled connection was an unhandled `error` event and the process exited. | fixed | `2e99dd42`: `createDb` takes the container's logger and logs `database connection lost`; the pool replaces the connection |
 | 5 | Logging | During the Postgres outage `outbox poll failed` logged only "AggregateError" and the PubSub adapter logged `pubsub connect failed` and `pubsub listener lost` with an empty error: a refused pg connect is an AggregateError with an empty message. | fixed | `d902c107`: `describeError` names the inner errors and the code; used by the outbox relay (also for `last_error`) and the PubSub adapter |
 | 6 | Load | 20 concurrent sends on one instance deadlocked its pool: `send` and `startDirect` read team status and attachment ownership through other services inside their transaction, so each send held a pooled connection while waiting for another (pool default 10, no acquire timeout). All 60 sends timed out and the instance kept 10 connections idle in a transaction for good. The same pattern was in landing a post with mentions, approving a comment with mentions and changing an invited person's role. Present on `main` too. | fixed | `2a805817`: those reads move before the transaction; a send that finds someone it did not check gets 409; each harness now records any cross-service call while a transaction is open |
+| 7 | Logging | With PubSub unreachable, `live publish failed` logged an empty error, as the hub's other error logs would have. | fixed | `92866a28`: the forwarder and hub use `describeError`; the line now reads `connect ECONNREFUSED ::1:8099; connect ECONNREFUSED 127.0.0.1:8099` |
 
 ## Log
 
@@ -132,3 +133,10 @@ After it:
 | 50 | A and B | 200/200 | 121 ms | 856 / 1391 / 1546 ms | 0 |
 
 UI-24: Sarah's open chat, idle for 60 s, made no requests at all (before live chat: a 136 KB compressed RSC refresh every 5 s). The stream carries an 8-byte `: ping` comment every 25 s.
+
+### 8. Regression
+
+- Browser, James: a post in General (the space requires a topic; the form says so until one is picked) publishes and the app moves to it; a comment shows at once; a headline edit saves and shows on the Members page. The console stays clean when navigating by clicks.
+- Webhooks (`08-regression.mjs webhooks`, 14/14), a receiver on :8298 reached through `127.0.0.1.nip.io` with `WEBHOOK_ALLOW_PRIVATE_NETWORK=true` on the local instances (creation refuses localhost and private IP literals whatever that setting): chat.created, chat.updated, message.sent, message.updated, message.reaction.added and message.deleted are delivered; none carries `clientId` or a message body; the sent and updated payloads have exactly the message fields they have on `main`. `discussion.chat.read` is refused as a trigger (`invalid_trigger`).
+- PubSub down (`08-regression.mjs pubsubdown`, 5/5): a third instance with `PUBSUB_DATABASE_URL` pointing at a closed port, A and B stopped. A chat started through it; the message.sent webhook was delivered; it logged `pubsub connect failed` and `live publish failed`; the chat events were processed, none parked; it shut down cleanly on SIGTERM.
+- The test webhooks were deleted afterwards.
