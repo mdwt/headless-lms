@@ -8,6 +8,7 @@ import {
   dmSettingsSchema,
   idSchema,
   patchDmSettingsInputSchema,
+  permissionSchema,
   patchCommunitySettingsInputSchema,
   setSpaceTopicsInputSchema,
   spaceDetailSchema,
@@ -74,12 +75,19 @@ export const CommunityMembersPage = paginated(CommunityMember);
 
 export const DirectoryEntry = z.object({
   orgUserId: z.string(),
-  role: z.string(),
   displayName: z.string().nullable(),
   headline: z.string().nullable(),
   bio: z.string().nullable(),
   imageAssetId: z.string().nullable(),
   imageUrl: z.string().nullable(),
+  team: z.boolean().describe('Shown as team in this community'),
+  roleName: z
+    .string()
+    .nullable()
+    .describe('The name of the role that makes the person team here; null when not team'),
+  opensEverySpace: z
+    .boolean()
+    .describe('Opens every space in this community, so holds no place in its spaces'),
 });
 type _DirectoryMatches = Matches<
   Omit<DomainDirectoryEntry, 'userId'>,
@@ -99,7 +107,7 @@ const CommunityHomeSpaceBase = z.object({
   standing: z
     .enum(['open', 'member', 'requested', 'invited', 'full', 'none'])
     .describe(
-      'Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or staff). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.',
+      'Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or the viewer opens every space). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.',
     ),
 });
 
@@ -107,7 +115,7 @@ export const LockedCommunitySpace = CommunityHomeSpaceBase.extend({
   locked: z
     .literal(true)
     .describe(
-      'The viewer cannot open this space. Only enough to request a place, accept an invite or contact staff is served; never its description, topics, links or settings',
+      'The viewer cannot open this space. Only enough to request a place, accept an invite or contact the team is served; never its description, topics, links or settings',
     ),
 });
 
@@ -130,7 +138,9 @@ export const OpenCommunitySpace = CommunityHomeSpaceBase.extend({
         title: z.string(),
       }),
     )
-    .describe('Linked content that is published; staff also see unpublished targets'),
+    .describe(
+      "Linked content that is published; a holder of the item's read permission also sees it unpublished",
+    ),
   subscription: subscriptionViewSchema
     .nullable()
     .describe('Your mute on this space while it applies; null when none'),
@@ -151,6 +161,16 @@ export const CommunityHome = z.object({
   thumbnailUrl: z.string().nullable(),
   dm: dmSettingsSchema,
   spaces: z.array(CommunityHomeSpace),
+  viewer: z
+    .object({
+      permissions: z.array(permissionSchema).describe('What the viewer holds on this community'),
+      opensEverySpace: z
+        .boolean()
+        .describe('The viewer opens every space, so holds no place in its spaces'),
+      team: z.boolean().describe('The viewer is shown as team here'),
+      roleName: z.string().describe("The name of the viewer's role here"),
+    })
+    .describe('The viewer in this community'),
 });
 type _HomeMatches = Matches<DomainCommunityHome, z.infer<typeof CommunityHome>> &
   Matches<z.infer<typeof CommunityHome>, DomainCommunityHome>;

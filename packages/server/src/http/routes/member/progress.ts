@@ -9,7 +9,7 @@ import {
 } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
 
 export async function memberProgressRoutes(
   app: FastifyInstance,
@@ -21,23 +21,23 @@ export async function memberProgressRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/progress',
+    config: { operation: 'progress.report' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'reportProgress',
       tags: ['Progress'],
       summary: 'Report usage on an activity; the progress service decides completion',
       description:
-        'For a member who can open the course. Reports facts, never a decision: the service decides whether the activity is complete. 404 when the activity or its course is not published, or you cannot open it.',
+        'For a member who can open the course, through a grant or `courses:read` on it. Reports facts, never a decision: the service decides whether the activity is complete. 404 when the activity is not published, or you cannot open its course.',
       body: ReportProgress,
       response: { 200: ProgressStatus, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      const record = await container.progress.report(req.orgId, {
-        orgUserId: orgUser.id,
-        activityId: req.body.activity,
-        reports: req.body.reports,
-      });
+      const actor = await resolveActor(container, req);
+      const record = await container.progress.report(
+        { activityId: req.body.activity, reports: req.body.reports },
+        actor,
+      );
       return { status: record.completedAt ? ('completed' as const) : ('in-progress' as const) };
     },
   });
@@ -45,6 +45,7 @@ export async function memberProgressRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/progress',
+    config: { operation: 'reporting.member.courseProgress' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCourseProgress',
@@ -56,8 +57,8 @@ export async function memberProgressRoutes(
       response: { 200: CourseProgress, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      const view = await member.courseProgress(req.orgId, orgUser.id, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      const view = await member.courseProgress(req.params.courseId, actor);
       if (!view) {
         throw new NotFoundError('Course', req.params.courseId);
       }

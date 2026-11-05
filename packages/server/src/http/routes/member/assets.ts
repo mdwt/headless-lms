@@ -9,7 +9,7 @@ import {
   refusals,
 } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
 import type { Container } from '../../../app/container.js';
 
 const tags = ['Assets'];
@@ -23,6 +23,7 @@ export async function memberAssetsRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/uploads',
+    config: { operation: 'assets.requestMemberUpload' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'requestMemberUpload',
@@ -34,8 +35,8 @@ export async function memberAssetsRoutes(
       response: { 201: UploadTicket, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const ticket = await container.assets.requestMemberUpload(req.orgId, actor.id, req.body);
+      const actor = await resolveActor(container, req);
+      const ticket = await container.assets.requestMemberUpload(req.body, actor);
       return reply.code(201).send(ticket);
     },
   });
@@ -43,6 +44,7 @@ export async function memberAssetsRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/uploads/:id/finalize',
+    config: { operation: 'assets.confirmOwn' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'finalizeMemberUpload',
@@ -54,8 +56,8 @@ export async function memberAssetsRoutes(
       response: { 200: Asset, ...refusals(403, 404, 409) },
     },
     handler: async (req) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const asset = await container.assets.confirmOwn(req.orgId, req.params.id, actor.id);
+      const actor = await resolveActor(container, req);
+      const asset = await container.assets.confirmOwn(req.params.id, actor);
       if (!asset) {
         throw new NotFoundError('Asset', req.params.id);
       }
@@ -66,6 +68,7 @@ export async function memberAssetsRoutes(
   r.route({
     method: 'DELETE',
     url: '/api/member/uploads/:id',
+    config: { operation: 'assets.removeOwn' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteMemberUpload',
@@ -77,8 +80,8 @@ export async function memberAssetsRoutes(
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
-      const actor = await actorOf(container, req.orgId, req.userId);
-      const removed = await container.assets.removeOwn(req.orgId, req.params.id, actor.id);
+      const actor = await resolveActor(container, req);
+      const removed = await container.assets.removeOwn(req.params.id, actor);
       if (!removed) {
         throw new NotFoundError('Asset', req.params.id);
       }

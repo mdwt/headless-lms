@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { DownloadIdParam, MemberDownload, MemberDownloads, refusals } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
 
 export async function memberDownloadsRoutes(
   app: FastifyInstance,
@@ -15,6 +15,7 @@ export async function memberDownloadsRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/downloads',
+    config: { operation: 'reporting.member.listDownloads' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberDownloads',
@@ -25,27 +26,28 @@ export async function memberDownloadsRoutes(
       response: { 200: MemberDownloads, ...refusals(403) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      return member.listDownloads(req.orgId, orgUser.id);
+      const actor = await resolveActor(container, req);
+      return member.listDownloads(actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/member/downloads/:downloadId',
+    config: { operation: 'reporting.member.getDownload' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberDownload',
       tags: ['Content'],
       summary: 'One download you can open, with its files in order',
       description:
-        'For a member of the organization. 404 when the download is not published or you do not hold it.',
+        'For a member of the organization who holds the download, or holds `downloads:read` on it (which also opens it unpublished). 404 otherwise.',
       params: DownloadIdParam,
       response: { 200: MemberDownload, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      const result = await member.getDownload(req.orgId, orgUser.id, req.params.downloadId);
+      const actor = await resolveActor(container, req);
+      const result = await member.getDownload(req.params.downloadId, actor);
       if (!result) {
         throw new NotFoundError('Download', req.params.downloadId);
       }

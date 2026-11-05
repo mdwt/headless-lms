@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { MemberOrg, MemberViewer, refusals } from '../../schemas/index.js';
 import type { Container } from '../../../app/container.js';
 import { UnauthorizedError } from '../../plugins/auth.js';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
 
 export async function memberOrgRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -11,6 +11,7 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
   r.route({
     method: 'GET',
     url: '/api/member/org',
+    config: { operation: 'organizations.getById' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberOrg',
@@ -34,18 +35,19 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
   r.route({
     method: 'GET',
     url: '/api/member/viewer',
+    config: { operation: 'reporting.member.viewer' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberViewer',
       tags: ['Organizations'],
       summary: "Get the caller's identity within the session's org",
       description:
-        'For a member of the organization: your org user id, which the member API keys on, and your role here.',
+        'For a member of the organization: your org user id, which the member API keys on, your org role, the permissions you hold anywhere, and those you hold on the org.',
       response: { 200: MemberViewer, ...refusals(403) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      return { orgUserId: orgUser.id, role: orgUser.role };
+      const actor = await resolveActor(container, req);
+      return container.reporting.member.viewer(actor);
     },
   });
 }

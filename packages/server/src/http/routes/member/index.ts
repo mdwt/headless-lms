@@ -1,8 +1,8 @@
-// Student HTTP API under `/api/member`. Session-guarded like every
-// back-office route, but scoped by the session's `org_users` row —
-// the reads gate on the person's enrollments, not on staff role. One file per
-// resource; everything under `/api/member` lives in this directory and nowhere
-// else. The course, download, and progress reads call reporting/member.
+// Member HTTP API under `/api/member`. Every route resolves the caller's actor,
+// so only an active org user reaches it; the reads gate on the person's grants
+// and permissions. One file per resource; everything under `/api/member` lives
+// in this directory and nowhere else. The course, download, and progress reads
+// call reporting/member.
 import type { FastifyInstance } from 'fastify';
 import type { Container } from '../../../app/container.js';
 import { memberAssetsRoutes } from './assets.js';

@@ -12,7 +12,8 @@ import {
 } from '../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../app/container.js';
-import { resolveScope } from '../scope.js';
+import { resolveActor } from '../scope.js';
+import { describeOperation } from '../operations.js';
 
 export async function entitlementsRoutes(
   app: FastifyInstance,
@@ -24,37 +25,38 @@ export async function entitlementsRoutes(
   r.route({
     method: 'GET',
     url: '/api/entitlements',
+    config: { operation: 'entitlements.list' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listEntitlements',
       tags: ['Entitlements'],
-      summary: 'List entitlements (staff)',
-      description: 'Staff only (owner, admin, instructor).',
+      summary: 'List entitlements',
+      description: `${describeOperation('entitlements.list')} \`access:read\` lists every grant; \`progress:read\` on a course lists that course's grants when \`contentId\` names it.`,
       querystring: EntitlementsQuery,
       response: { 200: EntitlementsPage, ...refusals(403) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      return entitlements.list(scope.orgId, req.query);
+      const actor = await resolveActor(container, req);
+      return entitlements.list(req.query, actor);
     },
   });
 
   r.route({
     method: 'POST',
     url: '/api/entitlements',
+    config: { operation: 'entitlements.grant' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'grantEntitlement',
       tags: ['Entitlements'],
-      summary: 'Grant a person access to content or a bundle (staff)',
-      description:
-        'Staff only (owner, admin, instructor). Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later.',
+      summary: 'Grant a person access to content or a bundle',
+      description: `${describeOperation('entitlements.grant')} Name exactly one of \`contentId\` and \`bundleId\`. A bundle grant covers whatever the bundle holds, now and later.`,
       body: GrantEntitlement,
       response: { 201: Entitlement, ...refusals(403, 409) },
     },
     handler: async (req, reply) => {
-      const scope = await resolveScope(container, req);
-      const entitlement = await entitlements.grant(scope.orgId, req.body);
+      const actor = await resolveActor(container, req);
+      const entitlement = await entitlements.grant(req.body, actor);
       return reply.code(201).send(entitlement);
     },
   });
@@ -62,19 +64,20 @@ export async function entitlementsRoutes(
   r.route({
     method: 'PATCH',
     url: '/api/entitlements/:id',
+    config: { operation: 'entitlements.setStatus' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'setEntitlementStatus',
       tags: ['Entitlements'],
-      summary: 'Revoke or reinstate an entitlement (staff)',
-      description: 'Staff only (owner, admin, instructor). Access follows the status at once.',
+      summary: 'Revoke or reinstate an entitlement',
+      description: `${describeOperation('entitlements.setStatus')} Access follows the status at once.`,
       params: EntitlementIdParam,
       body: SetEntitlementStatus,
       response: { 200: Entitlement, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const scope = await resolveScope(container, req);
-      const entitlement = await entitlements.setStatus(scope.orgId, req.params.id, req.body.status);
+      const actor = await resolveActor(container, req);
+      const entitlement = await entitlements.setStatus(req.params.id, req.body.status, actor);
       if (!entitlement) {
         throw new NotFoundError('Entitlement', req.params.id);
       }

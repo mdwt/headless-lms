@@ -10,7 +10,7 @@ import {
 } from '../../schemas/index.js';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
 import type { Container } from '../../../app/container.js';
-import { actorOf } from './actor.js';
+import { resolveActor } from '../../scope.js';
 
 export async function memberCoursesRoutes(
   app: FastifyInstance,
@@ -22,6 +22,7 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses',
+    config: { operation: 'reporting.member.listCourses' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberCourses',
@@ -32,27 +33,28 @@ export async function memberCoursesRoutes(
       response: { 200: MemberCourses, ...refusals(403) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      return member.listCourses(req.orgId, orgUser.id);
+      const actor = await resolveActor(container, req);
+      return member.listCourses(actor);
     },
   });
 
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId',
+    config: { operation: 'reporting.member.getCourse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCourse',
       tags: ['Content'],
       summary: 'Get one course you can open',
       description:
-        'For a member of the organization. 404 when the course is not published or you do not hold it.',
+        'For a member of the organization who holds the course, or holds `courses:read` on it (which also opens it unpublished). 404 otherwise.',
       params: MemberCourseIdParam,
       response: { 200: Course, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      const course = await member.getCourse(req.orgId, orgUser.id, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      const course = await member.getCourse(req.params.courseId, actor);
       if (!course) {
         throw new NotFoundError('Course', req.params.courseId);
       }
@@ -63,19 +65,20 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/modules',
+    config: { operation: 'reporting.member.listModules' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberModules',
       tags: ['Content'],
       summary: 'List the modules and activities of a course you can open',
       description:
-        'For a member of the organization. Published activities only. 404 when the course is not published or you do not hold it.',
+        'For a member of the organization who holds the course, or holds `courses:read` on it. Published activities only. 404 otherwise.',
       params: MemberCourseIdParam,
       response: { 200: MemberModules, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      const modules = await member.listModules(req.orgId, orgUser.id, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      const modules = await member.listModules(req.params.courseId, actor);
       if (!modules) {
         throw new NotFoundError('Course', req.params.courseId);
       }
@@ -86,19 +89,20 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/activities',
+    config: { operation: 'reporting.member.listActivities' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberActivities',
       tags: ['Content'],
       summary: 'List the published activities of a course you can open',
       description:
-        'For a member of the organization. 404 when the course is not published or you do not hold it.',
+        'For a member of the organization who holds the course, or holds `courses:read` on it. 404 otherwise.',
       params: MemberCourseIdParam,
       response: { 200: ActivityList, ...refusals(403, 404) },
     },
     handler: async (req) => {
-      const orgUser = await actorOf(container, req.orgId, req.userId);
-      const activities = await member.listActivities(req.orgId, orgUser.id, req.params.courseId);
+      const actor = await resolveActor(container, req);
+      const activities = await member.listActivities(req.params.courseId, actor);
       if (!activities) {
         throw new NotFoundError('Course', req.params.courseId);
       }
