@@ -1,12 +1,11 @@
 import { z } from 'zod';
-import type { AccessScope } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { classifyError } from '../errors.js';
-import type { OrgScope } from '../scope.js';
+import type { Caller } from '../scope.js';
 
 export interface ToolContext {
   container: Container;
-  scope: OrgScope;
+  caller: Caller;
   requestId: string;
 }
 
@@ -16,7 +15,7 @@ export interface Tool {
   name: string;
   title: string;
   description: string;
-  scope: AccessScope;
+  operation: string;
   kind: ToolKind;
   idempotent: boolean;
   openWorld: boolean;
@@ -31,8 +30,6 @@ export interface ToolDef<Input extends z.ZodObject> extends Omit<Tool, 'input' |
 }
 
 export const noInput = z.object({});
-
-export const actor = (scope: OrgScope) => ({ id: scope.orgUserId, role: scope.role });
 
 export function defineTool<Input extends z.ZodObject>(def: ToolDef<Input>): Tool {
   return { ...def, call: (input, ctx) => def.call(input as z.output<Input>, ctx) };

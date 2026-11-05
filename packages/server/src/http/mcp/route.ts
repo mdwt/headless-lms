@@ -1,13 +1,14 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { toWebRequest } from '@modelcontextprotocol/node';
-import { roleHoldsScope } from '@headless-lms/core/organizations';
+import { isPermission } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
-import { NoActiveOrgError, resolveScopeFor, type OrgScope } from '../scope.js';
+import { NoActiveOrgError, resolveCallerFor, type Caller } from '../scope.js';
 import { forbidden, unauthorized } from './challenge.js';
 import { createToolServer } from './server.js';
 import type { Tool, ToolContext } from './tool.js';
 import { TOOLS } from './tools/index.js';
+import { declarationOf } from '../operations.js';
 
 type Connection = { context: ToolContext; tools: Tool[] };
 
@@ -49,9 +50,14 @@ export function registerMcp(
     if (!grant) {
       return reply.send(unauthorized(container.mcp));
     }
-    let scope: OrgScope;
+    let caller: Caller;
     try {
-      scope = await resolveScopeFor(container, grant.userId, grant.orgId);
+      caller = await resolveCallerFor(
+        container,
+        grant.userId,
+        grant.orgId,
+        grant.scopes.filter(isPermission),
+      );
     } catch (error) {
       if (error instanceof NoActiveOrgError) {
         return reply.send(forbidden());
@@ -59,10 +65,8 @@ export function registerMcp(
       throw error;
     }
     const connection: Connection = {
-      context: { container, scope, requestId: request.id },
-      tools: tools.filter(
-        (tool) => grant.scopes.includes(tool.scope) && roleHoldsScope(scope.role, tool.scope),
-      ),
+      context: { container, caller, requestId: request.id },
+      tools: tools.filter((tool) => toolAvailable(tool, caller)),
     };
     const response = await handler.fetch(await webRequest(request, reply), {
       authInfo: {
@@ -91,4 +95,22 @@ export function registerMcp(
           id: null,
         }),
   });
+}
+
+export function toolAvailable(tool: Tool, caller: Caller): boolean {
+  const declaration = declarationOf(tool.operation);
+  if (
+    declaration === null ||
+    declaration === 'system' ||
+    declaration === 'public' ||
+    declaration === 'owner'
+  ) {
+    return false;
+  }
+  if (declaration === 'member') {
+    return true;
+  }
+  return declaration.permissions.some((permission) =>
+    caller.actor.permissions.anywhere(permission),
+  );
 }

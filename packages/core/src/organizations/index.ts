@@ -3,6 +3,9 @@ export { OrganizationServiceImpl } from './service.js';
 export type { OrganizationServiceParams, InviteUrls } from './service.js';
 export { OrgNotificationCategories } from './notification-categories.js';
 export { organizationEvents } from './events.js';
+export { organizationsDeclarations } from './declarations.js';
+export { actorWith } from './testing.js';
+export type { ActorShape } from './testing.js';
 
 export type {
   OrganizationService,

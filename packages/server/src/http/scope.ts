@@ -1,25 +1,53 @@
 import type { FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
-import { isStaffRole, type StaffRole } from '@headless-lms/core/organizations';
-import { ForbiddenError } from '@headless-lms/core/shared/errors';
+import type { Actor } from '@headless-lms/core/shared/actor';
+import type { Permission } from '@headless-lms/core/types';
 
-export interface OrgScope {
-  /** Domain `organizations.id` for the session's active org. */
+export interface Caller {
+  actor: Actor;
   orgId: string;
-  /** Domain `users.id` of the acting person. */
   userId: string;
-  /** Domain `org_users.id` — the acting org user in this org. */
   orgUserId: string;
-  /** The role held in this org. */
-  role: StaffRole;
-  /** Better-auth organization id (for writes that go through the auth provider). */
   authOrgId: string;
+  authUserId: string;
 }
 
-/** Thrown when the session has no resolvable active org / domain user. */
 export class NoActiveOrgError extends Error {}
 
-export async function resolveScope(container: Container, req: FastifyRequest): Promise<OrgScope> {
+async function callerOf(
+  container: Container,
+  authUserId: string,
+  authOrgId: string,
+  tokenScopes?: readonly Permission[],
+): Promise<Caller> {
+  const org = await container.organizations.getByExternalId(authOrgId);
+  if (!org) {
+    throw new NoActiveOrgError('The active organization no longer exists');
+  }
+  const user = await container.identity.getUserByExternalId(authUserId);
+  if (!user) {
+    throw new NoActiveOrgError('Your account is not set up yet');
+  }
+  const orgUser = await container.organizations.getOrgUser(org.id, user.id);
+  if (!orgUser) {
+    throw new NoActiveOrgError('You are not a member of this organization');
+  }
+  const actor = await container.organizations.actorFor(org.id, orgUser.id, tokenScopes);
+  if (!actor) {
+    throw new NoActiveOrgError('Accept your invitation to this organization to continue');
+  }
+  container.requestContext.set({ orgId: org.id });
+  return {
+    actor,
+    orgId: org.id,
+    userId: user.id,
+    orgUserId: orgUser.id,
+    authOrgId,
+    authUserId,
+  };
+}
+
+export async function resolveCaller(container: Container, req: FastifyRequest): Promise<Caller> {
   const authUser = req.authUser;
   const authOrgId = req.authOrgId ?? null;
   if (!authUser) {
@@ -28,57 +56,18 @@ export async function resolveScope(container: Container, req: FastifyRequest): P
   if (!authOrgId || !req.orgId) {
     throw new NoActiveOrgError('Choose an organization to continue');
   }
-  // The session guard already translated the auth org id to the domain org.
-  const org = await container.organizations.getById(req.orgId);
-  if (!org) {
-    throw new NoActiveOrgError('The active organization no longer exists');
-  }
-  const user = await container.identity.getUserByExternalId(authUser.id);
-  if (!user) {
-    throw new NoActiveOrgError('Your account is not set up yet');
-  }
-  const orgUser = await container.organizations.getOrgUser(org.id, user.id);
-  if (!orgUser || !isStaffRole(orgUser.role)) {
-    throw new NoActiveOrgError('Only staff of this organization can do this');
-  }
-  container.requestContext.set({ orgId: org.id });
-  return {
-    orgId: org.id,
-    userId: user.id,
-    orgUserId: orgUser.id,
-    role: orgUser.role,
-    authOrgId,
-  };
+  return callerOf(container, authUser.id, authOrgId);
 }
 
-export async function resolveScopeFor(
+export async function resolveActor(container: Container, req: FastifyRequest): Promise<Actor> {
+  return (await resolveCaller(container, req)).actor;
+}
+
+export function resolveCallerFor(
   container: Container,
   authUserId: string,
   authOrgId: string,
-): Promise<OrgScope> {
-  const org = await container.organizations.getByExternalId(authOrgId);
-  if (!org) {
-    throw new NoActiveOrgError('active organization not found');
-  }
-  const user = await container.identity.getUserByExternalId(authUserId);
-  if (!user) {
-    throw new NoActiveOrgError('no domain user for the current user');
-  }
-  const orgUser = await container.organizations.getOrgUser(org.id, user.id);
-  if (!orgUser || !isStaffRole(orgUser.role)) {
-    throw new NoActiveOrgError('not a staff member of the active organization');
-  }
-  container.requestContext.set({ orgId: org.id });
-  return { orgId: org.id, userId: user.id, orgUserId: orgUser.id, role: orgUser.role, authOrgId };
-}
-
-export async function resolveConfiguratorScope(
-  container: Container,
-  req: FastifyRequest,
-): Promise<OrgScope> {
-  const scope = await resolveScope(container, req);
-  if (scope.role !== 'owner' && scope.role !== 'admin') {
-    throw new ForbiddenError('Only an owner or an admin can configure notifications');
-  }
-  return scope;
+  tokenScopes: readonly Permission[],
+): Promise<Caller> {
+  return callerOf(container, authUserId, authOrgId, tokenScopes);
 }

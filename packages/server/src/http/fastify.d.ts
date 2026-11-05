@@ -6,6 +6,9 @@ import type { User } from '@headless-lms/core/types';
 export type AuthUser = User;
 
 declare module 'fastify' {
+  interface FastifyContextConfig {
+    operation?: string;
+  }
   interface FastifyInstance {
     /** Session guard. Populates `authUser` (and `orgId` when the session has an
      *  active org), or throws `UnauthorizedError`. Use for the routes reached
