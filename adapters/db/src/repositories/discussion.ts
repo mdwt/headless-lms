@@ -15,7 +15,6 @@ import type {
   Logger,
   Page,
   ReactionEmoji,
-  Role,
 } from "@headless-lms/core/types";
 import { commentFlags, commentReactions, comments, posts } from "../schema/index.js";
 import { activities } from "../schema/content.js";
@@ -283,7 +282,6 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
         lastName: row.lastName,
         email: row.email,
         image: row.image ?? null,
-        role: row.role as Role,
         displayName: row.displayName ?? null,
         headline: row.headline ?? null,
         imageAssetOrgId: row.imageAssetOrgId ?? null,
@@ -445,8 +443,18 @@ export class DrizzleDiscussionRepository implements DiscussionRepository {
       .where(where);
   }
 
-  async listComments(orgId: string, query: ListCommentsQuery): Promise<Page<CommentWithContext>> {
+  async listComments(
+    orgId: string,
+    query: ListCommentsQuery,
+    courseIds?: string[],
+  ): Promise<Page<CommentWithContext>> {
+    if (courseIds !== undefined && courseIds.length === 0) {
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+    }
     const conditions: SQL[] = [eq(comments.orgId, orgId)];
+    if (courseIds !== undefined) {
+      conditions.push(inArray(activities.courseId, courseIds));
+    }
     if (query.status) {
       conditions.push(eq(comments.status, query.status));
     }

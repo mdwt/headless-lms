@@ -147,3 +147,39 @@ describe("DrizzleDiscussionRepository.commenterIds", () => {
     expect(statements[0]?.params).toEqual(["org1", "act_1", "published"]);
   });
 });
+
+describe("DrizzleDiscussionRepository.listComments", () => {
+  const query = { page: 1, pageSize: 20 };
+
+  it("limits the rows to the courses passed in", async () => {
+    const { repo, statements } = capture();
+    await repo.listComments("org1", query, ["crs_1", "crs_2"]);
+    expect(statements[0]?.text).toContain('"activities"."course_id" in ($');
+    expect(statements[0]?.params).toEqual(expect.arrayContaining(["crs_1", "crs_2"]));
+  });
+
+  it("reads every course when no list is passed", async () => {
+    const { repo, statements } = capture();
+    await repo.listComments("org1", query);
+    expect(statements[0]?.text).not.toContain('"activities"."course_id" in');
+  });
+
+  it("reads nothing for an empty course list", async () => {
+    const { repo, statements } = capture();
+    await expect(repo.listComments("org1", query, [])).resolves.toEqual({
+      rows: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+    expect(statements).toEqual([]);
+  });
+});
+
+describe("DrizzleDiscussionRepository.authorsOf", () => {
+  it("reads no role from org_users", async () => {
+    const { repo, statements } = capture();
+    await repo.authorsOf("org1", ["ou_1"]);
+    expect(statements[0]?.text).not.toContain('"org_users"."role"');
+  });
+});

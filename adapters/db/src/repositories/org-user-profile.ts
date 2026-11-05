@@ -28,7 +28,6 @@ export const orgUserProfileColumns = {
 
 export const authorProfileColumns = {
   ...orgUserProfileColumns,
-  role: orgUsers.role,
   displayName: userProfiles.displayName,
   headline: userProfiles.headline,
   imageAssetOrgId: userProfiles.imageAssetOrgId,
