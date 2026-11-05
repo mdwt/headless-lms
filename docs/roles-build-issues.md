@@ -26,7 +26,7 @@ Baseline at `451cdc5a`: `pnpm build` passes, `pnpm test` 1982 tests in 159 files
 | 9 | Community app (`hlms-community`) | open |
 | 10 | SDK, OpenAPI, MCP catalogue, docs | open |
 | 11 | Tests (section 19) | open |
-| 12 | End to end on a running stack | in progress: API scenarios 98/99 pass on the first run (people and roles 52/52, access and moderation 46/47; the miss was the test's own expectation) |
+| 12 | End to end on a running stack | in progress: API scenarios: people and roles 52/52, access and moderation 47/47, custom roles, media and people 39/39; no error lines in the API log |
 
 ## Issues
 
@@ -38,4 +38,7 @@ Each issue: status `open`, `fixed` or `wontfix`, and the fixing commit.
 | 2 | E2E, MCP | A key with only course scopes was shown `remove_comment`, `remove_post`, `remove_post_comment` and `list_space_members`: their methods are declared `member` (authors remove their own), so the listing showed them to every token. The call was still refused by core. Tools now carry `listedFor`, used only for listing. | fixed | 7d427077 |
 | 3 | E2E, docs | API descriptions and comments still said "staff" (`CreatePost.mode`, comment schemas, identity types). | fixed | 7d427077 |
 | 4 | E2E, env | Member invite links pointed at `localhost:8002`: `STUDENT_PORTAL_URL` wasn't set for the test stack. Environment only, no code change. | fixed | env |
+| 5 | E2E, roles | A role the org adds gets the key `role_<ksuid>`; the ksuid has capitals, which `roleKeySchema` refused (lowercase only). Giving, inviting with, or deleting an added role answered 400. The schema now allows letters after the first lowercase one; a test covers generated keys. | fixed | 389b43da |
+| 6 | E2E, routes | `GET /api/member/org` named the system-only `organizations.getById`. It now names `organizations.portalIdentity`, declared `public`; a server test refuses any route on a `system` operation. | fixed | ae799374 |
+| 7 | Apps, SDK | `@headless-lms/sdk` didn't export the new `People` and `Roles` classes, so invites, roles and people were unreachable from the apps. | fixed | ae799374 |
 
