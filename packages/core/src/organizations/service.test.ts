@@ -20,6 +20,7 @@ import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
 
 const ORG = 'org_1';
+const OWNER_KEY = 'owner';
 
 interface Person {
   id: string;
@@ -64,7 +65,9 @@ function store() {
     },
     update: async (id, input) => {
       const org = orgs.get(id);
-      if (!org) return null;
+      if (!org) {
+        return null;
+      }
       const updated = {
         ...org,
         ...(input.name && { name: input.name }),
@@ -99,14 +102,18 @@ function store() {
     },
     setInviteStatus: async (_orgId, id, status) => {
       const invite = invites.get(id);
-      if (!invite) return null;
+      if (!invite) {
+        return null;
+      }
       const updated = { ...invite, status: status as Invite['status'] };
       invites.set(id, updated);
       return updated;
     },
     setInviteRole: async (_orgId, id, roleKey) => {
       const invite = invites.get(id);
-      if (!invite) return null;
+      if (!invite) {
+        return null;
+      }
       const updated = { ...invite, roleKey };
       invites.set(id, updated);
       return updated;
@@ -122,7 +129,9 @@ function store() {
       ) ?? null,
     setInviteToken: async (_orgId, id, tokenHash, expiresAt, invitedBy) => {
       const invite = invites.get(id);
-      if (!invite) return null;
+      if (!invite) {
+        return null;
+      }
       const updated = { ...invite, tokenHash, expiresAt, invitedBy };
       invites.set(id, updated);
       return updated;
@@ -155,14 +164,18 @@ function store() {
     },
     updateOrgUser: async (_orgId, id, patch) => {
       const u = orgUsers.get(id);
-      if (!u) return null;
+      if (!u) {
+        return null;
+      }
       const updated = { ...u, ...(patch.status && { status: patch.status }) };
       orgUsers.set(id, updated);
       return updated;
     },
     deleteOrgUser: async (_orgId, id) => {
       const u = orgUsers.get(id);
-      if (!u) return null;
+      if (!u) {
+        return null;
+      }
       if (blocked.has(id)) {
         throw new ConflictError(
           'This person has written posts, comments or messages and cannot be deleted',
@@ -170,7 +183,9 @@ function store() {
       }
       orgUsers.delete(id);
       for (let i = assignments.length - 1; i >= 0; i--) {
-        if (assignments[i]!.orgUserId === id) assignments.splice(i, 1);
+        if (assignments[i]!.orgUserId === id) {
+          assignments.splice(i, 1);
+        }
       }
       return u;
     },
@@ -185,7 +200,9 @@ function store() {
   const roles: RolesRepository = {
     actorFacts: async (_orgId, id) => {
       const u = orgUsers.get(id);
-      if (!u) return null;
+      if (!u) {
+        return null;
+      }
       return {
         orgUserId: id,
         status: u.status,
@@ -196,12 +213,17 @@ function store() {
     storedRoles: async () => [...storedRoles],
     saveStoredRole: async (_orgId, role) => {
       const i = storedRoles.findIndex((r) => r.key === role.key);
-      if (i >= 0) storedRoles[i] = role;
-      else storedRoles.push(role);
+      if (i >= 0) {
+        storedRoles[i] = role;
+      } else {
+        storedRoles.push(role);
+      }
     },
     deleteStoredRole: async (_orgId, key) => {
       const i = storedRoles.findIndex((r) => r.key === key);
-      if (i < 0) return false;
+      if (i < 0) {
+        return false;
+      }
       storedRoles.splice(i, 1);
       return true;
     },
@@ -229,9 +251,11 @@ function store() {
     ],
     setOrgRole: async (orgId, id, roleKey, assignedBy) => {
       const i = assignments.findIndex((a) => a.orgUserId === id && a.contentId === null);
-      if (i >= 0) assignments.splice(i, 1);
+      if (i >= 0) {
+        assignments.splice(i, 1);
+      }
       if (roleKey) {
-        if (roleKey === 'owner' && assignments.some((a) => a.roleKey === 'owner')) {
+        if (roleKey === OWNER_KEY && assignments.some((a) => a.roleKey === OWNER_KEY)) {
           throw new ConflictError('an owner row already exists');
         }
         assignments.push({
@@ -248,7 +272,9 @@ function store() {
     },
     setItemRole: async (orgId, id, contentId, contentType, roleKey, assignedBy) => {
       const i = assignments.findIndex((a) => a.orgUserId === id && a.contentId === contentId);
-      if (i >= 0) assignments.splice(i, 1);
+      if (i >= 0) {
+        assignments.splice(i, 1);
+      }
       assignments.push({
         id: next('ras'),
         orgId,
@@ -262,7 +288,9 @@ function store() {
     },
     removeItemRole: async (_orgId, id, contentId) => {
       const i = assignments.findIndex((a) => a.orgUserId === id && a.contentId === contentId);
-      if (i < 0) return null;
+      if (i < 0) {
+        return null;
+      }
       return assignments.splice(i, 1)[0]!;
     },
     countHolders: async (_orgId, key, level) =>
@@ -274,11 +302,13 @@ function store() {
       ).length,
     holderCounts: async () => {
       const out: Record<string, number> = {};
-      for (const a of assignments) out[a.roleKey] = (out[a.roleKey] ?? 0) + 1;
+      for (const a of assignments) {
+        out[a.roleKey] = (out[a.roleKey] ?? 0) + 1;
+      }
       return out;
     },
     contentTypeOf: async (_orgId, id) => content.get(id) ?? null,
-    ownerOrgUserId: async () => assignments.find((a) => a.roleKey === 'owner')?.orgUserId ?? null,
+    ownerOrgUserId: async () => assignments.find((a) => a.roleKey === OWNER_KEY)?.orgUserId ?? null,
     lock: async () => {},
   };
 
@@ -373,7 +403,9 @@ function store() {
 
   async function actor(orgUserId: string): Promise<Actor> {
     const a = await service.actorFor(ORG, orgUserId);
-    if (!a) throw new Error('no actor');
+    if (!a) {
+      throw new Error('no actor');
+    }
     return a;
   }
 

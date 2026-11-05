@@ -70,7 +70,6 @@ import {
   ResolvedPermissions,
   resolvePermissions,
   systemPermissions,
-  type AssignmentRow,
 } from './effective-permissions.js';
 import {
   ALL_PERMISSIONS,

@@ -21,11 +21,11 @@ const NO_ROLE_LITERALS = [
     const other = side === "left" ? "right" : "left";
     return [
       {
-        selector: `BinaryExpression[operator=/^[!=]==?$/][${side}.type='Identifier'][${side}.name=${ROLE_NAME}][${other}.type='Literal']`,
+        selector: `BinaryExpression[operator=/^[!=]==?$/][${side}.type='Identifier'][${side}.name=${ROLE_NAME}][${other}.type='Literal'][${other}.raw=/^['\"]/]`,
         message: ROLE_LITERAL_MESSAGE,
       },
       {
-        selector: `BinaryExpression[operator=/^[!=]==?$/][${side}.type='MemberExpression'][${side}.property.name=${ROLE_NAME}][${other}.type='Literal']`,
+        selector: `BinaryExpression[operator=/^[!=]==?$/][${side}.type='MemberExpression'][${side}.property.name=${ROLE_NAME}][${other}.type='Literal'][${other}.raw=/^['\"]/]`,
         message: ROLE_LITERAL_MESSAGE,
       },
     ];
