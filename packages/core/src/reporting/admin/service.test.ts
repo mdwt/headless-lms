@@ -3,7 +3,7 @@ import { actorWith, MEMBER_ROLE_KEY } from '../../organizations/index.js';
 import type { EffectivePermissions } from '../../shared/actor.js';
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import { adminReportDeclarations } from './declarations.js';
-import type { AdminReportRepository, PermissionsReader } from './ports.js';
+import type { AdminReportRepository, PermissionsReader, SpaceOpenersReader } from './ports.js';
 import { AdminReportServiceImpl } from './service.js';
 
 const PAGE = { page: 1, pageSize: 20 };
@@ -33,6 +33,7 @@ function fakeRepo(): AdminReportRepository {
     enrollments: vi.fn(async () => []),
     courseAnalytics: vi.fn(async () => null),
     courseEnrollments: vi.fn(async () => null),
+    courseLearners: vi.fn(async () => ({ rows: [], total: 0, ...PAGE })),
     listStudents: vi.fn(async () => ({ rows: [STUDENT], total: 1, ...PAGE })),
     getStudent: vi.fn(async () => STUDENT),
     studentAnalytics: vi.fn(async () => null),
@@ -68,9 +69,13 @@ const people: PermissionsReader = {
     ),
 };
 
+const spaces: SpaceOpenersReader = {
+  everySpaceOpeners: vi.fn(async () => ['ou_emma']),
+};
+
 function build() {
   const repo = fakeRepo();
-  return { repo, svc: new AdminReportServiceImpl({ repo, permissions: people }) };
+  return { repo, svc: new AdminReportServiceImpl({ repo, permissions: people, spaces }) };
 }
 
 describe('AdminReportService', () => {
@@ -82,6 +87,7 @@ describe('AdminReportService', () => {
       ['enrollments', () => svc.enrollments(30, nobody)],
       ['courseAnalytics', () => svc.courseAnalytics('crs_1', nobody)],
       ['courseEnrollments', () => svc.courseEnrollments('crs_1', 30, nobody)],
+      ['courseLearners', () => svc.courseLearners('crs_1', PAGE, nobody)],
       ['listStudents', () => svc.listStudents(PAGE, nobody)],
       ['getStudent', () => svc.getStudent('ou_james', nobody)],
       ['studentAnalytics', () => svc.studentAnalytics('ou_james', nobody)],
@@ -130,5 +136,34 @@ describe('AdminReportService', () => {
       { id: 'ou_emma', team: true, roleName: 'Community lead' },
       { id: 'ou_oliver', team: false, roleName: null },
     ]);
+  });
+
+  it('marks the community members who open every space', async () => {
+    const { svc } = build();
+    const page = await svc.communityMembers('cmy_1', PAGE, actorWith({ org: ['access:read'] }));
+    expect(spaces.everySpaceOpeners).toHaveBeenCalledWith('org_1', 'cmy_1');
+    expect(page.rows.map(({ id, opensEverySpace }) => ({ id, opensEverySpace }))).toEqual([
+      { id: 'ou_emma', opensEverySpace: true },
+      { id: 'ou_oliver', opensEverySpace: false },
+    ]);
+  });
+
+  it("lists a course's learners with progress:read on that course and refuses another course", async () => {
+    const { svc, repo } = build();
+    const tutor = actorWith({ orgId: 'org_1', content: { crs_1: ['progress:read'] } });
+    const query = { ...PAGE, search: 'ja' };
+    await expect(svc.courseLearners('crs_1', query, tutor)).resolves.toMatchObject({ total: 0 });
+    expect(repo.courseLearners).toHaveBeenCalledWith('org_1', 'crs_1', query);
+    await expect(svc.courseLearners('crs_2', PAGE, tutor)).rejects.toThrow(ForbiddenError);
+    const reader = actorWith({ orgId: 'org_1', content: { crs_1: ['courses:read'] } });
+    await expect(svc.courseLearners('crs_1', PAGE, reader)).rejects.toThrow(ForbiddenError);
+    expect(repo.courseLearners).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers 404 for the learners of a course that does not exist', async () => {
+    const { svc, repo } = build();
+    vi.mocked(repo.courseLearners).mockResolvedValue(null);
+    const tutor = actorWith({ content: { crs_9: ['progress:read'] } });
+    await expect(svc.courseLearners('crs_9', PAGE, tutor)).rejects.toThrow(NotFoundError);
   });
 });

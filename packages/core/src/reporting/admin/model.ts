@@ -109,6 +109,27 @@ export interface StudentAnalytics {
 export interface CommunityMember extends OrgUserProfile {
   team: boolean;
   roleName: string | null;
+  opensEverySpace: boolean;
+}
+
+export type LearnerGrantStatus = 'active' | 'expired' | 'revoked';
+
+export interface CourseLearner extends OrgUserProfile {
+  status: LearnerGrantStatus;
+  source: string;
+  grantedAt: string;
+  expiresAt: string | null;
+  totalActivities: number;
+  completedActivities: number;
+  progress: number;
+  lastActivityAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CourseLearnersQuery {
+  page: number;
+  pageSize: number;
+  search?: string | undefined;
 }
 
 export interface CommunityMembersQuery {

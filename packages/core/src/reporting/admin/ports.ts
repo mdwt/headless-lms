@@ -7,6 +7,8 @@ import type {
   CommunityMembersQuery,
   CourseAnalytics,
   CourseEnrollmentPoint,
+  CourseLearner,
+  CourseLearnersQuery,
   EnrollmentPoint,
   OverviewStats,
   Page,
@@ -21,6 +23,11 @@ export interface AdminReportService {
   enrollments(days: number, actor: Actor): Promise<EnrollmentPoint[]>;
   courseAnalytics(courseId: string, actor: Actor): Promise<CourseAnalytics>;
   courseEnrollments(courseId: string, days: number, actor: Actor): Promise<CourseEnrollmentPoint[]>;
+  courseLearners(
+    courseId: string,
+    query: CourseLearnersQuery,
+    actor: Actor,
+  ): Promise<Page<CourseLearner>>;
   listStudents(query: StudentsQuery, actor: Actor): Promise<Page<Student>>;
   getStudent(id: string, actor: Actor): Promise<Student>;
   studentAnalytics(id: string, actor: Actor): Promise<StudentAnalytics>;
@@ -39,6 +46,10 @@ export interface PermissionsReader {
   ): Promise<Map<string, EffectivePermissions>>;
 }
 
+export interface SpaceOpenersReader {
+  everySpaceOpeners(orgId: string, communityId: string): Promise<string[]>;
+}
+
 export interface AdminReportRepository {
   overview(orgId: string): Promise<OverviewStats>;
   enrollments(orgId: string, days: number): Promise<EnrollmentPoint[]>;
@@ -48,6 +59,11 @@ export interface AdminReportRepository {
     courseId: string,
     days: number,
   ): Promise<CourseEnrollmentPoint[] | null>;
+  courseLearners(
+    orgId: string,
+    courseId: string,
+    query: CourseLearnersQuery,
+  ): Promise<Page<CourseLearner> | null>;
   /** Active and invited org users whose org role is `memberRoleKey`: no org assignment,
    *  and for an invited one, a pending invite carrying that key. */
   listStudents(

@@ -9,7 +9,10 @@ import type {
   CourseActivityEngagement,
   CourseAnalytics,
   CourseEnrollmentPoint,
+  CourseLearner,
+  CourseLearnersQuery,
   EnrollmentPoint,
+  LearnerGrantStatus,
   OverviewStats,
   Page,
   StudentAnalytics,
@@ -315,6 +318,147 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     `);
     const rows = result.rows as { date: string; count: number }[];
     return rows.map((r) => ({ date: r.date, count: Number(r.count) }));
+  }
+
+  async courseLearners(
+    orgId: string,
+    courseId: string,
+    query: CourseLearnersQuery,
+  ): Promise<Page<CourseLearner> | null> {
+    if (!(await this.courseExists(orgId, courseId))) {
+      return null;
+    }
+    const expired = grantExpired(entitlements.expiresAt);
+    const grantStatus = sql<LearnerGrantStatus>`case
+      when ${entitlements.status} = 'revoked' then 'revoked'
+      when ${expired} then 'expired'
+      else 'active'
+    end`;
+    const grantRank = sql`case
+      when ${entitlements.status} = 'revoked' then 2
+      when ${expired} then 1
+      else 0
+    end`;
+    const learnerGrant = this.db.$with("learner_grant").as(
+      this.db
+        .selectDistinctOn([entitlements.orgUserId], {
+          orgUserId: entitlements.orgUserId,
+          status: grantStatus.as("status"),
+          source: entitlements.source,
+          grantedAt: entitlements.grantedAt,
+          expiresAt: entitlements.expiresAt,
+        })
+        .from(entitlements)
+        .where(
+          and(eq(entitlements.orgId, orgId), grantOpens(entitlements, sql`${courseId}`, "course")),
+        )
+        .orderBy(
+          entitlements.orgUserId,
+          grantRank,
+          sql`${entitlements.expiresAt} desc nulls first`,
+          desc(entitlements.grantedAt),
+        ),
+    );
+    const publishedActivities = sql`(
+      select a.id from activities a
+      where a.org_id = ${orgId}
+        and a.course_id = ${courseId}
+        and coalesce((a.settings ->> 'published')::boolean, true)
+    )`;
+    const completedActivities = sql<number>`(
+      select count(*) from progress_records pr
+      where pr.org_id = ${orgId}
+        and pr.org_user_id = ${orgUsers.id}
+        and pr.target_type = 'activity'
+        and pr.completed_at is not null
+        and pr.target_id in ${publishedActivities}
+    )`;
+    const lastActivityAt = sql<Date | string | null>`(
+      select max(pr.updated_at) from progress_records pr
+      where pr.org_id = ${orgId}
+        and pr.org_user_id = ${orgUsers.id}
+        and (
+          (pr.target_type = 'activity' and pr.target_id in ${publishedActivities})
+          or (pr.target_type = 'course' and pr.target_id = ${courseId})
+        )
+    )`;
+    const completedAt = sql<Date | string | null>`(
+      select pr.completed_at from progress_records pr
+      where pr.org_id = ${orgId}
+        and pr.org_user_id = ${orgUsers.id}
+        and pr.target_type = 'course'
+        and pr.target_id = ${courseId}
+    )`;
+
+    const filters: SQL[] = [eq(orgUsers.orgId, orgId)];
+    const q = query.search?.trim();
+    if (q) {
+      const like = `%${q}%`;
+      filters.push(
+        or(ilike(studentFirstName, like), ilike(studentLastName, like), ilike(users.email, like))!,
+      );
+    }
+    const where = and(...filters);
+    const learner = and(eq(orgUsers.orgId, orgId), eq(orgUsers.id, learnerGrant.orgUserId));
+
+    const [[totals], [activityCount], rows] = await Promise.all([
+      this.db
+        .with(learnerGrant)
+        .select({ total: sql<number>`count(*)` })
+        .from(learnerGrant)
+        .innerJoin(orgUsers, learner)
+        .innerJoin(users, eq(users.id, orgUsers.userId))
+        .where(where),
+      this.db
+        .select({ total: sql<number>`count(*)` })
+        .from(sql`${publishedActivities} as published_activities`),
+      this.db
+        .with(learnerGrant)
+        .select({
+          ...studentProfileColumns,
+          status: learnerGrant.status,
+          source: learnerGrant.source,
+          grantedAt: learnerGrant.grantedAt,
+          expiresAt: learnerGrant.expiresAt,
+          completedActivities,
+          lastActivityAt,
+          completedAt,
+        })
+        .from(learnerGrant)
+        .innerJoin(orgUsers, learner)
+        .innerJoin(users, eq(users.id, orgUsers.userId))
+        .leftJoin(user, eq(user.id, users.externalId))
+        .where(where)
+        .orderBy(asc(studentFirstName), asc(studentLastName), asc(orgUsers.id))
+        .limit(query.pageSize)
+        .offset((query.page - 1) * query.pageSize),
+    ]);
+
+    const totalActivities = Number(activityCount?.total ?? 0);
+    return {
+      rows: rows.map((row) => {
+        const done = Number(row.completedActivities);
+        return {
+          id: row.id,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          email: row.email,
+          image: row.image ?? null,
+          status: row.status,
+          source: row.source,
+          grantedAt: new Date(row.grantedAt).toISOString(),
+          expiresAt: row.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+          totalActivities,
+          completedActivities: done,
+          progress: totalActivities > 0 ? Math.round(Math.min(done / totalActivities, 1) * 100) : 0,
+          lastActivityAt: row.lastActivityAt ? new Date(row.lastActivityAt).toISOString() : null,
+          completedAt: row.completedAt ? new Date(row.completedAt).toISOString() : null,
+        };
+      }),
+      total: Number(totals?.total ?? 0),
+      page: query.page,
+      pageSize: query.pageSize,
+    };
   }
 
   async listStudents(

@@ -54,3 +54,47 @@ describe("DrizzleAdminRepository students", () => {
     }
   });
 });
+
+describe("DrizzleAdminRepository course learners", () => {
+  function captureCourse() {
+    const statements: { text: string; params: unknown[] }[] = [];
+    const client = {
+      async query(config: string | { text: string }, params: unknown[] = []) {
+        const text = typeof config === "string" ? config : config.text;
+        statements.push({ text, params });
+        if (text.includes('from "courses"')) {
+          return { rows: [{ id: "crs_1" }], rowCount: 1 };
+        }
+        if (text.includes("limit")) {
+          return { rows: [], rowCount: 0 };
+        }
+        return { rows: [{ total: 0 }], rowCount: 1 };
+      },
+    };
+    return {
+      repo: new DrizzleAdminRepository(drizzle({ client: client as never })),
+      statements,
+    };
+  }
+
+  it("answers null for a course that does not exist", async () => {
+    const { repo } = capture();
+    await expect(repo.courseLearners("org1", "crs_x", { page: 1, pageSize: 20 })).resolves.toBe(
+      null,
+    );
+  });
+
+  it("lists one row per learner from any grant opening the course, bundles and inactive grants included", async () => {
+    const { repo, statements } = captureCourse();
+    await repo.courseLearners("org1", "crs_1", { page: 1, pageSize: 20, search: "sar" });
+    const list = statements.find((s) => s.text.includes("limit"));
+    expect(list?.text).toMatch(
+      /with "learner_grant" as \(select distinct on \("entitlements"\."org_user_id"\)/,
+    );
+    expect(list?.text).toMatch(/select 1 from bundle_items bi/);
+    expect(list?.text).not.toMatch(/"entitlements"\."status" = 'active'/);
+    expect(list?.text).not.toMatch(/content_access/);
+    expect(list?.text).toMatch(/case when \("org_users"\."status" <> 'invited'/);
+    expect(list?.params).toContain("crs_1");
+  });
+});

@@ -1,5 +1,6 @@
 import {
   CourseIdPathParam,
+  CourseLearnersQuery,
   CreateInvite,
   EnrollmentSeriesQuery,
   EntitlementIdParam,
@@ -128,6 +129,19 @@ export const peopleTools: Tool[] = [
     input: CourseIdPathParam,
     call: ({ courseId }, { container, caller }) =>
       container.reporting.admin.courseAnalytics(courseId, caller.actor),
+  }),
+  defineTool({
+    name: 'list_course_learners',
+    title: 'List course learners',
+    description:
+      "Page through a course's learners: everyone with a grant that opens it, directly or through a bundle, active or not, with that grant and their progress. Search by name or email.",
+    operation: 'reporting.admin.courseLearners',
+    kind: 'read',
+    idempotent: true,
+    openWorld: false,
+    input: CourseLearnersQuery.extend(CourseIdPathParam.shape),
+    call: ({ courseId, ...query }, { container, caller }) =>
+      container.reporting.admin.courseLearners(courseId, query, caller.actor),
   }),
   defineTool({
     name: 'get_course_enrollment_trend',

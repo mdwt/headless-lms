@@ -6,6 +6,7 @@ export const adminReportDeclarations = {
   enrollments: requires('analytics:read'),
   courseAnalytics: requires('progress:read'),
   courseEnrollments: requires('progress:read'),
+  courseLearners: requires('progress:read'),
   listStudents: requires('people:read'),
   getStudent: requires('people:read'),
   studentAnalytics: requires('people:read'),

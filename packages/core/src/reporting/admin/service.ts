@@ -7,6 +7,8 @@ import type {
   CommunityMembersQuery,
   CourseAnalytics,
   CourseEnrollmentPoint,
+  CourseLearner,
+  CourseLearnersQuery,
   EnrollmentPoint,
   OverviewStats,
   Page,
@@ -15,20 +17,28 @@ import type {
   StudentRow,
   StudentsQuery,
 } from './model.js';
-import type { AdminReportRepository, AdminReportService, PermissionsReader } from './ports.js';
+import type {
+  AdminReportRepository,
+  AdminReportService,
+  PermissionsReader,
+  SpaceOpenersReader,
+} from './ports.js';
 
 export type AdminReportServiceParams = {
   repo: AdminReportRepository;
   permissions: PermissionsReader;
+  spaces: SpaceOpenersReader;
 };
 
 export class AdminReportServiceImpl implements AdminReportService {
   private readonly repo: AdminReportRepository;
   private readonly permissions: PermissionsReader;
+  private readonly spaces: SpaceOpenersReader;
 
   constructor(params: AdminReportServiceParams) {
     this.repo = params.repo;
     this.permissions = params.permissions;
+    this.spaces = params.spaces;
   }
 
   async overview(actor: Actor): Promise<OverviewStats> {
@@ -57,6 +67,15 @@ export class AdminReportServiceImpl implements AdminReportService {
       'Course',
       courseId,
     );
+  }
+
+  async courseLearners(
+    courseId: string,
+    query: CourseLearnersQuery,
+    actor: Actor,
+  ): Promise<Page<CourseLearner>> {
+    actor.permissions.require('progress:read', courseId);
+    return found(await this.repo.courseLearners(actor.orgId, courseId, query), 'Course', courseId);
   }
 
   async listStudents(query: StudentsQuery, actor: Actor): Promise<Page<Student>> {
@@ -97,10 +116,14 @@ export class AdminReportServiceImpl implements AdminReportService {
       'Community',
       communityId,
     );
-    const held = await this.permissions.permissionsOfMany(
-      actor.orgId,
-      page.rows.map((row) => row.id),
-    );
+    const [held, openers] = await Promise.all([
+      this.permissions.permissionsOfMany(
+        actor.orgId,
+        page.rows.map((row) => row.id),
+      ),
+      this.spaces.everySpaceOpeners(actor.orgId, communityId),
+    ]);
+    const opensEverySpace = new Set(openers);
     return {
       ...page,
       rows: page.rows.map((row) => {
@@ -109,7 +132,7 @@ export class AdminReportServiceImpl implements AdminReportService {
         const org = permissions?.roleOn();
         const team = (item?.team ?? false) || (org?.team ?? false);
         const roleName = item?.team ? item.name : org?.team ? org.name : null;
-        return { ...row, team, roleName };
+        return { ...row, team, roleName, opensEverySpace: opensEverySpace.has(row.id) };
       }),
     };
   }

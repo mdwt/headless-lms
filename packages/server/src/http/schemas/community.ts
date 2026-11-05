@@ -72,6 +72,9 @@ export const CommunityMember = OrgUserProfileSchema.extend({
     .string()
     .nullable()
     .describe('The name of the role that makes them team in the community, or null.'),
+  opensEverySpace: z
+    .boolean()
+    .describe('Opens every space of the community, so holds no place in its spaces.'),
 });
 type _CommunityMemberMatches = Matches<DomainCommunityMember, z.infer<typeof CommunityMember>> &
   Matches<z.infer<typeof CommunityMember>, DomainCommunityMember>;

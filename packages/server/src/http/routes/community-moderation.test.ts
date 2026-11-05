@@ -134,6 +134,7 @@ describe('community moderation routes', () => {
           image: null,
           team: false,
           roleName: null,
+          opensEverySpace: false,
         },
       ],
       total: 1,
