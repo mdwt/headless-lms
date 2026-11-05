@@ -32,11 +32,11 @@ async function callerOf(
   if (!orgUser) {
     throw new NoActiveOrgError('You are not a member of this organization');
   }
+  container.requestContext.set({ orgId: org.id, actorOrgUserId: orgUser.id });
   const actor = await container.organizations.actorFor(org.id, orgUser.id, tokenScopes);
   if (!actor) {
     throw new NoActiveOrgError('Accept your invitation to this organization to continue');
   }
-  container.requestContext.set({ orgId: org.id });
   return {
     actor,
     orgId: org.id,

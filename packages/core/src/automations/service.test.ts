@@ -42,7 +42,14 @@ import { actorWith } from '../organizations/index.js';
 
 const ADMIN = actorWith({
   orgId: 'org-1',
-  org: ['automations:read', 'automations:write', 'automations:delete'],
+  org: [
+    'automations:read',
+    'automations:write',
+    'automations:delete',
+    'access:read',
+    'access:write',
+    'progress:read',
+  ],
 });
 
 const SAMPLE_ENTITLEMENT: Entitlement = {
@@ -1869,6 +1876,32 @@ describe('AutomationsService permissions', () => {
     const writer = actorWith({ orgId: 'org-1', org: ['automations:write'] });
     await expect(svc.delete('atm_1', writer)).rejects.toThrow(ForbiddenError);
     await expect(svc.deleteWebhook('atm_1', writer)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('needs access:write to author or rerun a workflow that grants access', async () => {
+    const { svc } = build();
+    const writer = actorWith({ orgId: 'org-1', org: ['automations:write'] });
+    await expect(
+      svc.create(
+        {
+          name: 'Grant on start',
+          triggers: ['progress.record.started'],
+          actions: [{ type: 'grantAccess', input: { contentId: 'crs_1' } }],
+        } as never,
+        writer,
+      ),
+    ).rejects.toThrow(/access:write/);
+  });
+
+  it('needs the read permission of every event a webhook receives', async () => {
+    const { svc } = build();
+    const writer = actorWith({ orgId: 'org-1', org: ['automations:write'] });
+    await expect(
+      svc.createWebhook(
+        { url: 'https://crm.example.com/hooks', events: ['entitlement.created'] },
+        writer,
+      ),
+    ).rejects.toThrow(/access:read/);
   });
 
   it('offers "Role assigned" as a trigger', () => {

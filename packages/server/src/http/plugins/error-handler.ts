@@ -7,6 +7,14 @@ function routeOf(request: FastifyRequest): string {
   return `${request.method} ${request.routeOptions.url ?? 'unmatched route'}`;
 }
 
+export function refusalSubject(error: unknown): { permission?: string; contentId?: string } {
+  const subject = error as { permission?: unknown; contentId?: unknown };
+  return {
+    ...(typeof subject?.permission === 'string' && { permission: subject.permission }),
+    ...(typeof subject?.contentId === 'string' && { contentId: subject.contentId }),
+  };
+}
+
 export function errorHandler(error: unknown, request: FastifyRequest, reply: FastifyReply) {
   if (error instanceof ActionInvocationError) {
     request.log.error(
@@ -28,6 +36,7 @@ export function errorHandler(error: unknown, request: FastifyRequest, reply: Fas
         ...(refusal.issues && { issues: refusal.issues }),
         ...(refusal.details && { details: refusal.details }),
         ...(refusal.error === 'bad_request' && { cause: (error as Error).message }),
+        ...refusalSubject(error),
       },
       `${routeOf(request)} refused`,
     );

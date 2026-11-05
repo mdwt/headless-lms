@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Permission } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { classifyError } from '../errors.js';
+import { refusalSubject } from '../plugins/error-handler.js';
 import type { Caller } from '../scope.js';
 
 export interface ToolContext {
@@ -63,6 +64,16 @@ export function toToolResult(data: unknown): ToolResult {
 function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
   const known = classifyError(error);
   if (known) {
+    ctx.container.logger.info('mcp tool refused', {
+      tool: tool.name,
+      operation: tool.operation,
+      status: known.status,
+      error: known.error,
+      message: known.message,
+      orgId: ctx.caller.orgId,
+      actorOrgUserId: ctx.caller.orgUserId,
+      ...refusalSubject(error),
+    });
     return known.message;
   }
   ctx.container.logger.error('mcp tool failed', {

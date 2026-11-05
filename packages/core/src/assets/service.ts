@@ -350,7 +350,7 @@ export class AssetsServiceImpl implements AssetsService {
 
   async remove(id: string, actor: Actor): Promise<boolean> {
     actor.permissions.require('media:delete');
-    return this.removeAsset(actor.orgId, id);
+    return this.removeAsset(actor.orgId, id, actor.id);
   }
 
   async removeOwn(id: string, actor: Actor): Promise<boolean> {
@@ -358,17 +358,17 @@ export class AssetsServiceImpl implements AssetsService {
     if (!asset || asset.source !== 'member' || asset.uploadedBy !== actor.id) {
       return false;
     }
-    return this.removeAsset(actor.orgId, id);
+    return this.removeAsset(actor.orgId, id, actor.id);
   }
 
-  private async removeAsset(orgId: string, id: string): Promise<boolean> {
+  private async removeAsset(orgId: string, id: string, actorOrgUserId: string): Promise<boolean> {
     const asset = await this.repo.findById(orgId, id);
     if (!asset) {
       return false;
     }
     const removed = await this.discard(orgId, asset);
     if (removed) {
-      this.logger.info('asset removed', { orgId, assetId: id });
+      this.logger.info('asset removed', { orgId, assetId: id, actorOrgUserId });
     }
     return removed;
   }

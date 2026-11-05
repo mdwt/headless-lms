@@ -5,6 +5,7 @@
 // against enabled automations for its trigger, opens one run per match, and
 // hands it to the injected AutomationEngine, which calls back into
 // `runAction`/`finalize`.
+import { assertGrantsAllowed, assertReadsEvents } from './event-permissions.js';
 import {
   catalogActions,
   catalogTriggers,
@@ -543,6 +544,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     const orgId = actor.orgId;
     assertCatalogTriggers(input.triggers, true);
     assertAuthorableActions(input.actions);
+    assertGrantsAllowed(actor, input.actions);
     const automation = await this.uow.run(async ({ automations, outbox }) => {
       const created = await automations.insert(orgId, {
         ...input,
@@ -552,7 +554,11 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       await outbox.append([automationEvents.automationCreated.make({ orgId, data: created })]);
       return created;
     });
-    this.logger.info('automation created', { orgId, automationId: automation.id });
+    this.logger.info('automation created', {
+      orgId,
+      automationId: automation.id,
+      actorOrgUserId: actor.id,
+    });
     await this.reconcileSchedules(orgId);
     return automation;
   }
@@ -565,6 +571,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     }
     if (input.actions !== undefined) {
       assertAuthorableActions(input.actions);
+      assertGrantsAllowed(actor, input.actions);
     }
     const existing = await this.repo.findById(orgId, id);
     if (!existing) {
@@ -648,6 +655,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     if (!automation) {
       throw new NotFoundError('Automation', automationId);
     }
+    assertGrantsAllowed(actor, automation.actions);
     const run = await this.uow.run(async ({ runs, outbox }) => {
       const restarted = await runs.restart(orgId, runId, new Date());
       if (!restarted) {
@@ -696,6 +704,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     const orgId = actor.orgId;
     const events = unique(input.events);
     assertCatalogTriggers(events, false);
+    assertReadsEvents(actor, events);
     const secret = generateWebhookSecret();
     const automation = await this.uow.run(async ({ automations, credentials, outbox }) => {
       const secretRef = await credentials.store(orgId, { secret });
@@ -727,6 +736,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     const events = input.events === undefined ? undefined : unique(input.events);
     if (events) {
       assertCatalogTriggers(events, false);
+      assertReadsEvents(actor, events);
     }
     const { secretRef } = webhookTarget(existing);
     const patch: UpdateAutomationInput = {

@@ -52,7 +52,10 @@ export class ResolvedPermissions implements EffectivePermissions {
 
   require(permission: Permission, on?: ContentId): void {
     if (!this.has(permission, on)) {
-      throw new ForbiddenError(`You need ${permission}`);
+      throw Object.assign(new ForbiddenError(`You need ${permission}`), {
+        permission,
+        ...(on !== undefined && { contentId: on }),
+      });
     }
   }
 
