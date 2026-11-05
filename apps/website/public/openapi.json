@@ -11803,6 +11803,12 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "clientId": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
                               "editedAt": {
                                 "nullable": true,
                                 "type": "string",
@@ -11940,6 +11946,7 @@
                               "orgUserId",
                               "body",
                               "replyToId",
+                              "clientId",
                               "editedAt",
                               "deletedAt",
                               "createdAt",
@@ -42373,7 +42380,7 @@
         "tags": [
           "Chats"
         ],
-        "description": "For a member of the community. Every chat you are in, with your unread count and its last message.",
+        "description": "For a member of the community. Every chat you are in, with your unread count and its last message. `requests=true` lists only the pending message requests to you, `requests=false` everything else.",
         "parameters": [
           {
             "schema": {
@@ -42396,6 +42403,15 @@
             "in": "query",
             "name": "pageSize",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "requests",
+            "required": false,
+            "description": "`true` for only the pending message requests to you, `false` for everything else; omit for every chat"
           },
           {
             "schema": {
@@ -42493,6 +42509,68 @@
                               "type": "string"
                             }
                           },
+                          "participants": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "firstName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "lastName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "displayName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headline": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "image": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "imageAssetId": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "imageUrl": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "team": {
+                                  "type": "boolean"
+                                },
+                                "roleName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "firstName",
+                                "lastName",
+                                "displayName",
+                                "headline",
+                                "image",
+                                "imageAssetId",
+                                "imageUrl",
+                                "team",
+                                "roleName"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "The profiles of the people in `participantIds`"
+                          },
                           "lastReadMessageId": {
                             "nullable": true,
                             "type": "string"
@@ -42564,6 +42642,7 @@
                         "required": [
                           "chat",
                           "participantIds",
+                          "participants",
                           "lastReadMessageId",
                           "subscription",
                           "unread",
@@ -42596,6 +42675,2201 @@
                   ],
                   "additionalProperties": false
                 }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/communities/{communityId}/chats/events": {
+      "get": {
+        "operationId": "streamMemberChatEvents",
+        "summary": "Stream your chat events in a community",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Any active member of the organization. For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with `ready` and your `unread`; load your chats on `ready` and on `resync`. A `: ping` comment every 25 s keeps it open. Every 30 s it checks your session and access again, and ends with `closed` when either is gone or the server shuts down. 503 when this server has no live delivery.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "ready"
+                          ]
+                        },
+                        "heartbeatMs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "heartbeatMs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "message.created"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "object",
+                          "properties": {
+                            "orgId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "communityId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "chatId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "orgUserId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "body": {
+                              "type": "string"
+                            },
+                            "replyToId": {
+                              "nullable": true,
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "clientId": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "editedAt": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "deletedAt": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "sender": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "firstName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "lastName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "displayName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headline": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "image": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "imageAssetId": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "imageUrl": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "team": {
+                                  "type": "boolean"
+                                },
+                                "roleName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "firstName",
+                                "lastName",
+                                "displayName",
+                                "headline",
+                                "image",
+                                "imageAssetId",
+                                "imageUrl",
+                                "team",
+                                "roleName"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "attachments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "assetId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "assetId",
+                                  "url"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "reactions": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "mentions": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "orgUserId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "orgUserId",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "orgId",
+                            "id",
+                            "communityId",
+                            "chatId",
+                            "orgUserId",
+                            "body",
+                            "replyToId",
+                            "clientId",
+                            "editedAt",
+                            "deletedAt",
+                            "createdAt",
+                            "updatedAt",
+                            "sender",
+                            "attachments",
+                            "reactions",
+                            "mentions"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "message.updated"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "message": {
+                          "type": "object",
+                          "properties": {
+                            "orgId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "communityId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "chatId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "orgUserId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "body": {
+                              "type": "string"
+                            },
+                            "replyToId": {
+                              "nullable": true,
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "clientId": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "editedAt": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "deletedAt": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "sender": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "firstName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "lastName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "displayName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "headline": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "image": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "imageAssetId": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "imageUrl": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "team": {
+                                  "type": "boolean"
+                                },
+                                "roleName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "firstName",
+                                "lastName",
+                                "displayName",
+                                "headline",
+                                "image",
+                                "imageAssetId",
+                                "imageUrl",
+                                "team",
+                                "roleName"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "attachments": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "assetId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "url": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "assetId",
+                                  "url"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "reactions": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "mentions": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "orgUserId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "orgUserId",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "orgId",
+                            "id",
+                            "communityId",
+                            "chatId",
+                            "orgUserId",
+                            "body",
+                            "replyToId",
+                            "clientId",
+                            "editedAt",
+                            "deletedAt",
+                            "createdAt",
+                            "updatedAt",
+                            "sender",
+                            "attachments",
+                            "reactions",
+                            "mentions"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "message.deleted"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "messageId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "deletedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "messageId",
+                        "deletedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "message.reactions"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "messageId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reactions": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "orgUserId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reaction": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "messageId",
+                        "reactions",
+                        "orgUserId",
+                        "reaction"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "chat.updated"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "chat": {
+                          "type": "object",
+                          "properties": {
+                            "orgId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "communityId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "direct",
+                                "group"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "pending",
+                                "open",
+                                "closed"
+                              ]
+                            },
+                            "createdBy": {
+                              "nullable": true,
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "lockedAt": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "lockedBy": {
+                              "nullable": true,
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "orgId",
+                            "id",
+                            "communityId",
+                            "kind",
+                            "status",
+                            "createdBy",
+                            "lockedAt",
+                            "lockedBy",
+                            "createdAt",
+                            "updatedAt"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "participants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "firstName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "displayName": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "headline": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "image": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "imageAssetId": {
+                                "nullable": true,
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "imageUrl": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "team": {
+                                "type": "boolean"
+                              },
+                              "roleName": {
+                                "nullable": true,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "firstName",
+                              "lastName",
+                              "displayName",
+                              "headline",
+                              "image",
+                              "imageAssetId",
+                              "imageUrl",
+                              "team",
+                              "roleName"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "chat",
+                        "participants"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "chat.removed"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "chat.state"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "unread": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "lastReadMessageId": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "subscription": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "following",
+                                "muted"
+                              ]
+                            },
+                            "mutedUntil": {
+                              "nullable": true,
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "mutedUntil"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "unread",
+                        "lastReadMessageId",
+                        "subscription"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "unread": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "requests": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "unread"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "unread",
+                        "requests",
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "typing"
+                          ]
+                        },
+                        "chatId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "orgUserId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "until": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "chatId",
+                        "orgUserId",
+                        "until"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "resync"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "closed"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "access",
+                            "session",
+                            "shutdown"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "description": "Ids of what the request left behind, such as the post kept as a draft",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/communities/{communityId}/chats/unread": {
+      "get": {
+        "operationId": "getMemberChatUnread",
+        "summary": "Your unread chat total in a community",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Any active member of the organization. For a member of the community. `unread` counts the unread messages in your chats that are neither muted nor requests to you, plus your pending requests; `requests` is the number of pending requests to you.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unread": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "requests": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "unread",
+                    "requests"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/communities/{communityId}/chats/direct/{orgUserId}": {
+      "get": {
+        "operationId": "getMemberDirectChat",
+        "summary": "Your direct chat with a person",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Any active member of the organization. For a member of the community. Your direct chat with the person while you are in it; 404 when there is none.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "orgUserId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chat": {
+                      "type": "object",
+                      "properties": {
+                        "orgId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "communityId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "direct",
+                            "group"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "createdBy": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "lockedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "lockedBy": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "orgId",
+                        "id",
+                        "communityId",
+                        "kind",
+                        "status",
+                        "createdBy",
+                        "lockedAt",
+                        "lockedBy",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "participantIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "participants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "firstName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "headline": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "image": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "imageAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "imageUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "team": {
+                            "type": "boolean"
+                          },
+                          "roleName": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "firstName",
+                          "lastName",
+                          "displayName",
+                          "headline",
+                          "image",
+                          "imageAssetId",
+                          "imageUrl",
+                          "team",
+                          "roleName"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The profiles of the people in `participantIds`"
+                    },
+                    "lastReadMessageId": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "subscription": {
+                      "nullable": true,
+                      "description": "Your mute on this chat while it applies; null when none",
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "unread": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "lastMessage": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "orgUserId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "body": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "deletedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "orgUserId",
+                        "body",
+                        "createdAt",
+                        "deletedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "chat",
+                    "participantIds",
+                    "participants",
+                    "lastReadMessageId",
+                    "subscription",
+                    "unread",
+                    "lastMessage"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/chats/{chatId}": {
+      "get": {
+        "operationId": "getMemberChat",
+        "summary": "Read one of your chats",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Any active member of the organization. For a participant of the chat. The chat as it appears in your chat list.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chat": {
+                      "type": "object",
+                      "properties": {
+                        "orgId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "communityId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "direct",
+                            "group"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "open",
+                            "closed"
+                          ]
+                        },
+                        "createdBy": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "lockedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "lockedBy": {
+                          "nullable": true,
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "orgId",
+                        "id",
+                        "communityId",
+                        "kind",
+                        "status",
+                        "createdBy",
+                        "lockedAt",
+                        "lockedBy",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "participantIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "participants": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "firstName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "headline": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "image": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "imageAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "imageUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "team": {
+                            "type": "boolean"
+                          },
+                          "roleName": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "firstName",
+                          "lastName",
+                          "displayName",
+                          "headline",
+                          "image",
+                          "imageAssetId",
+                          "imageUrl",
+                          "team",
+                          "roleName"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The profiles of the people in `participantIds`"
+                    },
+                    "lastReadMessageId": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "subscription": {
+                      "nullable": true,
+                      "description": "Your mute on this chat while it applies; null when none",
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "following",
+                            "muted"
+                          ]
+                        },
+                        "mutedUntil": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "mutedUntil"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "unread": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "lastMessage": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "orgUserId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "body": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "deletedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "orgUserId",
+                        "body",
+                        "createdAt",
+                        "deletedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "chat",
+                    "participantIds",
+                    "participants",
+                    "lastReadMessageId",
+                    "subscription",
+                    "unread",
+                    "lastMessage"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/chats/{chatId}/typing": {
+      "post": {
+        "operationId": "sendChatTyping",
+        "summary": "Tell the chat you are typing",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Any active member of the organization. For a participant while the chat is open and not locked (403 otherwise). The others see you typing for 5 s; a repeat within 2 s is dropped.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -42809,6 +45083,12 @@
                                 "type": "string",
                                 "minLength": 1
                               },
+                              "clientId": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
                               "editedAt": {
                                 "nullable": true,
                                 "type": "string",
@@ -42946,6 +45226,7 @@
                               "orgUserId",
                               "body",
                               "replyToId",
+                              "clientId",
                               "editedAt",
                               "deletedAt",
                               "createdAt",
@@ -44737,6 +47018,12 @@
                             "type": "string",
                             "minLength": 1
                           },
+                          "clientId": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
                           "editedAt": {
                             "nullable": true,
                             "type": "string",
@@ -44874,6 +47161,7 @@
                           "orgUserId",
                           "body",
                           "replyToId",
+                          "clientId",
                           "editedAt",
                           "deletedAt",
                           "createdAt",
@@ -45067,7 +47355,7 @@
         "tags": [
           "Chats"
         ],
-        "description": "For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted.",
+        "description": "For a participant while the chat is open and not locked, and nobody in it has blocked the other (403 otherwise). A request's sender cannot send more until it is accepted. Sending again with the same `clientId` returns the message already sent.",
         "requestBody": {
           "required": true,
           "content": {
@@ -45096,6 +47384,12 @@
                       "type": "string",
                       "minLength": 1
                     }
+                  },
+                  "clientId": {
+                    "description": "Your id for this send. Sending again with the same id returns the message already sent.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   }
                 },
                 "required": [
@@ -45151,6 +47445,12 @@
                       "nullable": true,
                       "type": "string",
                       "minLength": 1
+                    },
+                    "clientId": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
                     "editedAt": {
                       "nullable": true,
@@ -45289,6 +47589,7 @@
                     "orgUserId",
                     "body",
                     "replyToId",
+                    "clientId",
                     "editedAt",
                     "deletedAt",
                     "createdAt",
@@ -45527,6 +47828,12 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "clientId": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "editedAt": {
                       "nullable": true,
                       "type": "string",
@@ -45664,6 +47971,7 @@
                     "orgUserId",
                     "body",
                     "replyToId",
+                    "clientId",
                     "editedAt",
                     "deletedAt",
                     "createdAt",
@@ -45904,6 +48212,12 @@
                       "type": "string",
                       "minLength": 1
                     },
+                    "clientId": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
                     "editedAt": {
                       "nullable": true,
                       "type": "string",
@@ -46041,6 +48355,7 @@
                     "orgUserId",
                     "body",
                     "replyToId",
+                    "clientId",
                     "editedAt",
                     "deletedAt",
                     "createdAt",
@@ -74159,7 +76474,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:8200"
+      "url": "http://localhost:8000"
     }
   ],
   "tags": [
