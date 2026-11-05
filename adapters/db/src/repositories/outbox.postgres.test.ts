@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { genId } from "@headless-lms/core/shared/id";
@@ -24,7 +24,11 @@ describe.skipIf(!url)("DrizzleOutboxStore on Postgres", () => {
     const target = new URL(url!);
     target.pathname = `/${database}`;
     await runMigrations(target.toString());
-    pools = [0, 1].map(() => new pg.Pool({ connectionString: target.toString(), max: 2 }));
+    pools = [0, 1].map(() => {
+      const pool = new pg.Pool({ connectionString: target.toString(), max: 2 });
+      pool.on("error", () => {});
+      return pool;
+    });
     a = new DrizzleOutboxStore(drizzle(pools[0]!));
     b = new DrizzleOutboxStore(drizzle(pools[1]!));
     appender = new DrizzleOutboxAppender(drizzle(pools[0]!));
@@ -32,12 +36,26 @@ describe.skipIf(!url)("DrizzleOutboxStore on Postgres", () => {
 
   afterAll(async () => {
     await Promise.all(pools.map((pool) => pool.end()));
-    await admin?.query(`drop database if exists "${database}" with (force)`);
-    await admin?.end();
+    for (let i = 0; i < 50; i++) {
+      const open = await admin.query(
+        "select count(*)::int as n from pg_stat_activity where datname = $1",
+        [database],
+      );
+      if (open.rows[0].n === 0) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await admin.query(`drop database if exists "${database}"`);
+    await admin.end();
   });
 
-  const append = (count: number) =>
-    appender.append(
+  beforeEach(async () => {
+    await pools[0]!.query("delete from event_outbox");
+  });
+
+  const append = async (count: number) => {
+    await appender.append(
       Array.from({ length: count }, () => ({
         type: "entitlement.created" as const,
         version: 1,
@@ -45,6 +63,10 @@ describe.skipIf(!url)("DrizzleOutboxStore on Postgres", () => {
         data: {},
       })),
     );
+    await pools[0]!.query(
+      "update event_outbox set next_attempt_at = now() - interval '1 second' where processed_at is null and next_attempt_at < now() + interval '10 seconds'",
+    );
+  };
 
   it("two relays fetching at once never get the same message", async () => {
     await append(40);
