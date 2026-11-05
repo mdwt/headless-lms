@@ -1,8 +1,13 @@
 import { requires, type Declarations } from '../shared/declarations.js';
-import type { AutomationsService, NotificationsService } from './ports.js';
+import type { AutomationExecutor, AutomationsService, NotificationsService } from './ports.js';
 
 export const automationsDeclarations = {
   handle: 'system',
+  runAction: 'system',
+  finalize: 'system',
+  runDelivery: 'system',
+  listSchedules: 'system',
+  fireSchedule: 'system',
   availableActions: requires('automations:read'),
   availableTriggers: requires('automations:read'),
   list: requires('automations:read'),
@@ -19,7 +24,7 @@ export const automationsDeclarations = {
   deleteWebhook: requires('automations:delete'),
   revealWebhookSecret: requires('automations:write'),
   rotateWebhookSecret: requires('automations:write'),
-} as const satisfies Declarations<AutomationsService>;
+} as const satisfies Declarations<AutomationsService & Required<AutomationExecutor>>;
 
 export const notificationListDeclarations = {
   list: 'member',
