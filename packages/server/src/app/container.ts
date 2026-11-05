@@ -318,7 +318,7 @@ export async function buildContainer(
   const outboxLogger = logger.child({ name: 'outbox' });
 
   // Outbound adapters
-  const db = createDb(config.databaseUrl);
+  const db = createDb(config.databaseUrl, logger.child({ name: 'db' }));
   const email = options?.adapters?.email ?? new EmailAdapter(logger.child({ name: 'email' }));
   const storage: ObjectStorage =
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));

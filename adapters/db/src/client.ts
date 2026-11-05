@@ -1,6 +1,8 @@
 // Drizzle client + connection. Owns connection pooling (Drizzle does not).
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import type { Logger } from "@headless-lms/core/shared/ports";
+import { noopLogger } from "@headless-lms/core/shared/logger";
 
 /** Transaction executor — the same query surface as the root db.
  *  (Promoted from the structure.ts repository's local alias.) */
@@ -16,7 +18,10 @@ export * as schema from "./schema/index.js";
 
 export type Db = ReturnType<typeof createDb>;
 
-export function createDb(connectionString: string) {
+export function createDb(connectionString: string, logger: Logger = noopLogger) {
   const pool = new pg.Pool({ connectionString });
+  pool.on("error", (error) => {
+    logger.warn("database connection lost", { error: error.message });
+  });
   return drizzle(pool);
 }
