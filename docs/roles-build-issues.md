@@ -22,7 +22,7 @@ Baseline at `451cdc5a`: `pnpm build` passes, `pnpm test` 1982 tests in 159 files
 | 5 | Server: `resolveActor`, routes and MCP tools on core methods, `operation` | done |
 | 6 | Contexts take the actor and check: content, discussion, chats, entitlements, progress, assets, integrations, automations, reporting, notification categories | done; 2114 tests pass, lint clean |
 | 7 | Events, notifications, emails | done; role.assigned email verified end to end |
-| 8 | Admin app, student app | open |
+| 8 | Admin app, student app | student app done (d1f20d72), verified in the browser; admin app in progress |
 | 9 | Community app (`hlms-community`) | open |
 | 10 | SDK, OpenAPI, MCP catalogue, docs | open |
 | 11 | Tests (section 19) | open |
@@ -41,4 +41,7 @@ Each issue: status `open`, `fixed` or `wontfix`, and the fixing commit.
 | 5 | E2E, roles | A role the org adds gets the key `role_<ksuid>`; the ksuid has capitals, which `roleKeySchema` refused (lowercase only). Giving, inviting with, or deleting an added role answered 400. The schema now allows letters after the first lowercase one; a test covers generated keys. | fixed | 389b43da |
 | 6 | E2E, routes | `GET /api/member/org` named the system-only `organizations.getById`. It now names `organizations.portalIdentity`, declared `public`; a server test refuses any route on a `system` operation. | fixed | ae799374 |
 | 7 | Apps, SDK | `@headless-lms/sdk` didn't export the new `People` and `Roles` classes, so invites, roles and people were unreachable from the apps. | fixed | ae799374 |
+| 8 | Student app (existing) | next-themes logs "script tag inside React component" on every page. Exists before this build; not part of roles. | open (outside roles) | |
+| 9 | Student app (existing) | A course sidebar shows 50% while the header shows 0/1 lessons. Exists before this build; not part of roles. | open (outside roles) | |
+| 10 | Email (existing) | The member invite email says "invited to Headless LMS", the brand name, not the org's name. Exists before this build; not part of roles. | open (outside roles) | |
 
