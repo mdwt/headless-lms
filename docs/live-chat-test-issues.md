@@ -16,7 +16,7 @@ Testing live chat after merging `worktree-realtime-chat` into `feature/configura
 | 1 | Automated suites | passed |
 | 2 | Functional, two browsers | passed |
 | 3 | Connection lifecycle | passed |
-| 4 | Access and session | open |
+| 4 | Access and session | passed |
 | 5 | Multiple instances behind a proxy | open |
 | 6 | Infrastructure | open |
 | 7 | Load and measurements | open |
@@ -70,3 +70,24 @@ nginx (`hlms-chat-nginx`, default buffering) on :8300 in front of A (:8200) and 
 - Instance A killed with `kill -9` while Sarah's stream was on it; James sent two through B and deleted one; after A restarted, Sarah's chat showed the first and the second as deleted.
 - Stream route blocked at the proxy (502): three failed connects, then the app polls unread, inbox, requests and the open chat every 15 s; James's message showed by polling within 3 s of the next poll. Unblocked: back on the stream, no requests over the next 20 s, and the next message arrived live in 1.5 s.
 - Graceful restart of A (SIGTERM) with streams open, direct and through the proxy: after the fix for issue 3, each received `closed { reason: 'shutdown' }` 127 ms after the signal; the browser reconnected and caught up.
+
+### 4. Access and session
+
+Script `04-access.mjs`, each case with a freshly invited member (invite email from the sink, sign-up, accept, grant), streams on A or B:
+
+- No cookie 401; an org member without the community 403; another community's stream 403.
+- Grant revoked: `closed { access }` after 30 s, a new connect 403.
+- Grant expiring 8 s after it was given, then the expiry job run through Hatchet (`scheduled-job` with `entitlements.grants.expire`): the job records `entitlement.expired`; the stream gets `closed { access }` 24 s after the job; a new connect 403.
+- Community removed from the bundle the member holds: `closed { access }` after 31 s.
+- Member removed from the org: `closed { access }` after 31 s.
+- Signed out: `closed { session }` after 31 s; the old cookie gets 401.
+- Password reset through the emailed link: `closed { session }` after 34 s.
+- A custom role based on Moderator, given on the community, holds `communities:moderate` and locks the James–Emma chat; Emma gets it live on the other instance; the chat is not in the steward's list and their stream gets no row. A member without the permission gets 403 "You need communities:moderate". Taking the role back refuses the next lock at once.
+- The hub logs each closure at info with the member and reason (issue 2).
+
+Browsers:
+
+- 403 path: a fresh member with `/chats` open; Sarah revokes the grant; 22 s later the page shows the app's not-a-member state without a reload.
+- 401 path: Emma signs out in a second tab; the hub closes her stream for `session` and the first tab goes through `/session/reset` to sign-in.
+- Mia (community Moderator) locks the flagged Pod 1 chat from the admin moderation queue; James's open chat shows "This chat is locked" without a reload, and the flagged message leaves the queue.
+- Warnings and errors in both API logs since the run began: only the two expected "chat moderation refused" warnings.
