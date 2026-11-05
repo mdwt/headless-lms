@@ -1,3 +1,4 @@
+import { ALL_PERMISSIONS } from '@headless-lms/core/organizations';
 import { describe, expect, it } from 'vitest';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { unauthorized } from './challenge.js';
@@ -18,7 +19,7 @@ describe('unauthorized', () => {
       id: null,
     });
     expect(res.headers.get('www-authenticate')).toBe(
-      'Bearer resource_metadata="http://localhost:8100/.well-known/oauth-protected-resource/mcp", scope="courses:read courses:write courses:delete downloads:read downloads:write downloads:delete bundles:read bundles:write bundles:delete media:read students:read students:invite access:read access:write analytics:read automations:read automations:write automations:delete comments:read comments:moderate communities:read communities:write communities:delete community_members:read community_members:write community_moderation:read community_moderation:write"',
+      `Bearer resource_metadata="http://localhost:8100/.well-known/oauth-protected-resource/mcp", scope="${ALL_PERMISSIONS.join(' ')}"`,
     );
   });
 });

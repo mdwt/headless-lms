@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { ACCESS_SCOPES } from '@headless-lms/core/organizations';
+import { ALL_PERMISSIONS } from '@headless-lms/core/organizations';
 import type { Container } from '../app/container.js';
 import { mcpEndpoints } from '../app/mcp-endpoints.js';
 import { registerWellKnown } from './well-known.js';
@@ -40,7 +40,7 @@ describe('well-known metadata', () => {
     expect(res.json()).toEqual({
       resource: 'http://localhost:8100/mcp',
       authorization_servers: ['http://localhost:8100/api/auth'],
-      scopes_supported: [...ACCESS_SCOPES],
+      scopes_supported: [...ALL_PERMISSIONS],
       bearer_methods_supported: ['header'],
     });
   });

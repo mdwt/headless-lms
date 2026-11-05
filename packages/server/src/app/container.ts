@@ -76,6 +76,7 @@ import {
   type SessionAdmin,
 } from '@headless-lms/core/identity';
 import {
+  type ApiKeys,
   type GrantReader,
   type OrgAdmin,
   NotificationCatalog,
@@ -357,16 +358,16 @@ export async function buildContainer(
     roles: new DrizzleRolesRepository(tx),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
-  const orgAdminRef: { current: OrgAdmin | undefined } = { current: undefined };
-  const organizations = new OrganizationServiceImpl({
+  const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
+  const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
     ...(options?.roles && { defaultRoles: options.roles }),
-    apiKeys: () => {
+    apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {
         throw new Error('api keys not initialised');
       }
-      return auth;
+      return orgAdminRef.current;
     },
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
@@ -439,10 +440,7 @@ export async function buildContainer(
   const notificationCategoryLists: NotificationCategories = {
     listFor: async (orgId, communityId) =>
       (communityId
-        ? await notificationCategories.community.get(
-            communityId,
-            organizations.systemActor(orgId),
-          )
+        ? await notificationCategories.community.get(communityId, organizations.systemActor(orgId))
         : await notificationCategories.org.get(orgId, organizations.systemActor(orgId))
       ).categories,
   };
@@ -472,8 +470,7 @@ export async function buildContainer(
         (await notificationCategories.org.get(orgId, organizations.systemActor(orgId))).categories,
     },
     access: {
-      canOpen: (orgId, actor, communityId) =>
-        entitlements.isCommunityMember(communityId, actor),
+      canOpen: (orgId, actor, communityId) => entitlements.isCommunityMember(communityId, actor),
     },
     channels: notificationRegistries.channels,
     logger: identityLogger,
@@ -545,10 +542,10 @@ export async function buildContainer(
     content: content,
     posts,
     spaces: entitlements,
+    authors,
     mentions: mentionReads,
     fileUrls,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
-    authors,
       discussion: new DrizzleDiscussionRepository(tx, discussionLogger),
       mentions: new DrizzleMentionsRepository(tx, discussionLogger),
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
@@ -589,10 +586,10 @@ export async function buildContainer(
       profiles: discussionReads,
       activities: content,
       access: entitlements,
+      actors: organizations,
     }),
     content: new ContentItemTitles({ content, access: entitlements, organizations }),
   };
-      actors: organizations,
 
   const reporting = {
     admin: new AdminReportServiceImpl({
@@ -780,7 +777,7 @@ export async function buildContainer(
       { authBaseURL: config.authBaseURL },
     );
   }
-  const auth = new BetterAuth({
+  const auth: BetterAuth = new BetterAuth({
     db,
     baseUrl: config.authBaseURL,
     mcp: {

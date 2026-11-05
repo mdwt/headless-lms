@@ -32,14 +32,20 @@ import type {
   ApproveCommunityPostResponses,
   ApproveCommunitySpaceRequestErrors,
   ApproveCommunitySpaceRequestResponses,
+  ApproveMemberCommentErrors,
+  ApproveMemberCommentResponses,
   ApprovePostErrors,
   ApprovePostResponses,
   ApproveSpaceRequestErrors,
   ApproveSpaceRequestResponses,
+  AssignRoleErrors,
+  AssignRoleResponses,
   BlockMemberErrors,
   BlockMemberResponses,
   BookmarkPostErrors,
   BookmarkPostResponses,
+  CancelInviteErrors,
+  CancelInviteResponses,
   ClearCommentReactionErrors,
   ClearCommentReactionResponses,
   ClearMessageReactionErrors,
@@ -78,6 +84,8 @@ import type {
   CreatePostCommentResponses,
   CreatePostErrors,
   CreatePostResponses,
+  CreateRoleErrors,
+  CreateRoleResponses,
   CreateSpaceErrors,
   CreateSpaceResponses,
   CreateWebhookErrors,
@@ -110,10 +118,10 @@ import type {
   DeleteMemberUploadResponses,
   DeleteModuleErrors,
   DeleteModuleResponses,
+  DeleteRoleErrors,
+  DeleteRoleResponses,
   DeleteSpaceErrors,
   DeleteSpaceResponses,
-  DeleteStudentErrors,
-  DeleteStudentResponses,
   DeleteWebhookErrors,
   DeleteWebhookResponses,
   DisconnectIntegrationErrors,
@@ -183,6 +191,8 @@ import type {
   GetMemberDownloadResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
+  GetMemberMessageQueueErrors,
+  GetMemberMessageQueueResponses,
   GetMemberNotificationErrors,
   GetMemberNotificationResponses,
   GetMemberNotificationSettingsErrors,
@@ -201,6 +211,8 @@ import type {
   GetMemberViewerErrors,
   GetMemberViewerResponses,
   GetMessageAttachmentErrors,
+  GetMyPermissionsErrors,
+  GetMyPermissionsResponses,
   GetOrgNotificationCategoriesErrors,
   GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
@@ -209,6 +221,8 @@ import type {
   GetPostCoverErrors,
   GetPostErrors,
   GetPostResponses,
+  GetRoleErrors,
+  GetRoleResponses,
   GetSpaceErrors,
   GetSpaceFeedErrors,
   GetSpaceFeedResponses,
@@ -236,8 +250,6 @@ import type {
   LeaveChatResponses,
   LeaveSpaceErrors,
   LeaveSpaceResponses,
-  ListAccessScopesErrors,
-  ListAccessScopesResponses,
   ListActivitiesErrors,
   ListActivitiesResponses,
   ListActivityAssetsErrors,
@@ -302,8 +314,6 @@ import type {
   ListMemberModulesResponses,
   ListMemberNotificationsErrors,
   ListMemberNotificationsResponses,
-  ListMembersErrors,
-  ListMembersResponses,
   ListModulesErrors,
   ListModulesResponses,
   ListNotificationChannelsErrors,
@@ -312,12 +322,22 @@ import type {
   ListNotificationTypesResponses,
   ListOwnPostsErrors,
   ListOwnPostsResponses,
+  ListPermissionsErrors,
+  ListPermissionsResponses,
+  ListPersonRolesErrors,
+  ListPersonRolesResponses,
   ListPostCommentsErrors,
   ListPostCommentsResponses,
+  ListRolesErrors,
+  ListRolesOnErrors,
+  ListRolesOnResponses,
+  ListRolesResponses,
   ListSpaceMembersErrors,
   ListSpaceMembersResponses,
   ListStudentsErrors,
   ListStudentsResponses,
+  ListTeamErrors,
+  ListTeamResponses,
   ListWebhooksErrors,
   ListWebhooksResponses,
   LockChatErrors,
@@ -362,8 +382,8 @@ import type {
   RemoveDownloadAssetResponses,
   RemoveMemberDeviceErrors,
   RemoveMemberDeviceResponses,
-  RemoveMemberErrors,
-  RemoveMemberResponses,
+  RemovePersonErrors,
+  RemovePersonResponses,
   RemovePostErrors,
   RemovePostResponses,
   RemoveSpaceLinkErrors,
@@ -400,12 +420,14 @@ import type {
   RequestUploadResponses,
   RerunAutomationRunErrors,
   RerunAutomationRunResponses,
-  ResendStudentInviteErrors,
-  ResendStudentInviteResponses,
+  ResendInviteErrors,
+  ResendInviteResponses,
   ResetCommunityNotificationCategoriesErrors,
   ResetCommunityNotificationCategoriesResponses,
   ResetOrgNotificationCategoriesErrors,
   ResetOrgNotificationCategoriesResponses,
+  ResetRoleErrors,
+  ResetRoleResponses,
   ResolveCommentFlagsErrors,
   ResolveCommentFlagsResponses,
   ResolveCommunityCommentFlagsErrors,
@@ -422,6 +444,8 @@ import type {
   RestoreCommunityCommentResponses,
   RestoreCommunityPostErrors,
   RestoreCommunityPostResponses,
+  RestoreMemberCommentErrors,
+  RestoreMemberCommentResponses,
   RestorePostErrors,
   RestorePostResponses,
   RevokeConnectedAppErrors,
@@ -444,6 +468,8 @@ import type {
   SetMemberNotificationSettingsResponses,
   SetMessageReactionErrors,
   SetMessageReactionResponses,
+  SetOrgRoleErrors,
+  SetOrgRoleResponses,
   SetPostReactionErrors,
   SetPostReactionPolicyErrors,
   SetPostReactionPolicyResponses,
@@ -460,6 +486,10 @@ import type {
   StartGroupChatResponses,
   SubmitPostErrors,
   SubmitPostResponses,
+  TransferOwnershipErrors,
+  TransferOwnershipResponses,
+  UnassignRoleErrors,
+  UnassignRoleResponses,
   UnblockMemberErrors,
   UnblockMemberResponses,
   UnbookmarkPostErrors,
@@ -490,14 +520,14 @@ import type {
   UpdateDownloadResponses,
   UpdateMemberProfileErrors,
   UpdateMemberProfileResponses,
-  UpdateMemberRoleErrors,
-  UpdateMemberRoleResponses,
   UpdateModuleErrors,
   UpdateModuleResponses,
   UpdateOrganizationErrors,
   UpdateOrganizationResponses,
   UpdatePostErrors,
   UpdatePostResponses,
+  UpdateRoleErrors,
+  UpdateRoleResponses,
   UpdateSpaceErrors,
   UpdateSpaceResponses,
   UpdateWebhookErrors,
@@ -524,9 +554,9 @@ export type Options<
 
 export class Organizations {
   /**
-   * Update the active organization (staff)
+   * Update the active organization
    *
-   * Owner or admin. Changes its name or slug; 409 when the slug is taken.
+   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken.
    */
   public static updateOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -606,207 +636,36 @@ export class Organizations {
   }
 
   /**
-   * List the organization's team members (staff)
+   * Transfer ownership of the organization
    *
-   * Staff only (owner, admin, instructor). The team: everyone in the organization who is not a student.
+   * Owner only. The new owner must be an active member. The previous owner takes the named org role, Member by default. 403 for anyone else, including the owner's API keys.
    */
-  public static listMembers<ThrowOnError extends boolean = false>(
-    parameters?: {
-      page?: number;
-      pageSize?: number;
-      search?: string;
-      sort?: string;
-      role?: "owner" | "admin" | "instructor" | "moderator";
-      status?: "active" | "invited";
+  public static transferOwnership<ThrowOnError extends boolean = false>(
+    parameters: {
+      newOwnerOrgUserId: string;
+      previousOwnerRoleKey?: string;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError, "data"> {
+  ): RequestResult<TransferOwnershipResponses, TransferOwnershipErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
         {
           args: [
-            { in: "query", key: "page" },
-            { in: "query", key: "pageSize" },
-            { in: "query", key: "search" },
-            { in: "query", key: "sort" },
-            { in: "query", key: "role" },
-            { in: "query", key: "status" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<
-      ListMembersResponses,
-      ListMembersErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/members",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Change a member's role (staff)
-   *
-   * Owner or admin only. The owner role can be neither granted nor changed (409), and only a moderator can become a student.
-   */
-  public static updateMemberRole<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-      role: "admin" | "instructor" | "moderator" | "student";
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateMemberRoleResponses, UpdateMemberRoleErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "role" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).patch<
-      UpdateMemberRoleResponses,
-      UpdateMemberRoleErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/members/{id}/role",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
-   * Remove an organization member (staff)
-   *
-   * Owner or admin only. Removing a pending member cancels their invite. The owner cannot be removed (409).
-   */
-  public static removeMember<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).delete<
-      RemoveMemberResponses,
-      RemoveMemberErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/members/{id}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Invite a member or student into the active organization (staff)
-   *
-   * Owner or admin only. A student is created by this call, so their access can be granted before they accept. 409 when a student with that email is already in the organization.
-   */
-  public static createInvite<ThrowOnError extends boolean = false>(
-    parameters: {
-      email: string;
-      role: "admin" | "instructor" | "moderator" | "student";
-      firstName?: string;
-      lastName?: string;
-      sendEmail?: boolean;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateInviteResponses, CreateInviteErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "body", key: "email" },
-            { in: "body", key: "role" },
-            { in: "body", key: "firstName" },
-            { in: "body", key: "lastName" },
-            { in: "body", key: "sendEmail" },
+            { in: "body", key: "newOwnerOrgUserId" },
+            { in: "body", key: "previousOwnerRoleKey" },
           ],
         },
       ],
     );
     return (options?.client ?? client).post<
-      CreateInviteResponses,
-      CreateInviteErrors,
+      TransferOwnershipResponses,
+      TransferOwnershipErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/organizations/invites",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
-   * Read an invite by its token
-   *
-   * Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.
-   */
-  public static getInvite<ThrowOnError extends boolean = false>(
-    parameters: {
-      token: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetInviteResponses, GetInviteErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "token" }] }]);
-    return (options?.client ?? client).get<
-      GetInviteResponses,
-      GetInviteErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/invites/{token}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Accept an invite with the signed-in account
-   *
-   * For any signed-in person whose email matches the invitation. Makes the invite's organization the session's active one. 400 when the token is invalid or expired, or the email does not match.
-   */
-  public static acceptInvite<ThrowOnError extends boolean = false>(
-    parameters: {
-      token: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<AcceptInviteResponses, AcceptInviteErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "token" }] }]);
-    return (options?.client ?? client).post<
-      AcceptInviteResponses,
-      AcceptInviteErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/invites/accept",
+      url: "/api/organizations/ownership",
       ...options,
       ...params,
       headers: {
@@ -840,7 +699,7 @@ export class Organizations {
   /**
    * Get the caller's identity within the session's org
    *
-   * For a member of the organization: your org user id, which the member API keys on, and your role here.
+   * For a member of the organization: your org user id, which the member API keys on, your org role, the permissions you hold anywhere, and those you hold on the org.
    */
   public static getMemberViewer<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -856,11 +715,595 @@ export class Organizations {
       ...options,
     });
   }
+}
+
+export class Roles {
+  /**
+   * The organization's roles
+   *
+   * Requires `roles:read`. Each role with its levels, permissions and the number of people who hold it.
+   */
+  public static listRoles<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListRolesResponses, ListRolesErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListRolesResponses,
+      ListRolesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/roles",
+      ...options,
+    });
+  }
 
   /**
-   * List students (staff)
+   * Add a role
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `roles:write`. The role starts from a deployment role (`base`) and needs every permission it holds.
+   */
+  public static createRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      base: string;
+      name: string;
+      description?: string;
+      levels?: Array<"org" | "course" | "download" | "community">;
+      team?: boolean;
+      permissions?: {
+        [key: string]: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "base" },
+            { in: "body", key: "name" },
+            { in: "body", key: "description" },
+            { in: "body", key: "levels" },
+            { in: "body", key: "team" },
+            { in: "body", key: "permissions" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateRoleResponses,
+      CreateRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/roles",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete a role the organization added
+   *
+   * Requires `roles:delete`. Refused while anyone holds it (409, with the count).
+   */
+  public static deleteRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      key: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "key" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteRoleResponses,
+      DeleteRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/roles/{key}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Read a role
+   *
+   * Requires `roles:read`.
+   */
+  public static getRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      key: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetRoleResponses, GetRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "key" }] }]);
+    return (options?.client ?? client).get<GetRoleResponses, GetRoleErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/organizations/roles/{key}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Rename or change a role
+   *
+   * Requires `roles:write`. A rename needs nothing else. Changing permissions, levels or the team flag needs every permission the role holds before and after the change (403 names the missing ones). Owner and Member can only be renamed (409). Names are unique in the organization (409).
+   */
+  public static updateRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      key: string;
+      name?: string;
+      description?: string;
+      levels?: Array<"org" | "course" | "download" | "community">;
+      team?: boolean;
+      permissions?: {
+        [key: string]: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "key" },
+            { in: "body", key: "name" },
+            { in: "body", key: "description" },
+            { in: "body", key: "levels" },
+            { in: "body", key: "team" },
+            { in: "body", key: "permissions" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateRoleResponses,
+      UpdateRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/roles/{key}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Reset a role to the deployment's version
+   *
+   * Requires `roles:write`. Needs every permission the role holds before and after.
+   */
+  public static resetRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      key: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ResetRoleResponses, ResetRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "key" }] }]);
+    return (options?.client ?? client).delete<
+      ResetRoleResponses,
+      ResetRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/roles/{key}/customization",
+      ...options,
+      ...params,
+    });
+  }
+}
+
+export class People {
+  /**
+   * The organization's team
+   *
+   * Requires `people:read`. Everyone with an org role other than Member or a role on a content item, invited people included.
+   */
+  public static listTeam<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      sort?: string;
+      roleKey?: string;
+      status?: "active" | "invited";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListTeamResponses, ListTeamErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+            { in: "query", key: "sort" },
+            { in: "query", key: "roleKey" },
+            { in: "query", key: "status" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<ListTeamResponses, ListTeamErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/organizations/people",
+        ...options,
+        ...params,
+      },
+    );
+  }
+
+  /**
+   * A person's roles
+   *
+   * Requires `people:read`. Their org role and every role they hold on a content item.
+   */
+  public static listPersonRoles<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListPersonRolesResponses, ListPersonRolesErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    return (options?.client ?? client).get<
+      ListPersonRolesResponses,
+      ListPersonRolesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}/roles",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Set a person's org role
+   *
+   * Requires `people:write`. Needs every permission the old and the new role hold. Nobody changes their own roles, and the owner's role changes only by transfer.
+   */
+  public static setOrgRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+      roleKey: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<SetOrgRoleResponses, SetOrgRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "orgUserId" },
+            { in: "body", key: "roleKey" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      SetOrgRoleResponses,
+      SetOrgRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}/roles/org",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a person's role on a content item
+   *
+   * Requires `people:write`.
+   */
+  public static unassignRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+      contentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UnassignRoleResponses, UnassignRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "orgUserId" },
+            { in: "path", key: "contentId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      UnassignRoleResponses,
+      UnassignRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}/roles/content/{contentId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Give a person a role on a content item
+   *
+   * Requires `people:write`. The role must list the item's type as a level. Needs every permission the old and the new role give there.
+   */
+  public static assignRole<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+      contentId: string;
+      roleKey: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AssignRoleResponses, AssignRoleErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "orgUserId" },
+            { in: "path", key: "contentId" },
+            { in: "body", key: "roleKey" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      AssignRoleResponses,
+      AssignRoleErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}/roles/content/{contentId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * The people with a role on a content item
+   *
+   * Requires `people:read`.
+   */
+  public static listRolesOn<ThrowOnError extends boolean = false>(
+    parameters: {
+      contentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListRolesOnResponses, ListRolesOnErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "contentId" }] }]);
+    return (options?.client ?? client).get<
+      ListRolesOnResponses,
+      ListRolesOnErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/content/{contentId}/roles",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Remove a person from the organization
+   *
+   * Requires `people:delete`. Needs every permission the person holds, where they hold it. Revokes their API keys and connected apps here. The owner can't be removed (409); neither can someone whose posts must be kept (409).
+   */
+  public static removePerson<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemovePersonResponses, RemovePersonErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    return (options?.client ?? client).delete<
+      RemovePersonResponses,
+      RemovePersonErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Invite a person with an org role
+   *
+   * Requires `people:write`. The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
+   */
+  public static createInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      email: string;
+      roleKey?: string;
+      firstName?: string;
+      lastName?: string;
+      sendEmail?: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateInviteResponses, CreateInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "email" },
+            { in: "body", key: "roleKey" },
+            { in: "body", key: "firstName" },
+            { in: "body", key: "lastName" },
+            { in: "body", key: "sendEmail" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateInviteResponses,
+      CreateInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/invites",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Resend a person's pending invite
+   *
+   * Requires `people:write`. Issues a new link; the resender becomes the inviter.
+   */
+  public static resendInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ResendInviteResponses, ResendInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    return (options?.client ?? client).post<
+      ResendInviteResponses,
+      ResendInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}/invite/resend",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Cancel a person's pending invite
+   *
+   * Requires `people:write`. Someone still invited who holds no access and no item role is removed with it.
+   */
+  public static cancelInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CancelInviteResponses, CancelInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    return (options?.client ?? client).delete<
+      CancelInviteResponses,
+      CancelInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/people/{orgUserId}/invite",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Read an invite by its token
+   *
+   * Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.
+   */
+  public static getInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      token: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetInviteResponses, GetInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "token" }] }]);
+    return (options?.client ?? client).get<
+      GetInviteResponses,
+      GetInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/invites/{token}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Accept an invite with the signed-in account
+   *
+   * For any signed-in person whose email matches the invitation. Makes the invite's organization the session's active one. 400 when the token is invalid or expired, the email does not match, or the inviter no longer holds the role.
+   */
+  public static acceptInvite<ThrowOnError extends boolean = false>(
+    parameters: {
+      token: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AcceptInviteResponses, AcceptInviteErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "token" }] }]);
+    return (options?.client ?? client).post<
+      AcceptInviteResponses,
+      AcceptInviteErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/invites/accept",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * List students
+   *
+   * Requires `people:read`. People whose org role is Member, invited ones included, with the roles they hold on content items.
    */
   public static listStudents<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -898,34 +1341,9 @@ export class Organizations {
   }
 
   /**
-   * Delete a student (staff)
+   * A person's learner record
    *
-   * Owner or admin only. 409 when the person has written posts, comments or messages.
-   */
-  public static deleteStudent<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteStudentResponses, DeleteStudentErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).delete<
-      DeleteStudentResponses,
-      DeleteStudentErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/students/{id}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Get a student (staff)
-   *
-   * Staff only (owner, admin, instructor).
+   * Requires `people:read`. Opens for any person in the organization, whatever their roles.
    */
   public static getStudent<ThrowOnError extends boolean = false>(
     parameters: {
@@ -946,38 +1364,13 @@ export class Organizations {
       ...params,
     });
   }
-
-  /**
-   * Re-send a pending student's invite email (staff)
-   *
-   * Owner or admin only. Issues a new token, so the previous link stops working. 404 when the student has no pending invite; 409 when it was already accepted.
-   */
-  public static resendStudentInvite<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<ResendStudentInviteResponses, ResendStudentInviteErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).post<
-      ResendStudentInviteResponses,
-      ResendStudentInviteErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/students/{id}/invite/resend",
-      ...options,
-      ...params,
-    });
-  }
 }
 
 export class Notifications {
   /**
-   * List the notification types a category list can cover (staff)
+   * List the notification types a category list can cover
    *
-   * Owner or admin only. `scope=org` lists the types the org list can cover, `scope=community` those a community list can cover. Each type carries all its scopes, so an editor can tell which types can be per space.
+   * Requires one of `notification_categories:read`, `communities:read`. `scope=org` lists the types the org list can cover and needs `notification_categories:read`; `scope=community` lists those a community list can cover and also takes `communities:read` on any community. Each type carries all its scopes, so an editor can tell which types can be per space.
    */
   public static listNotificationTypes<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1005,9 +1398,9 @@ export class Notifications {
   }
 
   /**
-   * List the notification channels this deployment can deliver on (staff)
+   * List the notification channels this deployment can deliver on
    *
-   * Owner or admin only. `inApp` is always first.
+   * Requires one of `notification_categories:read`, `communities:read`. `communities:read` on any community is enough. `inApp` is always first.
    */
   public static listNotificationChannels<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -1030,9 +1423,9 @@ export class Notifications {
   }
 
   /**
-   * Go back to the default notification categories for the organization (staff)
+   * Go back to the default notification categories for the organization
    *
-   * Owner or admin only. Removes the stored list; the default applies again.
+   * Requires `notification_categories:write`. Removes the stored list; the default applies again.
    */
   public static resetOrgNotificationCategories<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -1055,9 +1448,9 @@ export class Notifications {
   }
 
   /**
-   * Get the organization's notification categories (staff)
+   * Get the organization's notification categories
    *
-   * Owner or admin only. The list in use for notifications outside any community, with `source` saying whether it is the default or a stored list.
+   * Requires `notification_categories:read`. The list in use for notifications outside any community, with `source` saying whether it is the default or a stored list.
    */
   public static getOrgNotificationCategories<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -1080,9 +1473,9 @@ export class Notifications {
   }
 
   /**
-   * Replace the organization's notification categories (staff)
+   * Replace the organization's notification categories
    *
-   * Owner or admin only. Stores the whole list. 422 when a key repeats, a type cannot be in the org list, a reason is not allowed for its type, a channel is not configured, or earlier categories already cover everything a category covers.
+   * Requires `notification_categories:write`. Stores the whole list. 422 when a key repeats, a type cannot be in the org list, a reason is not allowed for its type, a channel is not configured, or earlier categories already cover everything a category covers.
    */
   public static replaceOrgNotificationCategories<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1103,7 +1496,6 @@ export class Notifications {
             | "community_member"
             | "course_member"
             | "moderator"
-            | "staff"
           >;
         }>;
         channels: {
@@ -1147,9 +1539,9 @@ export class Notifications {
   }
 
   /**
-   * Get the default notification categories (staff)
+   * Get the default notification categories
    *
-   * Owner or admin only. The default org list (`scope=org`) or community list (`scope=community`), offering only the configured channels.
+   * Requires one of `notification_categories:read`, `communities:read`. The default org list (`scope=org`, which needs `notification_categories:read`) or community list (`scope=community`, which also takes `communities:read` on any community), offering only the configured channels.
    */
   public static getDefaultNotificationCategories<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1177,9 +1569,9 @@ export class Notifications {
   }
 
   /**
-   * Go back to the default notification categories for a community (staff)
+   * Go back to the default notification categories for a community
    *
-   * Owner or admin only. Removes the stored list; the default applies again.
+   * Requires `communities:write`. On the community. Removes the stored list; the default applies again.
    */
   public static resetCommunityNotificationCategories<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1210,9 +1602,9 @@ export class Notifications {
   }
 
   /**
-   * Get a community's notification categories (staff)
+   * Get a community's notification categories
    *
-   * Owner or admin only. The list in use for the community, with `source` saying whether it is the default or a stored list.
+   * Requires `communities:read`. On the community. The list in use for the community, with `source` saying whether it is the default or a stored list.
    */
   public static getCommunityNotificationCategories<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1243,9 +1635,9 @@ export class Notifications {
   }
 
   /**
-   * Replace a community's notification categories (staff)
+   * Replace a community's notification categories
    *
-   * Owner or admin only. Stores the whole list for this community; other communities keep theirs. 422 when a key repeats, a type cannot be in a community list, a reason is not allowed for its type, a channel is not configured, `perSpace` is set on a type that cannot occur in a space, `spaceDefaults` appears without `perSpace` or names a channel the category does not offer, or earlier categories already cover everything a category covers.
+   * Requires `communities:write`. On the community. Stores the whole list for this community; other communities keep theirs. 422 when a key repeats, a type cannot be in a community list, a reason is not allowed for its type, a channel is not configured, `perSpace` is set on a type that cannot occur in a space, `spaceDefaults` appears without `perSpace` or names a channel the category does not offer, or earlier categories already cover everything a category covers.
    */
   public static replaceCommunityNotificationCategories<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1267,7 +1659,6 @@ export class Notifications {
             | "community_member"
             | "course_member"
             | "moderator"
-            | "staff"
           >;
         }>;
         channels: {
@@ -1378,7 +1769,7 @@ export class Notifications {
   /**
    * Count your unread notifications in the org list and in each community
    *
-   * For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open, staff included.
+   * For any member of the organization. `org` counts the org list; `communities` has one entry per community you can open.
    */
   public static getMemberNotificationUnreadCounts<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -1520,7 +1911,7 @@ export class Notifications {
   /**
    * Read how you are told about each notification category in a community
    *
-   * For anyone who can open the community, staff included. One entry per category of the list in use, each with the channels it offers on this deployment, whether each is on for you and why (`locked`, `space`, `community`, `spaceDefault` or `default`), and `default`, what the channel would be without your own setting at that level. A per-space category also lists every space you can open, with its name. `digest` is the digest schedule of the community, null when it sends none. 404 when you cannot open the community.
+   * For anyone who can open the community. One entry per category of the list in use that can apply to you, each with the channels it offers on this deployment, whether each is on for you and why (`locked`, `space`, `community`, `spaceDefault` or `default`), and `default`, what the channel would be without your own setting at that level. A per-space category also lists every space you can open, with its name. `digest` is the digest schedule of the community, null when it sends none. 404 when you cannot open the community.
    */
   public static getMemberCommunityNotificationSettings<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1553,7 +1944,7 @@ export class Notifications {
   /**
    * Switch notification categories on or off per channel in a community
    *
-   * For anyone who can open the community, staff included. Each setting switches one category on one channel, for all spaces or, for a per-space category, for one space; `enabled: null` removes your choice so the default applies again. Settings left out keep their values. 404 when you cannot open the community; 422 when a category does not exist, does not offer the channel, the channel is locked, or `spaceId` is given for a category that is not per space.
+   * For anyone who can open the community. Each setting switches one category on one channel, for all spaces or, for a per-space category, for one space; `enabled: null` removes your choice so the default applies again. Settings left out keep their values. 404 when you cannot open the community; 422 when a category does not exist, does not offer the channel, the channel is locked, or `spaceId` is given for a category that is not per space.
    */
   public static setMemberCommunityNotificationSettings<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1607,7 +1998,7 @@ export class Notifications {
   /**
    * Read how you are told about notifications outside any community
    *
-   * For anyone signed in to the organization. The organization's categories, such as access and course content, each with the channels it offers, whether each is on for you, and `default`, what it would be without your own setting.
+   * For anyone signed in to the organization. The organization's categories that can apply to you, such as access and course content, each with the channels it offers, whether each is on for you, and `default`, what it would be without your own setting.
    */
   public static getMemberNotificationSettings<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -1795,9 +2186,9 @@ export class Notifications {
 
 export class Content {
   /**
-   * List courses (staff)
+   * List courses
    *
-   * Staff only (owner, admin, instructor). Every course in the organization, drafts included, filtered by status and category and searched by title.
+   * Requires `courses:read`. Every course in the organization, drafts included, filtered by status and category and searched by title.
    */
   public static listCourses<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -1839,9 +2230,9 @@ export class Content {
   }
 
   /**
-   * Create a course (staff)
+   * Create a course
    *
-   * Staff only (owner, admin, instructor). The course starts as a draft. 409 when its slug is taken.
+   * Requires `courses:write`. The course starts as a draft. 409 when its slug is taken.
    */
   public static createCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1882,9 +2273,9 @@ export class Content {
   }
 
   /**
-   * Delete a course (staff)
+   * Delete a course
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `courses:delete`.
    */
   public static deleteCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1907,9 +2298,9 @@ export class Content {
   }
 
   /**
-   * Get a course (staff)
+   * Get a course
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `courses:read`.
    */
   public static getCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1932,9 +2323,9 @@ export class Content {
   }
 
   /**
-   * Update a course (staff)
+   * Update a course
    *
-   * Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.
+   * Requires `courses:write`. Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs `media:read` (403 otherwise).
    */
   public static updateCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1981,9 +2372,9 @@ export class Content {
   }
 
   /**
-   * Update a course's settings (staff)
+   * Update a course's settings
    *
-   * Staff only (owner, admin, instructor). Merges the settings sent into the current ones.
+   * Requires `courses:write`. Merges the settings sent into the current ones.
    */
   public static updateCourseSettings<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2034,9 +2425,9 @@ export class Content {
   }
 
   /**
-   * List downloads (staff)
+   * List downloads
    *
-   * Staff only (owner, admin, instructor). Every download, drafts included, filtered by status and category and searched by title.
+   * Requires `downloads:read`. Every download, drafts included, filtered by status and category and searched by title.
    */
   public static listDownloads<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2078,9 +2469,9 @@ export class Content {
   }
 
   /**
-   * Create a download (staff)
+   * Create a download
    *
-   * Staff only (owner, admin, instructor). The download starts as a draft. 409 when its slug is taken.
+   * Requires `downloads:write`. The download starts as a draft. 409 when its slug is taken.
    */
   public static createDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2121,9 +2512,9 @@ export class Content {
   }
 
   /**
-   * Delete a download (staff)
+   * Delete a download
    *
-   * Staff only (owner, admin, instructor). Its library files survive.
+   * Requires `downloads:delete`. Its library files survive.
    */
   public static deleteDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2146,9 +2537,9 @@ export class Content {
   }
 
   /**
-   * Get a download (staff)
+   * Get a download
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `downloads:read`.
    */
   public static getDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2171,9 +2562,9 @@ export class Content {
   }
 
   /**
-   * Update a download (staff)
+   * Update a download
    *
-   * Staff only (owner, admin, instructor). Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.
+   * Requires `downloads:write`. Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs `media:read` (403 otherwise).
    */
   public static updateDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2220,9 +2611,9 @@ export class Content {
   }
 
   /**
-   * List a download's files in order (staff)
+   * List a download's files in order
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `downloads:read`.
    */
   public static listDownloadAssets<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2245,9 +2636,9 @@ export class Content {
   }
 
   /**
-   * Add a library file to a download (staff)
+   * Add a library file to a download
    *
-   * Staff only (owner, admin, instructor). Added last. 409 when the file is not a ready library file or is already in the download. Returns the download's files.
+   * Requires `downloads:write`. Added last. 409 when the file is not a ready library file or is already in the download. A file not uploaded for the download needs `media:read` (403 otherwise). Returns the download's files.
    */
   public static addDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2288,9 +2679,9 @@ export class Content {
   }
 
   /**
-   * Reorder a download's files (staff)
+   * Reorder a download's files
    *
-   * Staff only (owner, admin, instructor). Send every file id of the download exactly once (409 otherwise). Returns the download's files.
+   * Requires `downloads:write`. Send every file id of the download exactly once (409 otherwise). Returns the download's files.
    */
   public static reorderDownloadAssets<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2334,9 +2725,9 @@ export class Content {
   }
 
   /**
-   * Remove a file from a download (staff)
+   * Remove a file from a download
    *
-   * Staff only (owner, admin, instructor). The library file itself survives. Returns the download's files.
+   * Requires `downloads:write`. The library file itself survives. Returns the download's files.
    */
   public static removeDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2370,9 +2761,9 @@ export class Content {
   }
 
   /**
-   * Set a file's display name within a download (staff)
+   * Set a file's display name within a download
    *
-   * Staff only (owner, admin, instructor). Null falls back to the filename. Returns the download's files.
+   * Requires `downloads:write`. Null falls back to the filename. Returns the download's files.
    */
   public static renameDownloadAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2413,9 +2804,9 @@ export class Content {
   }
 
   /**
-   * List bundles (staff)
+   * List bundles
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `bundles:read`.
    */
   public static listBundles<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2453,9 +2844,9 @@ export class Content {
   }
 
   /**
-   * Create a bundle, optionally with initial content (staff)
+   * Create a bundle, optionally with initial content
    *
-   * Staff only (owner, admin, instructor). 404 when an initial content id is unknown.
+   * Requires `bundles:write`. 404 when an initial content id is unknown.
    */
   public static createBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2494,9 +2885,9 @@ export class Content {
   }
 
   /**
-   * Delete a bundle (staff)
+   * Delete a bundle
    *
-   * Staff only (owner, admin, instructor). Its content survives; access granted through the bundle ends.
+   * Requires `bundles:delete`. Its content survives; access granted through the bundle ends.
    */
   public static deleteBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2519,9 +2910,9 @@ export class Content {
   }
 
   /**
-   * Get a bundle (staff)
+   * Get a bundle
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `bundles:read`.
    */
   public static getBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2544,9 +2935,9 @@ export class Content {
   }
 
   /**
-   * Rename a bundle (staff)
+   * Rename a bundle
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `bundles:write`.
    */
   public static updateBundle<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2585,9 +2976,9 @@ export class Content {
   }
 
   /**
-   * List a bundle's content (staff)
+   * List a bundle's content
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `bundles:read`.
    */
   public static listBundleItems<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2610,9 +3001,9 @@ export class Content {
   }
 
   /**
-   * Add content to a bundle (staff)
+   * Add content to a bundle
    *
-   * Staff only (owner, admin, instructor). Everyone who holds the bundle can open the content from then on. Returns the bundle's content.
+   * Requires `bundles:write`. Everyone who holds the bundle can open the content from then on. Returns the bundle's content.
    */
   public static addBundleItem<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2651,9 +3042,9 @@ export class Content {
   }
 
   /**
-   * Remove content from a bundle (staff)
+   * Remove content from a bundle
    *
-   * Staff only (owner, admin, instructor). The content survives; access to it through the bundle ends. Returns the bundle's content.
+   * Requires `bundles:write`. The content survives; access to it through the bundle ends. Returns the bundle's content.
    */
   public static removeBundleItem<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2709,7 +3100,7 @@ export class Content {
   /**
    * Get one course you can open
    *
-   * For a member of the organization. 404 when the course is not published or you do not hold it.
+   * For a member of the organization who holds the course, or holds `courses:read` on it (which also opens it unpublished). 404 otherwise.
    */
   public static getMemberCourse<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2734,7 +3125,7 @@ export class Content {
   /**
    * List the modules and activities of a course you can open
    *
-   * For a member of the organization. Published activities only. 404 when the course is not published or you do not hold it.
+   * For a member of the organization who holds the course, or holds `courses:read` on it. Published activities only. 404 otherwise.
    */
   public static listMemberModules<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2759,7 +3150,7 @@ export class Content {
   /**
    * List the published activities of a course you can open
    *
-   * For a member of the organization. 404 when the course is not published or you do not hold it.
+   * For a member of the organization who holds the course, or holds `courses:read` on it. 404 otherwise.
    */
   public static listMemberActivities<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2809,7 +3200,7 @@ export class Content {
   /**
    * One download you can open, with its files in order
    *
-   * For a member of the organization. 404 when the download is not published or you do not hold it.
+   * For a member of the organization who holds the download, or holds `downloads:read` on it (which also opens it unpublished). 404 otherwise.
    */
   public static getMemberDownload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2832,9 +3223,9 @@ export class Content {
   }
 
   /**
-   * List a course's modules (staff)
+   * List a course's modules
    *
-   * Staff only (owner, admin, instructor). Modules in order, each with its activities.
+   * Requires `courses:read`. Modules in order, each with its activities.
    */
   public static listModules<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2857,9 +3248,9 @@ export class Content {
   }
 
   /**
-   * Add a module (staff)
+   * Add a module
    *
-   * Staff only (owner, admin, instructor). Added last. Returns the course's modules.
+   * Requires `courses:write`. Added last. Returns the course's modules.
    */
   public static createModule<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2898,9 +3289,9 @@ export class Content {
   }
 
   /**
-   * List a course's activities (staff)
+   * List a course's activities
    *
-   * Staff only (owner, admin, instructor). Every activity, published or not.
+   * Requires `courses:read`. Every activity, published or not.
    */
   public static listActivities<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2923,9 +3314,9 @@ export class Content {
   }
 
   /**
-   * List the library files each activity of a course uses (staff)
+   * List the library files each activity of a course uses
    *
-   * Staff only (owner, admin, instructor). One row per activity and file, as recorded when the activity was saved.
+   * Requires `courses:read`. One row per activity and file, as recorded when the activity was saved.
    */
   public static listActivityAssets<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2948,9 +3339,9 @@ export class Content {
   }
 
   /**
-   * Reorder a course's modules (staff)
+   * Reorder a course's modules
    *
-   * Staff only (owner, admin, instructor). Ids that are not modules of the course are ignored. Returns the course's modules.
+   * Requires `courses:write`. Ids that are not modules of the course are ignored. Returns the course's modules.
    */
   public static reorderModules<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2989,9 +3380,9 @@ export class Content {
   }
 
   /**
-   * Delete a module (staff)
+   * Delete a module
    *
-   * Staff only (owner, admin, instructor). Returns the course's modules.
+   * Requires `courses:write`. Returns the course's modules.
    */
   public static deleteModule<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3025,9 +3416,9 @@ export class Content {
   }
 
   /**
-   * Rename a module (staff)
+   * Rename a module
    *
-   * Staff only (owner, admin, instructor). Returns the course's modules.
+   * Requires `courses:write`. Returns the course's modules.
    */
   public static updateModule<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3068,9 +3459,9 @@ export class Content {
   }
 
   /**
-   * Reorder the activities in a module (staff)
+   * Reorder the activities in a module
    *
-   * Staff only (owner, admin, instructor). Send every activity id of the module once (409 otherwise). Returns the course's modules.
+   * Requires `courses:write`. Send every activity id of the module once (409 otherwise). Returns the course's modules.
    */
   public static reorderActivities<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3111,9 +3502,9 @@ export class Content {
   }
 
   /**
-   * Add an activity (staff)
+   * Add an activity
    *
-   * Staff only (owner, admin, instructor). Records the library files the activity uses; each must be a ready library file (409 otherwise). Returns the course's modules.
+   * Requires `courses:write`. Records the library files the activity uses; each must be a ready library file (409 otherwise). A file the course does not already use must be uploaded for the course, or the caller needs `media:read` (403 otherwise). Returns the course's modules.
    */
   public static createActivity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3156,9 +3547,9 @@ export class Content {
   }
 
   /**
-   * Delete an activity (staff)
+   * Delete an activity
    *
-   * Staff only (owner, admin, instructor). Returns the course's modules.
+   * Requires `courses:write`. Returns the course's modules.
    */
   public static deleteActivity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3194,9 +3585,9 @@ export class Content {
   }
 
   /**
-   * Update an activity (staff)
+   * Update an activity
    *
-   * Staff only (owner, admin, instructor). Replaces its content and records the library files it uses; each must be a ready library file (409 otherwise). Returns the course's modules.
+   * Requires `courses:write`. Replaces its content and records the library files it uses; each must be a ready library file (409 otherwise). A file the course does not already use must be uploaded for the course, or the caller needs `media:read` (403 otherwise). Returns the course's modules.
    */
   public static updateActivity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3243,9 +3634,9 @@ export class Content {
 
 export class Communities {
   /**
-   * List communities (staff)
+   * List communities
    *
-   * Staff only (owner, admin, instructor). Pages every community in the organization, drafts included, filtered by `status` and searched by title.
+   * Requires `communities:read`. Pages every community in the organization, drafts included, filtered by `status` and searched by title.
    */
   public static listCommunities<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -3285,9 +3676,9 @@ export class Communities {
   }
 
   /**
-   * Create a community (staff)
+   * Create a community
    *
-   * Owner or admin only. The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.
+   * Requires `communities:write`. The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.
    */
   public static createCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3326,9 +3717,9 @@ export class Communities {
   }
 
   /**
-   * Delete a community (staff)
+   * Delete a community
    *
-   * Owner or admin only. Links to the community from other spaces are removed with it.
+   * Requires `communities:delete`. Links to the community from other spaces are removed with it.
    */
   public static deleteCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3354,9 +3745,9 @@ export class Communities {
   }
 
   /**
-   * Get a community (staff)
+   * Get a community
    *
-   * Staff only (owner, admin, instructor). Any community of the organization, drafts included.
+   * Requires `communities:read`. Any community of the organization, drafts included.
    */
   public static getCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3382,9 +3773,9 @@ export class Communities {
   }
 
   /**
-   * Update a community (staff)
+   * Update a community
    *
-   * Owner or admin only. Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it.
+   * Requires `communities:write`. Changes only the fields sent. `thumbnailAssetId` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs `media:read` (403 otherwise).
    */
   public static updateCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3429,17 +3820,17 @@ export class Communities {
   }
 
   /**
-   * Change the direct-message and digest settings of a community (staff)
+   * Change the direct-message and digest settings of a community
    *
-   * Owner or admin only. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.
+   * Requires `communities:write`. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. `digest` sets when the community digest goes out, or `null` stops it; the first digest after a change goes out at the next slot.
    */
   public static patchCommunitySettings<ThrowOnError extends boolean = false>(
     parameters: {
       communityId: string;
       enabled?: boolean;
       memberToMember?: boolean;
-      memberToStaff?: boolean;
-      staffToAnyone?: boolean;
+      memberToTeam?: boolean;
+      teamToAnyone?: boolean;
       firstMessageIsRequest?: boolean;
       groupChats?: boolean;
       groupSize?: number;
@@ -3474,8 +3865,8 @@ export class Communities {
             { in: "path", key: "communityId" },
             { in: "body", key: "enabled" },
             { in: "body", key: "memberToMember" },
-            { in: "body", key: "memberToStaff" },
-            { in: "body", key: "staffToAnyone" },
+            { in: "body", key: "memberToTeam" },
+            { in: "body", key: "teamToAnyone" },
             { in: "body", key: "firstMessageIsRequest" },
             { in: "body", key: "groupChats" },
             { in: "body", key: "groupSize" },
@@ -3503,9 +3894,9 @@ export class Communities {
   }
 
   /**
-   * Publish a community (staff)
+   * Publish a community
    *
-   * Owner or admin only. Makes the community visible to the people who hold it.
+   * Requires `communities:write`. Makes the community visible to the people who hold it.
    */
   public static publishCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3531,9 +3922,9 @@ export class Communities {
   }
 
   /**
-   * Unpublish a community (staff)
+   * Unpublish a community
    *
-   * Owner or admin only. Hides the community from members again; nothing in it is deleted.
+   * Requires `communities:write`. Hides the community from members again; nothing in it is deleted.
    */
   public static unpublishCommunity<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3559,9 +3950,9 @@ export class Communities {
   }
 
   /**
-   * Staff analytics for a community
+   * Analytics for a community
    *
-   * Staff only (owner, admin, instructor). Membership, activity and moderation counts for one community.
+   * Requires `communities:read`. Membership, activity and moderation counts for one community.
    */
   public static getCommunityAnalytics<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3592,9 +3983,9 @@ export class Communities {
   }
 
   /**
-   * Open message flags in a community (staff)
+   * Open message flags in a community
    *
-   * Staff only (owner, admin, instructor). The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.
+   * Requires `communities:moderate`. The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.
    */
   public static getCommunityMessageQueue<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3625,9 +4016,9 @@ export class Communities {
   }
 
   /**
-   * List the spaces in a community (staff)
+   * List the spaces in a community
    *
-   * Staff only (owner, admin, instructor). Every space in order, with its topics and links.
+   * Requires `communities:read`. Every space in order, with its topics and links.
    */
   public static listCommunitySpaces<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3653,9 +4044,9 @@ export class Communities {
   }
 
   /**
-   * Create a space (staff)
+   * Create a space
    *
-   * Owner or admin only. The space is added last. An `all_members` space cannot have a capacity (409).
+   * Requires `communities:write`. The space is added last. An `all_members` space cannot have a capacity (409).
    */
   public static createSpace<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3706,9 +4097,9 @@ export class Communities {
   }
 
   /**
-   * Reorder the spaces in a community (staff)
+   * Reorder the spaces in a community
    *
-   * Owner or admin only. Send every space id of the community exactly once (409 otherwise).
+   * Requires `communities:write`. Send every space id of the community exactly once (409 otherwise).
    */
   public static reorderSpaces<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3747,9 +4138,9 @@ export class Communities {
   }
 
   /**
-   * Delete a space (staff)
+   * Delete a space
    *
-   * Owner or admin only. The space and everything in it go.
+   * Requires `communities:write`. The space and everything in it go.
    */
   public static deleteSpace<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3783,9 +4174,9 @@ export class Communities {
   }
 
   /**
-   * Get a space (staff)
+   * Get a space
    *
-   * Staff only (owner, admin, instructor). The space with its topics and links.
+   * Requires `communities:read`. The space with its topics and links.
    */
   public static getSpace<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3816,9 +4207,9 @@ export class Communities {
   }
 
   /**
-   * Update a space (staff)
+   * Update a space
    *
-   * Owner or admin only. Changes only the fields sent; `settings` merges into the current settings. An `all_members` space cannot have a capacity (409).
+   * Requires `communities:write`. Changes only the fields sent; `settings` merges into the current settings. An `all_members` space cannot have a capacity (409).
    */
   public static updateSpace<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3871,9 +4262,9 @@ export class Communities {
   }
 
   /**
-   * Replace the topics on a space (staff)
+   * Replace the topics on a space
    *
-   * Owner or admin only. The list replaces the current topics: an entry with an `id` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).
+   * Requires `communities:write`. The list replaces the current topics: an entry with an `id` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).
    */
   public static setSpaceTopics<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3920,9 +4311,9 @@ export class Communities {
   }
 
   /**
-   * Link a course, download, or community into a space (staff)
+   * Link a course, download, or community into a space
    *
-   * Owner or admin only. The link is added last. Linking the same content twice is a 409.
+   * Requires `communities:write`. The link is added last. Linking the same content twice is a 409.
    */
   public static addSpaceLink<ThrowOnError extends boolean = false>(
     parameters: {
@@ -3963,9 +4354,9 @@ export class Communities {
   }
 
   /**
-   * Remove a link from a space (staff)
+   * Remove a link from a space
    *
-   * Owner or admin only. The linked content itself is untouched.
+   * Requires `communities:write`. The linked content itself is untouched.
    */
   public static removeSpaceLink<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4001,9 +4392,9 @@ export class Communities {
   }
 
   /**
-   * Reorder the links in a space (staff)
+   * Reorder the links in a space
    *
-   * Owner or admin only. Send every link id of the space exactly once (409 otherwise).
+   * Requires `communities:write`. Send every link id of the space exactly once (409 otherwise).
    */
   public static reorderSpaceLinks<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4044,9 +4435,9 @@ export class Communities {
   }
 
   /**
-   * List the people who hold a community (staff)
+   * List the people who hold a community
    *
-   * Staff only (owner, admin, instructor). Everyone with active access to the community, granted directly or through a bundle, paged and searched by name or email.
+   * Requires `access:read`. Everyone with active access to the community, granted directly or through a bundle, paged and searched by name or email.
    */
   public static listCommunityMembers<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4089,9 +4480,9 @@ export class Communities {
   }
 
   /**
-   * List the members, requests and invitations of a space (staff)
+   * List the members, requests and invitations of a space
    *
-   * Staff only (owner, admin, instructor). The space's members, its open requests to join and its open invitations.
+   * Any active member of the organization. The space's members, its open requests to join and its open invitations.
    */
   public static listCommunitySpaceMembers<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4134,9 +4525,9 @@ export class Communities {
   }
 
   /**
-   * Add a person to a space (staff)
+   * Add a person to a space
    *
-   * Staff only (owner, admin, instructor). Places a member of the community straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.
+   * Requires `communities:moderate`. Places a member of the community straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.
    */
   public static addCommunitySpaceMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4182,9 +4573,9 @@ export class Communities {
   }
 
   /**
-   * Invite a person into a space (staff)
+   * Invite a person into a space
    *
-   * Staff only (owner, admin, instructor). Invites a member of the community into a `by_invite` space; they join when they accept. 403 when the person is staff or does not hold the community; 409 when the space is not invite-only or the person is already placed.
+   * Requires `communities:moderate`. Invites a member of the community into a `by_invite` space; they join when they accept. 403 when the person opens every space or is not a member of the community; 409 when the space is not invite-only or the person is already placed.
    */
   public static inviteCommunitySpaceMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4230,9 +4621,9 @@ export class Communities {
   }
 
   /**
-   * Approve a person's request to join a space (staff)
+   * Approve a person's request to join a space
    *
-   * Staff only (owner, admin, instructor). Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.
+   * Requires `communities:moderate`. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.
    */
   public static approveCommunitySpaceRequest<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4273,9 +4664,9 @@ export class Communities {
   }
 
   /**
-   * Decline a person's request to join a space (staff)
+   * Decline a person's request to join a space
    *
-   * Staff only (owner, admin, instructor). Closes the open request. 404 when the person has no open request; 409 when they are already a member.
+   * Requires `communities:moderate`. Closes the open request. 404 when the person has no open request; 409 when they are already a member.
    */
   public static declineCommunitySpaceRequest<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4316,9 +4707,9 @@ export class Communities {
   }
 
   /**
-   * Remove a person from a space (staff)
+   * Remove a person from a space
    *
-   * Staff only (owner, admin, instructor). Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.
+   * Requires `communities:moderate`. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.
    */
   public static removeCommunitySpaceMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4359,9 +4750,9 @@ export class Communities {
   }
 
   /**
-   * The moderation queue of a space (staff)
+   * The moderation queue of a space
    *
-   * Staff only (owner, admin, instructor). Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.
+   * Requires `communities:moderate`. Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.
    */
   public static getCommunitySpaceQueue<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4400,9 +4791,9 @@ export class Communities {
   }
 
   /**
-   * Publish a post that is awaiting review (staff)
+   * Publish a post that is awaiting review
    *
-   * Staff only (owner, admin, instructor). 409 when the post is not awaiting review.
+   * Requires `communities:moderate`. 409 when the post is not awaiting review.
    */
   public static approveCommunityPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4441,9 +4832,9 @@ export class Communities {
   }
 
   /**
-   * Remove a post (staff)
+   * Remove a post
    *
-   * Staff only (owner, admin, instructor). Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
+   * Needs `communities:moderate` on the community. Takes a published or pending post down and resolves its open flags as `removed`. 409 when it is already removed or was never submitted.
    */
   public static removeCommunityPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4477,9 +4868,9 @@ export class Communities {
   }
 
   /**
-   * Restore a removed post (staff)
+   * Restore a removed post
    *
-   * Staff only (owner, admin, instructor). 409 when the post is not removed.
+   * Requires `communities:moderate`. 409 when the post is not removed.
    */
   public static restoreCommunityPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4518,9 +4909,9 @@ export class Communities {
   }
 
   /**
-   * Dismiss the open flags on a post (staff)
+   * Dismiss the open flags on a post
    *
-   * Staff only (owner, admin, instructor). Closes every open flag on the post and leaves it up.
+   * Requires `communities:moderate`. Closes every open flag on the post and leaves it up.
    */
   public static resolveCommunityPostFlags<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4566,9 +4957,9 @@ export class Communities {
   }
 
   /**
-   * Remove a comment on a post (staff)
+   * Remove a comment on a post
    *
-   * Staff only (owner, admin, instructor). Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
+   * Needs `communities:moderate` on the community. Hides the comment and resolves its open flags as `removed`. Removing a removed comment returns it unchanged.
    */
   public static removeCommunityComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4607,9 +4998,9 @@ export class Communities {
   }
 
   /**
-   * Restore a removed comment on a post (staff)
+   * Restore a removed comment on a post
    *
-   * Staff only (owner, admin, instructor). Publishes the comment again. Restoring a comment that is not removed returns it unchanged.
+   * Requires one of `courses:moderate`, `communities:moderate`. Publishes the comment again. Restoring a comment that is not removed returns it unchanged.
    */
   public static restoreCommunityComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4648,9 +5039,9 @@ export class Communities {
   }
 
   /**
-   * Dismiss the open flags on a comment (staff)
+   * Dismiss the open flags on a comment
    *
-   * Staff only (owner, admin, instructor). Closes every open flag on the comment and leaves it up.
+   * Requires one of `courses:moderate`, `communities:moderate`. Closes every open flag on the comment and leaves it up.
    */
   public static resolveCommunityCommentFlags<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4696,9 +5087,9 @@ export class Communities {
   }
 
   /**
-   * Dismiss the open flags on a message (staff)
+   * Dismiss the open flags on a message
    *
-   * Staff only (owner, admin, instructor). Closes every open flag on the message and leaves it up.
+   * Requires `communities:moderate`. Closes every open flag on the message and leaves it up.
    */
   public static resolveCommunityMessageFlags<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4744,9 +5135,9 @@ export class Communities {
   }
 
   /**
-   * Lock a chat (staff)
+   * Lock a chat
    *
-   * Staff only (owner, admin, instructor). Nobody can send or edit messages until it is unlocked; its open message flags are resolved as `locked`. Locking a locked chat returns it unchanged.
+   * Requires `communities:moderate`. Nobody can send or edit messages until it is unlocked; its open message flags are resolved as `locked`. Locking a locked chat returns it unchanged.
    */
   public static lockCommunityChat<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4780,9 +5171,9 @@ export class Communities {
   }
 
   /**
-   * Unlock a chat (staff)
+   * Unlock a chat
    *
-   * Staff only (owner, admin, instructor). Lets participants send messages again. Unlocking an unlocked chat returns it unchanged.
+   * Requires `communities:moderate`. Lets participants send messages again. Unlocking an unlocked chat returns it unchanged.
    */
   public static unlockCommunityChat<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4818,7 +5209,7 @@ export class Communities {
   /**
    * The spaces a member can see in a community
    *
-   * For a member of the community. Lists its spaces in order. Spaces the viewer can open come back in full; spaces they can see but not open come back locked, with only their name, count, rule and the viewer's standing. A by-invite space the viewer is not invited to or a member of is left out. 404 when the viewer is not a member.
+   * For a member of the community, through a grant or `communities:read` on it. Lists its spaces in order. Spaces the viewer can open come back in full; spaces they can see but not open come back locked, with only their name, count, rule and the viewer's standing. A by-invite space the viewer is not invited to or a member of is left out, unless the viewer opens every space. `viewer` carries the viewer's permissions on the community, whether they open every space, and their team flag and role name. 404 when the viewer is not a member.
    */
   public static getMemberCommunityHome<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4887,7 +5278,7 @@ export class Communities {
   /**
    * People in a community
    *
-   * For a member of the community: everyone who holds it, with their public profile. 404 when the viewer is not a member.
+   * For a member of the community: everyone who holds it or holds `communities:read` on it, with their public profile, whether they are team here and under which role name, and whether they open every space. 404 when the viewer is not a member.
    */
   public static getMemberCommunityDirectory<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4932,7 +5323,7 @@ export class Communities {
   /**
    * List the members of a space
    *
-   * For anyone who can open the space. Members see the active members; moderators also see open requests and invitations.
+   * For anyone who can open the space. Members see the active members; holders of `communities:moderate` on the community also see open requests and invitations. Who opens every space holds no place, and is left out.
    */
   public static listSpaceMembers<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4972,7 +5363,7 @@ export class Communities {
   /**
    * Add a person to a space you moderate
    *
-   * For a moderator who is a member of the community. Places another member straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.
+   * Requires `communities:moderate`. On the community, as its member. Places another member straight into the space, with no request or invitation. 403 when the person opens every space; 409 when the space is open to all members, the person is already placed, or the space is full.
    */
   public static addSpaceMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5015,7 +5406,7 @@ export class Communities {
   /**
    * Ask to join a space
    *
-   * For a member of the community who is not staff. Opens a request on a `by_request` space for a moderator to approve. 409 when the space is not `by_request` or you are already placed in it.
+   * For a member of the community who does not open every space. Opens a request on a `by_request` space for a moderator to approve. 409 when the space is not `by_request` or you are already placed in it.
    */
   public static requestSpaceMembership<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5056,7 +5447,7 @@ export class Communities {
   /**
    * Invite a person into a space you moderate
    *
-   * For a moderator who is a member of the community. Invites another member into a `by_invite` space; they join when they accept. 403 when the person is staff or does not hold the community; 409 when the space is not invite-only or the person is already placed.
+   * Requires `communities:moderate`. On the community, as its member. Invites another member into a `by_invite` space; they join when they accept. 403 when the person opens every space or is not a member of the community; 409 when the space is not invite-only or the person is already placed.
    */
   public static inviteSpaceMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5099,7 +5490,7 @@ export class Communities {
   /**
    * Accept your invitation to a space
    *
-   * For a member of the community who is not staff. Makes you an active member. 409 when you have no open invitation, are already a member, or the space is full.
+   * For a member of the community who does not open every space. Makes you an active member. 409 when you have no open invitation, are already a member, or the space is full.
    */
   public static acceptSpaceInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5135,7 +5526,7 @@ export class Communities {
   /**
    * Approve a person's request to join a space you moderate
    *
-   * For a moderator who is a member of the community. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.
+   * Requires `communities:moderate`. On the community, as its member. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.
    */
   public static approveSpaceRequest<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5173,7 +5564,7 @@ export class Communities {
   /**
    * Decline a person's request to join a space you moderate
    *
-   * For a moderator who is a member of the community. Closes the open request. 404 when the person has no open request; 409 when they are already a member.
+   * Requires `communities:moderate`. On the community, as its member. Closes the open request. 404 when the person has no open request; 409 when they are already a member.
    */
   public static declineSpaceRequest<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5211,7 +5602,7 @@ export class Communities {
   /**
    * Refuse your invitation to a space
    *
-   * For a member of the community who is not staff. 409 when you have no open invitation or are already a member.
+   * For a member of the community who does not open every space. 409 when you have no open invitation or are already a member.
    */
   public static refuseSpaceInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5247,7 +5638,7 @@ export class Communities {
   /**
    * Leave a space
    *
-   * For a member of the community who is not staff. 409 when you are not a member of the space.
+   * For a member of the community who does not open every space. 409 when you are not a member of the space.
    */
   public static leaveSpace<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5283,7 +5674,7 @@ export class Communities {
   /**
    * Remove a person from a space you moderate
    *
-   * For a moderator who is a member of the community. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.
+   * Requires `communities:moderate`. On the community, as its member. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.
    */
   public static removeSpaceMember<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5379,7 +5770,7 @@ export class Profile {
   /**
    * Read your profile
    *
-   * For any signed-in person. The profile is yours across organizations; `imageUrl` is set only when the photo was uploaded in this organization. Before you save one, every field is empty.
+   * For any active member of the organization. The profile is yours across organizations; `imageUrl` is set only when the photo was uploaded in this organization. Before you save one, every field is empty.
    */
   public static getMemberProfile<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -5640,7 +6031,7 @@ export class Posts {
   /**
    * Create a post
    *
-   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you are not staff. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft, and `details.postId` names it, so open that draft instead of creating the post again.
+   * For anyone who can open the space. `mode` decides the status: `draft`, `scheduled`, or on `submit` `published`, or `pending` when the space requires review and you do not hold `communities:moderate` on the community. 409 when the space has topics and none is given. 400 when a schedule is missing or in the past. 503 when a scheduled post could not be timed; the post is then kept as a draft, and `details.postId` names it, so open that draft instead of creating the post again.
    */
   public static createPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -5764,7 +6155,7 @@ export class Posts {
   /**
    * Submit your draft or scheduled post
    *
-   * Author only. Publishes it now, or holds it for review when the space requires review and you are not staff. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.
+   * Author only. Publishes it now, or holds it for review when the space requires review and you do not hold `communities:moderate` on the community. A scheduled post is no longer published at its time. 409 when the post is not a draft or scheduled.
    */
   public static submitPost<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6436,6 +6827,39 @@ export class Chats {
     >({
       responseStyle: "data",
       url: "/api/member/communities/{communityId}/chats",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Open message flags in a community you moderate
+   *
+   * Requires `communities:moderate`. Needed on the community, as a member of it. The messages in its chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.
+   */
+  public static getMemberMessageQueue<ThrowOnError extends boolean = false>(
+    parameters: {
+      communityId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetMemberMessageQueueResponses,
+    GetMemberMessageQueueErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [{ args: [{ in: "path", key: "communityId" }] }],
+    );
+    return (options?.client ?? client).get<
+      GetMemberMessageQueueResponses,
+      GetMemberMessageQueueErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/communities/{communityId}/message-queue",
       ...options,
       ...params,
     });
@@ -7139,7 +7563,7 @@ export class Progress {
   /**
    * Report usage on an activity; the progress service decides completion
    *
-   * For a member who can open the course. Reports facts, never a decision: the service decides whether the activity is complete. 404 when the activity or its course is not published, or you cannot open it.
+   * For a member who can open the course, through a grant or `courses:read` on it. Reports facts, never a decision: the service decides whether the activity is complete. 404 when the activity is not published, or you cannot open its course.
    */
   public static reportProgress<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7216,7 +7640,7 @@ export class Discussion {
   /**
    * Read an activity's comments
    *
-   * For a student who can open the course, and staff. Returns the activity's resolved comment settings with the comments; removed comments keep their place without their body.
+   * For anyone who can open the course: through a grant, or with `courses:read` on it. Returns the activity's resolved comment settings with the comments; removed comments keep their place without their body.
    */
   public static listActivityComments<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7246,7 +7670,7 @@ export class Discussion {
   /**
    * Post a comment or reply on an activity
    *
-   * For a student who can open the course, and staff, while discussion is on for the activity (403 otherwise). Lands pending when the course requires review and you are not staff. Replies nest one level and need threading on.
+   * For anyone who can open the course, while discussion is on for the activity (403 otherwise). Lands pending when the course requires review and you do not hold `courses:moderate` on it. Replies nest one level and need threading on.
    */
   public static postComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7289,7 +7713,7 @@ export class Discussion {
   /**
    * Delete your comment, or one you moderate
    *
-   * For the author, staff on an activity comment, or a moderator on a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
+   * For the author, or a holder of `courses:moderate` on the course for an activity comment or of `communities:moderate` on the community for a post comment. The comment is marked removed and keeps its place in the thread. Deleting a removed comment returns it unchanged.
    */
   public static deleteComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7314,7 +7738,7 @@ export class Discussion {
   /**
    * Revise your own comment
    *
-   * Author only; not even staff may revise it. Discussion must be open where the comment is, and a removed comment cannot be revised.
+   * Author only; not even a moderator may revise it. Discussion must be open where the comment is, and a removed comment cannot be revised.
    */
   public static editComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7467,7 +7891,7 @@ export class Discussion {
   /**
    * Dismiss the open flags on a comment in a space you moderate
    *
-   * For a moderator of a post comment, or staff for an activity comment. Closes every open flag and leaves the comment up.
+   * Needs `courses:moderate` on the course for an activity comment, or `communities:moderate` on the community for a post comment. Closes every open flag and leaves the comment up.
    */
   public static resolveCommentFlags<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7506,9 +7930,69 @@ export class Discussion {
   }
 
   /**
-   * List course comments for moderation (staff)
+   * Restore a removed comment where you moderate
    *
-   * Staff only (owner, admin, instructor). Comments on course activities, filtered by course, activity, author, status or open reports; each row carries the author's email and the open reports.
+   * Needs `courses:moderate` on the course for an activity comment, or `communities:moderate` on the community for a post comment. Publishes the comment again; a comment that is not removed is returned unchanged.
+   */
+  public static restoreMemberComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RestoreMemberCommentResponses,
+    RestoreMemberCommentErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "commentId" }] }]);
+    return (options?.client ?? client).post<
+      RestoreMemberCommentResponses,
+      RestoreMemberCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/comments/{commentId}/restoration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Publish a comment awaiting review where you moderate
+   *
+   * Needs `courses:moderate` on the course for an activity comment, or `communities:moderate` on the community for a post comment. 403 when the comment is not awaiting review.
+   */
+  public static approveMemberComment<ThrowOnError extends boolean = false>(
+    parameters: {
+      commentId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ApproveMemberCommentResponses,
+    ApproveMemberCommentErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "commentId" }] }]);
+    return (options?.client ?? client).post<
+      ApproveMemberCommentResponses,
+      ApproveMemberCommentErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/comments/{commentId}/approval",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List course comments for moderation
+   *
+   * Requires `courses:moderate`. Comments on the activities of the courses you moderate, filtered by course, activity, author, status or open reports; each row carries the author's email and the open reports.
    */
   public static listComments<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -7556,9 +8040,9 @@ export class Discussion {
   }
 
   /**
-   * Remove a course comment (staff)
+   * Remove a course comment
    *
-   * Staff only (owner, admin, instructor). Hides the comment and resolves its open reports as `removed`. Removing a removed comment returns it unchanged.
+   * Needs `courses:moderate` on the course, unless it is your own comment. Hides the comment and resolves its open reports as `removed`. Removing a removed comment returns it unchanged.
    */
   public static moderateRemoveComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7586,9 +8070,9 @@ export class Discussion {
   }
 
   /**
-   * Publish a course comment (staff)
+   * Publish a course comment
    *
-   * Staff only (owner, admin, instructor). Approves a pending comment or restores a removed one; a published comment is returned unchanged.
+   * Needs `courses:moderate` on the course. Approves a pending comment or restores a removed one; a published comment is returned unchanged.
    */
   public static publishComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7627,9 +8111,9 @@ export class Discussion {
   }
 
   /**
-   * Dismiss every open report on a course comment (staff)
+   * Dismiss every open report on a course comment
    *
-   * Staff only (owner, admin, instructor). The comment stays up.
+   * Needs `courses:moderate` on the course. The comment stays up.
    */
   public static dismissCommentReports<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7657,9 +8141,9 @@ export class Discussion {
   }
 
   /**
-   * Reply to a course comment from the moderation queue (staff)
+   * Reply to a course comment from the moderation queue
    *
-   * Staff only (owner, admin, instructor). Replies nest one level: answering a reply attaches to its root comment.
+   * Requires `courses:moderate`. Needed on the comment's course. Replies nest one level: answering a reply attaches to its root comment.
    */
   public static replyToComment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7796,14 +8280,15 @@ export class Assets {
   }
 
   /**
-   * Register a library asset and get a presigned upload URL (staff)
+   * Register a library asset and get a presigned upload URL
    *
-   * Staff only (owner, admin, instructor). The asset stays pending until you upload the file and confirm it.
+   * Requires one of `media:write`, `courses:write`, `downloads:write`, `communities:write`. `media:write` uploads to the library; the write permission of a content item uploads for that item when `contentId` names it, and the asset records it. The asset stays pending until you upload the file and confirm it. 404 when `contentId` is not a content item of the organization.
    */
   public static requestUpload<ThrowOnError extends boolean = false>(
     parameters: {
       filename: string;
       contentType: string;
+      contentId?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<RequestUploadResponses, RequestUploadErrors, ThrowOnError, "data"> {
@@ -7814,6 +8299,7 @@ export class Assets {
           args: [
             { in: "body", key: "filename" },
             { in: "body", key: "contentType" },
+            { in: "body", key: "contentId" },
           ],
         },
       ],
@@ -7837,9 +8323,9 @@ export class Assets {
   }
 
   /**
-   * Confirm a library upload completed (staff)
+   * Confirm a library upload completed
    *
-   * Staff only (owner, admin, instructor). Captures the stored size and content type: a pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.
+   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` reaches every file; the write permission of a content item reaches the files uploaded for it. Captures the stored size and content type: a pending library upload becomes ready; a ready one is returned unchanged. A member upload is finalized only by its uploader and is answered with 403.
    */
   public static confirmAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7862,9 +8348,9 @@ export class Assets {
   }
 
   /**
-   * Browse the organization's media library (staff)
+   * Browse the organization's media library
    *
-   * Staff only (owner, admin, instructor). Library files by default; `source: member` lists members' uploads.
+   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` lists the whole library, `source: member` members' uploads; the write permission of a content item lists the files uploaded for it, named by `contentId`.
    */
   public static listAssets<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -7874,6 +8360,7 @@ export class Assets {
       sort?: string;
       kind?: "image" | "video" | "audio" | "document";
       source?: "library" | "member";
+      contentId?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListAssetsResponses, ListAssetsErrors, ThrowOnError, "data"> {
@@ -7888,6 +8375,7 @@ export class Assets {
             { in: "query", key: "sort" },
             { in: "query", key: "kind" },
             { in: "query", key: "source" },
+            { in: "query", key: "contentId" },
           ],
         },
       ],
@@ -7906,9 +8394,9 @@ export class Assets {
   }
 
   /**
-   * Delete an asset nothing references (staff)
+   * Delete an asset nothing references
    *
-   * Staff only (owner, admin, instructor). Removes the row and the stored file. 409 while content still uses it.
+   * Requires `media:delete`. Removes the row and the stored file. 409 while content still uses it.
    */
   public static deleteAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7931,9 +8419,9 @@ export class Assets {
   }
 
   /**
-   * Get an asset's metadata (staff)
+   * Get an asset's metadata
    *
-   * Staff only (owner, admin, instructor).
+   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` reaches every file; the write permission of a content item reaches the files uploaded for it.
    */
   public static getAsset<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7953,9 +8441,9 @@ export class Assets {
   }
 
   /**
-   * Redirect to a library file to show it (staff)
+   * Redirect to a library file to show it
    *
-   * Staff only (owner, admin, instructor). Ready library files of the organization; member uploads and pending files answer 404.
+   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` reaches every file; the write permission of a content item reaches the files uploaded for it. Ready library files of the organization; member uploads and pending files answer 404.
    */
   public static getLibraryFile<ThrowOnError extends boolean = false>(
     parameters: {
@@ -7973,9 +8461,9 @@ export class Assets {
   }
 
   /**
-   * Redirect to a library file saved under its filename (staff)
+   * Redirect to a library file saved under its filename
    *
-   * Staff only (owner, admin, instructor). Ready library files of the organization; member uploads and pending files answer 404.
+   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` reaches every file; the write permission of a content item reaches the files uploaded for it. Ready library files of the organization; member uploads and pending files answer 404.
    */
   public static downloadLibraryFile<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8002,7 +8490,7 @@ export class Files {
   /**
    * Redirect to a course's thumbnail
    *
-   * Any org user may fetch the thumbnail of a published course; staff may fetch any. 404 when the course has no thumbnail.
+   * Any org user may fetch the thumbnail of a published course; a holder of `courses:read` on it may fetch it unpublished. 404 when the course has no thumbnail.
    */
   public static getCourseThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8024,7 +8512,7 @@ export class Files {
   /**
    * Redirect to a download's thumbnail
    *
-   * Any org user may fetch the thumbnail of a published download; staff may fetch any. 404 when the download has no thumbnail.
+   * Any org user may fetch the thumbnail of a published download; a holder of `downloads:read` on it may fetch it unpublished. 404 when the download has no thumbnail.
    */
   public static getDownloadThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8049,7 +8537,7 @@ export class Files {
   /**
    * Redirect to a community's thumbnail
    *
-   * Any org user may fetch the thumbnail of a published community; staff may fetch any. 404 when the community has no thumbnail.
+   * Any org user may fetch the thumbnail of a published community; a holder of `communities:read` on it may fetch it unpublished. 404 when the community has no thumbnail.
    */
   public static getCommunityThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8077,7 +8565,7 @@ export class Files {
   /**
    * Redirect to a file used in a lesson
    *
-   * Served when the student can open the course, the course and the lesson are published, and the lesson lists the file. Staff may fetch any file a lesson lists. Use the URL as an img, video or audio src.
+   * Served when the person can open the course, the course and the lesson are published, and the lesson lists the file. A holder of `courses:read` on the course may fetch any file a lesson lists. Use the URL as an img, video or audio src.
    */
   public static getActivityFile<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8108,7 +8596,7 @@ export class Files {
   /**
    * Redirect to a file in a download, saved under its display name
    *
-   * Served when the student can open the download, it is published, and it lists the file. Staff may fetch any file a download lists. The storage link lives DELIVERY_URL_EXPIRY seconds.
+   * Served when the person can open the download, it is published, and it lists the file. A holder of `downloads:read` on the download may fetch it unpublished. The storage link lives DELIVERY_URL_EXPIRY seconds.
    */
   public static getDownloadFile<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8159,7 +8647,7 @@ export class Files {
   /**
    * Redirect to an image attached to a chat message
    *
-   * Served to the chat's participants while the message stands (staff also after it is deleted), and to moderators while the message is flagged.
+   * Served to the chat's participants while the message stands, to holders of `communities:moderate` on the community also after it is deleted, and to them while the message is flagged.
    */
   public static getMessageAttachment<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8242,9 +8730,9 @@ export class Files {
 
 export class Reporting {
   /**
-   * A student's learner record (staff)
+   * A person's progress across courses
    *
-   * Staff only (owner, admin, instructor). Per-course progress and completion.
+   * Requires `people:read`. Per-course progress and completion.
    */
   public static getStudentAnalytics<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8267,9 +8755,9 @@ export class Reporting {
   }
 
   /**
-   * Back-office overview stats (staff)
+   * Back-office overview stats
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `analytics:read`.
    */
   public static getOverview<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -8287,9 +8775,9 @@ export class Reporting {
   }
 
   /**
-   * Enrollments granted per day over a trailing window (staff)
+   * Enrollments granted per day over a trailing window
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `analytics:read`.
    */
   public static getEnrollmentSeries<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -8312,9 +8800,9 @@ export class Reporting {
   }
 
   /**
-   * Completion and engagement stats for a course (staff)
+   * Completion and engagement stats for a course
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `progress:read`.
    */
   public static getCourseAnalytics<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8337,9 +8825,9 @@ export class Reporting {
   }
 
   /**
-   * Enrollments granted per day for a course over a trailing window (staff)
+   * Enrollments granted per day for a course over a trailing window
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `progress:read`.
    */
   public static getCourseEnrollmentSeries<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8380,9 +8868,9 @@ export class Reporting {
 
 export class Entitlements {
   /**
-   * List entitlements (staff)
+   * List entitlements
    *
-   * Staff only (owner, admin, instructor).
+   * Requires one of `access:read`, `progress:read`. `access:read` lists every grant; `progress:read` on a course lists that course's grants when `contentId` names it.
    */
   public static listEntitlements<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -8430,9 +8918,9 @@ export class Entitlements {
   }
 
   /**
-   * Grant a person access to content or a bundle (staff)
+   * Grant a person access to content or a bundle
    *
-   * Staff only (owner, admin, instructor). Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later.
+   * Requires `access:write`. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later.
    */
   public static grantEntitlement<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8475,9 +8963,9 @@ export class Entitlements {
   }
 
   /**
-   * Revoke or reinstate an entitlement (staff)
+   * Revoke or reinstate an entitlement
    *
-   * Staff only (owner, admin, instructor). Access follows the status at once.
+   * Requires `access:write`. Access follows the status at once.
    */
   public static setEntitlementStatus<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8523,9 +9011,9 @@ export class Entitlements {
 
 export class Automations {
   /**
-   * List automations (staff)
+   * List automations
    *
-   * Staff only (owner, admin, instructor). Optionally only workflows or only webhooks.
+   * Requires `automations:read`. Optionally only workflows or only webhooks.
    */
   public static listAutomations<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -8548,9 +9036,9 @@ export class Automations {
   }
 
   /**
-   * Create a workflow automation (staff)
+   * Create a workflow automation
    *
-   * Staff only (owner, admin, instructor). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.
+   * Requires `automations:write`. 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.
    */
   public static createAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8602,9 +9090,9 @@ export class Automations {
   }
 
   /**
-   * List the actions automations can use (staff)
+   * List the actions automations can use
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `automations:read`.
    */
   public static listAutomationActions<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -8627,9 +9115,9 @@ export class Automations {
   }
 
   /**
-   * List the domain events automations can react to (staff)
+   * List the domain events automations can react to
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `automations:read`.
    */
   public static listAutomationTriggers<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -8652,9 +9140,9 @@ export class Automations {
   }
 
   /**
-   * Delete a workflow automation (staff)
+   * Delete a workflow automation
    *
-   * Staff only (owner, admin, instructor). Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.
+   * Requires `automations:delete`. Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.
    */
   public static deleteAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8677,9 +9165,9 @@ export class Automations {
   }
 
   /**
-   * Get an automation (staff)
+   * Get an automation
    *
-   * Staff only (owner, admin, instructor). Workflows and webhooks alike.
+   * Requires `automations:read`. Workflows and webhooks alike.
    */
   public static getAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8702,9 +9190,9 @@ export class Automations {
   }
 
   /**
-   * Update a workflow automation (staff)
+   * Update a workflow automation
    *
-   * Staff only (owner, admin, instructor). Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.
+   * Requires `automations:write`. Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.
    */
   public static updateAutomation<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8760,9 +9248,9 @@ export class Automations {
   }
 
   /**
-   * List an automation's runs (staff)
+   * List an automation's runs
    *
-   * Staff only (owner, admin, instructor). A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.
+   * Requires `automations:read`. A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.
    */
   public static listAutomationRuns<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8804,9 +9292,9 @@ export class Automations {
   }
 
   /**
-   * Run a finished run again (staff)
+   * Run a finished run again
    *
-   * Staff only (owner, admin, instructor). Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).
+   * Requires `automations:write`. Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).
    */
   public static rerunAutomationRun<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8840,9 +9328,9 @@ export class Automations {
   }
 
   /**
-   * List the organization's webhooks (staff)
+   * List the organization's webhooks
    *
-   * Staff only (owner, admin, instructor). Signing secrets are not included.
+   * Requires `automations:read`. Signing secrets are not included.
    */
   public static listWebhooks<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -8860,9 +9348,9 @@ export class Automations {
   }
 
   /**
-   * Create a webhook (staff)
+   * Create a webhook
    *
-   * Staff only (owner, admin, instructor). `url` must be a public address: localhost and private network addresses are refused when saved and when delivering. Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
+   * Requires `automations:write`. `url` must be a public address: localhost and private network addresses are refused when saved and when delivering. Each subscribed event is POSTed to `url` as the JSON event envelope (`id`, `type`, `version`, `orgId`, `occurredAt`, `data`), signed per the Standard Webhooks spec: `webhook-id` (the event id, stable across retries), `webhook-timestamp` (unix seconds) and `webhook-signature` (`v1,` + base64 HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded part of the `whsec_` secret). Any non-2xx response or timeout is a failed attempt and is retried. Deliveries are the webhook's automation runs: `GET /api/automations/{id}/runs`.
    */
   public static createWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8903,9 +9391,9 @@ export class Automations {
   }
 
   /**
-   * Delete a webhook and its signing secret (staff)
+   * Delete a webhook and its signing secret
    *
-   * Staff only (owner, admin, instructor). Its delivery history is kept.
+   * Requires `automations:delete`. Its delivery history is kept.
    */
   public static deleteWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8928,9 +9416,9 @@ export class Automations {
   }
 
   /**
-   * Get a webhook (staff)
+   * Get a webhook
    *
-   * Staff only (owner, admin, instructor). The signing secret is not included.
+   * Requires `automations:read`. The signing secret is not included.
    */
   public static getWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8953,9 +9441,9 @@ export class Automations {
   }
 
   /**
-   * Change a webhook's URL, events, description or enabled flag (staff)
+   * Change a webhook's URL, events, description or enabled flag
    *
-   * Staff only (owner, admin, instructor). Changes only the fields sent. 400 when an event is reserved or unknown.
+   * Requires `automations:write`. Changes only the fields sent. 400 when an event is reserved or unknown.
    */
   public static updateWebhook<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9000,9 +9488,9 @@ export class Automations {
   }
 
   /**
-   * Reveal a webhook's signing secret (staff)
+   * Reveal a webhook's signing secret
    *
-   * Staff only (owner, admin, instructor).
+   * Requires `automations:write`.
    */
   public static getWebhookSecret<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9025,9 +9513,9 @@ export class Automations {
   }
 
   /**
-   * Replace a webhook's signing secret (staff)
+   * Replace a webhook's signing secret
    *
-   * Staff only (owner, admin, instructor). The old secret stops working immediately.
+   * Requires `automations:write`. The old secret stops working immediately.
    */
   public static rotateWebhookSecret<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9052,9 +9540,9 @@ export class Automations {
 
 export class Integrations {
   /**
-   * List the integrations this deployment supports (staff)
+   * List the integrations this deployment supports
    *
-   * Staff only (owner, admin, instructor). Each with the JSON Schemas of its config, its secrets and its actions.
+   * Requires `integrations:read`. Each with the JSON Schemas of its config, its secrets and its actions.
    */
   public static listAvailableIntegrations<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -9077,9 +9565,9 @@ export class Integrations {
   }
 
   /**
-   * List the organization's integration connections (staff)
+   * List the organization's integration connections
    *
-   * Staff only (owner, admin, instructor). Secrets are never returned.
+   * Requires `integrations:read`. Secrets are never returned.
    */
   public static listConnections<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -9097,9 +9585,9 @@ export class Integrations {
   }
 
   /**
-   * Connect an integration (staff)
+   * Connect an integration
    *
-   * Staff only (owner, admin, instructor). Stores the secrets encrypted; they are never returned. 400 when the integration is unknown or the config is invalid; 409 when the organization already has a connection to it.
+   * Requires `integrations:write`. Stores the secrets encrypted; they are never returned. 400 when the integration is unknown or the config is invalid; 409 when the organization already has a connection to it.
    */
   public static connectIntegration<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9144,9 +9632,9 @@ export class Integrations {
   }
 
   /**
-   * Disconnect an integration (staff)
+   * Disconnect an integration
    *
-   * Staff only (owner, admin, instructor). Destroys its stored secrets.
+   * Requires `integrations:delete`. Destroys its stored secrets.
    */
   public static disconnectIntegration<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9174,9 +9662,9 @@ export class Integrations {
   }
 
   /**
-   * Get a connection (staff)
+   * Get a connection
    *
-   * Staff only (owner, admin, instructor). Secrets are never returned.
+   * Requires `integrations:read`. Secrets are never returned.
    */
   public static getConnection<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9199,9 +9687,9 @@ export class Integrations {
   }
 
   /**
-   * Change a connection's configuration or active flag (staff)
+   * Change a connection's configuration or active flag
    *
-   * Staff only (owner, admin, instructor). 400 when the config is invalid for the integration.
+   * Requires `integrations:write`. 400 when the config is invalid for the integration.
    */
   public static configureConnection<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9244,9 +9732,9 @@ export class Integrations {
   }
 
   /**
-   * Replace a connection's secrets (staff)
+   * Replace a connection's secrets
    *
-   * Staff only (owner, admin, instructor). The new secrets replace the stored ones.
+   * Requires `integrations:write`. The new secrets replace the stored ones.
    */
   public static reconnectIntegration<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9292,9 +9780,9 @@ export class Integrations {
   }
 
   /**
-   * Invoke one of a connection's actions (staff)
+   * Invoke one of a connection's actions
    *
-   * Staff only (owner, admin, instructor). Runs the action, such as a listing that feeds a picker, with `input` checked against its input schema. 400 when the action fails or rejects the input; 404 when the connection or action does not exist; 409 when the connection is inactive.
+   * Requires `integrations:write`. Runs the action, such as a listing that feeds a picker, with `input` checked against its input schema. 400 when the action fails or rejects the input; 404 when the connection or action does not exist; 409 when the connection is inactive.
    */
   public static invokeConnectionAction<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9344,21 +9832,41 @@ export class Integrations {
 
 export class Access {
   /**
-   * Every access scope and whether your role can grant it
+   * Every permission, with its label, description and level
    *
-   * Staff only (owner, admin, instructor). Each scope an app connection or API key can carry, marked with whether your role holds it. Only allowed scopes can be granted.
+   * Any active member of the organization. For role screens, the key-creation screen and the consent screen.
    */
-  public static listAccessScopes<ThrowOnError extends boolean = false>(
+  public static listPermissions<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAccessScopesResponses, ListAccessScopesErrors, ThrowOnError, "data"> {
+  ): RequestResult<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError, "data"> {
     return (options?.client ?? client).get<
-      ListAccessScopesResponses,
-      ListAccessScopesErrors,
+      ListPermissionsResponses,
+      ListPermissionsErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/access/scopes",
+      url: "/api/access/permissions/list",
+      ...options,
+    });
+  }
+
+  /**
+   * Your effective permissions in this organization
+   *
+   * Any active member of the organization. Your org role, whether you own the organization, the permissions you hold on the organization, and the ones you hold on each content item.
+   */
+  public static getMyPermissions<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMyPermissionsResponses, GetMyPermissionsErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      GetMyPermissionsResponses,
+      GetMyPermissionsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/permissions",
       ...options,
     });
   }
@@ -9366,7 +9874,7 @@ export class Access {
   /**
    * Apps connected to this organization as you
    *
-   * Staff only (owner, admin, instructor). The apps you connected to this organization, each with the scopes you granted and when.
+   * Any active member of the organization. The apps you connected to this organization, each with the scopes you granted and when.
    */
   public static listConnectedApps<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -9386,7 +9894,7 @@ export class Access {
   /**
    * Disconnect an app
    *
-   * Staff only (owner, admin, instructor). Revokes your consent and refresh tokens for the app in this organization; its next call is refused.
+   * Any active member of the organization. Revokes your consent and tokens for the app in this organization; its next call is refused.
    */
   public static revokeConnectedApp<ThrowOnError extends boolean = false>(
     parameters: {
@@ -9411,7 +9919,7 @@ export class Access {
   /**
    * Your API keys for this organization
    *
-   * Staff only (owner, admin, instructor). Your keys for this organization with their scopes. The key itself is never returned again after it is created.
+   * Requires `api_keys:read`. Your keys for this organization with their scopes. The key itself is never returned again after it is created.
    */
   public static listApiKeys<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -9431,39 +9939,52 @@ export class Access {
   /**
    * Create an API key
    *
-   * Staff only (owner, admin, instructor). The key acts as you in this organization with the scopes given. 403 when your role cannot hold one of them. The key is returned once.
+   * Requires `api_keys:write`. The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.
    */
   public static createApiKey<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
       scopes: Array<
-        | "courses:read"
-        | "courses:write"
-        | "courses:delete"
-        | "downloads:read"
-        | "downloads:write"
-        | "downloads:delete"
+        | "organizations:read"
+        | "organizations:write"
+        | "api_keys:read"
+        | "api_keys:write"
+        | "api_keys:delete"
+        | "notification_categories:read"
+        | "notification_categories:write"
+        | "integrations:read"
+        | "integrations:write"
+        | "integrations:delete"
+        | "analytics:read"
+        | "people:read"
+        | "people:write"
+        | "people:delete"
+        | "roles:read"
+        | "roles:write"
+        | "roles:delete"
+        | "access:read"
+        | "access:write"
         | "bundles:read"
         | "bundles:write"
         | "bundles:delete"
         | "media:read"
-        | "students:read"
-        | "students:invite"
-        | "access:read"
-        | "access:write"
-        | "analytics:read"
-        | "automations:read"
-        | "automations:write"
-        | "automations:delete"
-        | "comments:read"
-        | "comments:moderate"
+        | "media:write"
+        | "media:delete"
+        | "courses:read"
+        | "courses:write"
+        | "courses:delete"
+        | "courses:moderate"
+        | "progress:read"
+        | "downloads:read"
+        | "downloads:write"
+        | "downloads:delete"
         | "communities:read"
         | "communities:write"
         | "communities:delete"
-        | "community_members:read"
-        | "community_members:write"
-        | "community_moderation:read"
-        | "community_moderation:write"
+        | "communities:moderate"
+        | "automations:read"
+        | "automations:write"
+        | "automations:delete"
       >;
     },
     options?: Options<never, ThrowOnError>,
@@ -9498,9 +10019,9 @@ export class Access {
   }
 
   /**
-   * Delete an API key
+   * Revoke an API key
    *
-   * Staff only (owner, admin, instructor). 404 when the key is not one of yours in this organization.
+   * Requires `api_keys:delete`. 404 when the key is not one of yours in this organization.
    */
   public static deleteApiKey<ThrowOnError extends boolean = false>(
     parameters: {

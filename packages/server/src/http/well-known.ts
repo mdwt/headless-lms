@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ACCESS_SCOPES } from '@headless-lms/core/organizations';
+import { ALL_PERMISSIONS } from '@headless-lms/core/organizations';
 import type { Container } from '../app/container.js';
 import { bridgeWebResponse, toWebRequest } from './web-bridge.js';
 
@@ -8,7 +8,7 @@ export function registerWellKnown(app: FastifyInstance, container: Container): v
   const resourceMetadata = () => ({
     resource: container.mcp.resource,
     authorization_servers: [container.mcp.issuer],
-    scopes_supported: [...ACCESS_SCOPES],
+    scopes_supported: [...ALL_PERMISSIONS],
     bearer_methods_supported: ['header'],
   });
   const hidden = { schema: { hide: true } };

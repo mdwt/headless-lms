@@ -25,7 +25,6 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       communityMembersAmong: reject,
       spaceOpenersAmong: reject,
       spaceOpeners: reject,
-      communityModeratorIds: reject,
       countActiveSpaceMembers: reject,
       communityIdsOpenedFor: reject,
       ensureGrant: reject,
@@ -33,7 +32,15 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       contentHolderIds: reject,
       hasAccess: reject,
     },
-    organizations: { getOrgUserById: reject, staffOrgUserIds: reject, getOrgUsersByIds: reject },
+    organizations: {
+      getById: reject,
+      getOrgUserById: reject,
+      actorFor: reject,
+      systemActor: (orgId: string) => ({ id: 'system', orgId }) as never,
+      holders: reject,
+      getRole: reject,
+      getOrgUsersByIds: reject,
+    },
     identity: { displayName: reject, getUserById: reject },
     posts: { find: reject, publishedBetween: reject },
     subscriptions: { followerIds: reject, itemSubscriptions: reject, mutedAmong: reject },
@@ -157,11 +164,11 @@ describe('notificationReads', () => {
         content: {
           ...base.content,
           getBundle: async () => ({ id: 'bun_1', name: 'Everything' }) as never,
-          getCourse: async (_o, id) =>
+          getCourse: async (id) =>
             (id === 'crs_1' ? { id, title: 'Spanish', type: 'course' } : null) as never,
-          getDownload: async (_o, id) =>
+          getDownload: async (id) =>
             (id === 'dwn_1' ? { id, title: 'Verbs', type: 'download' } : null) as never,
-          getCommunity: async (_o, id) =>
+          getCommunity: async (id) =>
             (id === 'cmy_1' ? { id, title: 'Spring cohort', type: 'community' } : null) as never,
         },
       }),

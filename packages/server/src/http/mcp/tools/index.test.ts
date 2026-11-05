@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCESS_SCOPES, isDeleteScope } from '@headless-lms/core/organizations';
+import { declarationOf } from '../../operations.js';
 import { fakeContainer, listTools, toolContext } from '../test-support.js';
 import { TOOLS } from './index.js';
 
@@ -42,6 +42,22 @@ const NAMES = [
   'get_course_analytics',
   'get_course_enrollment_trend',
   'get_student_analytics',
+  'update_organization',
+  'list_roles',
+  'get_role',
+  'update_role',
+  'create_role',
+  'reset_role',
+  'delete_role',
+  'list_team',
+  'list_person_roles',
+  'list_roles_on_content',
+  'set_org_role',
+  'assign_role',
+  'unassign_role',
+  'invite_person',
+  'cancel_invite',
+  'remove_person',
   'list_automation_triggers',
   'list_automation_actions',
   'list_automations',
@@ -94,22 +110,33 @@ const NAMES = [
 ];
 
 describe('tool registry', () => {
-  it('is exactly the 87 designed tools, in order', () => {
+  it('is exactly the designed tools, in order', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual(NAMES);
   });
 
-  it('gives every tool a known scope and uses every scope', () => {
-    const used = new Set(TOOLS.map((tool) => tool.scope));
-    expect([...used].every((scope) => (ACCESS_SCOPES as readonly string[]).includes(scope))).toBe(
-      true,
-    );
-    expect([...used].sort()).toEqual([...ACCESS_SCOPES].sort());
+  it('names a declared operation a token can reach for every tool', () => {
+    for (const tool of TOOLS) {
+      const declaration = declarationOf(tool.operation);
+      expect(
+        declaration === 'member' || (declaration !== null && typeof declaration === 'object'),
+        tool.name,
+      ).toBe(true);
+    }
   });
 
-  it('keeps read tools on read scopes and delete scopes on destructive tools', () => {
+  it('keeps read tools on read permissions and delete permissions on destructive tools', () => {
     for (const tool of TOOLS) {
-      expect(tool.kind === 'read', tool.name).toBe(tool.scope.endsWith(':read'));
-      if (isDeleteScope(tool.scope)) {
+      const declaration = declarationOf(tool.operation);
+      const permissions =
+        declaration && typeof declaration === 'object' ? declaration.permissions : [];
+      if (tool.kind === 'read') {
+        expect(
+          permissions.length === 0 ||
+            permissions.some((p) => p.endsWith(':read') || p.endsWith(':moderate')),
+          tool.name,
+        ).toBe(true);
+      }
+      if (permissions.some((p) => p.endsWith(':delete'))) {
         expect(tool.kind, tool.name).toBe('destructive');
       }
     }

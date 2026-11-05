@@ -12,12 +12,9 @@ import type { OrganizationService } from '@headless-lms/core/organizations';
 import { communityMail, type CommunityMailDeps } from './community-mail.js';
 
 export type NotificationReadsDeps = CommunityMailDeps & {
-  content: Pick<
-    ContentService,
-    'getActivity' | 'getModule' | 'getCourse' | 'getDownload' | 'getBundle' | 'listBundleItems'
-  >;
+  content: Pick<ContentService, 'getActivity' | 'getModule' | 'getCourse' | 'listBundleItems'>;
   entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'contentHolderIds' | 'hasAccess'>;
-  organizations: Pick<OrganizationService, 'getOrgUsersByIds'>;
+  organizations: Pick<OrganizationService, 'getOrgUsersByIds' | 'systemActor'>;
   identity: Pick<IdentityService, 'getUserById'>;
   posts: Pick<PostService, 'publishedBetween'>;
   subscriptions: Pick<SubscriptionService, 'mutedAmong'>;
@@ -29,6 +26,7 @@ export type NotificationReadsDeps = CommunityMailDeps & {
 export function notificationReads(deps: NotificationReadsDeps): NotificationReads {
   const { mail } = communityMail(deps);
   const nameOf = (orgId: string, orgUserId: string) => mail.displayName(orgId, orgUserId);
+  const system = (orgId: string) => deps.organizations.systemActor(orgId);
   return {
     ...mail,
     async threadParticipants(orgId, item) {
@@ -49,7 +47,9 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
     courseHolders: (orgId, courseId) => deps.entitlements.contentHolderIds(orgId, courseId),
     async contentLostBy(orgId, grant) {
       const opened = grant.bundleId
-        ? (await deps.content.listBundleItems(orgId, grant.bundleId)).map((item) => item.contentId)
+        ? (await deps.content.listBundleItems(grant.bundleId, system(orgId))).map(
+            (item) => item.contentId,
+          )
         : grant.contentId
           ? [grant.contentId]
           : [];
@@ -59,13 +59,13 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
       return opened.filter((_, index) => !held[index]);
     },
     async activity(orgId, activityId) {
-      const activity = await deps.content.getActivity(orgId, activityId);
+      const activity = await deps.content.getActivity(activityId, system(orgId));
       if (!activity) {
         return null;
       }
       const [module, course] = await Promise.all([
-        deps.content.getModule(orgId, activity.moduleId),
-        deps.content.getCourse(orgId, activity.courseId),
+        deps.content.getModule(activity.moduleId, system(orgId)),
+        deps.content.getCourse(activity.courseId, system(orgId)),
       ]);
       if (!course) {
         return null;
@@ -83,22 +83,6 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
     },
     async emailOf(_orgId, userId) {
       return (await deps.identity.getUserById(userId))?.email ?? null;
-    },
-    async contentInfo(orgId, item) {
-      if ('bundleId' in item) {
-        const bundle = await deps.content.getBundle(orgId, item.bundleId);
-        return bundle ? { title: bundle.name, type: 'bundle' } : null;
-      }
-      const course = await deps.content.getCourse(orgId, item.contentId);
-      if (course) {
-        return { title: course.title, type: course.type };
-      }
-      const download = await deps.content.getDownload(orgId, item.contentId);
-      if (download) {
-        return { title: download.title, type: download.type };
-      }
-      const community = await deps.content.getCommunity(orgId, item.contentId);
-      return community ? { title: community.title, type: community.type } : null;
     },
     async message(orgId, messageId) {
       const message = await deps.chats.findMessage(orgId, messageId);

@@ -332,10 +332,14 @@ export function withImplied(permissions: Iterable<Permission>): Set<Permission> 
   return out;
 }
 
-export interface PermissionListEntry extends PermissionDefinition {
+export interface PermissionListEntry extends Omit<PermissionDefinition, 'implies'> {
   key: Permission;
+  implies?: Permission[];
 }
 
 export function permissionList(): PermissionListEntry[] {
-  return PERMISSION_KEYS.map((key) => ({ key, ...PERMISSIONS[key] }));
+  return PERMISSION_KEYS.map((key) => {
+    const { implies, ...definition }: PermissionDefinition = PERMISSIONS[key];
+    return { key, ...definition, ...(implies && { implies: [...implies] }) };
+  });
 }

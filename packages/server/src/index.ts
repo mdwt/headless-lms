@@ -8,7 +8,7 @@ export { buildServer } from './http/server.js';
 export { mcpCatalogue } from './http/mcp/catalogue.js';
 export type {
   CatalogueField,
-  CatalogueScope,
+  CataloguePermission,
   CatalogueTool,
   McpCatalogue,
 } from './http/mcp/catalogue.js';
