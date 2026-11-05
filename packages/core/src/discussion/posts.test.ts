@@ -7,16 +7,17 @@ import {
   UnavailableError,
 } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
+import { actorWith } from '../organizations/index.js';
 import type { SpaceDetail } from '../content/index.js';
 import type { NewDomainEvent, Scheduler } from '../shared/ports.js';
 import { PostServiceImpl } from './posts.js';
-import type { CommunityAccessReader } from '../entitlements/index.js';
 import type { AssetFiles, MemberImageReader } from '../assets/index.js';
 import { createFileUrls } from '../assets/index.js';
 import type {
+  AuthorPermissionReader,
   AuthorProfileReader,
   AuthorRecord,
-  AuthorRoleReader,
+  CommunityAccess,
   CreatePostInput,
   FeedQuery,
   PostCommentReader,
@@ -26,7 +27,7 @@ import type {
   PostUnitOfWork,
   SubscriptionsRepository,
 } from './ports.js';
-import type { FlaggedComment, Post, PostFlag, Role, Subscription } from '../types/index.js';
+import type { FlaggedComment, Post, PostFlag, Subscription } from '../types/index.js';
 
 function mentionStore() {
   const rows: { itemType: string; itemId: string; orgUserId: string; createdAt: Date }[] = [];
@@ -123,11 +124,29 @@ function subscriptionStore() {
 const AT = new Date('2026-10-21T12:00:00.000Z');
 const ORG = 'org-1';
 
-const member: Actor = { id: 'ou_member', role: 'student' };
-const other: Actor = { id: 'ou_other', role: 'student' };
-const moderator: Actor = { id: 'ou_mod', role: 'moderator' };
-const staff: Actor = { id: 'ou_staff', role: 'instructor' };
-const outsider: Actor = { id: 'ou_out', role: 'student' };
+const MODERATOR_ROLE = { key: 'moderator', name: 'Moderator', team: true };
+const member = actorWith({ id: 'ou_member', orgId: ORG });
+const other = actorWith({ id: 'ou_other', orgId: ORG });
+const moderator = actorWith({
+  id: 'ou_mod',
+  orgId: ORG,
+  content: { cmy_1: ['communities:moderate'] },
+  contentRoles: { cmy_1: MODERATOR_ROLE },
+});
+const staff = actorWith({
+  id: 'ou_staff',
+  orgId: ORG,
+  org: ['communities:moderate'],
+  orgRole: { key: 'admin', name: 'Admin', team: true },
+});
+const elsewhere = actorWith({
+  id: 'ou_elsewhere',
+  orgId: ORG,
+  content: { cmy_2: ['communities:moderate'] },
+  contentRoles: { cmy_2: MODERATOR_ROLE },
+});
+const outsider = actorWith({ id: 'ou_out', orgId: ORG });
+const PEOPLE: Actor[] = [member, other, moderator, staff, elsewhere, outsider];
 
 function space(over: Partial<SpaceDetail> = {}): SpaceDetail {
   return {
@@ -185,7 +204,8 @@ const fileUrls = createFileUrls('https://api.test');
 function harness(options?: {
   open?: boolean;
   spaces?: SpaceDetail[];
-  roles?: Record<string, Role>;
+  people?: Actor[];
+  gone?: string[];
   images?: MemberImageReader & Partial<Pick<AssetFiles, 'signFile'>>;
   profiles?: Record<string, Partial<AuthorRecord>>;
   scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
@@ -390,20 +410,17 @@ function harness(options?: {
     },
   };
 
-  const access: CommunityAccessReader = {
+  const access: CommunityAccess = {
     async isCommunityMember() {
       return true;
     },
-    async spaceStandings() {
-      return {};
-    },
-    async canOpenSpace(_orgId, actor) {
+    async canOpenSpace(_spaceId, actor) {
       if (options?.open === false) {
         return false;
       }
       return actor.id !== outsider.id;
     },
-    async canOpen(_orgId, actor) {
+    async canOpen(_space, actor) {
       if (options?.open === false) {
         return false;
       }
@@ -415,20 +432,11 @@ function harness(options?: {
     async spaceOpenersAmong(_orgId, _spaceId, orgUserIds) {
       return orgUserIds.filter((id) => id !== outsider.id && !closed.has(id));
     },
-    async spaceOpeners() {
-      return [];
-    },
-    async openSpaceIds(_orgId, actor) {
+    async openSpaceIds(_communityId, actor) {
       if (actor.id === outsider.id) {
         return [];
       }
       return current.map((item) => item.id);
-    },
-    async openSpacesFor(_orgId, actor) {
-      if (actor.id === outsider.id) {
-        return [];
-      }
-      return current;
     },
   };
 
@@ -453,13 +461,18 @@ function harness(options?: {
     },
   };
 
-  const authors: AuthorRoleReader = {
-    async roleOf(_orgId, orgUserId) {
-      return options?.roles?.[orgUserId] ?? null;
+  const people = new Map((options?.people ?? PEOPLE).map((person) => [person.id, person]));
+  const personOf = (orgUserId: string) =>
+    people.get(orgUserId) ?? actorWith({ id: orgUserId, orgId: ORG });
+  const authors: AuthorPermissionReader = {
+    async permissionsOfMany(_orgId, orgUserIds) {
+      return new Map(orgUserIds.map((id) => [id, personOf(id).permissions]));
     },
-    async rolesOf(_orgId, orgUserIds) {
-      const roles = options?.roles ?? {};
-      return Object.fromEntries(orgUserIds.flatMap((id) => (roles[id] ? [[id, roles[id]!]] : [])));
+    async actorFor(_orgId, orgUserId) {
+      return options?.gone?.includes(orgUserId) ? null : personOf(orgUserId);
+    },
+    systemActor(orgId) {
+      return actorWith({ owner: true, id: 'system', orgId });
     },
   };
 
@@ -474,7 +487,6 @@ function harness(options?: {
             lastName: 'Last',
             email: `${id}@example.test`,
             image: null,
-            role: options?.roles?.[id] ?? 'student',
             displayName: null,
             headline: null,
             imageAssetOrgId: null,
@@ -512,14 +524,8 @@ function harness(options?: {
     subscriptions: subscriptions.repo,
     mentions: mentions.repo,
     content: {
-      async getSpace(_orgId, spaceId) {
+      async getSpace(spaceId) {
         return current.find((item) => item.id === spaceId) ?? null;
-      },
-      async listSpaces() {
-        return current;
-      },
-      async getDmSettings() {
-        return null;
       },
     },
     authors,
@@ -555,7 +561,7 @@ function harness(options?: {
 describe('posts', () => {
   it('publishes a member post outright when the space does not require review', async () => {
     const { svc, calls } = harness();
-    const post = await svc.create(ORG, member, draftInput());
+    const post = await svc.create(draftInput(), member);
     expect(post.status).toBe('published');
     expect(post.publishedAt).toBeInstanceOf(Date);
     expect(calls).toHaveLength(1);
@@ -570,7 +576,7 @@ describe('posts', () => {
   it('sends a member post to pending when the space requires review', async () => {
     const { svc, calls, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const post = await svc.create(ORG, member, draftInput());
+    const post = await svc.create(draftInput(), member);
     expect(post.status).toBe('pending');
     expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.post.created']);
     expect(calls[0]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id, previousStatus: null });
@@ -579,14 +585,21 @@ describe('posts', () => {
   it('publishes a staff post without review', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const post = await svc.create(ORG, staff, draftInput());
+    const post = await svc.create(draftInput(), staff);
     expect(post.status).toBe('published');
   });
 
-  it('sends a moderator post to review because a moderator is not staff', async () => {
+  it('publishes a post by a moderator of the community without review', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const post = await svc.create(ORG, moderator, draftInput());
+    const post = await svc.create(draftInput(), moderator);
+    expect(post.status).toBe('published');
+  });
+
+  it('sends a post to review when its author moderates only another community', async () => {
+    const { svc, setSpaces } = harness();
+    setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
+    const post = await svc.create(draftInput(), elsewhere);
     expect(post.status).toBe('pending');
   });
 
@@ -602,26 +615,26 @@ describe('posts', () => {
       updatedAt: AT,
     };
     setSpaces([space({ topics: [topic] })]);
-    await expect(svc.create(ORG, member, draftInput())).rejects.toBeInstanceOf(InvalidInputError);
-    await expect(
-      svc.create(ORG, member, draftInput({ topicId: 'top_missing' })),
-    ).rejects.toBeInstanceOf(NotFoundError);
-    const post = await svc.create(ORG, member, draftInput({ topicId: 'top_1' }));
+    await expect(svc.create(draftInput(), member)).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(svc.create(draftInput({ topicId: 'top_missing' }), member)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    const post = await svc.create(draftInput({ topicId: 'top_1' }), member);
     expect(post.topicId).toBe('top_1');
   });
 
   it('refuses a post in a space the person cannot open as if the space did not exist', async () => {
     const { svc, calls } = harness();
     const missing = await svc
-      .create(ORG, member, draftInput({ spaceId: 'spc_missing' }))
+      .create(draftInput({ spaceId: 'spc_missing' }), member)
       .catch((error: unknown) => error);
-    const closed = await svc.create(ORG, outsider, draftInput()).catch((error: unknown) => error);
+    const closed = await svc.create(draftInput(), outsider).catch((error: unknown) => error);
     expect(missing).toBeInstanceOf(NotFoundError);
     expect(closed).toBeInstanceOf(NotFoundError);
     expect((closed as Error).message.replace('spc_1', 'ID')).toBe(
       (missing as Error).message.replace('spc_missing', 'ID'),
     );
-    await expect(svc.spaceFeed(ORG, outsider, 'cmy_1', 'spc_1', feed)).rejects.toBeInstanceOf(
+    await expect(svc.spaceFeed('cmy_1', 'spc_1', feed, outsider)).rejects.toBeInstanceOf(
       NotFoundError,
     );
     expect(calls).toHaveLength(0);
@@ -629,33 +642,33 @@ describe('posts', () => {
 
   it('answers a post in a space the person cannot open exactly like a missing post', async () => {
     const { svc } = harness();
-    const created = await svc.create(ORG, member, draftInput());
+    const created = await svc.create(draftInput(), member);
     const message = async (run: Promise<unknown>) => {
       const error = await run.catch((caught: unknown) => caught);
       expect(error).toBeInstanceOf(NotFoundError);
       return (error as Error).message.replace(created.id, 'ID').replace('pst_missing', 'ID');
     };
-    const expected = await message(svc.getPost(ORG, member, 'pst_missing'));
+    const expected = await message(svc.getPost('pst_missing', member));
     for (const run of [
-      svc.getPost(ORG, outsider, created.id),
-      svc.setReaction(ORG, created.id, outsider, '👍'),
-      svc.bookmark(ORG, created.id, outsider),
-      svc.flag(ORG, created.id, outsider, 'spam'),
-      svc.remove(ORG, created.id, outsider),
+      svc.getPost(created.id, outsider),
+      svc.setReaction(created.id, '👍', outsider),
+      svc.bookmark(created.id, outsider),
+      svc.flag(created.id, 'spam', outsider),
+      svc.remove(created.id, null, outsider),
     ]) {
       expect(await message(run)).toBe(expected);
     }
-    expect(await svc.coverFile(ORG, outsider, created.id)).toBeNull();
+    expect(await svc.coverFile(created.id, outsider)).toBeNull();
   });
 
   it('lets only the author edit, and a pending edit says it was already pending', async () => {
     const { svc, calls, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput());
-    await expect(svc.update(ORG, created.id, staff, { title: 'Nope' })).rejects.toBeInstanceOf(
+    const created = await svc.create(draftInput(), member);
+    await expect(svc.update(created.id, { title: 'Nope' }, staff)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
-    const edited = await svc.update(ORG, created.id, member, { title: 'Revised' });
+    const edited = await svc.update(created.id, { title: 'Revised' }, member);
     expect(edited.title).toBe('Revised');
     expect(edited.status).toBe('pending');
     const updated = calls.at(-1)?.[0];
@@ -665,17 +678,17 @@ describe('posts', () => {
 
   it('does not mark a published edit with a previous status', async () => {
     const { svc, calls } = harness();
-    const created = await svc.create(ORG, member, draftInput());
-    await svc.update(ORG, created.id, member, { body: 'More' });
+    const created = await svc.create(draftInput(), member);
+    await svc.update(created.id, { body: 'More' }, member);
     expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
   });
 
   it('approves a pending post as a moderator and publishes it from review', async () => {
     const { svc, calls, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput());
-    await expect(svc.approve(ORG, created.id, member)).rejects.toBeInstanceOf(ForbiddenError);
-    const approved = await svc.approve(ORG, created.id, moderator);
+    const created = await svc.create(draftInput(), member);
+    await expect(svc.approve(created.id, null, member)).rejects.toBeInstanceOf(ForbiddenError);
+    const approved = await svc.approve(created.id, null, moderator);
     expect(approved.status).toBe('published');
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
     expect(calls.at(-1)?.[0]?.metadata).toEqual({
@@ -686,10 +699,10 @@ describe('posts', () => {
 
   it('lets the author remove their post and leaves its flags open', async () => {
     const { svc, calls, flags } = harness();
-    const created = await svc.create(ORG, member, draftInput());
-    await svc.flag(ORG, created.id, other, 'spam');
-    await expect(svc.remove(ORG, created.id, other)).rejects.toBeInstanceOf(ForbiddenError);
-    const removed = await svc.remove(ORG, created.id, member);
+    const created = await svc.create(draftInput(), member);
+    await svc.flag(created.id, 'spam', other);
+    await expect(svc.remove(created.id, null, other)).rejects.toBeInstanceOf(ForbiddenError);
+    const removed = await svc.remove(created.id, null, member);
     expect(removed.status).toBe('removed');
     expect(removed.removedBy).toBe(member.id);
     expect(flags[0]).toMatchObject({ resolvedAt: null, resolution: null, resolvedBy: null });
@@ -701,104 +714,97 @@ describe('posts', () => {
 
   it('resolves the flags as removed when a moderator removes the post', async () => {
     const { svc, flags } = harness();
-    const created = await svc.create(ORG, member, draftInput());
-    await svc.flag(ORG, created.id, other, 'spam');
-    await svc.remove(ORG, created.id, moderator);
+    const created = await svc.create(draftInput(), member);
+    await svc.flag(created.id, 'spam', other);
+    await svc.remove(created.id, null, moderator);
     expect(flags[0]).toMatchObject({ resolution: 'removed', resolvedBy: moderator.id });
   });
 
   it('refuses to remove a draft or a scheduled post', async () => {
     const { svc, calls } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
     const scheduled = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: new Date(Date.now() + 24 * 60 * 60_000) }),
+      member,
     );
     calls.length = 0;
-    await expect(svc.remove(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
-    await expect(svc.remove(ORG, scheduled.id, member)).rejects.toBeInstanceOf(ConflictError);
+    await expect(svc.remove(draft.id, null, member)).rejects.toBeInstanceOf(ConflictError);
+    await expect(svc.remove(scheduled.id, null, member)).rejects.toBeInstanceOf(ConflictError);
     expect(calls).toHaveLength(0);
   });
 
   it('refuses to schedule a post that is awaiting review', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput());
+    const created = await svc.create(draftInput(), member);
     expect(created.status).toBe('pending');
     await expect(
-      svc.schedule(ORG, created.id, member, new Date('2026-10-22T08:00:00.000Z')),
+      svc.schedule(created.id, new Date('2026-10-22T08:00:00.000Z'), member),
     ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('finds a post to moderate only in the community it names', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput());
-    await expect(svc.approve(ORG, created.id, staff, 'cmy_other')).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
-    expect((await svc.approve(ORG, created.id, staff, 'cmy_1')).status).toBe('published');
-    await svc.flag(ORG, created.id, other, 'spam');
+    const created = await svc.create(draftInput(), member);
+    await expect(svc.approve(created.id, 'cmy_other', staff)).rejects.toBeInstanceOf(NotFoundError);
+    expect((await svc.approve(created.id, 'cmy_1', staff)).status).toBe('published');
+    await svc.flag(created.id, 'spam', other);
     await expect(
-      svc.resolveFlags(ORG, created.id, staff, 'dismissed', 'cmy_other'),
+      svc.resolveFlags(created.id, 'dismissed', 'cmy_other', staff),
     ).rejects.toBeInstanceOf(NotFoundError);
-    await expect(svc.remove(ORG, created.id, staff, 'cmy_other')).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
-    expect((await svc.remove(ORG, created.id, staff, 'cmy_1')).status).toBe('removed');
-    await expect(svc.restore(ORG, created.id, staff, 'cmy_other')).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
-    expect((await svc.restore(ORG, created.id, staff, 'cmy_1')).status).toBe('pending');
+    await expect(svc.remove(created.id, 'cmy_other', staff)).rejects.toBeInstanceOf(NotFoundError);
+    expect((await svc.remove(created.id, 'cmy_1', staff)).status).toBe('removed');
+    await expect(svc.restore(created.id, 'cmy_other', staff)).rejects.toBeInstanceOf(NotFoundError);
+    expect((await svc.restore(created.id, 'cmy_1', staff)).status).toBe('pending');
   });
 
   it('restores a removed post to published', async () => {
     const { svc } = harness();
-    const created = await svc.create(ORG, member, draftInput());
-    const removed = await svc.remove(ORG, created.id, member);
-    const restored = await svc.restore(ORG, removed.id, staff);
+    const created = await svc.create(draftInput(), member);
+    const removed = await svc.remove(created.id, null, member);
+    const restored = await svc.restore(removed.id, null, staff);
     expect(restored.status).toBe('published');
     expect(restored.removedBy).toBeNull();
     expect(restored.publishedAt).toBeInstanceOf(Date);
   });
 
   it('restores a member post to review when the space requires it', async () => {
-    const { svc, calls, setSpaces } = harness({ roles: { ou_staff: 'owner' } });
+    const { svc, calls, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput());
-    const removed = await svc.remove(ORG, created.id, member);
-    const restored = await svc.restore(ORG, removed.id, moderator);
+    const created = await svc.create(draftInput(), member);
+    const removed = await svc.remove(created.id, null, member);
+    const restored = await svc.restore(removed.id, null, moderator);
     expect(restored.status).toBe('pending');
     expect(restored.publishedAt).toBeNull();
     expect(calls.at(-1)?.[0]).toMatchObject({
       type: 'discussion.post.updated',
       metadata: { actorOrgUserId: moderator.id, previousStatus: 'removed' },
     });
-    const staffPost = await svc.create(ORG, staff, draftInput({ title: 'Staff' }));
-    const staffRemoved = await svc.remove(ORG, staffPost.id, staff);
-    const staffRestored = await svc.restore(ORG, staffRemoved.id, moderator);
+    const staffPost = await svc.create(draftInput({ title: 'Staff' }), staff);
+    const staffRemoved = await svc.remove(staffPost.id, null, staff);
+    const staffRestored = await svc.restore(staffRemoved.id, null, moderator);
     expect(staffRestored.status).toBe('published');
   });
 
   it('lets a moderator pin and close comments, and refuses a member', async () => {
     const { svc, calls } = harness();
-    const created = await svc.create(ORG, member, draftInput());
-    await expect(svc.pin(ORG, created.id, member)).rejects.toBeInstanceOf(ForbiddenError);
-    const pinned = await svc.pin(ORG, created.id, moderator);
+    const created = await svc.create(draftInput(), member);
+    await expect(svc.pin(created.id, member)).rejects.toBeInstanceOf(ForbiddenError);
+    const pinned = await svc.pin(created.id, moderator);
     expect(pinned.pinned).toBe(true);
-    const closed = await svc.closeComments(ORG, created.id, moderator);
+    const closed = await svc.closeComments(created.id, moderator);
     expect(closed.commentsClosed).toBe(true);
     expect(calls.at(-1)?.[0]?.type).toBe('discussion.post.updated');
   });
 
   it('hides drafts from other members and serves the published feed pinned first', async () => {
     const { svc, rows } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft', title: 'Draft' }));
-    await expect(svc.getPost(ORG, other, draft.id)).rejects.toBeInstanceOf(NotFoundError);
-    await expect(svc.getPost(ORG, member, draft.id)).resolves.toMatchObject({ title: 'Draft' });
-    const older = await svc.create(ORG, member, draftInput({ title: 'Older' }));
-    const newer = await svc.create(ORG, member, draftInput({ title: 'Newer' }));
+    const draft = await svc.create(draftInput({ mode: 'draft', title: 'Draft' }), member);
+    await expect(svc.getPost(draft.id, other)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(svc.getPost(draft.id, member)).resolves.toMatchObject({ title: 'Draft' });
+    const older = await svc.create(draftInput({ title: 'Older' }), member);
+    const newer = await svc.create(draftInput({ title: 'Newer' }), member);
     const olderRow = rows.find((row) => row.id === older.id);
     const newerRow = rows.find((row) => row.id === newer.id);
     if (olderRow?.publishedAt && newerRow?.publishedAt) {
@@ -806,7 +812,7 @@ describe('posts', () => {
       newerRow.publishedAt = new Date('2026-10-20T00:00:00.000Z');
       newerRow.pinned = true;
     }
-    const page = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed);
+    const page = await svc.spaceFeed('cmy_1', 'spc_1', feed, other);
     expect(page.rows.map((row) => row.title)).toEqual(['Newer', 'Older']);
     expect(page.rows.some((row) => row.id === draft.id)).toBe(false);
   });
@@ -814,30 +820,30 @@ describe('posts', () => {
   it('reads the member feed from the spaces the person can open', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space(), space({ id: 'spc_2', name: 'Other', seq: 1 })]);
-    await svc.create(ORG, member, draftInput());
-    await svc.create(ORG, member, draftInput({ spaceId: 'spc_2', title: 'Second' }));
-    const page = await svc.memberFeed(ORG, member, 'cmy_1', feed);
+    await svc.create(draftInput(), member);
+    await svc.create(draftInput({ spaceId: 'spc_2', title: 'Second' }), member);
+    const page = await svc.memberFeed('cmy_1', feed, member);
     expect(page.rows).toHaveLength(2);
     expect(page.total).toBe(2);
-    const hidden = await svc.memberFeed(ORG, outsider, 'cmy_1', feed);
+    const hidden = await svc.memberFeed('cmy_1', feed, outsider);
     expect(hidden.rows).toHaveLength(0);
   });
 
   it('flags a visible post once and lets a moderator resolve the flag without an event', async () => {
     const { svc, calls, flags } = harness();
-    const created = await svc.create(ORG, member, draftInput());
-    const flagged = await svc.flag(ORG, created.id, other, 'spam');
+    const created = await svc.create(draftInput(), member);
+    const flagged = await svc.flag(created.id, 'spam', other);
     expect(calls.at(-1)?.[0]?.type).toBe('discussion.post.reported');
     const reported = calls.length;
-    const again = await svc.flag(ORG, created.id, other, 'again');
+    const again = await svc.flag(created.id, 'again', other);
     expect(again).toMatchObject({ id: flagged.id, reason: 'spam' });
     expect(calls).toHaveLength(reported);
     expect(flags).toHaveLength(1);
     const before = calls.length;
-    await expect(svc.resolveFlags(ORG, created.id, other, 'dismissed')).rejects.toBeInstanceOf(
+    await expect(svc.resolveFlags(created.id, 'dismissed', null, other)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
-    await svc.resolveFlags(ORG, created.id, moderator, 'dismissed');
+    await svc.resolveFlags(created.id, 'dismissed', null, moderator);
     expect(calls).toHaveLength(before);
     expect(flags.find((flag) => flag.id === flagged.id)?.resolution).toBe('dismissed');
   });
@@ -845,24 +851,22 @@ describe('posts', () => {
   it('refuses a reaction when reactions are off', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: false, requireReview: false } })]);
-    const created = await svc.create(ORG, member, draftInput());
-    await expect(svc.setReaction(ORG, created.id, other, '👍')).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
-    await svc.setReactions(ORG, created.id, moderator, true);
-    const counts = await svc.setReaction(ORG, created.id, other, '👍');
+    const created = await svc.create(draftInput(), member);
+    await expect(svc.setReaction(created.id, '👍', other)).rejects.toBeInstanceOf(ForbiddenError);
+    await svc.setReactions(created.id, true, moderator);
+    const counts = await svc.setReaction(created.id, '👍', other);
     expect(counts.viewerReaction).toBe('👍');
   });
 
   it('shows pending posts and open flags to a moderator and refuses a member', async () => {
     const { svc, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const created = await svc.create(ORG, member, draftInput());
-    await svc.flag(ORG, created.id, moderator, 'check');
-    await expect(svc.moderationQueue(ORG, member, 'cmy_1', 'spc_1')).rejects.toBeInstanceOf(
+    const created = await svc.create(draftInput(), member);
+    await svc.flag(created.id, 'check', moderator);
+    await expect(svc.moderationQueue('cmy_1', 'spc_1', member)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
-    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
+    const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
     expect(queue.pending.map((post) => post.id)).toEqual([created.id]);
     expect(queue.flags).toHaveLength(1);
     expect(queue.commentFlags).toEqual([]);
@@ -892,7 +896,7 @@ describe('posts', () => {
     for (let i = 0; i < 105; i++) {
       commentFlagRows.push({ spaceId: 'spc_1', flag: { ...flag, id: `crp_${i}` } });
     }
-    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
+    const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
     expect(queue.commentFlags).toHaveLength(100);
     expect(queue.commentFlags[0]?.id).toBe('crp_0');
   });
@@ -932,7 +936,7 @@ describe('posts', () => {
       },
       { spaceId: 'spc_2', flag: { ...open, id: 'crp_other', commentId: 'cmt_2' } },
     );
-    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
+    const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
     expect(queue.commentFlags.map((flag) => flag.id)).toEqual(['crp_open']);
     expect(queue.commentFlags[0]?.comment).toEqual({
       id: 'cmt_1',
@@ -946,43 +950,42 @@ describe('posts', () => {
   it('refuses a cover the author did not upload', async () => {
     const { svc } = harness({ images: { ownsImage: async () => false } });
     await expect(
-      svc.create(ORG, member, draftInput({ coverAssetId: 'ast_paid' })),
+      svc.create(draftInput({ coverAssetId: 'ast_paid' }), member),
     ).rejects.toBeInstanceOf(NotFoundError);
-    const created = await svc.create(ORG, member, draftInput());
+    const created = await svc.create(draftInput(), member);
     await expect(
-      svc.update(ORG, created.id, member, { coverAssetId: 'ast_paid' }),
+      svc.update(created.id, { coverAssetId: 'ast_paid' }, member),
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('refuses to submit a draft whose topic the space no longer allows', async () => {
     const { svc, calls, setSpaces } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
     setSpaces([space({ topics: [topic('top_1')] })]);
     calls.length = 0;
-    await expect(svc.submit(ORG, draft.id, member)).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(svc.submit(draft.id, member)).rejects.toBeInstanceOf(InvalidInputError);
     expect(calls).toHaveLength(0);
   });
 
   it('keeps drafts and scheduled posts from moderators and staff, and shows them pending and removed', async () => {
     const { svc, setSpaces } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
     const scheduled = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: new Date(Date.now() + 24 * 60 * 60_000) }),
+      member,
     );
     for (const reader of [moderator, staff]) {
-      await expect(svc.getPost(ORG, reader, draft.id)).rejects.toBeInstanceOf(NotFoundError);
-      await expect(svc.getPost(ORG, reader, scheduled.id)).rejects.toBeInstanceOf(NotFoundError);
-      await expect(svc.pin(ORG, draft.id, reader)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(svc.getPost(draft.id, reader)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(svc.getPost(scheduled.id, reader)).rejects.toBeInstanceOf(NotFoundError);
+      await expect(svc.pin(draft.id, reader)).rejects.toBeInstanceOf(NotFoundError);
     }
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const pending = await svc.create(ORG, member, draftInput());
-    await expect(svc.getPost(ORG, moderator, pending.id)).resolves.toMatchObject({
+    const pending = await svc.create(draftInput(), member);
+    await expect(svc.getPost(pending.id, moderator)).resolves.toMatchObject({
       status: 'pending',
     });
-    await svc.remove(ORG, pending.id, moderator);
-    await expect(svc.getPost(ORG, staff, pending.id)).resolves.toMatchObject({
+    await svc.remove(pending.id, null, moderator);
+    await expect(svc.getPost(pending.id, staff)).resolves.toMatchObject({
       status: 'removed',
     });
   });
@@ -990,70 +993,70 @@ describe('posts', () => {
   it('refuses a space of another community on create, feed and queue', async () => {
     const { svc, calls } = harness();
     await expect(
-      svc.create(ORG, member, draftInput({ communityId: 'cmy_other' })),
+      svc.create(draftInput({ communityId: 'cmy_other' }), member),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(calls).toHaveLength(0);
-    await expect(svc.spaceFeed(ORG, member, 'cmy_other', 'spc_1', feed)).rejects.toBeInstanceOf(
+    await expect(svc.spaceFeed('cmy_other', 'spc_1', feed, member)).rejects.toBeInstanceOf(
       NotFoundError,
     );
-    await expect(svc.moderationQueue(ORG, moderator, 'cmy_other', 'spc_1')).rejects.toBeInstanceOf(
+    await expect(svc.moderationQueue('cmy_other', 'spc_1', moderator)).rejects.toBeInstanceOf(
       NotFoundError,
     );
   });
 
   it('lists your own posts in every status and the posts you bookmarked that you can still see', async () => {
     const { svc } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft', title: 'Draft' }));
-    const published = await svc.create(ORG, member, draftInput({ title: 'Published' }));
-    await svc.create(ORG, other, draftInput({ title: 'Theirs' }));
-    const own = await svc.listOwn(ORG, member, 'cmy_1', feed);
+    const draft = await svc.create(draftInput({ mode: 'draft', title: 'Draft' }), member);
+    const published = await svc.create(draftInput({ title: 'Published' }), member);
+    await svc.create(draftInput({ title: 'Theirs' }), other);
+    const own = await svc.listOwn('cmy_1', feed, member);
     expect(own.rows.map((post) => post.id).sort()).toEqual([draft.id, published.id].sort());
     expect(own.total).toBe(2);
     expect(own.rows[0]?.author.id).toBe(member.id);
 
-    const theirs = await svc.create(ORG, other, draftInput({ title: 'Saved' }));
-    await svc.bookmark(ORG, theirs.id, member);
-    await svc.bookmark(ORG, published.id, other);
-    const saved = await svc.listBookmarked(ORG, member, 'cmy_1', feed);
+    const theirs = await svc.create(draftInput({ title: 'Saved' }), other);
+    await svc.bookmark(theirs.id, member);
+    await svc.bookmark(published.id, other);
+    const saved = await svc.listBookmarked('cmy_1', feed, member);
     expect(saved.rows.map((post) => post.id)).toEqual([theirs.id]);
     expect(saved.rows[0]?.bookmarked).toBe(true);
-    await svc.remove(ORG, theirs.id, moderator);
-    expect((await svc.listBookmarked(ORG, member, 'cmy_1', feed)).rows).toEqual([]);
-    expect((await svc.listBookmarked(ORG, moderator, 'cmy_1', feed)).rows).toEqual([]);
-    await svc.bookmark(ORG, theirs.id, moderator);
+    await svc.remove(theirs.id, null, moderator);
+    expect((await svc.listBookmarked('cmy_1', feed, member)).rows).toEqual([]);
+    expect((await svc.listBookmarked('cmy_1', feed, moderator)).rows).toEqual([]);
+    await svc.bookmark(theirs.id, moderator);
     expect(
-      (await svc.listBookmarked(ORG, moderator, 'cmy_1', feed)).rows.map((post) => post.id),
+      (await svc.listBookmarked('cmy_1', feed, moderator)).rows.map((post) => post.id),
     ).toEqual([theirs.id]);
-    expect((await svc.listOwn(ORG, outsider, 'cmy_1', feed)).rows).toEqual([]);
+    expect((await svc.listOwn('cmy_1', feed, outsider)).rows).toEqual([]);
   });
 
   it('pages own posts and bookmarks newest first and carries the total', async () => {
     const { svc, rows } = harness();
     const ids: string[] = [];
     for (const [index, title] of ['One', 'Two', 'Three'].entries()) {
-      const post = await svc.create(ORG, member, draftInput({ title }));
+      const post = await svc.create(draftInput({ title }), member);
       const row = rows.find((item) => item.id === post.id);
       row!.createdAt = new Date(AT.getTime() + index * 60_000);
       ids.push(post.id);
-      await svc.bookmark(ORG, post.id, other);
+      await svc.bookmark(post.id, other);
     }
-    const first = await svc.listOwn(ORG, member, 'cmy_1', { page: 1, pageSize: 2 });
+    const first = await svc.listOwn('cmy_1', { page: 1, pageSize: 2 }, member);
     expect(first.rows.map((post) => post.id)).toEqual([ids[2], ids[1]]);
     expect(first).toMatchObject({ total: 3, page: 1, pageSize: 2 });
-    const second = await svc.listOwn(ORG, member, 'cmy_1', { page: 2, pageSize: 2 });
+    const second = await svc.listOwn('cmy_1', { page: 2, pageSize: 2 }, member);
     expect(second.rows.map((post) => post.id)).toEqual([ids[0]]);
-    const saved = await svc.listBookmarked(ORG, other, 'cmy_1', { page: 1, pageSize: 2 });
+    const saved = await svc.listBookmarked('cmy_1', { page: 1, pageSize: 2 }, other);
     expect(saved.rows.map((post) => post.id)).toEqual([ids[2], ids[1]]);
     expect(saved).toMatchObject({ total: 3, page: 1, pageSize: 2 });
   });
 
   it('carries reaction counts, the viewer reaction, comment count, subscription and bookmark on every post view', async () => {
     const { svc, commentRows, subscriptions } = harness();
-    const post = await svc.create(ORG, member, draftInput());
-    await svc.create(ORG, member, draftInput({ title: 'Other' }));
-    await svc.setReaction(ORG, post.id, member, '👍');
-    await svc.setReaction(ORG, post.id, other, '👍');
-    await svc.setReaction(ORG, post.id, moderator, '🎉');
+    const post = await svc.create(draftInput(), member);
+    await svc.create(draftInput({ title: 'Other' }), member);
+    await svc.setReaction(post.id, '👍', member);
+    await svc.setReaction(post.id, '👍', other);
+    await svc.setReaction(post.id, '🎉', moderator);
     await subscriptions.repo.upsert(ORG, {
       orgId: ORG,
       orgUserId: other.id,
@@ -1063,7 +1066,7 @@ describe('posts', () => {
       mutedUntil: null,
       createdAt: AT,
     });
-    await svc.bookmark(ORG, post.id, other);
+    await svc.bookmark(post.id, other);
     commentRows.push(
       { postId: post.id, status: 'published' },
       { postId: post.id, status: 'published' },
@@ -1074,20 +1077,20 @@ describe('posts', () => {
       reactions: { '👍': 2, '🎉': 1 },
       commentCount: 2,
     };
-    expect(await svc.getPost(ORG, other, post.id)).toMatchObject({
+    expect(await svc.getPost(post.id, other)).toMatchObject({
       ...state,
       viewerReaction: '👍',
       subscription: { state: 'following', mutedUntil: null },
       bookmarked: true,
     });
-    expect(await svc.getPost(ORG, moderator, post.id)).toMatchObject({
+    expect(await svc.getPost(post.id, moderator)).toMatchObject({
       ...state,
       viewerReaction: '🎉',
       subscription: null,
       bookmarked: false,
     });
     const bare = { reactions: {}, viewerReaction: null, commentCount: 0 };
-    const feedPage = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed);
+    const feedPage = await svc.spaceFeed('cmy_1', 'spc_1', feed, other);
     expect(feedPage.rows.find((row) => row.id === post.id)).toMatchObject({
       ...state,
       viewerReaction: '👍',
@@ -1100,27 +1103,27 @@ describe('posts', () => {
       bookmarked: false,
     });
     expect(
-      (await svc.memberFeed(ORG, member, 'cmy_1', feed)).rows.find((row) => row.id === post.id),
+      (await svc.memberFeed('cmy_1', feed, member)).rows.find((row) => row.id === post.id),
     ).toMatchObject({
       viewerReaction: '👍',
       subscription: null,
       bookmarked: false,
     });
     expect(
-      (await svc.listOwn(ORG, member, 'cmy_1', feed)).rows.find((row) => row.id === post.id),
+      (await svc.listOwn('cmy_1', feed, member)).rows.find((row) => row.id === post.id),
     ).toMatchObject(state);
-    expect((await svc.listBookmarked(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject({
+    expect((await svc.listBookmarked('cmy_1', feed, other)).rows[0]).toMatchObject({
       ...state,
       bookmarked: true,
     });
-    expect(await svc.pin(ORG, post.id, moderator)).toMatchObject({
+    expect(await svc.pin(post.id, moderator)).toMatchObject({
       ...state,
       viewerReaction: '🎉',
     });
     await subscriptions.repo.remove(ORG, other.id, 'post', post.id);
-    await svc.unbookmark(ORG, post.id, other);
-    await svc.setReaction(ORG, post.id, other, null);
-    expect(await svc.getPost(ORG, other, post.id)).toMatchObject({
+    await svc.unbookmark(post.id, other);
+    await svc.setReaction(post.id, null, other);
+    expect(await svc.getPost(post.id, other)).toMatchObject({
       reactions: { '👍': 1, '🎉': 1 },
       viewerReaction: null,
       subscription: null,
@@ -1132,22 +1135,22 @@ describe('posts', () => {
     const { svc, rows } = harness();
     const titles = ['One', 'Two', 'Three', 'Four', 'Five'];
     for (const [index, title] of titles.entries()) {
-      const post = await svc.create(ORG, member, draftInput({ title }));
+      const post = await svc.create(draftInput({ title }), member);
       const row = rows.find((item) => item.id === post.id);
       if (row) {
         row.publishedAt = new Date(Date.UTC(2026, 9, 1 + index));
         row.pinned = title === 'Two';
       }
     }
-    const first = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { page: 1, pageSize: 2 });
+    const first = await svc.spaceFeed('cmy_1', 'spc_1', { page: 1, pageSize: 2 }, other);
     expect(first.rows.map((row) => row.title)).toEqual(['Two', 'Five']);
     expect(first).toMatchObject({ total: 5, page: 1, pageSize: 2 });
-    const second = await svc.memberFeed(ORG, other, 'cmy_1', { page: 2, pageSize: 2 });
+    const second = await svc.memberFeed('cmy_1', { page: 2, pageSize: 2 }, other);
     expect(second.rows.map((row) => row.title)).toEqual(['Four', 'Three']);
-    const last = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { page: 3, pageSize: 2 });
+    const last = await svc.spaceFeed('cmy_1', 'spc_1', { page: 3, pageSize: 2 }, other);
     expect(last.rows.map((row) => row.title)).toEqual(['One']);
     expect(last).toMatchObject({ total: 5, page: 3, pageSize: 2 });
-    const beyond = await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', { page: 4, pageSize: 2 });
+    const beyond = await svc.spaceFeed('cmy_1', 'spc_1', { page: 4, pageSize: 2 }, other);
     expect(beyond.rows).toEqual([]);
     expect(beyond.total).toBe(5);
   });
@@ -1164,9 +1167,9 @@ describe('posts', () => {
         ou_other: { imageAssetOrgId: 'org-2', imageAssetId: 'ast_elsewhere', image: 'https://img' },
       },
     });
-    const mine = await svc.create(ORG, member, draftInput({ title: 'Mine' }));
-    await svc.create(ORG, other, draftInput({ title: 'Theirs' }));
-    const read = await svc.getPost(ORG, other, mine.id);
+    const mine = await svc.create(draftInput({ title: 'Mine' }), member);
+    await svc.create(draftInput({ title: 'Theirs' }), other);
+    const read = await svc.getPost(mine.id, other);
     expect(read.author).toEqual({
       id: member.id,
       firstName: 'First',
@@ -1176,9 +1179,10 @@ describe('posts', () => {
       image: null,
       imageAssetId: 'ast_photo',
       imageUrl: fileUrls.personImage(member.id),
-      role: 'student',
+      team: false,
+      roleName: null,
     });
-    const feedPage = await svc.spaceFeed(ORG, member, 'cmy_1', 'spc_1', feed);
+    const feedPage = await svc.spaceFeed('cmy_1', 'spc_1', feed, member);
     const theirs = feedPage.rows.find((row) => row.title === 'Theirs');
     expect(theirs?.author).toMatchObject({
       displayName: 'First Last',
@@ -1190,73 +1194,70 @@ describe('posts', () => {
 
   it('serves the cover and author photo URLs from every call that returns a post', async () => {
     const { svc, setSpaces } = harness({
-      roles: { ou_mod: 'moderator' },
       profiles: { ou_member: { imageAssetOrgId: ORG, imageAssetId: 'ast_photo' } },
     });
     const signed = {
       coverUrl: expect.stringMatching(/\/api\/member\/posts\/[^/]+\/cover$/),
       author: { imageUrl: fileUrls.personImage(member.id) },
     };
-    const created = await svc.create(ORG, member, draftInput({ coverAssetId: 'ast_cover' }));
+    const created = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
     expect(created).toMatchObject(signed);
     const id = created.id;
-    expect(await svc.update(ORG, id, member, { title: 'Hello' })).toMatchObject(signed);
-    expect(await svc.update(ORG, id, member, { title: 'Revised' })).toMatchObject(signed);
-    expect(await svc.getPost(ORG, other, id)).toMatchObject(signed);
-    expect(await svc.pin(ORG, id, moderator)).toMatchObject(signed);
-    expect(await svc.pin(ORG, id, moderator)).toMatchObject(signed);
-    expect(await svc.unpin(ORG, id, moderator)).toMatchObject(signed);
-    expect(await svc.closeComments(ORG, id, moderator)).toMatchObject(signed);
-    expect(await svc.openComments(ORG, id, moderator)).toMatchObject(signed);
-    expect(await svc.setReactions(ORG, id, moderator, false)).toMatchObject(signed);
-    expect((await svc.spaceFeed(ORG, other, 'cmy_1', 'spc_1', feed)).rows[0]).toMatchObject(signed);
-    expect((await svc.memberFeed(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
-    expect((await svc.listOwn(ORG, member, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
-    await svc.bookmark(ORG, id, other);
-    expect((await svc.listBookmarked(ORG, other, 'cmy_1', feed)).rows[0]).toMatchObject(signed);
-    expect(await svc.remove(ORG, id, member)).toMatchObject(signed);
-    expect(await svc.restore(ORG, id, moderator)).toMatchObject(signed);
+    expect(await svc.update(id, { title: 'Hello' }, member)).toMatchObject(signed);
+    expect(await svc.update(id, { title: 'Revised' }, member)).toMatchObject(signed);
+    expect(await svc.getPost(id, other)).toMatchObject(signed);
+    expect(await svc.pin(id, moderator)).toMatchObject(signed);
+    expect(await svc.pin(id, moderator)).toMatchObject(signed);
+    expect(await svc.unpin(id, moderator)).toMatchObject(signed);
+    expect(await svc.closeComments(id, moderator)).toMatchObject(signed);
+    expect(await svc.openComments(id, moderator)).toMatchObject(signed);
+    expect(await svc.setReactions(id, false, moderator)).toMatchObject(signed);
+    expect((await svc.spaceFeed('cmy_1', 'spc_1', feed, other)).rows[0]).toMatchObject(signed);
+    expect((await svc.memberFeed('cmy_1', feed, other)).rows[0]).toMatchObject(signed);
+    expect((await svc.listOwn('cmy_1', feed, member)).rows[0]).toMatchObject(signed);
+    await svc.bookmark(id, other);
+    expect((await svc.listBookmarked('cmy_1', feed, other)).rows[0]).toMatchObject(signed);
+    expect(await svc.remove(id, null, member)).toMatchObject(signed);
+    expect(await svc.restore(id, null, moderator)).toMatchObject(signed);
 
     const draft = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'draft', coverAssetId: 'ast_cover' }),
+      member,
     );
     expect(draft).toMatchObject(signed);
     expect(
-      await svc.schedule(ORG, draft.id, member, new Date(Date.now() + 24 * 60 * 60_000)),
+      await svc.schedule(draft.id, new Date(Date.now() + 24 * 60 * 60_000), member),
     ).toMatchObject(signed);
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const submitted = await svc.submit(ORG, draft.id, member);
+    const submitted = await svc.submit(draft.id, member);
     expect(submitted).toMatchObject({ status: 'pending', ...signed });
-    const queue = await svc.moderationQueue(ORG, moderator, 'cmy_1', 'spc_1');
+    const queue = await svc.moderationQueue('cmy_1', 'spc_1', moderator);
     expect(queue.pending[0]).toMatchObject(signed);
-    expect(await svc.approve(ORG, draft.id, moderator)).toMatchObject(signed);
+    expect(await svc.approve(draft.id, null, moderator)).toMatchObject(signed);
   });
 
   it('serves no cover URL for a post without a cover, and the post cover URL for one with', async () => {
     const { svc } = harness();
-    const bare = await svc.create(ORG, member, draftInput());
+    const bare = await svc.create(draftInput(), member);
     expect(bare).toMatchObject({ coverAssetId: null, coverUrl: null, author: { imageUrl: null } });
-    const covered = await svc.create(ORG, member, draftInput({ coverAssetId: 'ast_cover' }));
+    const covered = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
     expect(covered.coverUrl).toBe(fileUrls.postCover(covered.id));
   });
 
   it('serves the cover file to whoever can read the post, and nothing to anyone else', async () => {
     const { svc } = harness();
-    const post = await svc.create(ORG, member, draftInput({ coverAssetId: 'ast_cover' }));
-    const bare = await svc.create(ORG, member, draftInput({ title: 'Bare' }));
-    expect(await svc.coverFile(ORG, other, post.id)).toBe('https://signed');
-    expect(await svc.coverFile(ORG, outsider, post.id)).toBeNull();
-    expect(await svc.coverFile(ORG, other, bare.id)).toBeNull();
-    expect(await svc.coverFile(ORG, other, 'pst_missing')).toBeNull();
+    const post = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
+    const bare = await svc.create(draftInput({ title: 'Bare' }), member);
+    expect(await svc.coverFile(post.id, other)).toBe('https://signed');
+    expect(await svc.coverFile(post.id, outsider)).toBeNull();
+    expect(await svc.coverFile(bare.id, other)).toBeNull();
+    expect(await svc.coverFile('pst_missing', other)).toBeNull();
     const draft = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'draft', title: 'Draft', coverAssetId: 'ast_cover' }),
+      member,
     );
-    expect(await svc.coverFile(ORG, other, draft.id)).toBeNull();
-    expect(await svc.coverFile(ORG, member, draft.id)).toBe('https://signed');
+    expect(await svc.coverFile(draft.id, other)).toBeNull();
+    expect(await svc.coverFile(draft.id, member)).toBe('https://signed');
   });
 });
 
@@ -1267,11 +1268,7 @@ describe('scheduled posts', () => {
   it('arms the publish job at the scheduled time when a post is created scheduled', async () => {
     const { svc, scheduler } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     expect(created.status).toBe('scheduled');
     expect(scheduler.at).toHaveBeenCalledWith(
       'discussion.post.publish',
@@ -1290,7 +1287,7 @@ describe('scheduled posts', () => {
       },
     });
     const refused = await svc
-      .create(ORG, member, draftInput({ mode: 'schedule', scheduledAt: later() }))
+      .create(draftInput({ mode: 'schedule', scheduledAt: later() }), member)
       .catch((err: unknown) => err);
     expect(refused).toBeInstanceOf(UnavailableError);
     expect(rows[0]).toMatchObject({ status: 'draft', scheduledAt: null });
@@ -1313,11 +1310,9 @@ describe('scheduled posts', () => {
         },
       },
     });
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
     calls.length = 0;
-    await expect(svc.schedule(ORG, draft.id, member, later())).rejects.toBeInstanceOf(
-      UnavailableError,
-    );
+    await expect(svc.schedule(draft.id, later(), member)).rejects.toBeInstanceOf(UnavailableError);
     expect(rows[0]).toMatchObject({ status: 'draft', scheduledAt: null });
     expect(calls.at(-1)?.[0]).toMatchObject({
       type: 'discussion.post.updated',
@@ -1328,13 +1323,9 @@ describe('scheduled posts', () => {
   it('moves a scheduled post and its timer, and restores the old time when the timer is refused', async () => {
     const { svc, rows, calls, scheduler } = harness();
     const first = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: first }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: first }), member);
     const second = new Date(first.getTime() + 60 * 60_000);
-    await svc.schedule(ORG, created.id, member, second);
+    await svc.schedule(created.id, second, member);
     expect(scheduler.at).toHaveBeenLastCalledWith(
       'discussion.post.publish',
       second,
@@ -1346,9 +1337,7 @@ describe('scheduled posts', () => {
     scheduler.at.mockRejectedValueOnce(new Error('hatchet down'));
     calls.length = 0;
     const third = new Date(second.getTime() + 60 * 60_000);
-    await expect(svc.schedule(ORG, created.id, member, third)).rejects.toBeInstanceOf(
-      UnavailableError,
-    );
+    await expect(svc.schedule(created.id, third, member)).rejects.toBeInstanceOf(UnavailableError);
     expect(rows[0]).toMatchObject({ status: 'scheduled', scheduledAt: second });
     expect(calls.map((events) => events[0]?.type)).toEqual([
       'discussion.post.updated',
@@ -1360,9 +1349,8 @@ describe('scheduled posts', () => {
   it('refuses to move a post the timer published meanwhile', async () => {
     const { svc, repo, rows } = harness();
     const created = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: later() }),
+      member,
     );
     const find = repo.find.bind(repo);
     vi.spyOn(repo, 'find').mockImplementationOnce(async (orgId, id) => {
@@ -1370,21 +1358,18 @@ describe('scheduled posts', () => {
       Object.assign(rows[0]!, { status: 'published', scheduledAt: null, publishedAt: new Date() });
       return post;
     });
-    await expect(svc.schedule(ORG, created.id, member, later())).rejects.toBeInstanceOf(
-      ConflictError,
-    );
+    await expect(svc.schedule(created.id, later(), member)).rejects.toBeInstanceOf(ConflictError);
     expect(rows[0]?.status).toBe('published');
   });
 
   it('unschedules the author’s post to a draft, emits the update, then cancels the timer', async () => {
     const { svc, calls, scheduler } = harness();
     const created = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: later() }),
+      member,
     );
     calls.length = 0;
-    const view = await svc.unschedule(ORG, created.id, member);
+    const view = await svc.unschedule(created.id, member);
     expect(view).toMatchObject({ status: 'draft', scheduledAt: null });
     expect(calls).toEqual([
       [
@@ -1400,16 +1385,13 @@ describe('scheduled posts', () => {
 
   it('refuses to unschedule a post that is not scheduled, or someone else’s', async () => {
     const { svc, scheduler } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
-    await expect(svc.unschedule(ORG, draft.id, member)).rejects.toBeInstanceOf(ConflictError);
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
+    await expect(svc.unschedule(draft.id, member)).rejects.toBeInstanceOf(ConflictError);
     const scheduled = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: later() }),
+      member,
     );
-    await expect(svc.unschedule(ORG, scheduled.id, moderator)).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+    await expect(svc.unschedule(scheduled.id, moderator)).rejects.toBeInstanceOf(NotFoundError);
     expect(scheduler.cancel).not.toHaveBeenCalled();
   });
 
@@ -1422,39 +1404,33 @@ describe('scheduled posts', () => {
       },
     });
     const created = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: later() }),
+      member,
     );
-    await expect(svc.unschedule(ORG, created.id, member)).resolves.toMatchObject({
+    await expect(svc.unschedule(created.id, member)).resolves.toMatchObject({
       status: 'draft',
     });
   });
 
   it('cancels the timer when a scheduled post is published now, and not for a draft', async () => {
     const { svc, scheduler } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
-    await svc.submit(ORG, draft.id, member);
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
+    await svc.submit(draft.id, member);
     expect(scheduler.cancel).not.toHaveBeenCalled();
     const scheduled = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: later() }),
+      member,
     );
-    await expect(svc.submit(ORG, scheduled.id, member)).resolves.toMatchObject({
+    await expect(svc.submit(scheduled.id, member)).resolves.toMatchObject({
       status: 'published',
     });
     expect(scheduler.cancel).toHaveBeenCalledWith('discussion.post.publish', scheduled.id);
   });
 
   it('publishes a due post once through the conditional update, as its author with no actor', async () => {
-    const { svc, calls, rows } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls, rows } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     calls.length = 0;
     const now = new Date(when.getTime() + 1000);
     await svc.publishScheduled(ORG, created.id, now);
@@ -1471,13 +1447,9 @@ describe('scheduled posts', () => {
   });
 
   it('emits nothing when another firing moved the post between the read and the write', async () => {
-    const { svc, calls, rows, repo } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls, rows, repo } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     calls.length = 0;
     const find = repo.find.bind(repo);
     vi.spyOn(repo, 'find').mockImplementationOnce(async (orgId, id) => {
@@ -1490,14 +1462,10 @@ describe('scheduled posts', () => {
   });
 
   it('sends a due member post to review where the space requires it', async () => {
-    const { svc, calls, setSpaces } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls, setSpaces } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     calls.length = 0;
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
     expect(calls).toEqual([
@@ -1512,13 +1480,9 @@ describe('scheduled posts', () => {
   });
 
   it('re-arms the timer instead of publishing when the post was moved later', async () => {
-    const { svc, calls, rows, scheduler } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls, rows, scheduler } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     calls.length = 0;
     scheduler.at.mockClear();
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() - 1000));
@@ -1533,13 +1497,9 @@ describe('scheduled posts', () => {
   });
 
   it('reverts a due post to a draft when its author can no longer open the space', async () => {
-    const { svc, calls, rows } = harness({ roles: { ou_member: 'student', ou_out: 'student' } });
+    const { svc, calls, rows } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     rows[0]!.orgUserId = outsider.id;
     calls.length = 0;
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
@@ -1555,13 +1515,9 @@ describe('scheduled posts', () => {
   });
 
   it('reverts a due post to a draft when its topic no longer fits the space', async () => {
-    const { svc, calls, rows, setSpaces } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls, rows, setSpaces } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     setSpaces([space({ topics: [topic('top_1')] })]);
     calls.length = 0;
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
@@ -1570,14 +1526,10 @@ describe('scheduled posts', () => {
   });
 
   it('does nothing for a post that was unscheduled or is gone', async () => {
-    const { svc, calls, scheduler } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls, scheduler } = harness();
     const when = later();
-    const created = await svc.create(
-      ORG,
-      member,
-      draftInput({ mode: 'schedule', scheduledAt: when }),
-    );
-    await svc.unschedule(ORG, created.id, member);
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
+    await svc.unschedule(created.id, member);
     calls.length = 0;
     scheduler.at.mockClear();
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
@@ -1600,12 +1552,11 @@ describe('post mentions', () => {
   it('keeps the people who can open the space from the title and body, once each', async () => {
     const { svc, calls, mentions } = harness();
     const post = await svc.create(
-      ORG,
-      member,
       draftInput({
         title: 'For <@ou_other>',
         body: 'Hi <@ou_mod>, <@ou_out> and <@ou_other> again; <@ou_staff',
       }),
+      member,
     );
     expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id, moderator.id]);
     expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([
@@ -1624,24 +1575,23 @@ describe('post mentions', () => {
   it('stores the mentions of a draft and carries them when the draft is submitted', async () => {
     const { svc, calls, closed } = harness();
     const draft = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'draft', body: '<@ou_other> <@ou_mod>' }),
+      member,
     );
     expect(lastOf(calls, 'discussion.post.published')).toBeUndefined();
     closed.add(moderator.id);
-    await svc.submit(ORG, draft.id, member);
+    await svc.submit(draft.id, member);
     expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
   });
 
   it('carries no one on an edit of a draft or a post in review', async () => {
     const { svc, calls, setSpaces, mentions } = harness();
-    const draft = await svc.create(ORG, member, draftInput({ mode: 'draft' }));
-    await svc.update(ORG, draft.id, member, { body: 'Now <@ou_other>' });
+    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
+    await svc.update(draft.id, { body: 'Now <@ou_other>' }, member);
     expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const pending = await svc.create(ORG, member, draftInput());
-    await svc.update(ORG, pending.id, member, { body: 'And <@ou_mod>' });
+    const pending = await svc.create(draftInput(), member);
+    await svc.update(pending.id, { body: 'And <@ou_mod>' }, member);
     expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
     expect(mentions.rows.map((row) => [row.itemId, row.orgUserId])).toEqual([
       [draft.id, other.id],
@@ -1652,21 +1602,20 @@ describe('post mentions', () => {
   it('carries the mentions at approval, as the people who can open the space then', async () => {
     const { svc, calls, setSpaces, closed } = harness();
     setSpaces([space({ settings: { comments: true, reactions: true, requireReview: true } })]);
-    const pending = await svc.create(ORG, member, draftInput({ body: '<@ou_other> <@ou_staff>' }));
+    const pending = await svc.create(draftInput({ body: '<@ou_other> <@ou_staff>' }), member);
     expect(lastOf(calls, 'discussion.post.published')).toBeUndefined();
     expect(mentionedIn(lastOf(calls, 'discussion.post.created'))).toBeUndefined();
     closed.add(staff.id);
-    await svc.approve(ORG, pending.id, moderator);
+    await svc.approve(pending.id, null, moderator);
     expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
   });
 
   it('carries the mentions when the publish job publishes a scheduled post', async () => {
-    const { svc, calls } = harness({ roles: { ou_member: 'student' } });
+    const { svc, calls } = harness();
     const when = later();
     const created = await svc.create(
-      ORG,
-      member,
       draftInput({ mode: 'schedule', scheduledAt: when, body: 'cc <@ou_other>' }),
+      member,
     );
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
     expect(mentionedIn(lastOf(calls, 'discussion.post.published'))).toEqual([other.id]);
@@ -1674,31 +1623,31 @@ describe('post mentions', () => {
 
   it('carries only the newly mentioned on an edit of a published post', async () => {
     const { svc, calls, mentions } = harness();
-    const post = await svc.create(ORG, member, draftInput({ body: 'Hi <@ou_other>' }));
-    await svc.update(ORG, post.id, member, { body: 'Hi <@ou_other> and <@ou_mod>' });
+    const post = await svc.create(draftInput({ body: 'Hi <@ou_other>' }), member);
+    await svc.update(post.id, { body: 'Hi <@ou_other> and <@ou_mod>' }, member);
     expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([moderator.id]);
-    await svc.update(ORG, post.id, member, { body: 'Hi <@ou_mod>' });
+    await svc.update(post.id, { body: 'Hi <@ou_mod>' }, member);
     expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
     expect(mentions.rows.map((row) => row.orgUserId)).toEqual([moderator.id]);
-    await svc.update(ORG, post.id, member, { body: 'Hi <@ou_mod> and <@ou_other>' });
+    await svc.update(post.id, { body: 'Hi <@ou_mod> and <@ou_other>' }, member);
     expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([other.id]);
-    await svc.pin(ORG, post.id, moderator);
+    await svc.pin(post.id, moderator);
     expect(mentionedIn(lastOf(calls, 'discussion.post.updated'))).toEqual([]);
   });
 
   it('keeps the first mention time of someone still mentioned after an edit', async () => {
     const { svc, mentions } = harness();
-    const post = await svc.create(ORG, member, draftInput({ body: 'Hi <@ou_other>' }));
+    const post = await svc.create(draftInput({ body: 'Hi <@ou_other>' }), member);
     const first = mentions.rows[0]!.createdAt;
-    await svc.update(ORG, post.id, member, { title: 'New <@ou_mod>' });
+    await svc.update(post.id, { title: 'New <@ou_mod>' }, member);
     expect(mentions.rows.find((row) => row.orgUserId === other.id)?.createdAt).toBe(first);
   });
 
   it('publishes a restored post again as a restore, mentioning no one', async () => {
     const { svc, calls, mentions } = harness();
-    const post = await svc.create(ORG, member, draftInput({ body: 'cc <@ou_other>' }));
-    await svc.remove(ORG, post.id, moderator);
-    await svc.restore(ORG, post.id, moderator);
+    const post = await svc.create(draftInput({ body: 'cc <@ou_other>' }), member);
+    await svc.remove(post.id, null, moderator);
+    await svc.restore(post.id, null, moderator);
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
     expect(lastOf(calls, 'discussion.post.published')).toMatchObject({
       data: { id: post.id, status: 'published', mentionedOrgUserIds: [] },
@@ -1711,9 +1660,9 @@ describe('post mentions', () => {
 describe('post reaction events', () => {
   it('announces only a person’s first reaction to a post', async () => {
     const { svc, calls } = harness();
-    const post = await svc.create(ORG, member, draftInput());
+    const post = await svc.create(draftInput(), member);
     calls.length = 0;
-    await svc.setReaction(ORG, post.id, other, '👍');
+    await svc.setReaction(post.id, '👍', other);
     expect(calls).toEqual([
       [
         expect.objectContaining({
@@ -1729,14 +1678,155 @@ describe('post reaction events', () => {
         }),
       ],
     ]);
-    await svc.setReaction(ORG, post.id, other, '🎉');
-    await svc.setReaction(ORG, post.id, other, null);
-    await svc.setReaction(ORG, post.id, moderator, null);
+    await svc.setReaction(post.id, '🎉', other);
+    await svc.setReaction(post.id, null, other);
+    await svc.setReaction(post.id, null, moderator);
     expect(calls).toHaveLength(1);
-    await svc.setReaction(ORG, post.id, moderator, '🎉');
+    await svc.setReaction(post.id, '🎉', moderator);
     expect(calls.flat().map((event) => event.type)).toEqual([
       'discussion.post.reaction.added',
       'discussion.post.reaction.added',
     ]);
+  });
+});
+
+describe('post moderation on permissions', () => {
+  const review = () =>
+    space({ settings: { comments: true, reactions: true, requireReview: true } });
+
+  type Act = (svc: PostServiceImpl, postId: string, actor: Actor) => Promise<unknown>;
+  const acts: [string, Act][] = [
+    ['approve', (svc, id, actor) => svc.approve(id, null, actor)],
+    ['remove', (svc, id, actor) => svc.remove(id, null, actor)],
+    ['pin', (svc, id, actor) => svc.pin(id, actor)],
+    ['unpin', (svc, id, actor) => svc.unpin(id, actor)],
+    ['closeComments', (svc, id, actor) => svc.closeComments(id, actor)],
+    ['openComments', (svc, id, actor) => svc.openComments(id, actor)],
+    ['setReactions', (svc, id, actor) => svc.setReactions(id, false, actor)],
+    ['resolveFlags', (svc, id, actor) => svc.resolveFlags(id, 'dismissed', null, actor)],
+  ];
+
+  it.each(acts)('%s passes with communities:moderate on the post’s community', async (_, act) => {
+    const { svc, setSpaces } = harness();
+    setSpaces([review()]);
+    const post = await svc.create(draftInput(), member);
+    await expect(act(svc, post.id, moderator)).resolves.not.toThrow();
+  });
+
+  it.each(acts)('%s is refused to a moderator of another community', async (_, act) => {
+    const { svc, setSpaces } = harness();
+    setSpaces([review()]);
+    const post = await svc.create(draftInput(), member);
+    const published = await svc.approve(post.id, null, moderator);
+    await expect(act(svc, published.id, elsewhere)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it.each(acts)('%s is refused to a person who holds no permission', async (_, act) => {
+    const { svc } = harness();
+    const post = await svc.create(draftInput(), other);
+    await expect(act(svc, post.id, member)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('restores a removed post only for a moderator of its community', async () => {
+    const { svc } = harness();
+    const post = await svc.create(draftInput(), member);
+    await svc.remove(post.id, null, moderator);
+    await expect(svc.restore(post.id, null, member)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.restore(post.id, null, elsewhere)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(svc.restore(post.id, null, moderator)).resolves.toMatchObject({
+      status: 'published',
+    });
+  });
+
+  it('opens the moderation queue only with communities:moderate on the community', async () => {
+    const { svc } = harness();
+    await expect(svc.moderationQueue('cmy_1', 'spc_1', moderator)).resolves.toMatchObject({
+      pending: [],
+    });
+    await expect(svc.moderationQueue('cmy_1', 'spc_1', elsewhere)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(svc.moderationQueue('cmy_1', 'spc_1', member)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it('shows pending and removed posts only to a moderator of the community', async () => {
+    const { svc, setSpaces } = harness();
+    setSpaces([review()]);
+    const pending = await svc.create(draftInput(), member);
+    await expect(svc.getPost(pending.id, moderator)).resolves.toMatchObject({
+      status: 'pending',
+    });
+    await expect(svc.getPost(pending.id, elsewhere)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(svc.getPost(pending.id, other)).rejects.toBeInstanceOf(NotFoundError);
+    await svc.remove(pending.id, null, moderator);
+    await expect(svc.getPost(pending.id, moderator)).resolves.toMatchObject({
+      status: 'removed',
+    });
+    await expect(svc.getPost(pending.id, elsewhere)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('re-runs review on restore with the author’s permissions on the community', async () => {
+    const { svc, setSpaces } = harness();
+    setSpaces([review()]);
+    const byMember = await svc.create(draftInput(), member);
+    await svc.approve(byMember.id, null, moderator);
+    await svc.remove(byMember.id, null, moderator);
+    expect((await svc.restore(byMember.id, null, moderator)).status).toBe('pending');
+
+    const byElsewhere = await svc.create(draftInput(), elsewhere);
+    await svc.approve(byElsewhere.id, null, moderator);
+    await svc.remove(byElsewhere.id, null, moderator);
+    expect((await svc.restore(byElsewhere.id, null, moderator)).status).toBe('pending');
+
+    const byModerator = await svc.create(draftInput(), moderator);
+    await svc.remove(byModerator.id, null, moderator);
+    expect((await svc.restore(byModerator.id, null, staff)).status).toBe('published');
+  });
+
+  it('publishes a due post as its author, skipping review when the author moderates there', async () => {
+    const { svc, rows, setSpaces } = harness();
+    setSpaces([review()]);
+    const when = new Date(Date.now() + 60 * 60_000);
+    const created = await svc.create(
+      draftInput({ mode: 'schedule', scheduledAt: when }),
+      moderator,
+    );
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(rows.find((row) => row.id === created.id)?.status).toBe('published');
+  });
+
+  it('returns a due post to draft when its author is no longer an active member', async () => {
+    const { svc, rows, calls } = harness({ gone: [member.id] });
+    const when = new Date(Date.now() + 60 * 60_000);
+    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
+    calls.length = 0;
+    await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
+    expect(rows.find((row) => row.id === created.id)).toMatchObject({
+      status: 'draft',
+      scheduledAt: null,
+    });
+    expect(calls.flat().map((event) => event.type)).toEqual(['discussion.post.updated']);
+  });
+
+  it('badges a post author as team with the role name only in the community they moderate', async () => {
+    const emma = actorWith({
+      id: 'ou_emma',
+      orgId: ORG,
+      content: { cmy_1: ['communities:moderate'] },
+      contentRoles: { cmy_1: MODERATOR_ROLE },
+    });
+    const { svc, setSpaces } = harness({ people: [...PEOPLE, emma] });
+    const spring = await svc.create(draftInput(), emma);
+    expect(spring.author).toMatchObject({ team: true, roleName: 'Moderator' });
+    setSpaces([space({ id: 'spc_2', communityId: 'cmy_2' })]);
+    const autumn = await svc.create(draftInput({ communityId: 'cmy_2', spaceId: 'spc_2' }), emma);
+    expect(autumn.author).toMatchObject({ team: false, roleName: null });
+    const byMember = await svc.create(
+      draftInput({ communityId: 'cmy_2', spaceId: 'spc_2' }),
+      member,
+    );
+    expect(byMember.author).toMatchObject({ team: false, roleName: null });
   });
 });

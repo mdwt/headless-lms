@@ -9,7 +9,6 @@ function record(id: string, over: Partial<AuthorRecord> = {}): AuthorRecord {
     lastName: null,
     email: `${id}@example.test`,
     image: null,
-    role: 'student',
     displayName: null,
     headline: null,
     imageAssetOrgId: null,
