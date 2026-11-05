@@ -71,6 +71,7 @@ Each issue: status `open`, `fixed` or `wontfix`, and the fixing commit.
 | 35 | Tests 19.1 | The engine's methods on the automations service (`runAction`, `finalize`, `runDelivery`, `listSchedules`, `fireSchedule`) were public but missing from its declaration. They are declared `system`, and a server test now compares every service class's public methods with its declaration. | fixed | c40cfaae |
 | 36 | Tests 19.6 | Inviting, adding, approving and removing space members checked the space's access rule before `communities:moderate`, so a person without the permission was told "This space is by invitation" (409) instead of being refused. The permission is checked first. | fixed | e4bfb964 |
 | 37 | Tests 19.18 | CI ran only the root lint, which ignores `apps/admin` and `apps/student`, so the role-name rule never ran on the two apps in CI. CI now lints both apps. | fixed | 75a2c26f |
+| 38 | Test stack | During the section 19 run the shared local Postgres reached its 100 connections (Hatchet and other sessions' databases hold most of them), and the outbox logged "too many clients" for some events. The outbox retried them: all 4976 events are processed and none is failing. Not a product defect. | no change needed | |
 
 ## Section 19 coverage
 
