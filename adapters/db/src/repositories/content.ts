@@ -208,8 +208,14 @@ export class DrizzleContentRepository implements ContentRepository {
     return (this.db as NodePgDatabase).transaction(fn);
   }
 
-  async listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<Course>> {
+  async listCourses(orgId: string, query: ListCoursesQuery, ids?: string[]): Promise<Page<Course>> {
+    if (ids?.length === 0) {
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+    }
     const conditions: SQL[] = [eq(courses.orgId, orgId)];
+    if (ids) {
+      conditions.push(inArray(courses.id, ids));
+    }
     if (query.status) {
       conditions.push(eq(courses.status, query.status));
     }
@@ -720,8 +726,18 @@ export class DrizzleContentRepository implements ContentRepository {
 
   // --- downloads --------------------------------------------------------
 
-  async listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<Download>> {
+  async listDownloads(
+    orgId: string,
+    query: ListDownloadsQuery,
+    ids?: string[],
+  ): Promise<Page<Download>> {
+    if (ids?.length === 0) {
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+    }
     const conditions: SQL[] = [eq(downloads.orgId, orgId)];
+    if (ids) {
+      conditions.push(inArray(downloads.id, ids));
+    }
     if (query.status) {
       conditions.push(eq(downloads.status, query.status));
     }
@@ -1129,8 +1145,18 @@ export class DrizzleContentRepository implements ContentRepository {
     return this.listBundleItems(orgId, bundleId);
   }
 
-  async listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>> {
+  async listCommunities(
+    orgId: string,
+    query: ListCommunitiesQuery,
+    ids?: string[],
+  ): Promise<Page<Community>> {
+    if (ids?.length === 0) {
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+    }
     const conditions: SQL[] = [eq(communities.orgId, orgId)];
+    if (ids) {
+      conditions.push(inArray(communities.id, ids));
+    }
     if (query.status) {
       conditions.push(eq(communities.status, query.status));
     }

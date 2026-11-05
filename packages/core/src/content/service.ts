@@ -23,6 +23,7 @@ import type {
   CommunitiesService,
   CommunityDigest,
   CourseManagementService,
+  ContentAssetReader,
   ContentRepository,
   ContentUnitOfWork,
   DownloadablesService,
@@ -49,7 +50,7 @@ import type {
 } from './types.js';
 import { contentEvents } from './events.js';
 import type { Actor } from '../shared/actor.js';
-import type { AssetFiles, FileUrls, LibraryAssetReader } from '../assets/index.js';
+import type { AssetFiles, FileUrls } from '../assets/index.js';
 import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import {
   ConflictError,
@@ -59,6 +60,7 @@ import {
 } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { spaceSettingsDefaults } from '../types/schemas/content.js';
+import type { Permission } from '../types/index.js';
 
 /** URL-safe slug derived from a title. Domain rule owned by the service. */
 function slugify(title: string): string {
@@ -71,7 +73,7 @@ function slugify(title: string): string {
 export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
-  libraryAssets: LibraryAssetReader;
+  libraryAssets: ContentAssetReader;
   files: Pick<AssetFiles, 'readyFiles'>;
   fileUrls: FileUrls;
   logger?: Logger;
@@ -83,12 +85,6 @@ function isPublishedActivity(settings: unknown): boolean {
 
 function actorMetadata(actor: Actor): { actorOrgUserId: string } {
   return { actorOrgUserId: actor.id };
-}
-
-function assertConfigurator(actor: Actor): void {
-  if (actor.role !== 'owner' && actor.role !== 'admin') {
-    throw new ForbiddenError('Only an owner or an admin can configure a community');
-  }
 }
 
 type WithThumbnail = {
@@ -110,7 +106,7 @@ export class ContentService
 {
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
-  private readonly libraryAssets: LibraryAssetReader;
+  private readonly libraryAssets: ContentAssetReader;
   private readonly files: Pick<AssetFiles, 'readyFiles'>;
   private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
@@ -122,6 +118,34 @@ export class ContentService
     this.files = params.files;
     this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
+  }
+
+  private require(actor: Actor, permission: Permission, on?: string): void {
+    if (!actor.permissions.has(permission, on)) {
+      this.logger.warn('content action refused', {
+        orgId: actor.orgId,
+        actorId: actor.id,
+        permission,
+        contentId: on,
+      });
+      throw new ForbiddenError(`You need ${permission}`);
+    }
+  }
+
+  private visibleIds(actor: Actor, permission: Permission, what: string): string[] | undefined {
+    const where = actor.permissions.where(permission);
+    if (where.org) {
+      return undefined;
+    }
+    if (where.content.length === 0) {
+      this.logger.warn('content list refused', {
+        orgId: actor.orgId,
+        actorId: actor.id,
+        permission,
+      });
+      throw new ForbiddenError(`You cannot see ${what}`);
+    }
+    return where.content;
   }
 
   private withThumbnail<T extends WithThumbnail>(item: T): T & { thumbnailUrl: string | null } {
@@ -150,27 +174,104 @@ export class ContentService
     });
   }
 
-  async listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<CourseView>> {
-    return this.pageWithThumbnails(await this.repo.listCourses(orgId, query));
+  private async assertAttachable(
+    actor: Actor,
+    itemId: string,
+    requested: (string | null | undefined)[],
+    attached: () => Promise<(string | null)[]>,
+    user: string,
+  ): Promise<void> {
+    const ids = [...new Set(requested.filter((id): id is string => typeof id === 'string'))];
+    if (ids.length === 0) {
+      return;
+    }
+    const held = new Set(await attached());
+    const added = ids.filter((id) => !held.has(id));
+    if (added.length === 0) {
+      return;
+    }
+    const orgId = actor.orgId;
+    const found = new Map(
+      (await this.libraryAssets.libraryAssetsFor(orgId, added)).map((asset) => [asset.id, asset]),
+    );
+    const missing = added.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      this.logger.warn('library assets refused', { orgId, contentId: itemId, assetIds: missing });
+      throw new ConflictError(
+        `${user} can only use ready files from the media library. Not available: ${missing.join(', ')}`,
+      );
+    }
+    if (actor.permissions.has('media:read')) {
+      return;
+    }
+    const foreign = added.filter((id) => found.get(id)?.contentId !== itemId);
+    if (foreign.length > 0) {
+      this.logger.warn('library assets refused — not uploaded for this item', {
+        orgId,
+        actorId: actor.id,
+        contentId: itemId,
+        assetIds: foreign,
+      });
+      throw new ForbiddenError(
+        `You need media:read to use files that were not uploaded for this item: ${foreign.join(', ')}`,
+      );
+    }
   }
 
-  async getCourse(orgId: string, id: string): Promise<CourseView | null> {
-    const course = await this.repo.findCourseById(orgId, id);
+  private async courseAssetIds(orgId: string, courseId: string): Promise<(string | null)[]> {
+    const [course, links] = await Promise.all([
+      this.repo.findCourseById(orgId, courseId),
+      this.repo.listActivityAssetsForCourse(orgId, courseId),
+    ]);
+    return [course?.thumbnailAssetId ?? null, ...links.map((link) => link.assetId)];
+  }
+
+  private async downloadAssetIds(orgId: string, downloadId: string): Promise<(string | null)[]> {
+    const [download, links] = await Promise.all([
+      this.repo.getDownload(orgId, downloadId),
+      this.repo.listDownloadAssets(orgId, downloadId),
+    ]);
+    return [download?.thumbnailAssetId ?? null, ...links.map((link) => link.assetId)];
+  }
+
+  async listCourses(query: ListCoursesQuery, actor: Actor): Promise<Page<CourseView>> {
+    const ids = this.visibleIds(actor, 'courses:read', 'courses');
+    return this.pageWithThumbnails(await this.repo.listCourses(actor.orgId, query, ids));
+  }
+
+  async getCourse(id: string, actor: Actor): Promise<CourseView | null> {
+    this.require(actor, 'courses:read', id);
+    const course = await this.repo.findCourseById(actor.orgId, id);
     return course ? this.withThumbnail(course) : null;
   }
 
-  async createCourse(orgId: string, input: CreateCourseInput): Promise<CourseView> {
+  async createCourse(input: CreateCourseInput, actor: Actor): Promise<CourseView> {
+    this.require(actor, 'courses:write');
+    const orgId = actor.orgId;
     const course = await this.uow.run(async ({ content, outbox }) => {
       const created = await content.createCourse(orgId, input, slugify(input.title));
       await outbox.append([contentEvents.courseCreated.make({ orgId, data: created })]);
       return created;
     });
-    this.logger.info('course created', { orgId, courseId: course.id, title: course.title });
+    this.logger.info('course created', {
+      orgId,
+      courseId: course.id,
+      title: course.title,
+      actorId: actor.id,
+    });
     return this.withThumbnail(course);
   }
 
-  async updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<CourseView> {
-    await this.assertLibraryAssets(orgId, [patch.thumbnailAssetId], 'A course');
+  async updateCourse(id: string, patch: UpdateCourseInput, actor: Actor): Promise<CourseView> {
+    this.require(actor, 'courses:write', id);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      id,
+      [patch.thumbnailAssetId],
+      () => this.courseAssetIds(orgId, id),
+      'A course',
+    );
     const course = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCourse(orgId, id, patch);
       if (!updated) {
@@ -180,15 +281,22 @@ export class ContentService
       await outbox.append([contentEvents.courseUpdated.make({ orgId, data: updated })]);
       return updated;
     });
-    this.logger.info('course updated', { orgId, courseId: id, fields: Object.keys(patch) });
+    this.logger.info('course updated', {
+      orgId,
+      courseId: id,
+      fields: Object.keys(patch),
+      actorId: actor.id,
+    });
     return this.withThumbnail(course);
   }
 
   async patchCourseSettings(
-    orgId: string,
     id: string,
     value: Partial<CourseSettings>,
+    actor: Actor,
   ): Promise<CourseSettings> {
+    this.require(actor, 'courses:write', id);
+    const orgId = actor.orgId;
     const merged = await this.uow.run(async ({ content, outbox }) => {
       const course = await content.findCourseById(orgId, id);
       if (!course) {
@@ -201,11 +309,13 @@ export class ContentService
       ]);
       return settings;
     });
-    this.logger.info('course settings patched', { orgId, courseId: id, value });
+    this.logger.info('course settings patched', { orgId, courseId: id, value, actorId: actor.id });
     return merged;
   }
 
-  async deleteCourse(orgId: string, id: string, actor: Actor): Promise<void> {
+  async deleteCourse(id: string, actor: Actor): Promise<void> {
+    this.require(actor, 'courses:delete', id);
+    const orgId = actor.orgId;
     await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const course = await content.findCourseById(orgId, id);
@@ -223,21 +333,24 @@ export class ContentService
         ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
     });
-    this.logger.info('course deleted', { orgId, courseId: id });
+    this.logger.info('course deleted', { orgId, courseId: id, actorId: actor.id });
   }
 
   // --- modules & activities ------------------------------------------------
 
-  listCourseModules(orgId: string, courseId: string): Promise<Module[]> {
-    return this.repo.listCourseModules(orgId, courseId);
+  async listCourseModules(courseId: string, actor: Actor): Promise<Module[]> {
+    this.require(actor, 'courses:read', courseId);
+    return this.repo.listCourseModules(actor.orgId, courseId);
   }
-  listCourseActivities(orgId: string, courseId: string): Promise<Activity[]> {
-    return this.repo.listActivitiesForCourse(orgId, courseId);
+  async listCourseActivities(courseId: string, actor: Actor): Promise<Activity[]> {
+    this.require(actor, 'courses:read', courseId);
+    return this.repo.listActivitiesForCourse(actor.orgId, courseId);
   }
-  async listCourseActivityViews(orgId: string, courseId: string): Promise<ActivityView[]> {
+  async listCourseActivityViews(courseId: string, actor: Actor): Promise<ActivityView[]> {
+    this.require(actor, 'courses:read', courseId);
     const [activities, links] = await Promise.all([
-      this.repo.listActivitiesForCourse(orgId, courseId),
-      this.repo.listActivityAssetsForCourse(orgId, courseId),
+      this.repo.listActivitiesForCourse(actor.orgId, courseId),
+      this.repo.listActivityAssetsForCourse(actor.orgId, courseId),
     ]);
     return activities.map((activity) => ({
       ...activity,
@@ -248,17 +361,28 @@ export class ContentService
       ),
     }));
   }
-  listCourseActivityAssets(orgId: string, courseId: string): Promise<ActivityAsset[]> {
-    return this.repo.listActivityAssetsForCourse(orgId, courseId);
+  async listCourseActivityAssets(courseId: string, actor: Actor): Promise<ActivityAsset[]> {
+    this.require(actor, 'courses:read', courseId);
+    return this.repo.listActivityAssetsForCourse(actor.orgId, courseId);
   }
-  getActivity(orgId: string, activityId: string): Promise<Activity | null> {
-    return this.repo.findActivity(orgId, activityId);
+  async getActivity(activityId: string, actor: Actor): Promise<Activity | null> {
+    const activity = await this.repo.findActivity(actor.orgId, activityId);
+    if (activity) {
+      this.require(actor, 'courses:read', activity.courseId);
+    }
+    return activity;
   }
-  getModule(orgId: string, moduleId: string): Promise<Module | null> {
-    return this.repo.findModule(orgId, moduleId);
+  async getModule(moduleId: string, actor: Actor): Promise<Module | null> {
+    const module = await this.repo.findModule(actor.orgId, moduleId);
+    if (module) {
+      this.require(actor, 'courses:read', module.courseId);
+    }
+    return module;
   }
 
-  async reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]> {
+  async reorderModules(courseId: string, orderedIds: string[], actor: Actor): Promise<Module[]> {
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
     const modules = await this.uow.run(async ({ content, outbox }) => {
       const reordered = await content.reorderModules(orgId, courseId, orderedIds);
       await outbox.append([contentEvents.modulesReordered.make({ orgId, data: reordered })]);
@@ -272,7 +396,9 @@ export class ContentService
     return modules;
   }
 
-  async createModule(orgId: string, courseId: string, title: string): Promise<Module[]> {
+  async createModule(courseId: string, title: string, actor: Actor): Promise<Module[]> {
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
     const { modules, created } = await this.uow.run(async ({ content, outbox }) => {
       const all = await content.createModule(orgId, courseId, title);
       // The list is ordered by seq and the new module is appended at max(seq)+1.
@@ -283,16 +409,24 @@ export class ContentService
       await outbox.append([contentEvents.moduleCreated.make({ orgId, data: module })]);
       return { modules: all, created: module };
     });
-    this.logger.info('module created', { orgId, courseId, moduleId: created.id, title });
+    this.logger.info('module created', {
+      orgId,
+      courseId,
+      moduleId: created.id,
+      title,
+      actorId: actor.id,
+    });
     return modules;
   }
 
   async updateModule(
-    orgId: string,
     courseId: string,
     moduleId: string,
     title: string,
+    actor: Actor,
   ): Promise<Module[]> {
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
     const modules = await this.uow.run(async ({ content, outbox }) => {
       const existing = await content.findModule(orgId, moduleId);
       if (!existing || existing.courseId !== courseId) {
@@ -311,11 +445,13 @@ export class ContentService
       await outbox.append([contentEvents.moduleUpdated.make({ orgId, data: module })]);
       return all;
     });
-    this.logger.info('module updated', { orgId, courseId, moduleId, title });
+    this.logger.info('module updated', { orgId, courseId, moduleId, title, actorId: actor.id });
     return modules;
   }
 
-  async deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]> {
+  async deleteModule(courseId: string, moduleId: string, actor: Actor): Promise<Module[]> {
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
     const modules = await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const module = await content.findModule(orgId, moduleId);
@@ -331,16 +467,18 @@ export class ContentService
       await outbox.append([contentEvents.moduleDeleted.make({ orgId, data: module })]);
       return remaining;
     });
-    this.logger.info('module deleted', { orgId, courseId, moduleId });
+    this.logger.info('module deleted', { orgId, courseId, moduleId, actorId: actor.id });
     return modules;
   }
 
   async reorderActivities(
-    orgId: string,
     courseId: string,
     moduleId: string,
     orderedIds: string[],
+    actor: Actor,
   ): Promise<Module[]> {
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
     const modules = await this.uow.run(async ({ content, outbox }) => {
       const reordered = await content.reorderActivities(orgId, courseId, moduleId, orderedIds);
       const module = reordered.find((m) => m.id === moduleId);
@@ -354,33 +492,22 @@ export class ContentService
     return modules;
   }
 
-  private async assertLibraryAssets(
-    orgId: string,
-    assetIds: (string | null | undefined)[],
-    user = 'An activity',
-  ): Promise<void> {
-    const ids = assetIds.filter((id): id is string => typeof id === 'string');
-    if (ids.length === 0) {
-      return;
-    }
-    const library = new Set(await this.libraryAssets.libraryAssetsAmong(orgId, ids));
-    const refused = ids.filter((id) => !library.has(id));
-    if (refused.length > 0) {
-      this.logger.warn('library assets refused', { orgId, assetIds: refused });
-      throw new ConflictError(
-        `${user} can only use ready files from the media library. Not available: ${refused.join(', ')}`,
-      );
-    }
-  }
-
   async saveActivity(
-    orgId: string,
     courseId: string,
     moduleId: string,
     input: SaveActivityInput,
-    activityId?: string,
+    activityId: string | null,
+    actor: Actor,
   ): Promise<Module[]> {
-    await this.assertLibraryAssets(orgId, input.assetIds ?? []);
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      courseId,
+      input.assetIds ?? [],
+      () => this.courseAssetIds(orgId, courseId),
+      'An activity',
+    );
     const { modules, activity } = await this.uow.run(async ({ content, outbox }) => {
       let wasPublished = false;
       if (activityId) {
@@ -412,7 +539,7 @@ export class ContentService
         courseId,
         moduleId,
         input,
-        activityId,
+        activityId ?? undefined,
       );
       const events: NewDomainEvent[] = [
         activityId
@@ -438,16 +565,19 @@ export class ContentService
       courseId,
       moduleId,
       activityId: activity.id,
+      actorId: actor.id,
     });
     return modules;
   }
 
   async deleteActivity(
-    orgId: string,
     courseId: string,
     moduleId: string,
     activityId: string,
+    actor: Actor,
   ): Promise<Module[]> {
+    this.require(actor, 'courses:write', courseId);
+    const orgId = actor.orgId;
     const modules = await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const activity = await content.findActivity(orgId, activityId);
@@ -464,37 +594,60 @@ export class ContentService
       await outbox.append([contentEvents.activityDeleted.make({ orgId, data: activity })]);
       return remaining;
     });
-    this.logger.info('activity deleted', { orgId, courseId, moduleId, activityId });
+    this.logger.info('activity deleted', {
+      orgId,
+      courseId,
+      moduleId,
+      activityId,
+      actorId: actor.id,
+    });
     return modules;
   }
 
   // --- downloads ------------------------------------------------------------
 
-  async listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<DownloadView>> {
-    return this.pageWithThumbnails(await this.repo.listDownloads(orgId, query));
+  async listDownloads(query: ListDownloadsQuery, actor: Actor): Promise<Page<DownloadView>> {
+    const ids = this.visibleIds(actor, 'downloads:read', 'downloads');
+    return this.pageWithThumbnails(await this.repo.listDownloads(actor.orgId, query, ids));
   }
 
-  async getDownload(orgId: string, id: string): Promise<DownloadView | null> {
-    const download = await this.repo.getDownload(orgId, id);
+  async getDownload(id: string, actor: Actor): Promise<DownloadView | null> {
+    this.require(actor, 'downloads:read', id);
+    const download = await this.repo.getDownload(actor.orgId, id);
     return download ? this.withThumbnail(download) : null;
   }
 
-  async createDownload(orgId: string, input: CreateDownloadInput): Promise<DownloadView> {
+  async createDownload(input: CreateDownloadInput, actor: Actor): Promise<DownloadView> {
+    this.require(actor, 'downloads:write');
+    const orgId = actor.orgId;
     const download = await this.uow.run(async ({ content, outbox }) => {
       const created = await content.createDownload(orgId, input, slugify(input.title));
       await outbox.append([contentEvents.downloadCreated.make({ orgId, data: created })]);
       return created;
     });
-    this.logger.info('download created', { orgId, downloadId: download.id, title: download.title });
+    this.logger.info('download created', {
+      orgId,
+      downloadId: download.id,
+      title: download.title,
+      actorId: actor.id,
+    });
     return this.withThumbnail(download);
   }
 
   async updateDownload(
-    orgId: string,
     id: string,
     patch: UpdateDownloadInput,
+    actor: Actor,
   ): Promise<DownloadView> {
-    await this.assertLibraryAssets(orgId, [patch.thumbnailAssetId], 'A download');
+    this.require(actor, 'downloads:write', id);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      id,
+      [patch.thumbnailAssetId],
+      () => this.downloadAssetIds(orgId, id),
+      'A download',
+    );
     const download = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateDownload(orgId, id, patch);
       if (!updated) {
@@ -504,11 +657,18 @@ export class ContentService
       await outbox.append([contentEvents.downloadUpdated.make({ orgId, data: updated })]);
       return updated;
     });
-    this.logger.info('download updated', { orgId, downloadId: id, fields: Object.keys(patch) });
+    this.logger.info('download updated', {
+      orgId,
+      downloadId: id,
+      fields: Object.keys(patch),
+      actorId: actor.id,
+    });
     return this.withThumbnail(download);
   }
 
-  async removeDownload(orgId: string, id: string, actor: Actor): Promise<void> {
+  async removeDownload(id: string, actor: Actor): Promise<void> {
+    this.require(actor, 'downloads:delete', id);
+    const orgId = actor.orgId;
     await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const download = await content.getDownload(orgId, id);
@@ -526,21 +686,33 @@ export class ContentService
         ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
     });
-    this.logger.info('download deleted', { orgId, downloadId: id });
+    this.logger.info('download deleted', { orgId, downloadId: id, actorId: actor.id });
   }
 
   // --- download asset links ------------------------------------------------
 
-  async listDownloadAssets(orgId: string, downloadId: string): Promise<DownloadFile[]> {
-    return this.downloadFiles(orgId, await this.repo.listDownloadAssets(orgId, downloadId));
+  async listDownloadAssets(downloadId: string, actor: Actor): Promise<DownloadFile[]> {
+    this.require(actor, 'downloads:read', downloadId);
+    return this.downloadFiles(
+      actor.orgId,
+      await this.repo.listDownloadAssets(actor.orgId, downloadId),
+    );
   }
 
   async addDownloadAsset(
-    orgId: string,
     downloadId: string,
     input: AddDownloadAssetInput,
+    actor: Actor,
   ): Promise<DownloadFile[]> {
-    await this.assertLibraryAssets(orgId, [input.assetId], 'A download');
+    this.require(actor, 'downloads:write', downloadId);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      downloadId,
+      [input.assetId],
+      () => this.downloadAssetIds(orgId, downloadId),
+      'A download',
+    );
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.addDownloadAsset(orgId, downloadId, input);
       await outbox.append([
@@ -548,15 +720,22 @@ export class ContentService
       ]);
       return assets;
     });
-    this.logger.info('download asset added', { orgId, downloadId, assetId: input.assetId });
+    this.logger.info('download asset added', {
+      orgId,
+      downloadId,
+      assetId: input.assetId,
+      actorId: actor.id,
+    });
     return this.downloadFiles(orgId, assets);
   }
 
   async removeDownloadAsset(
-    orgId: string,
     downloadId: string,
     assetId: string,
+    actor: Actor,
   ): Promise<DownloadFile[]> {
+    this.require(actor, 'downloads:write', downloadId);
+    const orgId = actor.orgId;
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.removeDownloadAsset(orgId, downloadId, assetId);
       await outbox.append([
@@ -564,16 +743,18 @@ export class ContentService
       ]);
       return assets;
     });
-    this.logger.info('download asset removed', { orgId, downloadId, assetId });
+    this.logger.info('download asset removed', { orgId, downloadId, assetId, actorId: actor.id });
     return this.downloadFiles(orgId, assets);
   }
 
   async renameDownloadAsset(
-    orgId: string,
     downloadId: string,
     assetId: string,
     displayName: string | null,
+    actor: Actor,
   ): Promise<DownloadFile[]> {
+    this.require(actor, 'downloads:write', downloadId);
+    const orgId = actor.orgId;
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const assets = await content.renameDownloadAsset(orgId, downloadId, assetId, displayName);
       await outbox.append([
@@ -581,17 +762,19 @@ export class ContentService
       ]);
       return assets;
     });
-    this.logger.info('download asset renamed', { orgId, downloadId, assetId });
+    this.logger.info('download asset renamed', { orgId, downloadId, assetId, actorId: actor.id });
     return this.downloadFiles(orgId, assets);
   }
 
   /** The caller must send the COMPLETE ordered set — a partial list would
    *  silently unlink whatever it omitted. */
   async reorderDownloadAssets(
-    orgId: string,
     downloadId: string,
     assetIds: string[],
+    actor: Actor,
   ): Promise<DownloadFile[]> {
+    this.require(actor, 'downloads:write', downloadId);
+    const orgId = actor.orgId;
     const assets = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.listDownloadAssets(orgId, downloadId);
       const currentIds = new Set(current.map((a) => a.assetId));
@@ -621,15 +804,19 @@ export class ContentService
 
   // --- bundles --------------------------------------------------------------
 
-  listBundles(orgId: string, query: ListBundlesQuery): Promise<Page<Bundle>> {
-    return this.repo.listBundles(orgId, query);
+  async listBundles(query: ListBundlesQuery, actor: Actor): Promise<Page<Bundle>> {
+    this.require(actor, 'bundles:read');
+    return this.repo.listBundles(actor.orgId, query);
   }
 
-  getBundle(orgId: string, id: string): Promise<Bundle | null> {
-    return this.repo.findBundleById(orgId, id);
+  async getBundle(id: string, actor: Actor): Promise<Bundle | null> {
+    this.require(actor, 'bundles:read');
+    return this.repo.findBundleById(actor.orgId, id);
   }
 
-  async createBundle(orgId: string, input: CreateBundleInput): Promise<Bundle> {
+  async createBundle(input: CreateBundleInput, actor: Actor): Promise<Bundle> {
+    this.require(actor, 'bundles:write');
+    const orgId = actor.orgId;
     const { bundle, items } = await this.uow.run(async ({ content, outbox }) => {
       // The repository writes the bundle and its initial items as one unit —
       // an unknown content id throws and nothing is created.
@@ -655,11 +842,14 @@ export class ContentService
       bundleId: bundle.id,
       name: bundle.name,
       itemCount: items.length,
+      actorId: actor.id,
     });
     return bundle;
   }
 
-  async updateBundle(orgId: string, id: string, patch: UpdateBundleInput): Promise<Bundle> {
+  async updateBundle(id: string, patch: UpdateBundleInput, actor: Actor): Promise<Bundle> {
+    this.require(actor, 'bundles:write');
+    const orgId = actor.orgId;
     const bundle = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateBundle(orgId, id, patch);
       if (!updated) {
@@ -669,11 +859,18 @@ export class ContentService
       await outbox.append([contentEvents.bundleUpdated.make({ orgId, data: updated })]);
       return updated;
     });
-    this.logger.info('bundle updated', { orgId, bundleId: id, fields: Object.keys(patch) });
+    this.logger.info('bundle updated', {
+      orgId,
+      bundleId: id,
+      fields: Object.keys(patch),
+      actorId: actor.id,
+    });
     return bundle;
   }
 
-  async deleteBundle(orgId: string, id: string): Promise<void> {
+  async deleteBundle(id: string, actor: Actor): Promise<void> {
+    this.require(actor, 'bundles:delete');
+    const orgId = actor.orgId;
     await this.uow.run(async ({ content, outbox }) => {
       // Snapshot before the delete — the event carries the last known state.
       const bundle = await content.findBundleById(orgId, id);
@@ -687,14 +884,17 @@ export class ContentService
       }
       await outbox.append([contentEvents.bundleDeleted.make({ orgId, data: bundle })]);
     });
-    this.logger.info('bundle deleted', { orgId, bundleId: id });
+    this.logger.info('bundle deleted', { orgId, bundleId: id, actorId: actor.id });
   }
 
-  listBundleItems(orgId: string, bundleId: string): Promise<BundleItem[]> {
-    return this.repo.listBundleItems(orgId, bundleId);
+  async listBundleItems(bundleId: string, actor: Actor): Promise<BundleItem[]> {
+    this.require(actor, 'bundles:read');
+    return this.repo.listBundleItems(actor.orgId, bundleId);
   }
 
-  async addBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]> {
+  async addBundleItem(bundleId: string, contentId: string, actor: Actor): Promise<BundleItem[]> {
+    this.require(actor, 'bundles:write');
+    const orgId = actor.orgId;
     const items = await this.uow.run(async ({ content, outbox }) => {
       const all = await content.addBundleItem(orgId, bundleId, contentId);
       await outbox.append([
@@ -702,15 +902,13 @@ export class ContentService
       ]);
       return all;
     });
-    this.logger.info('bundle item added', { orgId, bundleId, contentId });
+    this.logger.info('bundle item added', { orgId, bundleId, contentId, actorId: actor.id });
     return items;
   }
 
-  async removeBundleItem(
-    orgId: string,
-    bundleId: string,
-    contentId: string,
-  ): Promise<BundleItem[]> {
+  async removeBundleItem(bundleId: string, contentId: string, actor: Actor): Promise<BundleItem[]> {
+    this.require(actor, 'bundles:write');
+    const orgId = actor.orgId;
     const items = await this.uow.run(async ({ content, outbox }) => {
       const all = await content.removeBundleItem(orgId, bundleId, contentId);
       await outbox.append([
@@ -718,7 +916,7 @@ export class ContentService
       ]);
       return all;
     });
-    this.logger.info('bundle item removed', { orgId, bundleId, contentId });
+    this.logger.info('bundle item removed', { orgId, bundleId, contentId, actorId: actor.id });
     return items;
   }
 
@@ -763,12 +961,14 @@ export class ContentService
     return { accessRule, capacity, settings };
   }
 
-  async listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>> {
-    return this.pageWithThumbnails(await this.repo.listCommunities(orgId, query));
+  async listCommunities(query: ListCommunitiesQuery, actor: Actor): Promise<Page<CommunityView>> {
+    const ids = this.visibleIds(actor, 'communities:read', 'communities');
+    return this.pageWithThumbnails(await this.repo.listCommunities(actor.orgId, query, ids));
   }
 
-  async getCommunity(orgId: string, id: string): Promise<CommunityView | null> {
-    const community = await this.repo.findCommunityById(orgId, id);
+  async getCommunity(id: string, actor: Actor): Promise<CommunityView | null> {
+    this.require(actor, 'communities:read', id);
+    const community = await this.repo.findCommunityById(actor.orgId, id);
     return community ? this.withThumbnail(community) : null;
   }
 
@@ -776,41 +976,54 @@ export class ContentService
     return this.repo.communitiesWithDigest();
   }
 
-  listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]> {
-    return ids.length ? this.repo.findCommunitiesByIds(orgId, ids) : Promise.resolve([]);
+  async listCommunitiesById(ids: string[], actor: Actor): Promise<Community[]> {
+    if (!actor.permissions.anywhere('communities:read')) {
+      this.logger.warn('content list refused', {
+        orgId: actor.orgId,
+        actorId: actor.id,
+        permission: 'communities:read',
+      });
+      throw new ForbiddenError('You cannot see communities');
+    }
+    const visible = ids.filter((id) => actor.permissions.has('communities:read', id));
+    return visible.length ? this.repo.findCommunitiesByIds(actor.orgId, visible) : [];
   }
 
-  getSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null> {
-    return this.repo.findSpace(orgId, spaceId);
+  async getSpace(spaceId: string, actor: Actor): Promise<SpaceDetail | null> {
+    const space = await this.repo.findSpace(actor.orgId, spaceId);
+    if (space) {
+      this.require(actor, 'communities:read', space.communityId);
+    }
+    return space;
   }
 
   async getCommunitySpace(
-    orgId: string,
     communityId: string,
     spaceId: string,
+    actor: Actor,
   ): Promise<SpaceDetail | null> {
-    const space = await this.repo.findSpace(orgId, spaceId);
+    this.require(actor, 'communities:read', communityId);
+    const space = await this.repo.findSpace(actor.orgId, spaceId);
     return space?.communityId === communityId ? space : null;
   }
 
-  async listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]> {
-    if (!(await this.getCommunity(orgId, communityId))) {
+  async listSpaces(communityId: string, actor: Actor): Promise<SpaceDetail[]> {
+    this.require(actor, 'communities:read', communityId);
+    if (!(await this.repo.findCommunityById(actor.orgId, communityId))) {
       throw new NotFoundError('Community', communityId);
     }
-    return this.repo.listSpaces(orgId, communityId);
+    return this.repo.listSpaces(actor.orgId, communityId);
   }
 
-  async getDmSettings(orgId: string, communityId: string): Promise<DmSettings | null> {
-    const community = await this.repo.findCommunityById(orgId, communityId);
+  async getDmSettings(communityId: string, actor: Actor): Promise<DmSettings | null> {
+    this.require(actor, 'communities:read', communityId);
+    const community = await this.repo.findCommunityById(actor.orgId, communityId);
     return community?.settings.dm ?? null;
   }
 
-  async createCommunity(
-    orgId: string,
-    input: CreateCommunityInput,
-    actor: Actor,
-  ): Promise<CommunityView> {
-    assertConfigurator(actor);
+  async createCommunity(input: CreateCommunityInput, actor: Actor): Promise<CommunityView> {
+    this.require(actor, 'communities:write');
+    const orgId = actor.orgId;
     const community = await this.uow.run(async ({ content, outbox }) => {
       const created = await content.createCommunity(orgId, input, slugify(input.title));
       await outbox.append([
@@ -831,13 +1044,19 @@ export class ContentService
   }
 
   async updateCommunity(
-    orgId: string,
     id: string,
     patch: UpdateCommunityInput,
     actor: Actor,
   ): Promise<CommunityView> {
-    assertConfigurator(actor);
-    await this.assertLibraryAssets(orgId, [patch.thumbnailAssetId], 'A community');
+    this.require(actor, 'communities:write', id);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      id,
+      [patch.thumbnailAssetId],
+      async () => [(await this.repo.findCommunityById(orgId, id))?.thumbnailAssetId ?? null],
+      'A community',
+    );
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.updateCommunity(orgId, id, patch);
       if (!updated) {
@@ -861,16 +1080,17 @@ export class ContentService
     return this.withThumbnail(community);
   }
 
-  publishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView> {
-    return this.updateCommunity(orgId, id, { status: 'published' }, actor);
+  publishCommunity(id: string, actor: Actor): Promise<CommunityView> {
+    return this.updateCommunity(id, { status: 'published' }, actor);
   }
 
-  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView> {
-    return this.updateCommunity(orgId, id, { status: 'draft' }, actor);
+  unpublishCommunity(id: string, actor: Actor): Promise<CommunityView> {
+    return this.updateCommunity(id, { status: 'draft' }, actor);
   }
 
-  async deleteCommunity(orgId: string, id: string, actor: Actor): Promise<void> {
-    assertConfigurator(actor);
+  async deleteCommunity(id: string, actor: Actor): Promise<void> {
+    this.require(actor, 'communities:delete', id);
+    const orgId = actor.orgId;
     await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, id);
       if (!community) {
@@ -900,12 +1120,12 @@ export class ContentService
   }
 
   async patchCommunitySettings(
-    orgId: string,
     id: string,
     patch: PatchCommunitySettingsInput,
     actor: Actor,
   ): Promise<CommunityView> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', id);
+    const orgId = actor.orgId;
     const community = await this.uow.run(async ({ content, outbox }) => {
       const updated = await content.patchCommunitySettings(orgId, id, patch);
       if (!updated) {
@@ -934,12 +1154,12 @@ export class ContentService
   }
 
   async createSpace(
-    orgId: string,
     communityId: string,
     input: CreateSpaceInput,
     actor: Actor,
   ): Promise<SpaceDetail> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const resolved = this.resolvedSpace(input);
     const space = await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, communityId);
@@ -976,13 +1196,13 @@ export class ContentService
   }
 
   async updateSpace(
-    orgId: string,
     communityId: string,
     spaceId: string,
     patch: UpdateSpaceInput,
     actor: Actor,
   ): Promise<SpaceDetail> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
@@ -1017,13 +1237,9 @@ export class ContentService
     return space;
   }
 
-  async deleteSpace(
-    orgId: string,
-    communityId: string,
-    spaceId: string,
-    actor: Actor,
-  ): Promise<void> {
-    assertConfigurator(actor);
+  async deleteSpace(communityId: string, spaceId: string, actor: Actor): Promise<void> {
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     await this.uow.run(async ({ content, outbox }) => {
       const space = await content.findSpace(orgId, spaceId);
       if (!space || space.communityId !== communityId) {
@@ -1051,12 +1267,12 @@ export class ContentService
   }
 
   async reorderSpaces(
-    orgId: string,
     communityId: string,
     orderedIds: string[],
     actor: Actor,
   ): Promise<SpaceDetail[]> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const spaces = await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, communityId);
       if (!community) {
@@ -1091,13 +1307,13 @@ export class ContentService
   }
 
   async setSpaceTopics(
-    orgId: string,
     communityId: string,
     spaceId: string,
     input: SetSpaceTopicsInput,
     actor: Actor,
   ): Promise<SpaceDetail> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const names = input.topics.map((topic) => topic.name);
     if (new Set(names).size !== names.length) {
       throw new InvalidInputError('A space topic name is already used');
@@ -1139,13 +1355,13 @@ export class ContentService
   }
 
   async addSpaceLink(
-    orgId: string,
     communityId: string,
     spaceId: string,
     contentId: string,
     actor: Actor,
   ): Promise<SpaceDetail> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
@@ -1181,13 +1397,13 @@ export class ContentService
   }
 
   async removeSpaceLink(
-    orgId: string,
     communityId: string,
     spaceId: string,
     linkId: string,
     actor: Actor,
   ): Promise<SpaceDetail> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
@@ -1220,13 +1436,13 @@ export class ContentService
   }
 
   async reorderSpaceLinks(
-    orgId: string,
     communityId: string,
     spaceId: string,
     orderedIds: string[],
     actor: Actor,
   ): Promise<SpaceDetail> {
-    assertConfigurator(actor);
+    this.require(actor, 'communities:write', communityId);
+    const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {

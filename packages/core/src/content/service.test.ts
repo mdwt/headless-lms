@@ -3,11 +3,13 @@ import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.j
 import type { Actor } from '../shared/actor.js';
 import type { Community, SpaceDetail } from './model.js';
 import { ContentService } from './service.js';
+import { contentDeclarations } from './declarations.js';
 import { contentEvents } from './events.js';
-import type { ContentRepository, ContentUnitOfWork } from './ports.js';
+import type { ContentAssetReader, ContentRepository, ContentUnitOfWork } from './ports.js';
 import type { Activity, Course, Download, DownloadAsset, Module } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
-import type { AssetFiles, LibraryAssetReader } from '../assets/index.js';
+import type { AssetFiles } from '../assets/index.js';
+import { actorWith } from '../organizations/index.js';
 import { createFileUrls } from '../assets/index.js';
 const AT = new Date('2026-01-01T00:00:00.000Z');
 
@@ -39,7 +41,7 @@ function makeRepo(): ContentRepository {
     deleteCourse: vi.fn(),
     listCourseModules: vi.fn(),
     listActivitiesForCourse: vi.fn(),
-    listActivityAssetsForCourse: vi.fn(),
+    listActivityAssetsForCourse: vi.fn().mockResolvedValue([]),
     findActivity: vi.fn(),
     findModule: vi.fn(),
     reorderModules: vi.fn(),
@@ -54,7 +56,7 @@ function makeRepo(): ContentRepository {
     createDownload: vi.fn(),
     updateDownload: vi.fn(),
     deleteDownload: vi.fn(),
-    listDownloadAssets: vi.fn(),
+    listDownloadAssets: vi.fn().mockResolvedValue([]),
     addDownloadAsset: vi.fn(),
     removeDownloadAsset: vi.fn(),
     renameDownloadAsset: vi.fn(),
@@ -106,9 +108,19 @@ function fakeUow(repo: ContentRepository) {
   return { uow, append, appended };
 }
 
-const libraryAssets: LibraryAssetReader = {
-  libraryAssetsAmong: async (_orgId, assetIds) => assetIds,
-};
+function ownerIn(orgId: string): Actor {
+  return actorWith({ owner: true, orgId, id: 'ou_owner' });
+}
+
+function library(ids: (id: string) => boolean = () => true, contentId: string | null = null) {
+  return {
+    libraryAssetsFor: vi.fn(async (_orgId: string, assetIds: string[]) =>
+      assetIds.filter(ids).map((id) => ({ id, contentId })),
+    ),
+  };
+}
+
+const libraryAssets: ContentAssetReader = library();
 
 const UNSIGNED = 'ast_unsigned';
 
@@ -123,7 +135,7 @@ const files: Pick<AssetFiles, 'readyFiles'> = {
 
 const fileUrls = createFileUrls('https://api.test');
 
-function build(repo = makeRepo(), assets: LibraryAssetReader = libraryAssets) {
+function build(repo = makeRepo(), assets: ContentAssetReader = libraryAssets) {
   const { uow, append, appended } = fakeUow(repo);
   const svc = new ContentService({ repo, uow, libraryAssets: assets, files, fileUrls });
   return { svc, repo, append, appended };
@@ -163,7 +175,7 @@ describe('ContentServiceImpl', () => {
     (repo.createCourse as ReturnType<typeof vi.fn>).mockResolvedValue(created);
 
     const { svc } = build(repo);
-    const result = await svc.createCourse('org1', { title: 'My New Course' });
+    const result = await svc.createCourse({ title: 'My New Course' }, ownerIn('org1'));
 
     expect(repo.createCourse).toHaveBeenCalledWith(
       'org1',
@@ -179,7 +191,7 @@ describe('ContentServiceImpl', () => {
     (repo.findCourseById as ReturnType<typeof vi.fn>).mockResolvedValue(course);
 
     const { svc, append } = build(repo);
-    const result = await svc.getCourse('org1', 'c1');
+    const result = await svc.getCourse('c1', ownerIn('org1'));
 
     expect(repo.findCourseById).toHaveBeenCalledWith('org1', 'c1');
     expect(result).toEqual({
@@ -198,7 +210,11 @@ describe('ContentServiceImpl', () => {
     });
 
     const { svc } = build(repo);
-    const result = await svc.patchCourseSettings('org1', 'c1', { transcriptDownloads: true });
+    const result = await svc.patchCourseSettings(
+      'c1',
+      { transcriptDownloads: true },
+      ownerIn('org1'),
+    );
 
     expect(repo.patchCourseSettings).toHaveBeenCalledWith('org1', 'c1', {
       transcriptDownloads: true,
@@ -212,7 +228,9 @@ describe('ContentServiceImpl', () => {
 
     const { svc } = build(repo);
 
-    await expect(svc.patchCourseSettings('org1', 'missing', {})).rejects.toThrow(NotFoundError);
+    await expect(svc.patchCourseSettings('missing', {}, ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
     expect(repo.patchCourseSettings).not.toHaveBeenCalled();
   });
 
@@ -225,7 +243,7 @@ describe('ContentServiceImpl', () => {
     });
 
     const { svc, appended } = build(repo);
-    await svc.patchCourseSettings('org1', 'c1', { transcriptDownloads: true });
+    await svc.patchCourseSettings('c1', { transcriptDownloads: true }, ownerIn('org1'));
 
     expect(appended).toEqual([
       {
@@ -242,7 +260,9 @@ describe('ContentServiceImpl', () => {
     (repo.findCourseById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     const { svc, append } = build(repo);
-    await expect(svc.patchCourseSettings('org1', 'missing', {})).rejects.toThrow(NotFoundError);
+    await expect(svc.patchCourseSettings('missing', {}, ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -252,7 +272,7 @@ describe('ContentServiceImpl', () => {
     (repo.createCourse as ReturnType<typeof vi.fn>).mockResolvedValue(created);
 
     const { svc, appended } = build(repo);
-    await svc.createCourse('org1', { title: 'Intro' });
+    await svc.createCourse({ title: 'Intro' }, ownerIn('org1'));
 
     expect(appended).toEqual([
       { type: 'content.course.created', version: 1, orgId: 'org1', data: created },
@@ -265,7 +285,7 @@ describe('ContentServiceImpl', () => {
     (repo.updateCourse as ReturnType<typeof vi.fn>).mockResolvedValue(updated);
 
     const { svc, appended } = build(repo);
-    const result = await svc.updateCourse('org1', 'c1', { title: 'Renamed' });
+    const result = await svc.updateCourse('c1', { title: 'Renamed' }, ownerIn('org1'));
 
     expect(repo.updateCourse).toHaveBeenCalledWith('org1', 'c1', { title: 'Renamed' });
     expect(result).toEqual({ ...updated, thumbnailUrl: null });
@@ -279,7 +299,7 @@ describe('ContentServiceImpl', () => {
     (repo.updateCourse as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     const { svc, append } = build(repo);
-    await expect(svc.updateCourse('org1', 'missing', { title: 'X' })).rejects.toThrow(
+    await expect(svc.updateCourse('missing', { title: 'X' }, ownerIn('org1'))).rejects.toThrow(
       NotFoundError,
     );
     expect(append).not.toHaveBeenCalled();
@@ -292,7 +312,7 @@ describe('ContentServiceImpl', () => {
     (repo.deleteCourse as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const { svc, appended } = build(repo);
-    await svc.deleteCourse('org1', 'c1', owner);
+    await svc.deleteCourse('c1', ownerIn('org1'));
 
     expect(appended).toEqual([
       { type: 'content.course.deleted', version: 1, orgId: 'org1', data: course },
@@ -304,7 +324,7 @@ describe('ContentServiceImpl', () => {
     (repo.findCourseById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
     const { svc, repo: r, append } = build(repo);
-    await expect(svc.deleteCourse('org1', 'missing', owner)).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteCourse('missing', ownerIn('org1'))).rejects.toThrow(NotFoundError);
     expect(r.deleteCourse).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -315,7 +335,7 @@ describe('ContentServiceImpl', () => {
     (repo.deleteCourse as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
     const { svc, append } = build(repo);
-    await expect(svc.deleteCourse('org1', 'c1', owner)).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteCourse('c1', ownerIn('org1'))).rejects.toThrow(NotFoundError);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -324,7 +344,7 @@ describe('ContentServiceImpl', () => {
     (repo.createCourse as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('boom'));
 
     const { svc, append } = build(repo);
-    await expect(svc.createCourse('org1', { title: 'Intro' })).rejects.toThrow('boom');
+    await expect(svc.createCourse({ title: 'Intro' }, ownerIn('org1'))).rejects.toThrow('boom');
     expect(append).not.toHaveBeenCalled();
   });
 });
@@ -337,7 +357,7 @@ describe('modules', () => {
     vi.mocked(repo.createModule).mockResolvedValue(modules);
 
     const { svc, appended } = build(repo);
-    const result = await svc.createModule('org1', 'c1', 'New Module');
+    const result = await svc.createModule('c1', 'New Module', ownerIn('org1'));
 
     expect(repo.createModule).toHaveBeenCalledWith('org1', 'c1', 'New Module');
     expect(result).toBe(modules);
@@ -358,7 +378,7 @@ describe('modules', () => {
     vi.mocked(repo.updateModule).mockResolvedValue([updated]);
 
     const { svc, appended } = build(repo);
-    await svc.updateModule('org1', 'c1', 'm1', 'Renamed');
+    await svc.updateModule('c1', 'm1', 'Renamed', ownerIn('org1'));
 
     expect(repo.updateModule).toHaveBeenCalledWith('org1', 'c1', 'm1', 'Renamed');
     expect(appended).toEqual([
@@ -376,7 +396,9 @@ describe('modules', () => {
     vi.mocked(repo.findModule).mockResolvedValue(makeModule({ courseId: 'other' }));
 
     const { svc, append } = build(repo);
-    await expect(svc.updateModule('org1', 'c1', 'm1', 'Renamed')).rejects.toThrow(NotFoundError);
+    await expect(svc.updateModule('c1', 'm1', 'Renamed', ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
     expect(repo.updateModule).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -388,7 +410,7 @@ describe('modules', () => {
     vi.mocked(repo.deleteModule).mockResolvedValue([]);
 
     const { svc, appended } = build(repo);
-    const result = await svc.deleteModule('org1', 'c1', 'm1');
+    const result = await svc.deleteModule('c1', 'm1', ownerIn('org1'));
 
     expect(repo.deleteModule).toHaveBeenCalledWith('org1', 'c1', 'm1');
     expect(result).toEqual([]);
@@ -407,7 +429,7 @@ describe('modules', () => {
     vi.mocked(repo.findModule).mockResolvedValue(null);
 
     const { svc, append } = build(repo);
-    await expect(svc.deleteModule('org1', 'c1', 'missing')).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteModule('c1', 'missing', ownerIn('org1'))).rejects.toThrow(NotFoundError);
     expect(repo.deleteModule).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -418,7 +440,7 @@ describe('modules', () => {
     vi.mocked(repo.reorderModules).mockResolvedValue(reordered);
 
     const { svc, appended } = build(repo);
-    const result = await svc.reorderModules('org1', 'c1', ['m2', 'm1']);
+    const result = await svc.reorderModules('c1', ['m2', 'm1'], ownerIn('org1'));
 
     expect(result).toBe(reordered);
     expect(appended).toEqual([
@@ -441,7 +463,13 @@ describe('activities', () => {
     vi.mocked(repo.saveActivity).mockResolvedValue({ modules, activity: created });
 
     const { svc, appended } = build(repo);
-    const result = await svc.saveActivity('org1', 'c1', 'm1', { settings: { title: 'A' } });
+    const result = await svc.saveActivity(
+      'c1',
+      'm1',
+      { settings: { title: 'A' } },
+      null,
+      ownerIn('org1'),
+    );
 
     expect(repo.saveActivity).toHaveBeenCalledWith(
       'org1',
@@ -466,7 +494,9 @@ describe('activities', () => {
     vi.mocked(repo.findModule).mockResolvedValue(null);
 
     const { svc, append } = build(repo);
-    await expect(svc.saveActivity('org1', 'c1', 'missing', {})).rejects.toThrow(NotFoundError);
+    await expect(svc.saveActivity('c1', 'missing', {}, null, ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
     expect(repo.saveActivity).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -478,7 +508,7 @@ describe('activities', () => {
     vi.mocked(repo.saveActivity).mockResolvedValue({ modules: [makeModule()], activity: saved });
 
     const { svc, appended } = build(repo);
-    await svc.saveActivity('org1', 'c1', 'm1', { assetIds: ['a1'] }, 'act1');
+    await svc.saveActivity('c1', 'm1', { assetIds: ['a1'] }, 'act1', ownerIn('org1'));
 
     expect(repo.saveActivity).toHaveBeenCalledWith(
       'org1',
@@ -531,7 +561,7 @@ describe('activities', () => {
         before: { title: 'A', published: false },
         after: { title: 'A', published: true },
       });
-      await svc.saveActivity('org1', 'c1', 'm1', { settings: {} }, 'act1');
+      await svc.saveActivity('c1', 'm1', { settings: {} }, 'act1', ownerIn('org1'));
       expect(appended.map((event) => event.type)).toEqual([
         'content.course.activity.updated',
         'content.course.activity.published',
@@ -542,7 +572,7 @@ describe('activities', () => {
     it('is emitted when an activity is created published, a missing key counting as published', async () => {
       for (const after of [{ title: 'A', published: true }, { title: 'A' }, null]) {
         const { svc, appended } = scenario({ status: 'published', after });
-        await svc.saveActivity('org1', 'c1', 'm1', { settings: {} });
+        await svc.saveActivity('c1', 'm1', { settings: {} }, null, ownerIn('org1'));
         expect(appended).toEqual([
           expect.objectContaining({ type: 'content.course.activity.created' }),
           published('act1'),
@@ -563,11 +593,11 @@ describe('activities', () => {
       for (const options of cases) {
         const { svc, appended } = scenario(options);
         await svc.saveActivity(
-          'org1',
           'c1',
           'm1',
           { settings: {} },
-          options.before === undefined ? undefined : 'act1',
+          options.before === undefined ? null : 'act1',
+          ownerIn('org1'),
         );
         expect(appended).toHaveLength(1);
       }
@@ -577,17 +607,18 @@ describe('activities', () => {
   it('refuses activity assets that are not ready library files of the org', async () => {
     const repo = makeRepo();
     vi.mocked(repo.findActivity).mockResolvedValue(makeActivity());
-    const { svc, append } = build(repo, {
-      libraryAssetsAmong: async (_orgId, assetIds) => assetIds.filter((id) => id === 'ast_lib'),
-    });
+    const { svc, append } = build(
+      repo,
+      library((id) => id === 'ast_lib'),
+    );
 
     await expect(
       svc.saveActivity(
-        'org1',
         'c1',
         'm1',
         { assetIds: ['ast_lib', 'ast_member', 'ast_gone'] },
         'act1',
+        ownerIn('org1'),
       ),
     ).rejects.toThrow(
       'An activity can only use ready files from the media library. Not available: ast_member, ast_gone',
@@ -598,24 +629,24 @@ describe('activities', () => {
 
   it('refuses a thumbnail or download file that is not a ready library file of the org', async () => {
     const repo = makeRepo();
-    const { svc, append } = build(repo, {
-      libraryAssetsAmong: async (_orgId, assetIds) => assetIds.filter((id) => id === 'ast_lib'),
-    });
-    const owner: Actor = { id: 'ou_owner', role: 'owner' };
+    const { svc, append } = build(
+      repo,
+      library((id) => id === 'ast_lib'),
+    );
 
     await expect(
-      svc.updateCourse('org1', 'c1', { thumbnailAssetId: 'ast_member' }),
+      svc.updateCourse('c1', { thumbnailAssetId: 'ast_member' }, ownerIn('org1')),
     ).rejects.toThrow(
       'A course can only use ready files from the media library. Not available: ast_member',
     );
     await expect(
-      svc.updateDownload('org1', 'd1', { thumbnailAssetId: 'ast_member' }),
+      svc.updateDownload('d1', { thumbnailAssetId: 'ast_member' }, ownerIn('org1')),
     ).rejects.toThrow('A download can only use ready files from the media library');
-    await expect(svc.addDownloadAsset('org1', 'd1', { assetId: 'ast_member' })).rejects.toThrow(
-      'A download can only use ready files from the media library',
-    );
     await expect(
-      svc.updateCommunity('org1', 'cmy1', { thumbnailAssetId: 'ast_member' }, owner),
+      svc.addDownloadAsset('d1', { assetId: 'ast_member' }, ownerIn('org1')),
+    ).rejects.toThrow('A download can only use ready files from the media library');
+    await expect(
+      svc.updateCommunity('cmy1', { thumbnailAssetId: 'ast_member' }, ownerIn('org1')),
     ).rejects.toThrow('A community can only use ready files from the media library');
     expect(repo.updateCourse).not.toHaveBeenCalled();
     expect(repo.updateDownload).not.toHaveBeenCalled();
@@ -626,14 +657,14 @@ describe('activities', () => {
 
   it('checks no file when a write clears the thumbnail or leaves it alone', async () => {
     const repo = makeRepo();
-    const libraryAssetsAmong = vi.fn(async (_orgId: string, assetIds: string[]) => assetIds);
+    const assets = library();
     vi.mocked(repo.updateCourse).mockResolvedValue(makeCourse());
-    const { svc } = build(repo, { libraryAssetsAmong });
+    const { svc } = build(repo, assets);
 
-    await svc.updateCourse('org1', 'c1', { thumbnailAssetId: null });
-    await svc.updateCourse('org1', 'c1', { title: 'Fundraising 101' });
+    await svc.updateCourse('c1', { thumbnailAssetId: null }, ownerIn('org1'));
+    await svc.updateCourse('c1', { title: 'Fundraising 101' }, ownerIn('org1'));
 
-    expect(libraryAssetsAmong).not.toHaveBeenCalled();
+    expect(assets.libraryAssetsFor).not.toHaveBeenCalled();
   });
 
   it('throws NotFoundError when updating an activity that lives in another module', async () => {
@@ -641,7 +672,9 @@ describe('activities', () => {
     vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ moduleId: 'other' }));
 
     const { svc, append } = build(repo);
-    await expect(svc.saveActivity('org1', 'c1', 'm1', {}, 'act1')).rejects.toThrow(NotFoundError);
+    await expect(svc.saveActivity('c1', 'm1', {}, 'act1', ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
     expect(repo.saveActivity).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -653,7 +686,7 @@ describe('activities', () => {
     vi.mocked(repo.deleteActivity).mockResolvedValue([makeModule()]);
 
     const { svc, appended } = build(repo);
-    await svc.deleteActivity('org1', 'c1', 'm1', 'act1');
+    await svc.deleteActivity('c1', 'm1', 'act1', ownerIn('org1'));
 
     expect(repo.deleteActivity).toHaveBeenCalledWith('org1', 'c1', 'm1', 'act1');
     expect(appended).toEqual([
@@ -671,7 +704,9 @@ describe('activities', () => {
     vi.mocked(repo.findActivity).mockResolvedValue(null);
 
     const { svc, append } = build(repo);
-    await expect(svc.deleteActivity('org1', 'c1', 'm1', 'missing')).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteActivity('c1', 'm1', 'missing', ownerIn('org1'))).rejects.toThrow(
+      NotFoundError,
+    );
     expect(repo.deleteActivity).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
@@ -682,7 +717,7 @@ describe('activities', () => {
     vi.mocked(repo.reorderActivities).mockResolvedValue(reordered);
 
     const { svc, appended } = build(repo);
-    const result = await svc.reorderActivities('org1', 'c1', 'm1', ['act2', 'act1']);
+    const result = await svc.reorderActivities('c1', 'm1', ['act2', 'act1'], ownerIn('org1'));
 
     expect(result).toBe(reordered);
     expect(appended).toEqual([
@@ -704,8 +739,8 @@ describe('hierarchy reads', () => {
     vi.mocked(repo.findActivity).mockResolvedValue(activity);
     vi.mocked(repo.findModule).mockResolvedValue(module);
     const { svc } = build(repo);
-    expect(await svc.getActivity('o1', 'act1')).toEqual(activity);
-    expect(await svc.getModule('o1', 'm1')).toEqual(module);
+    expect(await svc.getActivity('act1', ownerIn('o1'))).toEqual(activity);
+    expect(await svc.getModule('m1', ownerIn('o1'))).toEqual(module);
     expect(repo.findActivity).toHaveBeenCalledWith('o1', 'act1');
     expect(repo.findModule).toHaveBeenCalledWith('o1', 'm1');
   });
@@ -715,8 +750,8 @@ describe('hierarchy reads', () => {
     vi.mocked(repo.findActivity).mockResolvedValue(null);
     vi.mocked(repo.findModule).mockResolvedValue(null);
     const { svc } = build(repo);
-    expect(await svc.getActivity('o1', 'nope')).toBeNull();
-    expect(await svc.getModule('o1', 'nope')).toBeNull();
+    expect(await svc.getActivity('nope', ownerIn('o1'))).toBeNull();
+    expect(await svc.getModule('nope', ownerIn('o1'))).toBeNull();
   });
 });
 
@@ -740,9 +775,9 @@ describe('logging', () => {
       logger,
     });
 
-    await svc.createCourse('org-1', { title: 'Intro' });
-    await svc.updateCourse('org-1', course.id, { title: 'Intro 2' });
-    await svc.deleteCourse('org-1', course.id, owner);
+    await svc.createCourse({ title: 'Intro' }, ownerIn('org-1'));
+    await svc.updateCourse(course.id, { title: 'Intro 2' }, ownerIn('org-1'));
+    await svc.deleteCourse(course.id, ownerIn('org-1'));
 
     expect(entries.filter((e) => e.level === 'info').map((e) => e.msg)).toEqual([
       'course created',
@@ -771,8 +806,8 @@ describe('logging', () => {
       logger,
     });
 
-    await svc.createModule('org-1', 'c1', 'Module 1');
-    await svc.deleteActivity('org-1', 'c1', 'm1', 'act1');
+    await svc.createModule('c1', 'Module 1', ownerIn('org-1'));
+    await svc.deleteActivity('c1', 'm1', 'act1', ownerIn('org-1'));
 
     expect(entries.filter((e) => e.level === 'info').map((e) => e.msg)).toEqual([
       'module created',
@@ -802,7 +837,9 @@ describe('logging', () => {
       logger,
     });
 
-    await expect(svc.deleteModule('org-1', 'c1', 'missing')).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteModule('c1', 'missing', ownerIn('org-1'))).rejects.toThrow(
+      NotFoundError,
+    );
 
     expect(entries.filter((e) => e.level === 'warn').map((e) => e.msg)).toEqual([
       'module delete rejected — not found in course',
@@ -834,7 +871,7 @@ describe('downloads', () => {
     vi.mocked(repo.createDownload).mockResolvedValue(download);
 
     const { svc, appended } = build(repo);
-    const result = await svc.createDownload('o1', { title: 'My Great Workbook' });
+    const result = await svc.createDownload({ title: 'My Great Workbook' }, ownerIn('o1'));
 
     expect(repo.createDownload).toHaveBeenCalledWith(
       'o1',
@@ -853,7 +890,7 @@ describe('downloads', () => {
 
     const { svc } = build(repo);
 
-    await expect(svc.updateDownload('o1', 'missing', { title: 'x' })).rejects.toThrow(
+    await expect(svc.updateDownload('missing', { title: 'x' }, ownerIn('o1'))).rejects.toThrow(
       NotFoundError,
     );
   });
@@ -865,7 +902,7 @@ describe('downloads', () => {
     vi.mocked(repo.deleteDownload).mockResolvedValue(true);
 
     const { svc, appended } = build(repo);
-    await svc.removeDownload('o1', 'd1', owner);
+    await svc.removeDownload('d1', ownerIn('o1'));
 
     expect(appended).toEqual([
       { type: 'content.download.deleted', version: 1, orgId: 'o1', data: download },
@@ -878,7 +915,7 @@ describe('downloads', () => {
 
     const { svc } = build(repo);
 
-    await expect(svc.removeDownload('o1', 'missing', owner)).rejects.toThrow(NotFoundError);
+    await expect(svc.removeDownload('missing', ownerIn('o1'))).rejects.toThrow(NotFoundError);
     expect(repo.deleteDownload).not.toHaveBeenCalled();
   });
 });
@@ -917,7 +954,9 @@ describe('download assets', () => {
     const { svc } = build(repo);
 
     // Drops a2 — a stale client must not be able to silently unlink it.
-    await expect(svc.reorderDownloadAssets('o1', 'd1', ['a1'])).rejects.toThrow(/does not match/i);
+    await expect(svc.reorderDownloadAssets('d1', ['a1'], ownerIn('o1'))).rejects.toThrow(
+      /does not match/i,
+    );
     expect(repo.reorderDownloadAssets).not.toHaveBeenCalled();
   });
 
@@ -928,7 +967,7 @@ describe('download assets', () => {
     ]);
     const { svc } = build(repo);
 
-    await expect(svc.reorderDownloadAssets('o1', 'd1', ['a1', 'a9'])).rejects.toThrow(
+    await expect(svc.reorderDownloadAssets('d1', ['a1', 'a9'], ownerIn('o1'))).rejects.toThrow(
       /does not match/i,
     );
     expect(repo.reorderDownloadAssets).not.toHaveBeenCalled();
@@ -942,7 +981,7 @@ describe('download assets', () => {
     ]);
     const { svc } = build(repo);
 
-    await expect(svc.reorderDownloadAssets('o1', 'd1', ['a1', 'a1'])).rejects.toThrow(
+    await expect(svc.reorderDownloadAssets('d1', ['a1', 'a1'], ownerIn('o1'))).rejects.toThrow(
       /does not match/i,
     );
     expect(repo.reorderDownloadAssets).not.toHaveBeenCalled();
@@ -961,7 +1000,7 @@ describe('download assets', () => {
     vi.mocked(repo.reorderDownloadAssets).mockResolvedValue(reordered);
     const { svc, appended } = build(repo);
 
-    const result = await svc.reorderDownloadAssets('o1', 'd1', ['a2', 'a1']);
+    const result = await svc.reorderDownloadAssets('d1', ['a2', 'a1'], ownerIn('o1'));
 
     expect(repo.reorderDownloadAssets).toHaveBeenCalledWith('o1', 'd1', ['a2', 'a1']);
     expect(result).toEqual(reordered.map(asFile));
@@ -981,7 +1020,7 @@ describe('download assets', () => {
     vi.mocked(repo.addDownloadAsset).mockResolvedValue(list);
     const { svc, appended } = build(repo);
 
-    const result = await svc.addDownloadAsset('o1', 'd1', { assetId: 'a1' });
+    const result = await svc.addDownloadAsset('d1', { assetId: 'a1' }, ownerIn('o1'));
 
     expect(repo.addDownloadAsset).toHaveBeenCalledWith('o1', 'd1', { assetId: 'a1' });
     expect(result).toEqual(list.map(asFile));
@@ -1001,7 +1040,7 @@ describe('download assets', () => {
     vi.mocked(repo.removeDownloadAsset).mockResolvedValue(list);
     const { svc, appended } = build(repo);
 
-    const result = await svc.removeDownloadAsset('o1', 'd1', 'a1');
+    const result = await svc.removeDownloadAsset('d1', 'a1', ownerIn('o1'));
 
     expect(repo.removeDownloadAsset).toHaveBeenCalledWith('o1', 'd1', 'a1');
     expect(result).toEqual(list.map(asFile));
@@ -1021,7 +1060,7 @@ describe('download assets', () => {
     vi.mocked(repo.renameDownloadAsset).mockResolvedValue(list);
     const { svc, appended } = build(repo);
 
-    const result = await svc.renameDownloadAsset('o1', 'd1', 'a1', 'Workbook');
+    const result = await svc.renameDownloadAsset('d1', 'a1', 'Workbook', ownerIn('o1'));
 
     expect(repo.renameDownloadAsset).toHaveBeenCalledWith('o1', 'd1', 'a1', 'Workbook');
     expect(result).toEqual(list.map(asFile));
@@ -1037,8 +1076,6 @@ describe('download assets', () => {
     ]);
   });
 });
-
-const owner: Actor = { id: 'ou_owner', role: 'owner' };
 
 function makeCommunity(over: Partial<Community> = {}): Community {
   return {
@@ -1075,7 +1112,7 @@ describe('communities', () => {
     vi.mocked(repo.createCommunity).mockResolvedValue(community);
     const { svc, appended } = build(repo);
 
-    const result = await svc.createCommunity('org1', { title: 'Makers' }, owner);
+    const result = await svc.createCommunity({ title: 'Makers' }, ownerIn('org1'));
 
     expect(repo.createCommunity).toHaveBeenCalledWith('org1', { title: 'Makers' }, 'makers');
     expect(result).toEqual({ ...community, thumbnailUrl: null });
@@ -1094,7 +1131,10 @@ describe('communities', () => {
     const repo = makeRepo();
     const { svc } = build(repo);
     await expect(
-      svc.createCommunity('org1', { title: 'Makers' }, { id: 'ou_i', role: 'instructor' }),
+      svc.createCommunity(
+        { title: 'Makers' },
+        actorWith({ orgId: 'org1', content: { crs_1: ['courses:write'] } }),
+      ),
     ).rejects.toThrow(ForbiddenError);
     expect(repo.createCommunity).not.toHaveBeenCalled();
   });
@@ -1106,7 +1146,7 @@ describe('communities', () => {
     vi.mocked(repo.deleteCommunity).mockResolvedValue(true);
     const { svc, appended } = build(repo);
 
-    await svc.deleteCommunity('org1', community.id, owner);
+    await svc.deleteCommunity(community.id, ownerIn('org1'));
 
     expect(repo.deleteCommunitySettings).toHaveBeenCalledWith('org1', community.id);
     expect(appended[0]).toMatchObject({
@@ -1128,7 +1168,7 @@ describe('communities', () => {
     const { svc, appended } = build(repo);
 
     await expect(
-      svc.patchCommunitySettings('org1', community.id, { digest, groupSize: 6 }, owner),
+      svc.patchCommunitySettings(community.id, { digest, groupSize: 6 }, ownerIn('org1')),
     ).resolves.toMatchObject({ settings: { digest } });
     expect(repo.patchCommunitySettings).toHaveBeenCalledWith('org1', community.id, {
       digest,
@@ -1140,10 +1180,9 @@ describe('communities', () => {
     });
     await expect(
       svc.patchCommunitySettings(
-        'org1',
         community.id,
         { digest: null },
-        { id: 'ou_i', role: 'instructor' },
+        actorWith({ orgId: 'org1', content: { crs_1: ['courses:write'] } }),
       ),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -1169,9 +1208,11 @@ describe('communities', () => {
     vi.mocked(repo.findCommunitiesByIds).mockResolvedValue([community]);
     const { svc } = build(repo);
 
-    await expect(svc.listCommunitiesById('org1', [community.id])).resolves.toEqual([community]);
+    await expect(svc.listCommunitiesById([community.id], ownerIn('org1'))).resolves.toEqual([
+      community,
+    ]);
     expect(repo.findCommunitiesByIds).toHaveBeenCalledWith('org1', [community.id]);
-    await expect(svc.listCommunitiesById('org1', [])).resolves.toEqual([]);
+    await expect(svc.listCommunitiesById([], ownerIn('org1'))).resolves.toEqual([]);
     expect(repo.findCommunitiesByIds).toHaveBeenCalledTimes(1);
   });
 
@@ -1236,8 +1277,10 @@ describe('spaces', () => {
     vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
     const { svc } = build(repo);
 
-    await expect(svc.getCommunitySpace('org1', 'cmy_1', 'spc_1')).resolves.toEqual(makeSpace());
-    await expect(svc.getCommunitySpace('org1', 'cmy_other', 'spc_1')).resolves.toBeNull();
+    await expect(svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).resolves.toEqual(
+      makeSpace(),
+    );
+    await expect(svc.getCommunitySpace('cmy_other', 'spc_1', ownerIn('org1'))).resolves.toBeNull();
   });
 
   it('writes the topics inside the unit of work under the space lock', async () => {
@@ -1272,7 +1315,7 @@ describe('spaces', () => {
       ],
     };
 
-    await svc.setSpaceTopics('org1', 'cmy_1', 'spc_1', input, owner);
+    await svc.setSpaceTopics('cmy_1', 'spc_1', input, ownerIn('org1'));
 
     expect(calls).toEqual(['begin', 'lock', 'write', 'commit']);
     expect(repo.setSpaceTopics).toHaveBeenCalledWith('org1', 'spc_1', input);
@@ -1288,11 +1331,10 @@ describe('spaces', () => {
 
     await expect(
       svc.setSpaceTopics(
-        'org1',
         'cmy_1',
         'spc_1',
         { topics: [{ id: 'top_a', name: 'Wins' }] },
-        owner,
+        ownerIn('org1'),
       ),
     ).rejects.toThrow(ConflictError);
     expect(repo.topicsInUse).toHaveBeenCalledWith('org1', 'spc_1', ['top_b']);
@@ -1309,11 +1351,10 @@ describe('spaces', () => {
     const { svc, appended } = build(repo);
 
     await svc.setSpaceTopics(
-      'org1',
       'cmy_1',
       'spc_1',
       { topics: [{ id: 'top_a', name: 'Wins' }] },
-      owner,
+      ownerIn('org1'),
     );
 
     expect(repo.topicsInUse).toHaveBeenCalledWith('org1', 'spc_1', ['top_b']);
@@ -1326,7 +1367,7 @@ describe('spaces', () => {
     const { svc } = build(repo);
 
     await expect(
-      svc.setSpaceTopics('org1', 'cmy_other', 'spc_1', { topics: [] }, owner),
+      svc.setSpaceTopics('cmy_other', 'spc_1', { topics: [] }, ownerIn('org1')),
     ).rejects.toThrow(NotFoundError);
     expect(repo.setSpaceTopics).not.toHaveBeenCalled();
   });
@@ -1339,7 +1380,7 @@ describe('spaces', () => {
     vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
     const { svc, appended } = build(repo);
 
-    await svc.deleteCourse('org1', 'c1', owner);
+    await svc.deleteCourse('c1', ownerIn('org1'));
 
     expect(appended[1]).toMatchObject({
       type: 'content.community.space.updated',
@@ -1355,7 +1396,7 @@ describe('spaces', () => {
     vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
     const { svc, appended } = build(repo);
 
-    await svc.removeDownload('o1', 'd1', owner);
+    await svc.removeDownload('d1', ownerIn('o1'));
 
     expect(appended[1]).toMatchObject({
       type: 'content.community.space.updated',
@@ -1371,7 +1412,7 @@ describe('spaces', () => {
     vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
     const { svc, appended } = build(repo);
 
-    await svc.deleteCommunity('org1', 'cmy_1', owner);
+    await svc.deleteCommunity('cmy_1', ownerIn('org1'));
 
     expect(appended[1]).toMatchObject({
       type: 'content.community.space.updated',
@@ -1400,25 +1441,27 @@ describe('file URLs', () => {
     vi.mocked(repo.updateCommunity).mockResolvedValue(community);
     const { svc } = build(repo);
 
-    expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBe(
+    expect((await svc.getCourse('c1', ownerIn('org1')))?.thumbnailUrl).toBe(
       fileUrls.thumbnail('course', course.id),
     );
     expect(
-      (await svc.listCourses('org1', { page: 1, pageSize: 20 })).rows.map((c) => c.thumbnailUrl),
+      (await svc.listCourses({ page: 1, pageSize: 20 }, ownerIn('org1'))).rows.map(
+        (c) => c.thumbnailUrl,
+      ),
     ).toEqual([fileUrls.thumbnail('course', course.id), null]);
-    expect((await svc.updateCourse('org1', 'c1', { title: 'x' })).thumbnailUrl).toBe(
+    expect((await svc.updateCourse('c1', { title: 'x' }, ownerIn('org1'))).thumbnailUrl).toBe(
       fileUrls.thumbnail('course', course.id),
     );
-    expect((await svc.getDownload('o1', 'd1'))?.thumbnailUrl).toBe(
+    expect((await svc.getDownload('d1', ownerIn('o1')))?.thumbnailUrl).toBe(
       fileUrls.thumbnail('download', download.id),
     );
-    expect((await svc.updateDownload('o1', 'd1', { title: 'x' })).thumbnailUrl).toBe(
+    expect((await svc.updateDownload('d1', { title: 'x' }, ownerIn('o1'))).thumbnailUrl).toBe(
       fileUrls.thumbnail('download', download.id),
     );
-    expect((await svc.getCommunity('org1', 'cmy_1'))?.thumbnailUrl).toBe(
+    expect((await svc.getCommunity('cmy_1', ownerIn('org1')))?.thumbnailUrl).toBe(
       fileUrls.thumbnail('community', community.id),
     );
-    expect((await svc.updateCommunity('org1', 'cmy_1', { title: 'x' }, owner)).thumbnailUrl).toBe(
+    expect((await svc.updateCommunity('cmy_1', { title: 'x' }, ownerIn('org1'))).thumbnailUrl).toBe(
       fileUrls.thumbnail('community', community.id),
     );
   });
@@ -1428,7 +1471,7 @@ describe('file URLs', () => {
     vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse({ thumbnailAssetId: null }));
     const { svc } = build(repo);
 
-    expect((await svc.getCourse('org1', 'c1'))?.thumbnailUrl).toBeNull();
+    expect((await svc.getCourse('c1', ownerIn('org1')))?.thumbnailUrl).toBeNull();
   });
 
   it('gives each activity the URLs of its own linked files only', async () => {
@@ -1478,7 +1521,7 @@ describe('file URLs', () => {
     ]);
     const { svc } = build(repo);
 
-    const views = await svc.listCourseActivityViews('org1', 'c1');
+    const views = await svc.listCourseActivityViews('c1', ownerIn('org1'));
 
     expect(views.map((view) => [view.id, view.assetUrls])).toEqual([
       [
@@ -1508,7 +1551,7 @@ describe('file URLs', () => {
     ]);
     const { svc } = build(repo);
 
-    const files = await svc.listDownloadAssets('o1', 'd1');
+    const files = await svc.listDownloadAssets('d1', ownerIn('o1'));
 
     expect(
       files.map((file) => [file.id, file.filename, file.contentType, file.size, file.url]),
@@ -1563,5 +1606,173 @@ describe('contentEvents validation', () => {
         data: { ...makeCourse(), extraField: true },
       } as Parameters<typeof contentEvents.courseCreated.make>[0]),
     ).toThrow(/extraField/);
+  });
+});
+
+const JAMES = actorWith({
+  id: 'ou_james',
+  orgId: 'org1',
+  content: { crs_1: ['courses:read', 'courses:write', 'courses:moderate', 'progress:read'] },
+});
+
+describe('permissions', () => {
+  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ courseId: 'crs_x' }));
+    vi.mocked(repo.findModule).mockResolvedValue(makeModule({ courseId: 'crs_x' }));
+    vi.mocked(repo.findSpace).mockResolvedValue({ communityId: 'cmy_x' } as SpaceDetail);
+    const { svc, append } = build(repo);
+    const nobody = actorWith({ orgId: 'org1' });
+    const methods = Object.entries(contentDeclarations).filter(
+      ([, declaration]) => typeof declaration !== 'string',
+    );
+    expect(methods.length).toBeGreaterThan(0);
+    for (const [name] of methods) {
+      const method = (svc as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[
+        name
+      ]!;
+      const args = Array.from({ length: Math.max(method.length - 1, 0) }, () => 'crs_x');
+      await expect(method.call(svc, ...args, nobody), name).rejects.toThrow(ForbiddenError);
+    }
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it('lets an Instructor on one course list only that course', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.listCourses).mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+    const { svc } = build(repo);
+
+    await svc.listCourses({ page: 1, pageSize: 20 }, JAMES);
+    await svc.listCourses({ page: 1, pageSize: 20 }, ownerIn('org1'));
+
+    expect(vi.mocked(repo.listCourses).mock.calls).toEqual([
+      ['org1', { page: 1, pageSize: 20 }, ['crs_1']],
+      ['org1', { page: 1, pageSize: 20 }, undefined],
+    ]);
+  });
+
+  it('refuses an Instructor on one course deleting any course, creating one or editing bundles', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+
+    await expect(svc.deleteCourse('crs_2', JAMES)).rejects.toThrow(ForbiddenError);
+    await expect(svc.deleteCourse('crs_1', JAMES)).rejects.toThrow(ForbiddenError);
+    await expect(svc.createCourse({ title: 'New' }, JAMES)).rejects.toThrow(ForbiddenError);
+    await expect(svc.createBundle({ name: 'All' }, JAMES)).rejects.toThrow(ForbiddenError);
+    await expect(svc.updateBundle('bnd_1', { name: 'All' }, JAMES)).rejects.toThrow(ForbiddenError);
+    await expect(svc.addBundleItem('bnd_1', 'crs_1', JAMES)).rejects.toThrow(ForbiddenError);
+    await expect(svc.listCommunities({ page: 1, pageSize: 20 }, JAMES)).rejects.toThrow(
+      ForbiddenError,
+    );
+    expect(repo.deleteCourse).not.toHaveBeenCalled();
+    expect(repo.createBundle).not.toHaveBeenCalled();
+  });
+
+  it('deletes a course with courses:delete on it and refuses another course', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse({ id: 'crs_1' }));
+    vi.mocked(repo.deleteCourse).mockResolvedValue(true);
+    const { svc } = build(repo);
+    const deleter = actorWith({ orgId: 'org1', content: { crs_1: ['courses:delete'] } });
+
+    await svc.deleteCourse('crs_1', deleter);
+    await expect(svc.deleteCourse('crs_2', deleter)).rejects.toThrow(ForbiddenError);
+    expect(repo.deleteCourse).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets an Instructor edit lessons and delete modules of their course only', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ courseId: 'crs_1' }));
+    vi.mocked(repo.findModule).mockResolvedValue(makeModule({ courseId: 'crs_1' }));
+    vi.mocked(repo.saveActivity).mockResolvedValue({
+      modules: [],
+      activity: makeActivity({ courseId: 'crs_1' }),
+    });
+    vi.mocked(repo.deleteModule).mockResolvedValue([]);
+    const { svc } = build(repo);
+
+    await svc.saveActivity('crs_1', 'm1', { settings: {} }, 'act1', JAMES);
+    await svc.deleteModule('crs_1', 'm1', JAMES);
+    await expect(svc.saveActivity('crs_2', 'm1', { settings: {} }, 'act1', JAMES)).rejects.toThrow(
+      ForbiddenError,
+    );
+    await expect(svc.deleteModule('crs_2', 'm1', JAMES)).rejects.toThrow(ForbiddenError);
+    expect(repo.saveActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-saves a lesson that already holds an Admin's library file without media:read", async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ courseId: 'crs_1' }));
+    vi.mocked(repo.listActivityAssetsForCourse).mockResolvedValue([
+      { orgId: 'org1', activityId: 'act1', assetId: 'ast_admin' },
+    ] as Awaited<ReturnType<ContentRepository['listActivityAssetsForCourse']>>);
+    vi.mocked(repo.saveActivity).mockResolvedValue({
+      modules: [],
+      activity: makeActivity({ courseId: 'crs_1' }),
+    });
+    const assets = library();
+    const { svc } = build(repo, assets);
+
+    await svc.saveActivity('crs_1', 'm1', { assetIds: ['ast_admin'] }, 'act1', JAMES);
+
+    expect(assets.libraryAssetsFor).not.toHaveBeenCalled();
+    expect(repo.saveActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('attaches only files uploaded for the course unless the actor holds media:read', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ courseId: 'crs_1' }));
+    vi.mocked(repo.saveActivity).mockResolvedValue({
+      modules: [],
+      activity: makeActivity({ courseId: 'crs_1' }),
+    });
+    const assets = {
+      libraryAssetsFor: vi.fn(async (_orgId: string, ids: string[]) =>
+        ids.map((id) => ({ id, contentId: id === 'ast_own' ? 'crs_1' : null })),
+      ),
+    };
+    const { svc } = build(repo, assets);
+    const librarian = actorWith({
+      orgId: 'org1',
+      org: ['media:read'],
+      content: { crs_1: ['courses:write'] },
+    });
+
+    await svc.saveActivity('crs_1', 'm1', { assetIds: ['ast_own'] }, 'act1', JAMES);
+    await expect(
+      svc.saveActivity('crs_1', 'm1', { assetIds: ['ast_own', 'ast_library'] }, 'act1', JAMES),
+    ).rejects.toThrow(ForbiddenError);
+    await svc.saveActivity('crs_1', 'm1', { assetIds: ['ast_library'] }, 'act1', librarian);
+
+    expect(repo.saveActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it('checks a thumbnail against the item it is set on', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.updateDownload).mockResolvedValue(makeDownload({ id: 'dl_1' }));
+    const assets = library(() => true, 'dl_1');
+    const { svc } = build(repo, assets);
+    const editor = actorWith({ orgId: 'org1', content: { dl_1: ['downloads:write'] } });
+
+    await svc.updateDownload('dl_1', { thumbnailAssetId: 'ast_cover' }, editor);
+    await expect(svc.addDownloadAsset('dl_2', { assetId: 'ast_cover' }, editor)).rejects.toThrow(
+      ForbiddenError,
+    );
+    expect(repo.updateDownload).toHaveBeenCalledTimes(1);
+    expect(repo.addDownloadAsset).not.toHaveBeenCalled();
+  });
+
+  it('configures a community with communities:write on it and refuses another', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.updateCommunity).mockResolvedValue(makeCommunity({ id: 'cmy_1' }));
+    const { svc } = build(repo);
+    const host = actorWith({ orgId: 'org1', content: { cmy_1: ['communities:write'] } });
+
+    await svc.updateCommunity('cmy_1', { title: 'Spring' }, host);
+    await expect(svc.updateCommunity('cmy_2', { title: 'Autumn' }, host)).rejects.toThrow(
+      ForbiddenError,
+    );
+    await expect(svc.deleteCommunity('cmy_1', host)).rejects.toThrow(ForbiddenError);
+    await expect(svc.createCommunity({ title: 'New' }, host)).rejects.toThrow(ForbiddenError);
   });
 });

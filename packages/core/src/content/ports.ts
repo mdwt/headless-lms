@@ -45,7 +45,7 @@ import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { SubjectRef } from '../types/index.js';
 
 export interface ContentService
-  extends DownloadablesService, CourseManagementService, CommunitiesService {}
+  extends DownloadablesService, CourseManagementService, BundlesService, CommunitiesService {}
 
 export interface ItemTitle {
   title: string;
@@ -53,19 +53,28 @@ export interface ItemTitle {
 }
 
 export interface ItemTitles {
-  titlesFor(orgId: string, actor: Actor, refs: SubjectRef[]): Promise<Record<string, ItemTitle>>;
+  titlesFor(refs: SubjectRef[], actor: Actor): Promise<Record<string, ItemTitle>>;
 }
 
 export interface ItemTitleAccess {
   hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
-  isCommunityMember(orgId: string, actor: Actor, communityId: string): Promise<boolean>;
-  canOpenSpace(orgId: string, actor: Actor, spaceId: string): Promise<boolean>;
+  isCommunityMember(communityId: string, actor: Actor): Promise<boolean>;
+  canOpenSpace(spaceId: string, actor: Actor): Promise<boolean>;
+}
+
+export interface LibraryAssetRef {
+  id: string;
+  contentId: string | null;
+}
+
+export interface ContentAssetReader {
+  libraryAssetsFor(orgId: string, assetIds: string[]): Promise<LibraryAssetRef[]>;
 }
 
 export interface CommunityReader {
-  getSpace(orgId: string, spaceId: string): Promise<SpaceDetail | null>;
-  listSpaces(orgId: string, communityId: string): Promise<SpaceDetail[]>;
-  getDmSettings(orgId: string, communityId: string): Promise<DmSettings | null>;
+  getSpace(spaceId: string, actor: Actor): Promise<SpaceDetail | null>;
+  listSpaces(communityId: string, actor: Actor): Promise<SpaceDetail[]>;
+  getDmSettings(communityId: string, actor: Actor): Promise<DmSettings | null>;
 }
 
 export interface SpaceRowLock {
@@ -79,75 +88,54 @@ export interface CommunityDigest {
 }
 
 export interface CommunitiesService extends CommunityReader {
-  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<CommunityView>>;
-  getCommunity(orgId: string, id: string): Promise<CommunityView | null>;
+  listCommunities(query: ListCommunitiesQuery, actor: Actor): Promise<Page<CommunityView>>;
+  getCommunity(id: string, actor: Actor): Promise<CommunityView | null>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
-  listCommunitiesById(orgId: string, ids: string[]): Promise<Community[]>;
+  listCommunitiesById(ids: string[], actor: Actor): Promise<Community[]>;
   getCommunitySpace(
-    orgId: string,
     communityId: string,
     spaceId: string,
-  ): Promise<SpaceDetail | null>;
-  createCommunity(orgId: string, input: CreateCommunityInput, actor: Actor): Promise<CommunityView>;
-  updateCommunity(
-    orgId: string,
-    id: string,
-    patch: UpdateCommunityInput,
     actor: Actor,
-  ): Promise<CommunityView>;
-  publishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView>;
-  unpublishCommunity(orgId: string, id: string, actor: Actor): Promise<CommunityView>;
-  deleteCommunity(orgId: string, id: string, actor: Actor): Promise<void>;
+  ): Promise<SpaceDetail | null>;
+  createCommunity(input: CreateCommunityInput, actor: Actor): Promise<CommunityView>;
+  updateCommunity(id: string, patch: UpdateCommunityInput, actor: Actor): Promise<CommunityView>;
+  publishCommunity(id: string, actor: Actor): Promise<CommunityView>;
+  unpublishCommunity(id: string, actor: Actor): Promise<CommunityView>;
+  deleteCommunity(id: string, actor: Actor): Promise<void>;
   patchCommunitySettings(
-    orgId: string,
     id: string,
     patch: PatchCommunitySettingsInput,
     actor: Actor,
   ): Promise<CommunityView>;
 
-  createSpace(
-    orgId: string,
-    communityId: string,
-    input: CreateSpaceInput,
-    actor: Actor,
-  ): Promise<SpaceDetail>;
+  createSpace(communityId: string, input: CreateSpaceInput, actor: Actor): Promise<SpaceDetail>;
   updateSpace(
-    orgId: string,
     communityId: string,
     spaceId: string,
     patch: UpdateSpaceInput,
     actor: Actor,
   ): Promise<SpaceDetail>;
-  deleteSpace(orgId: string, communityId: string, spaceId: string, actor: Actor): Promise<void>;
-  reorderSpaces(
-    orgId: string,
-    communityId: string,
-    orderedIds: string[],
-    actor: Actor,
-  ): Promise<SpaceDetail[]>;
+  deleteSpace(communityId: string, spaceId: string, actor: Actor): Promise<void>;
+  reorderSpaces(communityId: string, orderedIds: string[], actor: Actor): Promise<SpaceDetail[]>;
   setSpaceTopics(
-    orgId: string,
     communityId: string,
     spaceId: string,
     input: SetSpaceTopicsInput,
     actor: Actor,
   ): Promise<SpaceDetail>;
   addSpaceLink(
-    orgId: string,
     communityId: string,
     spaceId: string,
     contentId: string,
     actor: Actor,
   ): Promise<SpaceDetail>;
   removeSpaceLink(
-    orgId: string,
     communityId: string,
     spaceId: string,
     linkId: string,
     actor: Actor,
   ): Promise<SpaceDetail>;
   reorderSpaceLinks(
-    orgId: string,
     communityId: string,
     spaceId: string,
     orderedIds: string[],
@@ -156,106 +144,106 @@ export interface CommunitiesService extends CommunityReader {
 }
 
 export interface CourseManagementService {
-  listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<CourseView>>;
-  getCourse(orgId: string, id: string): Promise<CourseView | null>;
-  createCourse(orgId: string, input: CreateCourseInput): Promise<CourseView>;
+  listCourses(query: ListCoursesQuery, actor: Actor): Promise<Page<CourseView>>;
+  getCourse(id: string, actor: Actor): Promise<CourseView | null>;
+  createCourse(input: CreateCourseInput, actor: Actor): Promise<CourseView>;
   /** @throws NotFoundError when no course with this id exists in the org. */
-  updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<CourseView>;
+  updateCourse(id: string, patch: UpdateCourseInput, actor: Actor): Promise<CourseView>;
   /** @throws NotFoundError when no course with this id exists in the org. */
   patchCourseSettings(
-    orgId: string,
     id: string,
     value: Partial<CourseSettings>,
+    actor: Actor,
   ): Promise<CourseSettings>;
   /** @throws NotFoundError when no course with this id exists in the org. */
-  deleteCourse(orgId: string, id: string, actor: Actor): Promise<void>;
+  deleteCourse(id: string, actor: Actor): Promise<void>;
 
-  listCourseModules(orgId: string, courseId: string): Promise<Module[]>;
-  listCourseActivities(orgId: string, courseId: string): Promise<Activity[]>;
-  listCourseActivityViews(orgId: string, courseId: string): Promise<ActivityView[]>;
-  listCourseActivityAssets(orgId: string, courseId: string): Promise<ActivityAsset[]>;
-  getActivity(orgId: string, activityId: string): Promise<Activity | null>;
-  getModule(orgId: string, moduleId: string): Promise<Module | null>;
-  reorderModules(orgId: string, courseId: string, orderedIds: string[]): Promise<Module[]>;
-  createModule(orgId: string, courseId: string, title: string): Promise<Module[]>;
+  listCourseModules(courseId: string, actor: Actor): Promise<Module[]>;
+  listCourseActivities(courseId: string, actor: Actor): Promise<Activity[]>;
+  listCourseActivityViews(courseId: string, actor: Actor): Promise<ActivityView[]>;
+  listCourseActivityAssets(courseId: string, actor: Actor): Promise<ActivityAsset[]>;
+  getActivity(activityId: string, actor: Actor): Promise<Activity | null>;
+  getModule(moduleId: string, actor: Actor): Promise<Module | null>;
+  reorderModules(courseId: string, orderedIds: string[], actor: Actor): Promise<Module[]>;
+  createModule(courseId: string, title: string, actor: Actor): Promise<Module[]>;
   /** @throws NotFoundError when no such module exists in this course. */
-  updateModule(orgId: string, courseId: string, moduleId: string, title: string): Promise<Module[]>;
+  updateModule(courseId: string, moduleId: string, title: string, actor: Actor): Promise<Module[]>;
   /** @throws NotFoundError when no such module exists in this course. */
-  deleteModule(orgId: string, courseId: string, moduleId: string): Promise<Module[]>;
+  deleteModule(courseId: string, moduleId: string, actor: Actor): Promise<Module[]>;
   /** @throws NotFoundError when no such module exists in this course. */
   reorderActivities(
-    orgId: string,
     courseId: string,
     moduleId: string,
     orderedIds: string[],
+    actor: Actor,
   ): Promise<Module[]>;
   /** @throws NotFoundError when the module — or, on update, the activity — does not exist. */
   saveActivity(
-    orgId: string,
     courseId: string,
     moduleId: string,
     input: SaveActivityInput,
-    activityId?: string,
+    activityId: string | null,
+    actor: Actor,
   ): Promise<Module[]>;
   /** @throws NotFoundError when no such activity exists in this module. */
   deleteActivity(
-    orgId: string,
     courseId: string,
     moduleId: string,
     activityId: string,
+    actor: Actor,
   ): Promise<Module[]>;
 }
 
 export interface DownloadablesService {
-  listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<DownloadView>>;
-  getDownload(orgId: string, id: string): Promise<DownloadView | null>;
-  createDownload(orgId: string, input: CreateDownloadInput): Promise<DownloadView>;
+  listDownloads(query: ListDownloadsQuery, actor: Actor): Promise<Page<DownloadView>>;
+  getDownload(id: string, actor: Actor): Promise<DownloadView | null>;
+  createDownload(input: CreateDownloadInput, actor: Actor): Promise<DownloadView>;
   /** @throws NotFoundError when no download with this id exists in the org. */
-  updateDownload(orgId: string, id: string, patch: UpdateDownloadInput): Promise<DownloadView>;
+  updateDownload(id: string, patch: UpdateDownloadInput, actor: Actor): Promise<DownloadView>;
   /** @throws NotFoundError when no download with this id exists in the org. */
-  removeDownload(orgId: string, id: string, actor: Actor): Promise<void>;
+  removeDownload(id: string, actor: Actor): Promise<void>;
 
-  listDownloadAssets(orgId: string, downloadId: string): Promise<DownloadFile[]>;
+  listDownloadAssets(downloadId: string, actor: Actor): Promise<DownloadFile[]>;
   addDownloadAsset(
-    orgId: string,
     downloadId: string,
     input: AddDownloadAssetInput,
+    actor: Actor,
   ): Promise<DownloadFile[]>;
-  removeDownloadAsset(orgId: string, downloadId: string, assetId: string): Promise<DownloadFile[]>;
+  removeDownloadAsset(downloadId: string, assetId: string, actor: Actor): Promise<DownloadFile[]>;
   renameDownloadAsset(
-    orgId: string,
     downloadId: string,
     assetId: string,
     displayName: string | null,
+    actor: Actor,
   ): Promise<DownloadFile[]>;
   /** @throws ConflictError when assetIds is not exactly the download's current asset set. */
   reorderDownloadAssets(
-    orgId: string,
     downloadId: string,
     assetIds: string[],
+    actor: Actor,
   ): Promise<DownloadFile[]>;
 }
 
 export interface BundlesService {
-  listBundles(orgId: string, query: ListBundlesQuery): Promise<Page<Bundle>>;
-  getBundle(orgId: string, id: string): Promise<Bundle | null>;
+  listBundles(query: ListBundlesQuery, actor: Actor): Promise<Page<Bundle>>;
+  getBundle(id: string, actor: Actor): Promise<Bundle | null>;
   /** Bundle and its initial items are created together, or not at all.
    *  @throws NotFoundError when an initial content id does not exist in the org. */
-  createBundle(orgId: string, input: CreateBundleInput): Promise<Bundle>;
+  createBundle(input: CreateBundleInput, actor: Actor): Promise<Bundle>;
   /** @throws NotFoundError when no bundle with this id exists in the org. */
-  updateBundle(orgId: string, id: string, patch: UpdateBundleInput): Promise<Bundle>;
+  updateBundle(id: string, patch: UpdateBundleInput, actor: Actor): Promise<Bundle>;
   /** @throws NotFoundError when no bundle with this id exists in the org. */
-  deleteBundle(orgId: string, id: string): Promise<void>;
+  deleteBundle(id: string, actor: Actor): Promise<void>;
 
-  listBundleItems(orgId: string, bundleId: string): Promise<BundleItem[]>;
+  listBundleItems(bundleId: string, actor: Actor): Promise<BundleItem[]>;
   /** @throws NotFoundError when the bundle — or the content — does not exist in the org. */
-  addBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]>;
+  addBundleItem(bundleId: string, contentId: string, actor: Actor): Promise<BundleItem[]>;
   /** @throws NotFoundError when no bundle with this id exists in the org. */
-  removeBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]>;
+  removeBundleItem(bundleId: string, contentId: string, actor: Actor): Promise<BundleItem[]>;
 }
 
 export interface ContentRepository {
-  listCourses(orgId: string, query: ListCoursesQuery): Promise<Page<Course>>;
+  listCourses(orgId: string, query: ListCoursesQuery, ids?: string[]): Promise<Page<Course>>;
   findCourseById(orgId: string, id: string): Promise<Course | null>;
   createCourse(orgId: string, input: CreateCourseInput, slug: string): Promise<Course>;
   updateCourse(orgId: string, id: string, patch: UpdateCourseInput): Promise<Course | null>;
@@ -295,7 +283,7 @@ export interface ContentRepository {
     activityId: string,
   ): Promise<Module[]>;
 
-  listDownloads(orgId: string, query: ListDownloadsQuery): Promise<Page<Download>>;
+  listDownloads(orgId: string, query: ListDownloadsQuery, ids?: string[]): Promise<Page<Download>>;
   getDownload(orgId: string, id: string): Promise<Download | null>;
   createDownload(orgId: string, input: CreateDownloadInput, slug: string): Promise<Download>;
   updateDownload(orgId: string, id: string, patch: UpdateDownloadInput): Promise<Download | null>;
@@ -331,7 +319,11 @@ export interface ContentRepository {
   addBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]>;
   removeBundleItem(orgId: string, bundleId: string, contentId: string): Promise<BundleItem[]>;
 
-  listCommunities(orgId: string, query: ListCommunitiesQuery): Promise<Page<Community>>;
+  listCommunities(
+    orgId: string,
+    query: ListCommunitiesQuery,
+    ids?: string[],
+  ): Promise<Page<Community>>;
   findCommunityById(orgId: string, id: string): Promise<Community | null>;
   findCommunitiesByIds(orgId: string, ids: string[]): Promise<Community[]>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
