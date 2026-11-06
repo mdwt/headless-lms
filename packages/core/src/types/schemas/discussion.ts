@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { assetKindSchema } from './assets.js';
 import { idSchema, emailSchema, jsonValueSchema } from './shared.js';
 
 export const commentStatusSchema = z.enum(['pending', 'published', 'removed']);
@@ -232,9 +233,20 @@ export const postSchema = z
   .strict();
 export type Post = z.output<typeof postSchema>;
 
+export const postAssetSchema = z
+  .object({
+    url: z.string(),
+    kind: assetKindSchema,
+    filename: z.string(),
+    size: z.number().int().min(0),
+  })
+  .strict();
+export type PostAsset = z.output<typeof postAssetSchema>;
+
 export const postViewSchema = postSchema
   .extend({
     coverUrl: z.string().nullable(),
+    assets: z.record(idSchema, postAssetSchema),
     author: commentAuthorSchema,
     reactions: reactionCountsSchema,
     viewerReaction: reactionEmojiSchema.nullable(),

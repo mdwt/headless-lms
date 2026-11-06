@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Community } from '@headless-lms/core/types';
 import { actorWith } from '@headless-lms/core/organizations';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
+import { PlainBodyParser } from '@headless-lms/adapter-defaults/body';
 import { communityMail, type CommunityMailDeps } from './community-mail.js';
 
 const SYSTEM = actorWith({ id: 'system', orgId: 'org_1', owner: true });
@@ -45,6 +46,7 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
     subscriptions: { followerIds: reject, itemSubscriptions: reject },
     discussion: { getComment: reject },
     chats: { chatSummary: reject, latestMessageBody: reject, isBlocked: reject },
+    bodies: new PlainBodyParser(),
     ...over,
   };
 }
@@ -117,6 +119,13 @@ describe('communityMail', () => {
       { id: 'cmy_1', title: 'Founder Collab' },
     ]);
     expect(listCommunitiesById).toHaveBeenCalledWith(['cmy_1'], SYSTEM);
+  });
+
+  it("reads a post body's text through the body parser", () => {
+    const parse = vi.fn(() => ({ text: 'Plain words', mentions: [], assetIds: [] }));
+    const { mail } = communityMail(deps({ bodies: { parse } }));
+    expect(mail.postText('**Plain** words')).toBe('Plain words');
+    expect(parse).toHaveBeenCalledWith('**Plain** words');
   });
 
   it('reads followers from the post subscriptions', async () => {

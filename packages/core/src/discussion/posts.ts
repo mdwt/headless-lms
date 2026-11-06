@@ -6,10 +6,15 @@ import {
   NotFoundError,
   UnavailableError,
 } from '../shared/errors.js';
-import type { Logger, Scheduler } from '../shared/ports.js';
+import type { BodyParser, Logger, Scheduler } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { SpaceDetail } from '../content/index.js';
-import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
+import type {
+  AssetFiles,
+  FileUrls,
+  MemberImageReader,
+  MemberUploadReader,
+} from '../assets/index.js';
 import type {
   FlaggedComment,
   FlaggedCommentView,
@@ -59,8 +64,9 @@ export type PostServiceParams = {
   comments: PostCommentReader;
   subscriptions: SubscriptionsRepository;
   mentions: MentionsRepository;
-  images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  images: MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
+  bodies: BodyParser;
   uow: PostUnitOfWork;
   scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
@@ -68,6 +74,8 @@ export type PostServiceParams = {
 
 type EventMeta = { actorOrgUserId?: string; previousStatus?: PostStatus | null };
 
+const MAX_BODY_ASSETS = 20;
+const INLINE_TYPES = /^(image\/(png|jpeg|gif|webp|avif)|video\/.+|audio\/.+|application\/pdf)$/i;
 const PUBLISHED_ONLY: PostStatus[] = ['published'];
 const MODERATOR_VISIBLE: PostStatus[] = ['published', 'pending', 'removed'];
 const DRAFT = {
@@ -86,8 +94,9 @@ export class PostServiceImpl implements PostService {
   private readonly comments: PostCommentReader;
   private readonly subscriptions: SubscriptionsRepository;
   private readonly mentions: MentionsRepository;
-  private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  private readonly images: MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
+  private readonly bodies: BodyParser;
   private readonly uow: PostUnitOfWork;
   private readonly scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   private readonly logger: Logger;
@@ -103,6 +112,7 @@ export class PostServiceImpl implements PostService {
     this.mentions = params.mentions;
     this.images = params.images;
     this.fileUrls = params.fileUrls;
+    this.bodies = params.bodies;
     this.uow = params.uow;
     this.scheduler = params.scheduler;
     this.logger = params.logger ?? noopLogger;
@@ -139,6 +149,8 @@ export class PostServiceImpl implements PostService {
     const orgId = actor.orgId;
     const space = await this.requireOpen(actor, input.spaceId, input.communityId);
     await this.requireOwnedImage(orgId, actor.id, input.coverAssetId);
+    const parsed = this.bodies.parse(input.body);
+    await this.requireBodyAssets(orgId, actor.id, parsed.assetIds);
     this.assertTopic(space, input.topicId);
     const now = new Date();
     const landing = this.initial(input, space, actor, now);
@@ -160,7 +172,7 @@ export class PostServiceImpl implements PostService {
       updatedAt: now,
       ...landing,
     };
-    const mentioned = await this.mentionable(orgId, space.id, post.title, post.body);
+    const mentioned = await this.mentionable(orgId, space.id, post.title, parsed.mentions);
     const saved = await this.uow.run(async ({ posts, mentions, outbox }) => {
       const created = await posts.insert(orgId, post);
       await mentions.sync(orgId, 'post', created.id, mentioned, now);
@@ -202,17 +214,16 @@ export class PostServiceImpl implements PostService {
     if (typeof patch.coverAssetId === 'string') {
       await this.requireOwnedImage(orgId, actor.id, patch.coverAssetId);
     }
+    const parsed = this.bodies.parse(patch.body ?? post.body);
+    if (patch.body !== undefined) {
+      await this.requireBodyAssets(orgId, actor.id, parsed.assetIds);
+    }
     if (!this.patchChanges(post, patch)) {
       return this.viewOf(actor, post);
     }
     const retext = patch.title !== undefined || patch.body !== undefined;
     const candidates = retext
-      ? await this.mentionable(
-          orgId,
-          post.spaceId,
-          patch.title ?? post.title,
-          patch.body ?? post.body,
-        )
+      ? await this.mentionable(orgId, post.spaceId, patch.title ?? post.title, parsed.mentions)
       : [];
     const updated = await this.uow.run(async ({ posts, mentions, outbox }) => {
       const next = await this.mustUpdate(posts, orgId, postId, patch);
@@ -708,18 +719,43 @@ export class PostServiceImpl implements PostService {
   }
 
   async coverFile(postId: string, actor: Actor): Promise<string> {
+    const post = await this.repo.find(actor.orgId, postId);
+    return this.signShown(actor, post, post?.coverAssetId ?? null, 'Post cover', postId);
+  }
+
+  async assetFile(postId: string, assetId: string, actor: Actor): Promise<string> {
+    const post = await this.repo.find(actor.orgId, postId);
+    const shown = post !== null && this.bodies.parse(post.body).assetIds.includes(assetId);
+    const [upload] = shown ? await this.images.memberUploads(actor.orgId, [assetId]) : [];
+    return this.signShown(
+      actor,
+      post,
+      upload ? assetId : null,
+      'Post file',
+      assetId,
+      upload && !INLINE_TYPES.test(upload.contentType) ? upload.filename : undefined,
+    );
+  }
+
+  private async signShown(
+    actor: Actor,
+    post: Post | null,
+    assetId: string | null,
+    label: string,
+    id: string,
+    saveAs?: string,
+  ): Promise<string> {
     const orgId = actor.orgId;
-    const post = await this.repo.find(orgId, postId);
-    if (!post?.coverAssetId || !this.canSee(actor, post)) {
-      throw new NotFoundError('Post cover', postId);
+    if (!post || !assetId || !this.canSee(actor, post)) {
+      throw new NotFoundError(label, id);
     }
     const space = await this.content.getSpace(post.spaceId, this.authors.systemActor(orgId));
     if (!space || !(await this.access.canOpen(space, actor))) {
-      throw new NotFoundError('Post cover', postId);
+      throw new NotFoundError(label, id);
     }
-    const url = await this.images.signFile(orgId, post.coverAssetId);
+    const url = await this.images.signFile(orgId, assetId, saveAs ? { saveAs } : {});
     if (!url) {
-      throw new NotFoundError('Post cover', postId);
+      throw new NotFoundError(label, id);
     }
     return url;
   }
@@ -836,16 +872,29 @@ export class PostServiceImpl implements PostService {
     const postIds = posts.map((post) => post.id);
     const authorIds = [...new Set(posts.map((post) => post.orgUserId))];
     const now = new Date();
-    const [records, permissions, reactions, commentCounts, subscribed, bookmarked, mentioned] =
-      await Promise.all([
-        this.profiles.authorsOf(orgId, authorIds),
-        this.authors.permissionsOfMany(orgId, authorIds),
-        this.repo.reactionsOf(orgId, postIds, actor.id),
-        this.comments.publishedCommentCounts(orgId, postIds),
-        this.subscriptions.forViewer(orgId, actor.id, 'post', postIds),
-        this.repo.bookmarkedAmong(orgId, postIds, actor.id),
-        mentionViews(this.mentions, this.profiles, orgId, 'post', postIds),
-      ]);
+    const bodyAssets = new Map(
+      posts.map((post) => [post.id, this.bodies.parse(post.body).assetIds]),
+    );
+    const [
+      records,
+      permissions,
+      reactions,
+      commentCounts,
+      subscribed,
+      bookmarked,
+      mentioned,
+      uploads,
+    ] = await Promise.all([
+      this.profiles.authorsOf(orgId, authorIds),
+      this.authors.permissionsOfMany(orgId, authorIds),
+      this.repo.reactionsOf(orgId, postIds, actor.id),
+      this.comments.publishedCommentCounts(orgId, postIds),
+      this.subscriptions.forViewer(orgId, actor.id, 'post', postIds),
+      this.repo.bookmarkedAmong(orgId, postIds, actor.id),
+      mentionViews(this.mentions, this.profiles, orgId, 'post', postIds),
+      this.images.memberUploads(orgId, [...new Set([...bodyAssets.values()].flat())]),
+    ]);
+    const uploadOf = new Map(uploads.map((upload) => [upload.id, upload]));
     const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
     const saved = new Set(bookmarked);
     return posts.map((post) => {
@@ -857,6 +906,24 @@ export class PostServiceImpl implements PostService {
       return {
         ...post,
         coverUrl: post.coverAssetId ? this.fileUrls.postCover(post.id) : null,
+        assets: Object.fromEntries(
+          (bodyAssets.get(post.id) ?? []).flatMap((assetId) => {
+            const upload = uploadOf.get(assetId);
+            return upload
+              ? [
+                  [
+                    assetId,
+                    {
+                      url: this.fileUrls.postAsset(post.id, assetId),
+                      kind: upload.kind,
+                      filename: upload.filename,
+                      size: upload.size,
+                    },
+                  ],
+                ]
+              : [];
+          }),
+        ),
         author: authorView(
           orgId,
           record,
@@ -987,6 +1054,22 @@ export class PostServiceImpl implements PostService {
     }
   }
 
+  private async requireBodyAssets(
+    orgId: string,
+    orgUserId: string,
+    assetIds: string[],
+  ): Promise<void> {
+    if (assetIds.length > MAX_BODY_ASSETS) {
+      throw new InvalidInputError(`A post shows at most ${MAX_BODY_ASSETS} files`);
+    }
+    for (const assetId of assetIds) {
+      if (!(await this.images.ownsUpload(orgId, assetId, orgUserId))) {
+        this.logger.debug('body file refused', { orgId, orgUserId, assetId });
+        throw new NotFoundError('Asset', assetId);
+      }
+    }
+  }
+
   private async openSpace(
     actor: Actor,
     spaceId: string,
@@ -1058,20 +1141,13 @@ export class PostServiceImpl implements PostService {
   }
 
   private topicFits(space: SpaceDetail, topicId: string | null): boolean {
-    if (topicId === null) {
-      return space.topics.length === 0;
-    }
-    return space.topics.some((topic) => topic.id === topicId);
+    return topicId === null || space.topics.some((topic) => topic.id === topicId);
   }
 
   private assertTopic(space: SpaceDetail, topicId: string | null): void {
-    if (this.topicFits(space, topicId)) {
-      return;
+    if (topicId !== null && !this.topicFits(space, topicId)) {
+      throw new NotFoundError('Topic', topicId);
     }
-    if (topicId === null) {
-      throw new InvalidInputError('This space requires a topic');
-    }
-    throw new NotFoundError('Topic', topicId);
   }
 
   private patchChanges(post: Post, patch: UpdatePostInput): boolean {
@@ -1091,9 +1167,9 @@ export class PostServiceImpl implements PostService {
     orgId: string,
     spaceId: string,
     title: string,
-    body: string,
+    body: string[],
   ): Promise<string[]> {
-    return this.openersOf(orgId, spaceId, mentionTokens(title, body));
+    return this.openersOf(orgId, spaceId, [...new Set([...mentionTokens(title), ...body])]);
   }
 
   private async openersOf(orgId: string, spaceId: string, orgUserIds: string[]): Promise<string[]> {

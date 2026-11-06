@@ -102,6 +102,7 @@ type World = {
   chatKind?: 'direct' | 'group';
   chatStatus?: 'pending' | 'open' | 'closed';
   posts?: { postId: string; spaceId: string; title: string }[];
+  postText?: (body: string) => string;
 };
 
 function fakeReads(world: World = {}) {
@@ -117,6 +118,7 @@ function fakeReads(world: World = {}) {
   const opens = (spaceId: string) => world.openers?.[spaceId] ?? EVERYONE;
   const reads: NotificationReads = {
     ...emptyCommunityMail,
+    ...(world.postText ? { postText: world.postText } : {}),
     displayName: async (_o, id) => NAMES[id] ?? 'A member',
     space: async (_o, spaceId) => SPACES[spaceId] ?? null,
     spaceOpenersAmong: async (_o, spaceId, ids) => ids.filter((id) => opens(spaceId).includes(id)),
@@ -282,6 +284,13 @@ describe('discussion.post.published', () => {
       excerpt: 'Listen to this, Emma',
       postTitle: 'My first recording',
     });
+  });
+
+  it("takes the excerpt from the post body's text, and the title when it has none", async () => {
+    const text = await run(published(), { postText: (body) => body.replace('this', 'that') });
+    expect(byType(text.lists, 'post.published')?.display.excerpt).toBe('Listen to that, Emma');
+    const empty = await run(published(), { postText: () => '' });
+    expect(byType(empty.lists, 'post.published')?.display.excerpt).toBe('My first recording');
   });
 
   it('notifies nobody when a removed post is restored', async () => {

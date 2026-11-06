@@ -6205,6 +6205,14 @@ export type GetCommunitySpaceQueueResponses = {
       createdAt: string;
       updatedAt: string;
       coverUrl: string | null;
+      assets: {
+        [key: string]: {
+          url: string;
+          kind: "image" | "video" | "audio" | "document";
+          filename: string;
+          size: number;
+        };
+      };
       author: {
         id: string;
         firstName: string | null;
@@ -6377,6 +6385,14 @@ export type ApproveCommunityPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -6504,6 +6520,14 @@ export type RemoveCommunityPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -6632,6 +6656,14 @@ export type RestoreCommunityPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -10580,6 +10612,14 @@ export type GetMemberFeedResponses = {
       createdAt: string;
       updatedAt: string;
       coverUrl: string | null;
+      assets: {
+        [key: string]: {
+          url: string;
+          kind: "image" | "video" | "audio" | "document";
+          filename: string;
+          size: number;
+        };
+      };
       author: {
         id: string;
         firstName: string | null;
@@ -10705,6 +10745,14 @@ export type ListOwnPostsResponses = {
       createdAt: string;
       updatedAt: string;
       coverUrl: string | null;
+      assets: {
+        [key: string]: {
+          url: string;
+          kind: "image" | "video" | "audio" | "document";
+          filename: string;
+          size: number;
+        };
+      };
       author: {
         id: string;
         firstName: string | null;
@@ -10830,6 +10878,14 @@ export type ListBookmarkedPostsResponses = {
       createdAt: string;
       updatedAt: string;
       coverUrl: string | null;
+      assets: {
+        [key: string]: {
+          url: string;
+          kind: "image" | "video" | "audio" | "document";
+          filename: string;
+          size: number;
+        };
+      };
       author: {
         id: string;
         firstName: string | null;
@@ -10961,6 +11017,14 @@ export type GetSpaceFeedResponses = {
       createdAt: string;
       updatedAt: string;
       coverUrl: string | null;
+      assets: {
+        [key: string]: {
+          url: string;
+          kind: "image" | "video" | "audio" | "document";
+          filename: string;
+          size: number;
+        };
+      };
       author: {
         id: string;
         firstName: string | null;
@@ -11084,6 +11148,14 @@ export type GetSpaceQueueResponses = {
       createdAt: string;
       updatedAt: string;
       coverUrl: string | null;
+      assets: {
+        [key: string]: {
+          url: string;
+          kind: "image" | "video" | "audio" | "document";
+          filename: string;
+          size: number;
+        };
+      };
       author: {
         id: string;
         firstName: string | null;
@@ -11162,6 +11234,9 @@ export type GetSpaceQueueResponse = GetSpaceQueueResponses[keyof GetSpaceQueueRe
 export type CreatePostData = {
   body: {
     title: string;
+    /**
+     * The post's text, in the installation's body format (plain text unless the installation sets one). Mention a member with `<@orgUserId>`.
+     */
     body: string;
     /**
      * One of the space's topics. Required when the space has topics, else null
@@ -11288,6 +11363,14 @@ export type CreatePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -11405,6 +11488,14 @@ export type GetPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -11439,6 +11530,9 @@ export type GetPostResponse = GetPostResponses[keyof GetPostResponses];
 export type UpdatePostData = {
   body: {
     title?: string;
+    /**
+     * The post's text, in the installation's body format (plain text unless the installation sets one). Mention a member with `<@orgUserId>`.
+     */
     body?: string;
     topicId?: string | null;
     extra?: JsonValueInput;
@@ -11536,6 +11630,14 @@ export type UpdatePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -11661,6 +11763,14 @@ export type SubmitPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -11805,6 +11915,14 @@ export type SchedulePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -11930,6 +12048,14 @@ export type UnschedulePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12055,6 +12181,14 @@ export type ApprovePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12180,6 +12314,14 @@ export type RemovePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12305,6 +12447,14 @@ export type RestorePostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12430,6 +12580,14 @@ export type PinPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12555,6 +12713,14 @@ export type UnpinPostResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12680,6 +12846,14 @@ export type ClosePostCommentsResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12806,6 +12980,14 @@ export type OpenPostCommentsResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -12937,6 +13119,14 @@ export type SetPostReactionPolicyResponses = {
     createdAt: string;
     updatedAt: string;
     coverUrl: string | null;
+    assets: {
+      [key: string]: {
+        url: string;
+        kind: "image" | "video" | "audio" | "document";
+        filename: string;
+        size: number;
+      };
+    };
     author: {
       id: string;
       firstName: string | null;
@@ -17818,7 +18008,7 @@ export type RequestMemberUploadData = {
   body: {
     filename: string;
     /**
-     * One of `image/png`, `image/jpeg`, `image/gif`, `image/webp` or `image/avif`. The stored type and size are checked when the upload is finalized.
+     * Any type. Only `image/png`, `image/jpeg`, `image/gif`, `image/webp` and `image/avif` count as images (a profile photo, a post cover, a message attachment); every other type is a file a post can show. The stored type and size are checked when the upload is finalized.
      */
     contentType: string;
   };
@@ -18635,6 +18825,68 @@ export type GetPostCoverErrors = {
 };
 
 export type GetPostCoverError = GetPostCoverErrors[keyof GetPostCoverErrors];
+
+export type GetPostAssetData = {
+  body?: never;
+  path: {
+    postId: string;
+    assetId: string;
+  };
+  query?: never;
+  url: "/api/member/posts/{postId}/assets/{assetId}";
+};
+
+export type GetPostAssetErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetPostAssetError = GetPostAssetErrors[keyof GetPostAssetErrors];
 
 export type GetMessageAttachmentData = {
   body?: never;

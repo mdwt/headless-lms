@@ -9,9 +9,15 @@ import {
 import type { Actor } from '../shared/actor.js';
 import { actorWith } from '../organizations/index.js';
 import type { SpaceDetail } from '../content/index.js';
-import type { NewDomainEvent, Scheduler } from '../shared/ports.js';
+import type { BodyParser, NewDomainEvent, Scheduler } from '../shared/ports.js';
+import { mentionTokens } from './mentions.js';
 import { PostServiceImpl } from './posts.js';
-import type { AssetFiles, MemberImageReader } from '../assets/index.js';
+import type {
+  AssetFiles,
+  MemberImageReader,
+  MemberUpload,
+  MemberUploadReader,
+} from '../assets/index.js';
 import { createFileUrls } from '../assets/index.js';
 import type {
   AuthorPermissionReader,
@@ -201,14 +207,34 @@ function feedOrder(a: Post, b: Post): number {
 
 const fileUrls = createFileUrls('https://api.test');
 
+function testUpload(id: string): MemberUpload {
+  const [kind, contentType] = id.includes('pdf')
+    ? (['document', 'application/pdf'] as const)
+    : id.includes('zip')
+      ? (['document', 'application/zip'] as const)
+      : id.includes('vid')
+        ? (['video', 'video/mp4'] as const)
+        : (['image', 'image/png'] as const);
+  return { id, kind, filename: `${id}.file`, contentType, size: 10 };
+}
+
+const testBodies: BodyParser = {
+  parse: (body) => ({
+    text: body,
+    mentions: mentionTokens(body),
+    assetIds: [...new Set([...body.matchAll(/\(asset:([\w-]+)\)/g)].map((match) => match[1]!))],
+  }),
+};
+
 function harness(options?: {
   open?: boolean;
   spaces?: SpaceDetail[];
   people?: Actor[];
   gone?: string[];
-  images?: MemberImageReader & Partial<Pick<AssetFiles, 'signFile'>>;
+  images?: Partial<MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile'>>;
   profiles?: Record<string, Partial<AuthorRecord>>;
   scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
+  bodies?: BodyParser;
 }) {
   const rows: Post[] = [];
   const closed = new Set<string>();
@@ -556,9 +582,13 @@ function harness(options?: {
     comments,
     images: {
       signFile: async () => 'https://signed',
-      ...(options?.images ?? { ownsImage: async () => true }),
+      ownsImage: async () => true,
+      ownsUpload: async () => true,
+      memberUploads: async (_orgId, ids) => ids.map(testUpload),
+      ...options?.images,
     },
     fileUrls,
+    bodies: options?.bodies ?? testBodies,
     uow,
     scheduler,
   });
@@ -627,7 +657,7 @@ describe('posts', () => {
     expect(post.status).toBe('pending');
   });
 
-  it('rejects a topic that is not on the space and requires one when the space has topics', async () => {
+  it('rejects a topic that is not on the space and takes a post without a topic', async () => {
     const { svc, setSpaces } = harness();
     const topic = {
       orgId: ORG,
@@ -639,7 +669,7 @@ describe('posts', () => {
       updatedAt: AT,
     };
     setSpaces([space({ topics: [topic] })]);
-    await expect(svc.create(draftInput(), member)).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(svc.create(draftInput(), member)).resolves.toMatchObject({ topicId: null });
     await expect(svc.create(draftInput({ topicId: 'top_missing' }), member)).rejects.toBeInstanceOf(
       NotFoundError,
     );
@@ -1019,10 +1049,11 @@ describe('posts', () => {
 
   it('refuses to submit a draft whose topic the space no longer allows', async () => {
     const { svc, calls, setSpaces } = harness();
-    const draft = await svc.create(draftInput({ mode: 'draft' }), member);
     setSpaces([space({ topics: [topic('top_1')] })]);
+    const draft = await svc.create(draftInput({ mode: 'draft', topicId: 'top_1' }), member);
+    setSpaces([space({ topics: [topic('top_2')] })]);
     calls.length = 0;
-    await expect(svc.submit(draft.id, member)).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(svc.submit(draft.id, member)).rejects.toBeInstanceOf(NotFoundError);
     expect(calls).toHaveLength(0);
   });
 
@@ -1576,8 +1607,12 @@ describe('scheduled posts', () => {
   it('reverts a due post to a draft when its topic no longer fits the space', async () => {
     const { svc, calls, rows, setSpaces } = harness();
     const when = later();
-    const created = await svc.create(draftInput({ mode: 'schedule', scheduledAt: when }), member);
     setSpaces([space({ topics: [topic('top_1')] })]);
+    const created = await svc.create(
+      draftInput({ mode: 'schedule', scheduledAt: when, topicId: 'top_1' }),
+      member,
+    );
+    setSpaces([space({ topics: [topic('top_2')] })]);
     calls.length = 0;
     await svc.publishScheduled(ORG, created.id, new Date(when.getTime() + 1000));
     expect(rows[0]?.status).toBe('draft');
@@ -1595,6 +1630,112 @@ describe('scheduled posts', () => {
     await svc.publishScheduled(ORG, 'pst_missing', new Date(when.getTime() + 1000));
     expect(calls).toEqual([]);
     expect(scheduler.at).not.toHaveBeenCalled();
+  });
+});
+
+describe('post body files', () => {
+  const owned = (ids: string[]) => ({
+    ownsUpload: async (_orgId: string, assetId: string) => ids.includes(assetId),
+  });
+  const asset = (postId: string, id: string) => {
+    const { kind, filename, size } = testUpload(id);
+    return { url: fileUrls.postAsset(postId, id), kind, filename, size };
+  };
+
+  it('describes each image, video and file the body shows', async () => {
+    const { svc } = harness();
+    const post = await svc.create(
+      draftInput({
+        body: '![](asset:ast_a) text ![](asset:ast_vid) [notes](asset:ast_pdf) ![](asset:ast_a)',
+      }),
+      member,
+    );
+    expect(post.assets).toEqual({
+      ast_a: asset(post.id, 'ast_a'),
+      ast_vid: asset(post.id, 'ast_vid'),
+      ast_pdf: asset(post.id, 'ast_pdf'),
+    });
+    expect((await svc.create(draftInput(), member)).assets).toEqual({});
+  });
+
+  it('leaves out of the view a file that is no longer ready', async () => {
+    const { svc } = harness({ images: { memberUploads: async () => [] } });
+    const post = await svc.create(draftInput({ body: '![](asset:ast_a)' }), member);
+    expect(post.assets).toEqual({});
+  });
+
+  it('refuses a body showing a file the author did not upload, and stores nothing', async () => {
+    const { svc, rows } = harness({ images: owned(['ast_a']) });
+    await expect(
+      svc.create(draftInput({ body: '![](asset:ast_a) [theirs](asset:ast_theirs)' }), member),
+    ).rejects.toThrow(NotFoundError);
+    expect(rows).toEqual([]);
+  });
+
+  it('refuses a body showing more than 20 files', async () => {
+    const ids = Array.from({ length: 21 }, (_, i) => `ast_${i}`);
+    const { svc } = harness({ images: owned(ids) });
+    const body = ids.map((id) => `![](asset:${id})`).join(' ');
+    await expect(svc.create(draftInput({ body }), member)).rejects.toThrow(InvalidInputError);
+    const fits = await svc.create(
+      draftInput({
+        body: ids
+          .slice(1)
+          .map((id) => `![](asset:${id})`)
+          .join(' '),
+      }),
+      member,
+    );
+    expect(Object.keys(fits.assets)).toHaveLength(20);
+  });
+
+  it('checks the files of a new body on update, and leaves the stored body alone when one is refused', async () => {
+    const ownsUpload = vi.fn(async (_orgId: string, assetId: string) => assetId !== 'ast_theirs');
+    const { svc } = harness({ images: { ownsUpload } });
+    const post = await svc.create(draftInput({ body: '![](asset:ast_a)' }), member);
+    ownsUpload.mockClear();
+    await svc.update(post.id, { title: 'Renamed' }, member);
+    expect(ownsUpload).not.toHaveBeenCalled();
+    await expect(svc.update(post.id, { body: '![](asset:ast_theirs)' }, member)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect((await svc.getPost(post.id, member)).body).toBe('![](asset:ast_a)');
+    const updated = await svc.update(post.id, { body: '![](asset:ast_b)' }, member);
+    expect(updated.assets).toEqual({ ast_b: asset(post.id, 'ast_b') });
+  });
+
+  it('serves a file to whoever can read the post while its body shows it', async () => {
+    const { svc } = harness();
+    const post = await svc.create(draftInput({ body: '![](asset:ast_a)' }), member);
+    expect(await svc.assetFile(post.id, 'ast_a', other)).toBe('https://signed');
+    await expect(svc.assetFile(post.id, 'ast_b', other)).rejects.toThrow(NotFoundError);
+    await expect(svc.assetFile(post.id, 'ast_a', outsider)).rejects.toThrow(NotFoundError);
+    await expect(svc.assetFile('pst_missing', 'ast_a', other)).rejects.toThrow(NotFoundError);
+    await svc.update(post.id, { body: 'No file now' }, member);
+    await expect(svc.assetFile(post.id, 'ast_a', other)).rejects.toThrow(NotFoundError);
+    const draft = await svc.create(draftInput({ mode: 'draft', body: '![](asset:ast_a)' }), member);
+    await expect(svc.assetFile(draft.id, 'ast_a', other)).rejects.toThrow(NotFoundError);
+    expect(await svc.assetFile(draft.id, 'ast_a', member)).toBe('https://signed');
+  });
+
+  it('opens images, video, audio and PDFs in place and makes any other file a download', async () => {
+    const signFile = vi.fn(async () => 'https://signed');
+    const { svc } = harness({ images: { signFile } });
+    const post = await svc.create(
+      draftInput({
+        body: '![](asset:ast_a) ![](asset:ast_vid) [a](asset:ast_pdf) [b](asset:ast_zip)',
+      }),
+      member,
+    );
+    for (const id of ['ast_a', 'ast_vid', 'ast_pdf', 'ast_zip']) {
+      await svc.assetFile(post.id, id, other);
+    }
+    expect(signFile.mock.calls.map((call) => call.slice(1))).toEqual([
+      ['ast_a', {}],
+      ['ast_vid', {}],
+      ['ast_pdf', {}],
+      ['ast_zip', { saveAs: 'ast_zip.file' }],
+    ]);
   });
 });
 
@@ -1629,6 +1770,14 @@ describe('post mentions', () => {
       { orgUserId: other.id, name: 'First Last' },
       { orgUserId: moderator.id, name: 'First Last' },
     ]);
+  });
+
+  it('takes the body mentions from the body parser', async () => {
+    const { svc, mentions } = harness({
+      bodies: { parse: (body) => ({ text: body, mentions: [moderator.id], assetIds: [] }) },
+    });
+    await svc.create(draftInput({ title: 'For <@ou_other>', body: '`<@ou_out>`' }), member);
+    expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id, moderator.id]);
   });
 
   it('reads who can open the space before the transaction when a post with mentions lands', async () => {

@@ -45,6 +45,7 @@ import {
   type RequestLogContext,
 } from '@headless-lms/adapter-defaults/logging';
 import { StorageAdapter } from '@headless-lms/adapter-defaults/storage';
+import { PlainBodyParser } from '@headless-lms/adapter-defaults/body';
 import { BetterAuth } from '@headless-lms/adapter-auth';
 
 import {
@@ -118,6 +119,7 @@ import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 
 import type {
+  BodyParser,
   ChannelRegistry,
   CredentialStore,
   EmailSender,
@@ -149,6 +151,8 @@ export interface AdapterOverrides {
   /** Push credentials per provider. Absent → no provider is configured and devices cannot register. */
   push?: PushConfig;
   pushSender?: PushSender;
+  /** Reads post bodies: their text, mentions and images. Absent → PlainBodyParser (plain text, no images). */
+  bodyParser?: BodyParser;
   /** Delivery to every API instance, or a factory given its logger. Absent → no live chat; the chat stream answers 503. */
   pubsub?: PubSub | ((logger: Logger) => PubSub);
 }
@@ -188,6 +192,7 @@ export interface Config {
    *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
   deliveryExpirySeconds: number;
   memberImageMaxBytes: number;
+  memberFileMaxBytes: number;
   /** Let the default webhook sender reach loopback and private network addresses. Local development only. */
   webhookAllowPrivateNetwork?: boolean;
 }
@@ -324,6 +329,7 @@ export async function buildContainer(
     options?.adapters?.storage ?? new StorageAdapter(logger.child({ name: 'storage' }));
   const templates =
     options?.adapters?.templates ?? new StubTemplateRenderer(logger.child({ name: 'email' }));
+  const bodies = options?.adapters?.bodyParser ?? new PlainBodyParser();
   const workflows = options?.adapters?.workflows;
   const automationEngine: AutomationEngine & Scheduler =
     typeof workflows === 'function'
@@ -348,6 +354,7 @@ export async function buildContainer(
       outbox: new DrizzleOutboxAppender(tx, outboxLogger),
     })),
     memberImageMaxBytes: config.memberImageMaxBytes,
+    memberFileMaxBytes: config.memberFileMaxBytes,
     downloadLinkExpirySeconds: config.deliveryExpirySeconds,
     fileUrls,
     logger: assetsLogger,
@@ -531,6 +538,7 @@ export async function buildContainer(
     mentions: mentionReads,
     images: assets,
     fileUrls,
+    bodies,
     uow: new DrizzleUnitOfWork(db, (tx) => ({
       posts: new DrizzlePostRepository(tx, discussionLogger),
       mentions: new DrizzleMentionsRepository(tx, discussionLogger),
@@ -707,6 +715,7 @@ export async function buildContainer(
     subscriptions,
     discussion,
     chats,
+    bodies,
   });
   const recipientReads = notificationReads({
     content,
@@ -717,6 +726,7 @@ export async function buildContainer(
     subscriptions,
     discussion,
     chats,
+    bodies,
     settings: notificationSettings,
   });
   const notificationProcessor = new NotificationProcessor({

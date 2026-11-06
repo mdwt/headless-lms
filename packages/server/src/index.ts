@@ -45,6 +45,7 @@ export async function createContainer(
       ...config.container,
       deliveryExpirySeconds: config.deliveryExpirySeconds,
       memberImageMaxBytes: config.memberImageMaxBytes,
+      memberFileMaxBytes: config.memberFileMaxBytes,
     },
     options,
   );

@@ -16,6 +16,7 @@
     "db:migrate": "tsx --env-file=../../.env ../../packages/cli/src/index.ts migrate"
   },
   "dependencies": {
+    "@headless-lms/adapter-body-markdown": "workspace:*",
     "@headless-lms/adapter-defaults": "workspace:*",
     "@headless-lms/adapter-email-resend": "workspace:*",
     "@headless-lms/adapter-email-templates": "workspace:*",

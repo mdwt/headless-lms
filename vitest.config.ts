@@ -39,6 +39,10 @@ export default defineConfig({
         replacement: r("./adapters/db/src/index.ts"),
       },
       {
+        find: "@headless-lms/adapter-body-markdown",
+        replacement: r("./adapters/body-markdown/src/index.ts"),
+      },
+      {
         find: "@headless-lms/adapter-pubsub-postgres",
         replacement: r("./adapters/pubsub-postgres/src/index.ts"),
       },
@@ -69,6 +73,10 @@ export default defineConfig({
       {
         find: "@headless-lms/adapter-defaults/workflows",
         replacement: r("./adapters/defaults/src/workflows/index.ts"),
+      },
+      {
+        find: "@headless-lms/adapter-defaults/body",
+        replacement: r("./adapters/defaults/src/body/index.ts"),
       },
       {
         find: "@headless-lms/adapter-defaults/webhooks",

@@ -8,6 +8,7 @@ export interface FileUrls {
   activityAsset(activityId: string, assetId: string): string;
   downloadFile(downloadId: string, assetId: string): string;
   postCover(postId: string): string;
+  postAsset(postId: string, assetId: string): string;
   messageAttachment(chatId: string, messageId: string, assetId: string): string;
   personImage(orgUserId: string): string;
   memberUpload(assetId: string): string;
@@ -31,6 +32,7 @@ export function createFileUrls(apiUrl: string): FileUrls {
       at('member', 'activities', activityId, 'assets', assetId),
     downloadFile: (downloadId, assetId) => at('member', 'downloads', downloadId, 'assets', assetId),
     postCover: (postId) => at('member', 'posts', postId, 'cover'),
+    postAsset: (postId, assetId) => at('member', 'posts', postId, 'assets', assetId),
     messageAttachment: (chatId, messageId, assetId) =>
       at('member', 'chats', chatId, 'messages', messageId, 'attachments', assetId),
     personImage: (orgUserId) => at('member', 'people', orgUserId, 'image'),

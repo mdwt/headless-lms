@@ -225,6 +225,7 @@ import type {
   GetOverviewErrors,
   GetOverviewResponses,
   GetPersonImageErrors,
+  GetPostAssetErrors,
   GetPostCoverErrors,
   GetPostErrors,
   GetPostResponses,
@@ -8344,9 +8345,9 @@ export class Discussion {
 
 export class Assets {
   /**
-   * Register an image you are about to upload and get a presigned upload URL
+   * Register a file you are about to upload and get a presigned upload URL
    *
-   * For a member of the organization. Member uploads are images only (409 otherwise). The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.
+   * For a member of the organization. Any file type. A raster image (PNG, JPEG, GIF, WebP, AVIF) can be your profile photo, a post cover or a message attachment; any upload can be shown in the body of your post. The asset is yours: only you can finalize it or attach it. You can delete it while nothing references it.
    */
   public static requestMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8387,7 +8388,7 @@ export class Assets {
   /**
    * Confirm an upload you started
    *
-   * Uploader only; anyone else gets 404. Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.
+   * Uploader only; anyone else gets 404. Reads the stored size and content type. A file whose stored type differs from the declared one, or that is over its size limit (`MEMBER_IMAGE_MAX_BYTES` for images, `MEMBER_FILE_MAX_BYTES` for any other file), is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.
    */
   public static finalizeMemberUpload<ThrowOnError extends boolean = false>(
     parameters: {
@@ -8799,6 +8800,37 @@ export class Files {
     return (options?.client ?? client).get<unknown, GetPostCoverErrors, ThrowOnError, "data">({
       responseStyle: "data",
       url: "/api/member/posts/{postId}/cover",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a file in a post's body
+   *
+   * Served to whoever can read the post while its body shows the file. Images, video, audio and PDFs open in place; any other file downloads under its name.
+   */
+  public static getPostAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      postId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetPostAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "postId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetPostAssetErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/posts/{postId}/assets/{assetId}",
       ...options,
       ...params,
     });

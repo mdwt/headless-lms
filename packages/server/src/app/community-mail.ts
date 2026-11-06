@@ -10,6 +10,7 @@ import type { EntitlementsService } from '@headless-lms/core/entitlements';
 import type { IdentityService } from '@headless-lms/core/identity';
 import type { OrganizationService } from '@headless-lms/core/organizations';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
+import type { BodyParser } from '@headless-lms/core/shared/ports';
 
 export type CommunityMailDeps = {
   content: Pick<
@@ -47,6 +48,7 @@ export type CommunityMailDeps = {
   subscriptions: Pick<SubscriptionService, 'followerIds' | 'itemSubscriptions'>;
   discussion: Pick<DiscussionService, 'getComment'>;
   chats: Pick<ChatService, 'chatSummary' | 'latestMessageBody' | 'isBlocked'>;
+  bodies: BodyParser;
 };
 
 export function communityMail(deps: CommunityMailDeps): {
@@ -118,6 +120,7 @@ export function communityMail(deps: CommunityMailDeps): {
       const orgUser = await deps.organizations.getOrgUserById(orgId, orgUserId);
       return deps.identity.displayName(orgUser?.userId ?? null);
     },
+    postText: (body) => deps.bodies.parse(body).text,
     followerIds: (orgId, postId) => deps.subscriptions.followerIds(orgId, postId),
     async comment(orgId, commentId) {
       const comment = await deps.discussion.getComment(orgId, commentId);

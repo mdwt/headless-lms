@@ -52,6 +52,7 @@ export const postsDeclarations = {
   listOwn: 'member',
   listBookmarked: 'member',
   coverFile: 'member',
+  assetFile: 'member',
   getPost: 'member',
   visible: 'member',
   find: 'system',

@@ -18191,6 +18191,41 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "assets": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "image",
+                                    "video",
+                                    "audio",
+                                    "document"
+                                  ]
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "url",
+                                "kind",
+                                "filename",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -18334,6 +18369,7 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
+                          "assets",
                           "author",
                           "reactions",
                           "viewerReaction",
@@ -18853,6 +18889,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -18996,6 +19067,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -19303,6 +19375,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -19446,6 +19553,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -19753,6 +19861,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -19896,6 +20039,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -31385,6 +31529,41 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "assets": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "image",
+                                    "video",
+                                    "audio",
+                                    "document"
+                                  ]
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "url",
+                                "kind",
+                                "filename",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -31528,6 +31707,7 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
+                          "assets",
                           "author",
                           "reactions",
                           "viewerReaction",
@@ -31854,6 +32034,41 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "assets": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "image",
+                                    "video",
+                                    "audio",
+                                    "document"
+                                  ]
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "url",
+                                "kind",
+                                "filename",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -31997,6 +32212,7 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
+                          "assets",
                           "author",
                           "reactions",
                           "viewerReaction",
@@ -32323,6 +32539,41 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "assets": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "image",
+                                    "video",
+                                    "audio",
+                                    "document"
+                                  ]
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "url",
+                                "kind",
+                                "filename",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -32466,6 +32717,7 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
+                          "assets",
                           "author",
                           "reactions",
                           "viewerReaction",
@@ -32809,6 +33061,41 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "assets": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "image",
+                                    "video",
+                                    "audio",
+                                    "document"
+                                  ]
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "url",
+                                "kind",
+                                "filename",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -32952,6 +33239,7 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
+                          "assets",
                           "author",
                           "reactions",
                           "viewerReaction",
@@ -33264,6 +33552,41 @@
                             "nullable": true,
                             "type": "string"
                           },
+                          "assets": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "image",
+                                    "video",
+                                    "audio",
+                                    "document"
+                                  ]
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "url",
+                                "kind",
+                                "filename",
+                                "size"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
                           "author": {
                             "type": "object",
                             "properties": {
@@ -33407,6 +33730,7 @@
                           "createdAt",
                           "updatedAt",
                           "coverUrl",
+                          "assets",
                           "author",
                           "reactions",
                           "viewerReaction",
@@ -33827,7 +34151,8 @@
                   },
                   "body": {
                     "type": "string",
-                    "maxLength": 50000
+                    "maxLength": 50000,
+                    "description": "The post's text, in the installation's body format (plain text unless the installation sets one). Mention a member with `<@orgUserId>`."
                   },
                   "topicId": {
                     "nullable": true,
@@ -33992,6 +34317,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -34135,6 +34495,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -34466,6 +34827,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -34609,6 +35005,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -34790,7 +35187,8 @@
                   },
                   "body": {
                     "type": "string",
-                    "maxLength": 50000
+                    "maxLength": 50000,
+                    "description": "The post's text, in the installation's body format (plain text unless the installation sets one). Mention a member with `<@orgUserId>`."
                   },
                   "topicId": {
                     "nullable": true,
@@ -34919,6 +35317,41 @@
                     "coverUrl": {
                       "nullable": true,
                       "type": "string"
+                    },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
                     },
                     "author": {
                       "type": "object",
@@ -35063,6 +35496,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -35362,6 +35796,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -35505,6 +35974,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -35826,6 +36296,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -35969,6 +36474,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -36300,6 +36806,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -36443,6 +36984,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -36742,6 +37284,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -36885,6 +37462,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -37184,6 +37762,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -37327,6 +37940,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -37626,6 +38240,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -37769,6 +38418,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -38068,6 +38718,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -38211,6 +38896,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -38510,6 +39196,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -38653,6 +39374,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -38952,6 +39674,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -39095,6 +39852,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -39394,6 +40152,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -39537,6 +40330,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -39856,6 +40650,41 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "assets": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "image",
+                              "video",
+                              "audio",
+                              "document"
+                            ]
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "kind",
+                          "filename",
+                          "size"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
                     "author": {
                       "type": "object",
                       "properties": {
@@ -39999,6 +40828,7 @@
                     "createdAt",
                     "updatedAt",
                     "coverUrl",
+                    "assets",
                     "author",
                     "reactions",
                     "viewerReaction",
@@ -55360,11 +56190,11 @@
     "/api/member/uploads": {
       "post": {
         "operationId": "requestMemberUpload",
-        "summary": "Register an image you are about to upload and get a presigned upload URL",
+        "summary": "Register a file you are about to upload and get a presigned upload URL",
         "tags": [
           "Assets"
         ],
-        "description": "For a member of the organization. Member uploads are images only (409 otherwise). The asset is yours: only you can finalize it or attach it to your profile, a post or a message. You can delete it while nothing references it.",
+        "description": "For a member of the organization. Any file type. A raster image (PNG, JPEG, GIF, WebP, AVIF) can be your profile photo, a post cover or a message attachment; any upload can be shown in the body of your post. The asset is yours: only you can finalize it or attach it. You can delete it while nothing references it.",
         "requestBody": {
           "required": true,
           "content": {
@@ -55379,8 +56209,9 @@
                   },
                   "contentType": {
                     "type": "string",
-                    "pattern": "^image\\/(png|jpeg|gif|webp|avif)$",
-                    "description": "One of `image/png`, `image/jpeg`, `image/gif`, `image/webp` or `image/avif`. The stored type and size are checked when the upload is finalized."
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "description": "Any type. Only `image/png`, `image/jpeg`, `image/gif`, `image/webp` and `image/avif` count as images (a profile photo, a post cover, a message attachment); every other type is a file a post can show. The stored type and size are checked when the upload is finalized."
                   }
                 },
                 "required": [
@@ -55684,7 +56515,7 @@
         "tags": [
           "Assets"
         ],
-        "description": "Uploader only; anyone else gets 404. Reads the stored size and content type. A file that is not an image or is over the size limit is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.",
+        "description": "Uploader only; anyone else gets 404. Reads the stored size and content type. A file whose stored type differs from the declared one, or that is over its size limit (`MEMBER_IMAGE_MAX_BYTES` for images, `MEMBER_FILE_MAX_BYTES` for any other file), is discarded and answered with 409. A finalized file moves where the upload URL no longer reaches; finalizing it again returns it unchanged.",
         "parameters": [
           {
             "schema": {
@@ -57568,6 +58399,189 @@
             },
             "in": "path",
             "name": "postId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/posts/{postId}/assets/{assetId}": {
+      "get": {
+        "operationId": "getPostAsset",
+        "summary": "Redirect to a file in a post's body",
+        "tags": [
+          "Files"
+        ],
+        "description": "Served to whoever can read the post while its body shows the file. Images, video, audio and PDFs open in place; any other file downloads under its name.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "postId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "assetId",
             "required": true
           }
         ],

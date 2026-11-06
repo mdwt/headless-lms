@@ -47,6 +47,7 @@ export interface CommunityMailReads {
     item: { contentId: string } | { bundleId: string },
   ): Promise<{ title: string; type: string } | null>;
   displayName(orgId: string, orgUserId: string): Promise<string>;
+  postText(body: string): string;
   followerIds(orgId: string, postId: string): Promise<string[]>;
   comment(
     orgId: string,
@@ -125,6 +126,7 @@ export const emptyCommunityMail: CommunityMailReads = {
   orgName: async () => null,
   contentInfo: async () => null,
   displayName: async () => 'A member',
+  postText: (body) => body,
   followerIds: async () => [],
   comment: async () => null,
   post: async () => null,

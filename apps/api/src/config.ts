@@ -105,6 +105,18 @@ export function parseMemberImageMaxBytes(): number {
   return value;
 }
 
+export function parseMemberFileMaxBytes(): number {
+  const raw = process.env.MEMBER_FILE_MAX_BYTES;
+  if (raw === undefined || raw === "") {
+    return 100 * 1024 * 1024;
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`invalid MEMBER_FILE_MAX_BYTES "${raw}" (expected a positive integer)`);
+  }
+  return value;
+}
+
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
   return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
@@ -139,6 +151,7 @@ function loadContainerConfig(): ContainerConfig {
     // satisfies Config on its own.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
+    memberFileMaxBytes: parseMemberFileMaxBytes(),
     databaseUrl: process.env.DATABASE_URL ?? "",
     authBaseURL: apiOrigin,
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
@@ -181,6 +194,7 @@ export function loadServerConfig(): ServerConfig {
     // Every other file streams or loads under STORAGE_DOWNLOAD_EXPIRY.
     deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
+    memberFileMaxBytes: parseMemberFileMaxBytes(),
     // LISTEN needs a session connection; behind a transaction-mode pooler
     // point PUBSUB_DATABASE_URL at Postgres directly.
     pubsubDatabaseUrl: process.env.PUBSUB_DATABASE_URL || container.databaseUrl,

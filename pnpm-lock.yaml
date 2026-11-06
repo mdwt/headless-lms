@@ -84,6 +84,37 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0)
 
+  adapters/body-markdown:
+    dependencies:
+      '@headless-lms/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
+    devDependencies:
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
+      tsdown:
+        specifier: ^0.22.9
+        version: 0.22.9(tsx@4.22.4)(typescript@5.9.3)(unrun@0.3.1)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.0)(jsdom@25.0.1)(lightningcss@1.32.0)
+
   adapters/db:
     dependencies:
       '@headless-lms/core':
@@ -457,6 +488,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@headless-lms/adapter-body-markdown':
+        specifier: workspace:*
+        version: link:../../adapters/body-markdown
       '@headless-lms/adapter-defaults':
         specifier: workspace:*
         version: link:../../adapters/defaults

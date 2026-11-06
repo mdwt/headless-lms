@@ -1,6 +1,7 @@
 // Process entry point: env → config → container → server → listen → pubsub → relay.
 import { fileURLToPath } from "node:url";
 import { buildServer, closeOnSignals, createContainer } from "@headless-lms/server";
+import { MarkdownBodyParser } from "@headless-lms/adapter-body-markdown";
 import { ResendEmailAdapter } from "@headless-lms/adapter-email-resend";
 import { MinioStorageAdapter } from "@headless-lms/adapter-storage-minio";
 import { HatchetAutomationEngine } from "@headless-lms/adapter-workflow-hatchet";
@@ -32,6 +33,7 @@ const container = await createContainer(config, {
     push: pushConfig,
     pushSender: new PushAdapter(pushConfig),
     pubsub: (logger) => new PostgresPubSub({ connectionString: config.pubsubDatabaseUrl, logger }),
+    bodyParser: new MarkdownBodyParser(),
   },
 });
 const app = await buildServer(config, container);

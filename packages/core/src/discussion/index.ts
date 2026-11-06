@@ -22,7 +22,7 @@ export {
   postsDeclarations,
   subscriptionsDeclarations,
 } from './declarations.js';
-export { nameMentions } from './mentions.js';
+export { mentionTokens, nameMentions } from './mentions.js';
 export { DiscussionItemTitles } from './titles.js';
 export { discussionEvents } from './events.js';
 export {

@@ -184,6 +184,16 @@ export interface NotificationCategoryService {
   defaults(actor: Actor): NotificationCategory[];
 }
 
+export interface ParsedBody {
+  text: string;
+  mentions: string[];
+  assetIds: string[];
+}
+
+export interface BodyParser {
+  parse(body: string): ParsedBody;
+}
+
 export interface PushSender {
   send(devices: PushDevice[], message: PushMessage): Promise<DeliveryResult>;
 }

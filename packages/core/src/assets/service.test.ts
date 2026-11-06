@@ -121,6 +121,7 @@ function service(overrides: Partial<ConstructorParameters<typeof AssetsServiceIm
     repo,
     uow,
     memberImageMaxBytes: 1000,
+    memberFileMaxBytes: 4000,
     downloadLinkExpirySeconds: 600,
     fileUrls: createFileUrls('https://api.test'),
     ...overrides,
@@ -180,53 +181,40 @@ describe('AssetsService', () => {
     expect(member.rows.map((a) => a.source)).toEqual(['member']);
   });
 
-  it('refuses a member upload that is not a raster image', async () => {
+  it('takes a member upload of any type, and files only a raster image as an image', async () => {
     const { svc } = service();
-    for (const contentType of ['application/pdf', 'image/svg+xml', 'image/tiff']) {
-      await expect(
-        svc.requestMemberUpload({ filename: 'a', contentType }, uploader('ou_1')),
-      ).rejects.toThrow('A member upload must be a PNG, JPEG, GIF, WebP or AVIF image');
-    }
-    for (const contentType of [
-      'image/png',
-      'image/jpeg',
-      'image/gif',
-      'image/webp',
-      'image/avif',
-    ]) {
+    const kinds: Record<string, string> = {
+      'image/png': 'image',
+      'image/jpeg': 'image',
+      'image/gif': 'image',
+      'image/webp': 'image',
+      'image/avif': 'image',
+      'image/svg+xml': 'document',
+      'image/tiff': 'document',
+      'application/pdf': 'document',
+      'application/zip': 'document',
+      'video/mp4': 'video',
+      'audio/mpeg': 'audio',
+    };
+    for (const [contentType, kind] of Object.entries(kinds)) {
       const ticket = await svc.requestMemberUpload(
         { filename: 'a', contentType },
         uploader('ou_1'),
       );
-      expect(ticket.asset.contentType).toBe(contentType);
+      expect([contentType, ticket.asset.kind]).toEqual([contentType, kind]);
     }
   });
 
-  it('discards a member upload recorded with an SVG type when it is finalized', async () => {
-    const { svc, storage, assets } = service({
-      storage: fakeStorage({ size: 10, contentType: 'image/svg+xml' }),
-    });
-    const now = new Date();
-    assets.push({
-      orgId: 'org-1',
-      id: 'asset_svg',
-      key: 'org/org-1/uploads/asset_svg/me.svg',
-      kind: 'image',
-      source: 'member',
-      filename: 'me.svg',
-      contentType: 'image/svg+xml',
-      size: 0,
-      status: 'pending',
-      uploadedBy: 'ou_1',
-      contentId: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await expect(svc.confirmOwn('asset_svg', uploader('ou_1'))).rejects.toThrow(
-      'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image',
+  it('finalizes an SVG member upload as a file, never as an image', async () => {
+    const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'image/svg+xml' }) });
+    const ticket = await svc.requestMemberUpload(
+      { filename: 'me.svg', contentType: 'image/svg+xml' },
+      uploader('ou_1'),
     );
-    expect(storage.remove).toHaveBeenCalled();
-    await expect(svc.get('asset_svg', admin())).rejects.toThrow(NotFoundError);
+    const confirmed = await svc.confirmOwn(ticket.asset.id, uploader('ou_1'));
+    expect(confirmed).toMatchObject({ status: 'ready', kind: 'document' });
+    expect(await svc.ownsImage('org-1', ticket.asset.id, 'ou_1')).toBe(false);
+    expect(await svc.ownsUpload('org-1', ticket.asset.id, 'ou_1')).toBe(true);
   });
 
   it('owns only a ready member image uploaded by that org user', async () => {
@@ -256,6 +244,57 @@ describe('AssetsService', () => {
     expect(await svc.ownsImage('org-1', video.asset.id, 'ou_1')).toBe(false);
   });
 
+  it('holds a member file to the file limit and an image to the image limit', async () => {
+    const { svc } = service({
+      storage: fakeStorage({ size: 3000, contentType: 'application/pdf' }),
+    });
+    const pdf = await svc.requestMemberUpload(
+      { filename: 'notes.pdf', contentType: 'application/pdf' },
+      uploader('ou_1'),
+    );
+    expect(await svc.confirmOwn(pdf.asset.id, uploader('ou_1'))).toMatchObject({ status: 'ready' });
+
+    const big = service({ storage: fakeStorage({ size: 5000, contentType: 'application/pdf' }) });
+    const tooBig = await big.svc.requestMemberUpload(
+      { filename: 'notes.pdf', contentType: 'application/pdf' },
+      uploader('ou_1'),
+    );
+    await expect(big.svc.confirmOwn(tooBig.asset.id, uploader('ou_1'))).rejects.toThrow(
+      new InvalidInputError('This file is over the 3.9 KB limit'),
+    );
+  });
+
+  it('lists the ready member uploads among ids, and owns any of them for the uploader', async () => {
+    const { svc } = service({ storage: fakeStorage({ size: 10, contentType: 'video/mp4' }) });
+    const video = await svc.requestMemberUpload(
+      { filename: 'clip.mp4', contentType: 'video/mp4' },
+      uploader('ou_1'),
+    );
+    const library = await svc.requestUpload(
+      { filename: 'a.mp4', contentType: 'video/mp4' },
+      admin('ou_1'),
+    );
+    expect(await svc.memberUploads('org-1', [video.asset.id])).toEqual([]);
+    expect(await svc.ownsUpload('org-1', video.asset.id, 'ou_1')).toBe(false);
+    await svc.confirmOwn(video.asset.id, uploader('ou_1'));
+    await svc.confirm(library.asset.id, admin('ou_1'));
+    expect(
+      await svc.memberUploads('org-1', [video.asset.id, library.asset.id, 'asset_missing']),
+    ).toEqual([
+      {
+        id: video.asset.id,
+        kind: 'video',
+        filename: 'clip.mp4',
+        contentType: 'video/mp4',
+        size: 10,
+      },
+    ]);
+    expect(await svc.ownsUpload('org-1', video.asset.id, 'ou_1')).toBe(true);
+    expect(await svc.ownsUpload('org-1', video.asset.id, 'ou_2')).toBe(false);
+    expect(await svc.ownsUpload('org-1', library.asset.id, 'ou_1')).toBe(false);
+    expect(await svc.ownsImage('org-1', video.asset.id, 'ou_1')).toBe(false);
+  });
+
   it('discards a member upload whose stored bytes are too large or not an image', async () => {
     const big = service({ storage: fakeStorage({ size: 5000, contentType: 'image/png' }) });
     const ticket = await big.svc.requestMemberUpload(
@@ -266,7 +305,7 @@ describe('AssetsService', () => {
       uploader('ou_1'),
     );
     await expect(big.svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow(
-      new InvalidInputError('This image is too large'),
+      new InvalidInputError('This image is over the 1000 B limit'),
     );
     expect(big.storage.remove).toHaveBeenCalledWith(ticket.asset.key);
     await expect(big.svc.get(ticket.asset.id, admin())).rejects.toThrow(NotFoundError);
@@ -295,6 +334,7 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
+      memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
       fileUrls: createFileUrls('https://api.test'),
     });
@@ -347,6 +387,7 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
+      memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
       fileUrls: createFileUrls('https://api.test'),
     });
@@ -393,6 +434,7 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
+      memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
       fileUrls: createFileUrls('https://api.test'),
     });
@@ -429,6 +471,7 @@ describe('AssetsService', () => {
       repo,
       uow,
       memberImageMaxBytes: 1000,
+      memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
       fileUrls: createFileUrls('https://api.test'),
       logger,
@@ -625,7 +668,7 @@ describe('AssetsService', () => {
     );
 
     await expect(svc.confirmOwn(ticket.asset.id, uploader('ou_1'))).rejects.toThrow(
-      'This image is too large',
+      'This image is over the 1000 B limit',
     );
     const copied = vi.mocked(storage.copy).mock.calls[0]?.[0].to;
     expect(vi.mocked(storage.stat).mock.calls.map(([key]) => key)).toEqual([
@@ -780,6 +823,9 @@ describe('AssetsService', () => {
     for (const memberImageMaxBytes of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => service({ memberImageMaxBytes })).toThrow('invalid memberImageMaxBytes');
     }
+    for (const memberFileMaxBytes of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => service({ memberFileMaxBytes })).toThrow('invalid memberFileMaxBytes');
+    }
   });
 
   it('refuses a URL lifetime that is not a positive integer', () => {
@@ -793,6 +839,7 @@ describe('AssetsService', () => {
             repo,
             uow,
             memberImageMaxBytes: 1000,
+            memberFileMaxBytes: 4000,
             downloadLinkExpirySeconds,
             fileUrls: createFileUrls('https://api.test'),
           }),

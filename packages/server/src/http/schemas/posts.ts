@@ -19,7 +19,12 @@ export const FeedQuery = PageQuery.extend({
 }).strict();
 
 const PostTitle = z.string().trim().min(1).max(200);
-const PostBody = z.string().max(50_000);
+const PostBody = z
+  .string()
+  .max(50_000)
+  .describe(
+    "The post's text, in the installation's body format (plain text unless the installation sets one). Mention a member with `<@orgUserId>`.",
+  );
 const PostExtra = boundedJsonSchema(16 * 1024);
 
 export const CreatePost = z

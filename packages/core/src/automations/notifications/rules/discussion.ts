@@ -257,7 +257,12 @@ const postPublished: RecipientRule = async (event, reads) => {
     );
   }
   const authorName = await reads.displayName(orgId, post.orgUserId);
-  const text = await textExcerpt(reads, orgId, post.body || post.title, POST_EXCERPT);
+  const text = await textExcerpt(
+    reads,
+    orgId,
+    reads.postText(post.body) || post.title,
+    POST_EXCERPT,
+  );
   lists.push(
     ...(await mentionsOf(
       reads,
@@ -365,7 +370,12 @@ const postUpdated: RecipientRule = async (event, reads) => {
         parent: null,
         display: {
           authorName: await reads.displayName(orgId, post.orgUserId),
-          excerpt: await textExcerpt(reads, orgId, post.body || post.title, POST_EXCERPT),
+          excerpt: await textExcerpt(
+            reads,
+            orgId,
+            reads.postText(post.body) || post.title,
+            POST_EXCERPT,
+          ),
           postTitle: post.title,
         },
       },
@@ -573,7 +583,12 @@ const postReported: RecipientRule = async (event, reads) => {
       parent: null,
       display: {
         spaceName: space.name,
-        excerpt: await textExcerpt(reads, orgId, post.body || post.title, POST_EXCERPT),
+        excerpt: await textExcerpt(
+          reads,
+          orgId,
+          reads.postText(post.body) || post.title,
+          POST_EXCERPT,
+        ),
         reason: flag.reason,
       },
     },

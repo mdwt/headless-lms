@@ -377,6 +377,7 @@ export interface PostService {
   listBookmarked(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
   /** Signed URL of the post's cover, for whoever can read the post. */
   coverFile(postId: string, actor: Actor): Promise<string>;
+  assetFile(postId: string, assetId: string, actor: Actor): Promise<string>;
   getPost(postId: string, actor: Actor): Promise<PostView>;
   visible(postId: string, actor: Actor): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;

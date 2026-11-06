@@ -8,10 +8,23 @@ import type {
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
-import type { ContentType } from '../types/index.js';
+import type { AssetKind, ContentType } from '../types/index.js';
 
 export interface MemberImageReader {
   ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean>;
+}
+
+export interface MemberUpload {
+  id: string;
+  kind: AssetKind;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
+export interface MemberUploadReader {
+  ownsUpload(orgId: string, assetId: string, orgUserId: string): Promise<boolean>;
+  memberUploads(orgId: string, assetIds: string[]): Promise<MemberUpload[]>;
 }
 
 export interface LibraryAssetReader {
@@ -40,7 +53,8 @@ export interface MemberUploadInput {
   contentType: string;
 }
 
-export interface AssetsService extends MemberImageReader, LibraryAssetReader, AssetFiles {
+export interface AssetsService
+  extends MemberImageReader, MemberUploadReader, LibraryAssetReader, AssetFiles {
   requestUpload(input: RequestUploadInput, actor: Actor): Promise<UploadTicket>;
   requestMemberUpload(input: MemberUploadInput, actor: Actor): Promise<UploadTicket>;
   confirm(id: string, actor: Actor): Promise<AssetView>;

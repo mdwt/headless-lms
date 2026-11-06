@@ -21,6 +21,7 @@ export interface ServerConfig {
    *  can't silently extend paywalled link lifetimes. */
   deliveryExpirySeconds: number;
   memberImageMaxBytes: number;
+  memberFileMaxBytes: number;
   /** Postgres URL for the PubSub adapter's session connection. It must reach
    *  Postgres directly, not through a transaction-mode pooler. */
   pubsubDatabaseUrl: string;

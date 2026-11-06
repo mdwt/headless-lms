@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { OrgUser } from '@headless-lms/core/types';
+import { PlainBodyParser } from '@headless-lms/adapter-defaults/body';
 import { notificationReads, type NotificationReadsDeps } from './notification-reads.js';
 
 const reject = async (): Promise<never> => {
@@ -54,6 +55,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       findMessage: reject,
     },
     settings: { switchedOn: reject },
+    bodies: new PlainBodyParser(),
     ...over,
   };
 }

@@ -21,6 +21,7 @@ import type {
   AssetsRepository,
   AssetsService,
   AssetsUnitOfWork,
+  MemberUpload,
   MemberUploadInput,
   ReadyFile,
 } from './ports.js';
@@ -37,10 +38,17 @@ const WRITE_PERMISSION: Record<ContentType, Permission> = {
 const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
 
 export const MEMBER_IMAGE_TYPE = /^image\/(png|jpeg|gif|webp|avif)$/i;
-const MEMBER_IMAGE_REFUSAL = 'A member upload must be a PNG, JPEG, GIF, WebP or AVIF image';
 
 export function isMemberImageType(contentType: string): boolean {
   return MEMBER_IMAGE_TYPE.test(contentType.trim());
+}
+
+export function memberKindOf(contentType: string): AssetKind {
+  if (isMemberImageType(contentType)) {
+    return 'image';
+  }
+  const kind = kindOf(contentType);
+  return kind === 'image' ? 'document' : kind;
 }
 
 export function kindOf(contentType: string): AssetKind {
@@ -71,7 +79,7 @@ function storedKey(orgId: string, folder: string, id: string, filename: string):
 }
 
 function finalMemberKey(orgId: string, asset: Asset): string {
-  return `${orgPrefix(orgId)}image/${asset.id}/${sanitizeFilename(asset.filename)}`;
+  return `${orgPrefix(orgId)}${asset.kind}/${asset.id}/${sanitizeFilename(asset.filename)}`;
 }
 
 function graceCutoff(now: Date): Date {
@@ -83,6 +91,7 @@ export type AssetsServiceParams = {
   repo: AssetsRepository;
   uow: AssetsUnitOfWork;
   memberImageMaxBytes: number;
+  memberFileMaxBytes: number;
   downloadLinkExpirySeconds: number;
   fileUrls: FileUrls;
   logger?: Logger;
@@ -93,6 +102,7 @@ export class AssetsServiceImpl implements AssetsService {
   private readonly repo: AssetsRepository;
   private readonly uow: AssetsUnitOfWork;
   private readonly memberImageMaxBytes: number;
+  private readonly memberFileMaxBytes: number;
   private readonly downloadLinkExpirySeconds: number;
   private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
@@ -101,6 +111,11 @@ export class AssetsServiceImpl implements AssetsService {
     if (!Number.isSafeInteger(params.memberImageMaxBytes) || params.memberImageMaxBytes <= 0) {
       throw new Error(
         `invalid memberImageMaxBytes "${params.memberImageMaxBytes}" (expected a positive integer)`,
+      );
+    }
+    if (!Number.isSafeInteger(params.memberFileMaxBytes) || params.memberFileMaxBytes <= 0) {
+      throw new Error(
+        `invalid memberFileMaxBytes "${params.memberFileMaxBytes}" (expected a positive integer)`,
       );
     }
     if (
@@ -115,6 +130,7 @@ export class AssetsServiceImpl implements AssetsService {
     this.repo = params.repo;
     this.uow = params.uow;
     this.memberImageMaxBytes = params.memberImageMaxBytes;
+    this.memberFileMaxBytes = params.memberFileMaxBytes;
     this.downloadLinkExpirySeconds = params.downloadLinkExpirySeconds;
     this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
@@ -151,9 +167,6 @@ export class AssetsServiceImpl implements AssetsService {
   }
 
   async requestMemberUpload(input: MemberUploadInput, actor: Actor): Promise<UploadTicket> {
-    if (!isMemberImageType(input.contentType)) {
-      throw new InvalidInputError(MEMBER_IMAGE_REFUSAL);
-    }
     return this.createUpload(actor.orgId, {
       filename: input.filename,
       contentType: input.contentType,
@@ -174,7 +187,8 @@ export class AssetsServiceImpl implements AssetsService {
     },
   ): Promise<UploadTicket> {
     const id = genId('asset');
-    const kind = kindOf(input.contentType);
+    const kind =
+      input.source === 'member' ? memberKindOf(input.contentType) : kindOf(input.contentType);
     const folder = input.source === 'member' ? 'uploads' : kind;
     const key = storedKey(orgId, folder, id, input.filename);
     const presigned = await this.storage.presignUpload({ key, contentType: input.contentType });
@@ -249,7 +263,7 @@ export class AssetsServiceImpl implements AssetsService {
 
   async ownUploadFile(assetId: string, actor: Actor): Promise<string> {
     const orgId = actor.orgId;
-    if (!(await this.ownsImage(orgId, assetId, actor.id))) {
+    if (!(await this.ownsUpload(orgId, assetId, actor.id))) {
       this.logger.warn('upload file not served — not the uploader', {
         orgId,
         assetId,
@@ -262,6 +276,29 @@ export class AssetsServiceImpl implements AssetsService {
       throw new NotFoundError('Upload', assetId);
     }
     return url;
+  }
+
+  async ownsUpload(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
+    const asset = await this.repo.findById(orgId, assetId);
+    return (
+      asset !== null &&
+      asset.source === 'member' &&
+      asset.status === 'ready' &&
+      asset.uploadedBy === orgUserId
+    );
+  }
+
+  async memberUploads(orgId: string, assetIds: string[]): Promise<MemberUpload[]> {
+    const ready = await this.readyAmong(orgId, assetIds);
+    return ready
+      .filter((asset) => asset.source === 'member')
+      .map((asset) => ({
+        id: asset.id,
+        kind: asset.kind,
+        filename: asset.filename,
+        contentType: asset.contentType,
+        size: asset.size,
+      }));
   }
 
   async ownsImage(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
@@ -487,13 +524,13 @@ export class AssetsServiceImpl implements AssetsService {
       throw new Error('copied upload not found');
     }
     const contentType = asset.contentType;
-    const kind = kindOf(contentType);
-    const reason = !isMemberImageType(contentType)
-      ? MEMBER_IMAGE_REFUSAL
-      : stat.contentType !== undefined && stat.contentType !== contentType
+    const kind = memberKindOf(contentType);
+    const limit = kind === 'image' ? this.memberImageMaxBytes : this.memberFileMaxBytes;
+    const reason =
+      stat.contentType !== undefined && stat.contentType !== contentType
         ? 'The uploaded file is not the declared type'
-        : stat.size > this.memberImageMaxBytes
-          ? 'This image is too large'
+        : stat.size > limit
+          ? `This ${kind === 'image' ? 'image' : 'file'} is over the ${sizeLabel(limit)} limit`
           : null;
     if (reason) {
       await this.removeObject(orgId, asset.id, key);
@@ -568,4 +605,15 @@ export class AssetsServiceImpl implements AssetsService {
       this.logger.warn('stored object not removed', { orgId, assetId, err: error });
     }
   }
+}
+
+function sizeLabel(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${Number.isInteger(value) ? value : value.toFixed(1)} ${units[unit]}`;
 }

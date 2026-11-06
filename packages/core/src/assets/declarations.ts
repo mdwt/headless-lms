@@ -16,6 +16,8 @@ export const assetsDeclarations = {
   removeOwn: 'member',
   removeUnattached: 'system',
   ownsImage: 'system',
+  ownsUpload: 'system',
+  memberUploads: 'system',
   libraryAssetsFor: 'system',
   readyFiles: 'system',
   signFile: 'system',

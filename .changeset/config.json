@@ -20,6 +20,7 @@
     "@headless-lms/content-plate",
     "@headless-lms/editor",
     "@headless-lms/plugin-slack",
+    "@headless-lms/adapter-body-markdown",
     "@headless-lms/adapter-email-resend",
     "@headless-lms/adapter-email-ses",
     "@headless-lms/adapter-email-templates",

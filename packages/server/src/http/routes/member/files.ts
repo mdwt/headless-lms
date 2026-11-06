@@ -14,6 +14,7 @@ import {
   MessageAttachmentParams,
   PersonImageParams,
   PostCoverParams,
+  PostAssetParams,
   UploadFileParams,
   refusals,
 } from '../../schemas/index.js';
@@ -155,6 +156,27 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await container.posts.coverFile(req.params.postId, actor);
+      return redirect(reply, url);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/posts/:postId/assets/:assetId',
+    config: { operation: 'posts.assetFile' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getPostAsset',
+      tags,
+      summary: "Redirect to a file in a post's body",
+      description:
+        'Served to whoever can read the post while its body shows the file. Images, video, audio and PDFs open in place; any other file downloads under its name.',
+      params: PostAssetParams,
+      response: responses,
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      const url = await container.posts.assetFile(req.params.postId, req.params.assetId, actor);
       return redirect(reply, url);
     },
   });

@@ -34,6 +34,10 @@
     "./webhooks": {
       "types": "./dist/webhooks/index.d.ts",
       "default": "./dist/webhooks/index.js"
+    },
+    "./body": {
+      "types": "./dist/body/index.d.ts",
+      "default": "./dist/body/index.js"
     }
   },
   "files": [

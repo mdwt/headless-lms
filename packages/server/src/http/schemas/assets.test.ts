@@ -43,14 +43,19 @@ describe('asset wire schemas', () => {
     });
   });
 
-  it('accept only raster image types for a member upload', () => {
+  it('accept any content type for a member upload', () => {
     const accepts = (contentType: string) =>
       RequestMemberUpload.safeParse({ filename: 'me', contentType }).success;
-    for (const type of ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif']) {
+    for (const type of [
+      'image/png',
+      'image/svg+xml',
+      'application/pdf',
+      'video/mp4',
+      'application/zip',
+    ]) {
       expect(accepts(type)).toBe(true);
     }
-    for (const type of ['image/svg+xml', 'image/tiff', 'application/pdf', 'image/png; x=1']) {
-      expect(accepts(type)).toBe(false);
-    }
+    expect(accepts('')).toBe(false);
+    expect(accepts('x'.repeat(256))).toBe(false);
   });
 });

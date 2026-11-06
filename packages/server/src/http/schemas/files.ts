@@ -20,6 +20,9 @@ export type DownloadFileParams = z.infer<typeof DownloadFileParams>;
 export const PostCoverParams = z.object({ postId: z.string() });
 export type PostCoverParams = z.infer<typeof PostCoverParams>;
 
+export const PostAssetParams = z.object({ postId: z.string(), assetId: z.string() });
+export type PostAssetParams = z.infer<typeof PostAssetParams>;
+
 export const MessageAttachmentParams = z.object({
   chatId: z.string(),
   messageId: z.string(),

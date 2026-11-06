@@ -168,7 +168,7 @@ export const COMMUNITY_DERIVATIONS: {
           spaceName: space.name,
           postTitle: post.title,
           authorName: await deps.mail.displayName(event.orgId, post.orgUserId),
-          excerpt: excerpt(post.body || post.title, POST_EXCERPT),
+          excerpt: excerpt(deps.mail.postText(post.body) || post.title, POST_EXCERPT),
           postId: post.id,
           communityId: post.communityId,
         },
@@ -570,7 +570,7 @@ export const COMMUNITY_DERIVATIONS: {
         const audience = await communityModerators(deps.mail, event.orgId, flag.communityId);
         return address(deps, event, event.orgId, audience, {
           spaceName: space.name,
-          excerpt: excerpt(post.body || post.title, POST_EXCERPT),
+          excerpt: excerpt(deps.mail.postText(post.body) || post.title, POST_EXCERPT),
           reason: flag.reason,
           spaceId: post.spaceId,
           communityId: flag.communityId,
