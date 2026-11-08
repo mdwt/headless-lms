@@ -127,7 +127,7 @@ function fakeContent(
   } as unknown as ContentServicePort;
 }
 
-const fileUrls = createFileUrls('https://api.test');
+const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 const files = { signFile: async (_orgId: string, assetId: string) => `https://signed/${assetId}` };
 
 const readers: Pick<
@@ -543,7 +543,7 @@ describe('file URLs', () => {
 
     expect(entries).toMatchObject({ total: 2, page: 1, pageSize: 20 });
     expect(entries?.rows.map((e) => [e.orgUserId, e.imageUrl])).toEqual([
-      ['ou_sarah', fileUrls.personImage('ou_sarah')],
+      ['ou_sarah', fileUrls.publicImage('o1', 'ou_sarah', 'ast_photo')],
       ['ou_james', null],
     ]);
   });
@@ -644,7 +644,11 @@ describe('file URLs', () => {
       display: { postTitle: 'Launch week', commenterName: 'Sarah', excerpt: 'Nice' },
       community: { id: 'cmy_1', title: 'Founders' },
       space: { id: 'spc_1', name: 'Announcements' },
-      actor: { orgUserId: 'ou_sarah', name: 'Sarah', imageUrl: fileUrls.personImage('ou_sarah') },
+      actor: {
+        orgUserId: 'ou_sarah',
+        name: 'Sarah',
+        imageUrl: fileUrls.publicImage('o1', 'ou_sarah', 'ast_photo'),
+      },
       subject: { type: 'comment', id: 'cmt_1', excerpt: 'Nice' },
       parent: { type: 'post', id: 'pst_seen', title: 'Launch week' },
       createdAt: AT,
@@ -860,22 +864,6 @@ describe('serving files', () => {
     await expect(draft.svc.thumbnailFile('course', 'c1', student)).rejects.toThrow(NotFoundError);
     expect(await draft.svc.thumbnailFile('course', 'c1', owner)).toBe('https://signed/ast_cover');
     await expect(svc.thumbnailFile('course', 'c1', student)).rejects.toThrow(NotFoundError);
-  });
-
-  it("serves an org user's photo only when it belongs to this org", async () => {
-    const row = {
-      orgUserId: 'ou_sarah',
-      userId: 'usr_sarah',
-      displayName: 'Sarah',
-      headline: null,
-      bio: null,
-    };
-    const withPhoto = build({
-      repo: { people: async () => [{ ...row, imageAssetId: 'ast_photo' }] },
-    });
-    expect(await withPhoto.svc.personImage('ou_sarah', stu)).toBe('https://signed/ast_photo');
-    const without = build({ repo: { people: async () => [{ ...row, imageAssetId: null }] } });
-    await expect(without.svc.personImage('ou_sarah', stu)).rejects.toThrow(NotFoundError);
   });
 });
 

@@ -188,7 +188,7 @@ function dataOf(event: NewDomainEvent): Record<string, unknown> {
   return {};
 }
 
-const fileUrls = createFileUrls('https://api.test');
+const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 
 function harness(options?: {
   settings?: Partial<DmSettings> | null;
@@ -1353,7 +1353,7 @@ describe('chats', () => {
     const sender = {
       id: other.id,
       imageAssetId: 'ast_other_photo',
-      imageUrl: fileUrls.personImage('ou_other'),
+      imageUrl: fileUrls.publicImage(ORG, 'ou_other', 'ast_other_photo'),
     };
     expect(sent).toMatchObject({
       sender,

@@ -1,10 +1,6 @@
 import type { FileUrls } from '../../assets/index.js';
 import { UNNAMED_MEMBER } from '../../identity/index.js';
-import type {
-  EventAttendee,
-  EventAttendeeFace,
-  EventAttendeeSource,
-} from '../../types/index.js';
+import type { EventAttendee, EventAttendeeFace, EventAttendeeSource } from '../../types/index.js';
 
 export interface EventAttendeeRow {
   orgUserId: string;
@@ -28,19 +24,23 @@ export interface EventReader {
 }
 
 export function attendeeFace(
+  orgId: string,
   row: EventFaceRow,
-  fileUrls: Pick<FileUrls, 'personImage'>,
+  fileUrls: Pick<FileUrls, 'publicImage'>,
 ): EventAttendeeFace {
   return {
     orgUserId: row.orgUserId,
     name: row.displayName ?? UNNAMED_MEMBER,
-    avatarUrl: row.imageAssetId ? fileUrls.personImage(row.orgUserId) : null,
+    avatarUrl: row.imageAssetId
+      ? fileUrls.publicImage(orgId, row.orgUserId, row.imageAssetId)
+      : null,
   };
 }
 
 export function attendeeView(
+  orgId: string,
   row: EventAttendeeRow,
-  fileUrls: Pick<FileUrls, 'personImage'>,
+  fileUrls: Pick<FileUrls, 'publicImage'>,
 ): EventAttendee {
-  return { ...attendeeFace(row, fileUrls), source: row.source, grantedAt: row.grantedAt };
+  return { ...attendeeFace(orgId, row, fileUrls), source: row.source, grantedAt: row.grantedAt };
 }

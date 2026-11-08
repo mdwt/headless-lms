@@ -36,8 +36,5 @@ export const MessageAttachmentParams = z.object({
 });
 export type MessageAttachmentParams = z.infer<typeof MessageAttachmentParams>;
 
-export const PersonImageParams = z.object({ orgUserId: z.string() });
-export type PersonImageParams = z.infer<typeof PersonImageParams>;
-
 export const UploadFileParams = z.object({ id: z.string() });
 export type UploadFileParams = z.infer<typeof UploadFileParams>;

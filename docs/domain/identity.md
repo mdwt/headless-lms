@@ -15,7 +15,7 @@ different roles.
 
 The profile is what other members see of a person: a display name, a headline, a bio, a photo, and application-defined fields that are not files. It is global like the user: one profile per person, so it carries no org.
 
-The photo is an asset, and an asset belongs to an org. The profile therefore names both the org and the asset. The photo must be a member image the person uploaded in that org. It is shown only inside that org, to its org users. In another org the person has no photo until they upload one there. Unsetting the photo does not delete the file; the person deletes their own upload through assets once nothing references it.
+The photo is an asset, and an asset belongs to an org. The profile therefore names both the org and the asset. The photo must be a member image the person uploaded in that org. It is shown only inside that org, as a public image anyone with the link may load; a new photo is a new link. In another org the person has no photo until they upload one there. Unsetting the photo does not delete the file; the person deletes their own upload through assets once nothing references it.
 
 ## Notification settings and devices
 
@@ -28,7 +28,7 @@ The notifications themselves, and their delivery by email and push, are automati
 ## Boundaries
 
 - **identity ↔ organizations** - organizations owns the org user: which people belong to which organization, the roles they hold there and what those roles permit.
-- **identity ↔ assets** - assets owns the photo file and the rule that only the uploader may attach it. Identity checks that rule before storing the reference.
+- **identity ↔ assets** - assets owns the photo file and the rule that only the uploader may attach it. Identity checks that rule before storing the reference, then has assets publish the new photo as a public image under the org user and withdraw the old one.
 - **identity ↔ automations** - automations determines who an event concerns from the owning contexts' data, and stores and delivers notifications using categories and settings; identity keeps settings and devices.
 - **identity ↔ discussion** - discussion owns follows and mutes on posts, spaces and chats; automations reads them for notifications.
 

@@ -1,5 +1,6 @@
-// AWS S3 implementation of the ObjectStorage port. Private bucket; access via
-// short-lived presigned URLs only. The bucket must already exist.
+// AWS S3 implementation of the ObjectStorage port. Private bucket except the
+// public/ prefix; private files are reached by short-lived presigned URLs. The
+// bucket must already exist.
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
@@ -10,12 +11,13 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type {
-  Logger,
-  ObjectStorage,
-  PresignDownloadInput,
-  PresignedUpload,
-  StoredObjectInfo,
+import {
+  PUBLIC_CACHE_CONTROL,
+  type Logger,
+  type ObjectStorage,
+  type PresignDownloadInput,
+  type PresignedUpload,
+  type StoredObjectInfo,
 } from "@headless-lms/core/types";
 
 export interface S3StorageConfig {
@@ -28,6 +30,7 @@ export interface S3StorageConfig {
   endpoint?: string;
   /** Required by most S3-compatible stores when `endpoint` is set. */
   forcePathStyle?: boolean;
+  publicBaseUrl?: string;
   uploadExpirySeconds: number;
   downloadExpirySeconds: number;
 }
@@ -35,6 +38,7 @@ export interface S3StorageConfig {
 export class S3StorageAdapter implements ObjectStorage {
   private readonly client: S3Client;
   private readonly bucket: string;
+  private readonly publicBase: string | null;
   readonly uploadExpirySeconds: number;
   private readonly downloadExpiry: number;
 
@@ -58,6 +62,7 @@ export class S3StorageAdapter implements ObjectStorage {
     this.bucket = config.bucket;
     this.uploadExpirySeconds = config.uploadExpirySeconds;
     this.downloadExpiry = config.downloadExpirySeconds;
+    this.publicBase = config.publicBaseUrl ? config.publicBaseUrl.replace(/\/+$/, "") : null;
   }
 
   async presignUpload(input: {
@@ -97,9 +102,7 @@ export class S3StorageAdapter implements ObjectStorage {
 
   async stat(key: string): Promise<StoredObjectInfo | null> {
     try {
-      const s = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
-      );
+      const s = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
       return {
         key,
         size: s.ContentLength ?? 0,
@@ -148,6 +151,29 @@ export class S3StorageAdapter implements ObjectStorage {
         CopySource: encodeURI(`${this.bucket}/${input.from}`),
       }),
     );
+  }
+
+  async publish(input: { from: string; to: string }): Promise<void> {
+    const source = await this.client.send(
+      new HeadObjectCommand({ Bucket: this.bucket, Key: input.from }),
+    );
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        Key: input.to,
+        CopySource: encodeURI(`${this.bucket}/${input.from}`),
+        MetadataDirective: "REPLACE",
+        CacheControl: PUBLIC_CACHE_CONTROL,
+        ...(source.ContentType ? { ContentType: source.ContentType } : {}),
+      }),
+    );
+  }
+
+  publicUrl(key: string): string {
+    if (!this.publicBase) {
+      throw new Error("S3 storage has no publicBaseUrl, so it cannot serve public files");
+    }
+    return `${this.publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`;
   }
 
   async remove(key: string): Promise<void> {

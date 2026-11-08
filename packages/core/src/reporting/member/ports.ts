@@ -62,8 +62,6 @@ export interface MemberReportService {
   activityFile(activityId: string, assetId: string, actor: Actor): Promise<string>;
   /** Signed download URL of a file in a download the person can open. */
   downloadFile(downloadId: string, assetId: string, actor: Actor): Promise<string>;
-  /** Signed URL of an org user's profile photo, when it belongs to this org. */
-  personImage(orgUserId: string, actor: Actor): Promise<string>;
   directory(
     communityId: string,
     query: DirectoryQuery,

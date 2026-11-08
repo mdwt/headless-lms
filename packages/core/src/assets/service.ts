@@ -1,5 +1,6 @@
 import { genId } from '../shared/id.js';
 import type { Logger, ObjectStorage } from '../shared/ports.js';
+import { PUBLIC_PREFIX } from '../types/index.js';
 import {
   ConflictError,
   ForbiddenError,
@@ -25,7 +26,7 @@ import type {
   MemberUploadInput,
   ReadyFile,
 } from './ports.js';
-import type { FileUrls } from './file-urls.js';
+import { publicImageKey, publicImagePrefix, type FileUrls } from './file-urls.js';
 import { noopLogger } from '../shared/logger.js';
 import { assetEvents } from './events.js';
 
@@ -381,6 +382,34 @@ export class AssetsServiceImpl implements AssetsService {
         });
   }
 
+  async syncPublicImage(orgId: string, ownerId: string, assetId: string | null): Promise<void> {
+    try {
+      const wanted = assetId === null ? null : publicImageKey(orgId, ownerId, assetId);
+      const held = await this.storage.list(publicImagePrefix(orgId, ownerId));
+      for (const object of held) {
+        if (object.key !== wanted) {
+          await this.storage.remove(object.key);
+        }
+      }
+      if (wanted === null || held.some((object) => object.key === wanted)) {
+        return;
+      }
+      const [asset] = await this.readyAmong(orgId, [assetId!]);
+      if (!asset || asset.kind !== 'image') {
+        this.logger.warn('public image not published — no ready image', {
+          orgId,
+          ownerId,
+          assetId,
+        });
+        return;
+      }
+      await this.storage.publish({ from: asset.key, to: wanted });
+      this.logger.info('public image published', { orgId, ownerId, assetId });
+    } catch (err) {
+      this.logger.error('public image not synced', { orgId, ownerId, assetId, err });
+    }
+  }
+
   async libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string> {
     const orgId = actor.orgId;
     const asset = await this.repo.findById(orgId, assetId);
@@ -462,6 +491,10 @@ export class AssetsServiceImpl implements AssetsService {
         }
       }
     }
+    const orphans = await this.orphanPublicImages(orgId);
+    for (const key of orphans) {
+      await this.removeObject(orgId, key.split('/').pop() ?? '', key);
+    }
     let stray = 0;
     for (const key of await this.strayUploads(orgId, now)) {
       try {
@@ -472,10 +505,33 @@ export class AssetsServiceImpl implements AssetsService {
         this.logger.warn('stray upload not removed', { orgId, err });
       }
     }
-    if (removed > 0 || stray > 0 || failed > 0) {
-      this.logger.info('unattached uploads removed', { orgId, count: removed, stray, failed });
+    if (removed > 0 || stray > 0 || orphans.length > 0 || failed > 0) {
+      this.logger.info('unattached uploads removed', {
+        orgId,
+        count: removed,
+        stray,
+        publicCopies: orphans.length,
+        failed,
+      });
     }
-    return removed + stray;
+    return removed + stray + orphans.length;
+  }
+
+  private async orphanPublicImages(orgId: string): Promise<string[]> {
+    const objects = await this.storage.list(`${PUBLIC_PREFIX}${orgId}/`);
+    if (objects.length === 0) {
+      return [];
+    }
+    const assetIdOf = (key: string) => key.split('/').pop() ?? '';
+    const live = new Set(
+      (
+        await this.readyAmong(
+          orgId,
+          objects.map((o) => assetIdOf(o.key)),
+        )
+      ).map((a) => a.id),
+    );
+    return objects.filter((o) => !live.has(assetIdOf(o.key))).map((o) => o.key);
   }
 
   private async strayUploads(orgId: string, now: Date): Promise<string[]> {
@@ -595,8 +651,20 @@ export class AssetsServiceImpl implements AssetsService {
     });
     if (deleted) {
       await this.removeObject(orgId, asset.id, asset.key);
+      await this.removePublicCopies(orgId, asset.id);
     }
     return deleted;
+  }
+
+  private async removePublicCopies(orgId: string, assetId: string): Promise<void> {
+    try {
+      const copies = await this.storage.list(`${PUBLIC_PREFIX}${orgId}/`);
+      for (const copy of copies.filter((o) => o.key.endsWith(`/${assetId}`))) {
+        await this.removeObject(orgId, assetId, copy.key);
+      }
+    } catch (err) {
+      this.logger.warn('public copies not removed', { orgId, assetId, err });
+    }
   }
 
   private async removeObject(orgId: string, assetId: string, key: string): Promise<void> {

@@ -69,7 +69,7 @@ function build(options: {
     } as unknown as ContentServicePort,
     progress: {} as never,
     files: { signFile: async () => null },
-    fileUrls: createFileUrls('https://api.test'),
+    fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     studentPortalUrl: 'https://app.test',
     access: {
       isCommunityMember: async () => options.member ?? true,

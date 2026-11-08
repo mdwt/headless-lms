@@ -205,7 +205,7 @@ function feedOrder(a: Post, b: Post): number {
   return a.id < b.id ? 1 : -1;
 }
 
-const fileUrls = createFileUrls('https://api.test');
+const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 
 function testUpload(id: string): MemberUpload {
   const [kind, contentType] = id.includes('pdf')
@@ -231,7 +231,9 @@ function harness(options?: {
   spaces?: SpaceDetail[];
   people?: Actor[];
   gone?: string[];
-  images?: Partial<MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile'>>;
+  images?: Partial<
+    MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile' | 'syncPublicImage'>
+  >;
   profiles?: Record<string, Partial<AuthorRecord>>;
   scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
   bodies?: BodyParser;
@@ -561,6 +563,7 @@ function harness(options?: {
       },
     });
 
+  const syncPublicImage = vi.fn(options?.images?.syncPublicImage ?? (async () => {}));
   const scheduler = {
     at: vi.fn(options?.scheduler?.at ?? (async () => {})),
     cancel: vi.fn(options?.scheduler?.cancel ?? (async () => {})),
@@ -586,6 +589,7 @@ function harness(options?: {
       ownsUpload: async () => true,
       memberUploads: async (_orgId, ids) => ids.map(testUpload),
       ...options?.images,
+      syncPublicImage,
     },
     fileUrls,
     bodies: options?.bodies ?? testBodies,
@@ -598,6 +602,7 @@ function harness(options?: {
     escapes,
     repo,
     scheduler,
+    syncPublicImage,
     rows,
     flags,
     commentFlagRows,
@@ -1268,7 +1273,7 @@ describe('posts', () => {
       headline: 'Founder at Acme',
       image: null,
       imageAssetId: 'ast_photo',
-      imageUrl: fileUrls.personImage(member.id),
+      imageUrl: fileUrls.publicImage(ORG, member.id, 'ast_photo'),
       team: false,
       roleName: null,
     });
@@ -1287,8 +1292,10 @@ describe('posts', () => {
       profiles: { ou_member: { imageAssetOrgId: ORG, imageAssetId: 'ast_photo' } },
     });
     const signed = {
-      coverUrl: expect.stringMatching(/\/api\/member\/posts\/[^/]+\/cover$/),
-      author: { imageUrl: fileUrls.personImage(member.id) },
+      coverUrl: expect.stringMatching(
+        /(\/api\/member\/posts\/[^/]+\/cover|\/public\/org-1\/[^/]+\/ast_cover)$/,
+      ),
+      author: { imageUrl: fileUrls.publicImage(ORG, member.id, 'ast_photo') },
     };
     const created = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
     expect(created).toMatchObject(signed);
@@ -1331,7 +1338,29 @@ describe('posts', () => {
     const bare = await svc.create(draftInput(), member);
     expect(bare).toMatchObject({ coverAssetId: null, coverUrl: null, author: { imageUrl: null } });
     const covered = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
-    expect(covered.coverUrl).toBe(fileUrls.postCover(covered.id));
+    expect(covered.status).toBe('published');
+    expect(covered.coverUrl).toBe(fileUrls.publicImage(ORG, covered.id, 'ast_cover'));
+    const draft = await svc.create(
+      draftInput({ mode: 'draft', coverAssetId: 'ast_cover' }),
+      member,
+    );
+    expect(draft.coverUrl).toBe(fileUrls.postCover(draft.id));
+  });
+
+  it('publishes the cover when a post is published and withdraws it when the post is removed', async () => {
+    const { svc, syncPublicImage } = harness();
+    const draft = await svc.create(
+      draftInput({ mode: 'draft', coverAssetId: 'ast_cover' }),
+      member,
+    );
+    await svc.submit(draft.id, member);
+    const removed = await svc.remove(draft.id, null, member);
+    expect(removed.coverUrl).toBe(fileUrls.postCover(draft.id));
+    expect(syncPublicImage.mock.calls).toEqual([
+      [ORG, draft.id, null],
+      [ORG, draft.id, 'ast_cover'],
+      [ORG, draft.id, null],
+    ]);
   });
 
   it('serves the cover file to whoever can read the post, and nothing to anyone else', async () => {

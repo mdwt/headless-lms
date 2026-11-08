@@ -18,6 +18,7 @@ export function loadStorageConfig(): MinioStorageConfig | undefined {
     secretKey: process.env.STORAGE_SECRET_KEY ?? "",
     region: process.env.STORAGE_REGION ?? "us-east-1",
     bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
+    ...(process.env.STORAGE_PUBLIC_URL ? { publicUrl: process.env.STORAGE_PUBLIC_URL } : {}),
     uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
     downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 86400),
   };

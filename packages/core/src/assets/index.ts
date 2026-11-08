@@ -20,7 +20,7 @@ export type {
   OrgDirectory,
   ReadyFile,
 } from './ports.js';
-export { createFileUrls } from './file-urls.js';
+export { createFileUrls, publicImageKey, publicImagePrefix } from './file-urls.js';
 export type { FileUrls, ThumbnailOwner } from './file-urls.js';
 export type { AssetCreated, AssetDeleted, AssetEvent, AssetReady } from './events.js';
 export type {

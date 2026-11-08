@@ -60,4 +60,33 @@ describe("S3StorageAdapter", () => {
     });
     send.mockRestore();
   });
+
+  it("publishes a copy with the source content type and an immutable cache header", async () => {
+    const send = vi
+      .spyOn(S3Client.prototype, "send")
+      .mockImplementation(async () => ({ ContentType: "image/png" }) as never);
+    await adapter().publish({ from: "org/o/image/a/x.png", to: "public/o/crs_1/a" });
+    const command = send.mock.calls[1]?.[0] as CopyObjectCommand;
+    expect(command.input).toEqual({
+      Bucket: "lms",
+      Key: "public/o/crs_1/a",
+      CopySource: "lms/org/o/image/a/x.png",
+      MetadataDirective: "REPLACE",
+      CacheControl: "public, max-age=31536000, immutable",
+      ContentType: "image/png",
+    });
+    send.mockRestore();
+  });
+
+  it("builds public URLs from the configured origin, and refuses without one", () => {
+    expect(() => adapter().publicUrl("public/o/crs_1/a")).toThrow(/publicBaseUrl/);
+    const cdn = new S3StorageAdapter({
+      region: "us-east-1",
+      bucket: "lms",
+      publicBaseUrl: "https://cdn.example.com",
+      uploadExpirySeconds: 600,
+      downloadExpirySeconds: 300,
+    });
+    expect(cdn.publicUrl("public/o/crs_1/a")).toBe("https://cdn.example.com/public/o/crs_1/a");
+  });
 });

@@ -151,7 +151,8 @@ const libraryAssets: ContentAssetReader = library();
 
 const UNSIGNED = 'ast_unsigned';
 
-const files: Pick<AssetFiles, 'readyFiles'> = {
+const files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImage'> = {
+  syncPublicImage: vi.fn(async () => {}),
   readyFiles: async (_orgId, ids) =>
     Object.fromEntries(
       ids
@@ -160,7 +161,7 @@ const files: Pick<AssetFiles, 'readyFiles'> = {
     ),
 };
 
-const fileUrls = createFileUrls('https://api.test');
+const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 
 function fakeScheduler() {
   return {
@@ -1518,6 +1519,60 @@ describe('file URLs', () => {
     expect((await svc.updateCommunity('cmy_1', { title: 'x' }, ownerIn('org1'))).thumbnailUrl).toBe(
       fileUrls.thumbnail('community', community.id),
     );
+  });
+
+  it("serves a published item's thumbnail as a public image and a draft's through the API", async () => {
+    const repo = makeRepo();
+    const published = makeCourse({ status: 'published', thumbnailAssetId: 'ast_t' });
+    vi.mocked(repo.findCourseById).mockResolvedValue(published);
+    vi.mocked(repo.findEventById).mockResolvedValue(
+      makeEvent({ status: 'canceled', thumbnailAssetId: 'ast_e' }),
+    );
+    const { svc } = build(repo);
+    expect((await svc.getCourse('c1', ownerIn('org1')))?.thumbnailUrl).toBe(
+      'https://cdn.test/public/org1/c1/ast_t',
+    );
+    expect((await svc.getEvent('evn_1', ownerIn('o1'))).thumbnailUrl).toBe(
+      'https://cdn.test/public/o1/evn_1/ast_e',
+    );
+  });
+
+  it('publishes the thumbnail when an item is published and withdraws it when unpublished or deleted', async () => {
+    const repo = makeRepo();
+    const sync = vi.mocked(files.syncPublicImage);
+    sync.mockClear();
+    vi.mocked(repo.updateCourse).mockResolvedValueOnce(
+      makeCourse({ status: 'published', thumbnailAssetId: 'ast_t' }),
+    );
+    vi.mocked(repo.updateCourse).mockResolvedValueOnce(
+      makeCourse({ status: 'draft', thumbnailAssetId: 'ast_t' }),
+    );
+    vi.mocked(repo.findCourseById).mockResolvedValue(makeCourse());
+    vi.mocked(repo.deleteCourse).mockResolvedValue(true);
+    const { svc } = build(repo);
+    await svc.updateCourse('c1', { status: 'published' }, ownerIn('org1'));
+    await svc.updateCourse('c1', { status: 'draft' }, ownerIn('org1'));
+    await svc.deleteCourse('c1', ownerIn('org1'));
+    expect(sync.mock.calls).toEqual([
+      ['org1', 'c1', 'ast_t'],
+      ['org1', 'c1', null],
+      ['org1', 'c1', null],
+    ]);
+  });
+
+  it("keeps a canceled event's thumbnail public", async () => {
+    const repo = makeRepo();
+    const sync = vi.mocked(files.syncPublicImage);
+    sync.mockClear();
+    vi.mocked(repo.findEventById).mockResolvedValue(
+      makeEvent({ status: 'published', thumbnailAssetId: 'ast_e' }),
+    );
+    vi.mocked(repo.updateEvent).mockResolvedValue(
+      makeEvent({ status: 'canceled', thumbnailAssetId: 'ast_e' }),
+    );
+    const { svc } = build(repo);
+    await svc.cancelEvent('evn_1', ownerIn('o1'));
+    expect(sync).toHaveBeenCalledWith('o1', 'evn_1', 'ast_e');
   });
 
   it('leaves the thumbnail URL empty when there is no thumbnail', async () => {

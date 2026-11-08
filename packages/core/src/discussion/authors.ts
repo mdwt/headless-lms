@@ -27,7 +27,7 @@ export function authorView(
     headline: record.headline,
     image: record.image,
     imageAssetId,
-    imageUrl: imageAssetId ? fileUrls.personImage(record.id) : null,
+    imageUrl: imageAssetId ? fileUrls.publicImage(orgId, record.id, imageAssetId) : null,
     team: badge.team,
     roleName: badge.roleName,
   };

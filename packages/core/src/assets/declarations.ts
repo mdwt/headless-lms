@@ -21,4 +21,5 @@ export const assetsDeclarations = {
   libraryAssetsFor: 'system',
   readyFiles: 'system',
   signFile: 'system',
+  syncPublicImage: 'system',
 } as const satisfies Declarations<AssetsService>;

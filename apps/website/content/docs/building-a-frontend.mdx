@@ -28,17 +28,21 @@ Decide from permissions, never from a role's key or name. An organization can re
 
 ## Files
 
-Every file has a stable URL on the API. Each request to it checks access, then answers with a `302` redirect to a signed storage URL. Responses carry these URLs in their file fields, so a frontend puts them straight into `src` or `href` and never asks for a file by asset id.
+Responses carry every file's URL in its file fields, so a frontend puts them straight into `src` or `href` and never asks for a file by asset id. There are two kinds of URL:
 
-| File                                    | Field                                                                                                 | Who may fetch it                                                                                                                                                                  |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Course, download or community thumbnail | `thumbnailUrl`                                                                                        | Any org user, when the item is published; a holder of the item's read permission, published or not                                                                                |
-| File in a lesson                        | `assetUrls[assetId]` on each activity                                                                 | The member can open the course, the course and lesson are published, and the lesson lists the file; with `courses:read` on the course, published or not, when the lesson lists it |
-| File in a download                      | `url` on each file of [`GET /api/member/downloads/{downloadId}`](/docs/api/content/getMemberDownload) | The member can open the download, it is published, and it lists the file; with `downloads:read`, published or not. Saved under its display name                                   |
-| Post cover                              | `coverUrl`                                                                                            | Whoever can read the post                                                                                                                                                         |
-| Message attachment                      | `url` on each of `attachments`                                                                        | The chat's participants while the message stands; holders of `communities:moderate` while it is flagged                                                                           |
-| Profile photo                           | `imageUrl` on authors, senders, directory entries and notifications                                   | Org users of the photo's organization                                                                                                                                             |
-| Your own upload                         | `url` on a finalized upload, and `imageUrl` on your own profile                                       | Only the person who uploaded it                                                                                                                                                   |
+- **Public images.** A profile photo, and the thumbnail or cover of a published course, download, community, event (published or canceled) or post, is a public storage URL (`STORAGE_PUBLIC_URL`, the CDN or bucket origin). It needs no cookie, is cached for good, and changes when the image changes. Allow that origin wherever your frontend restricts image hosts, such as Next.js `images.remotePatterns`.
+- **Stable API URLs** for everything else. Each request checks access, then answers with a `302` redirect to a signed storage URL.
+
+| File                                   | Field                                                                                                                 | Who may fetch it                                                                                                                                                                  |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Thumbnail or cover of a published item | `thumbnailUrl`, `coverUrl`                                                                                            | Anyone: a public image                                                                                                                                                            |
+| Profile photo                          | `imageUrl` on authors, senders, directory entries, notifications and your own profile; `avatarUrl` on event attendees | Anyone: a public image, shown only inside the photo's organization                                                                                                                |
+| Thumbnail of an unpublished item       | `thumbnailUrl`                                                                                                        | A holder of the item's read permission                                                                                                                                            |
+| File in a lesson                       | `assetUrls[assetId]` on each activity                                                                                 | The member can open the course, the course and lesson are published, and the lesson lists the file; with `courses:read` on the course, published or not, when the lesson lists it |
+| File in a download                     | `url` on each file of [`GET /api/member/downloads/{downloadId}`](/docs/api/content/getMemberDownload)                 | The member can open the download, it is published, and it lists the file; with `downloads:read`, published or not. Saved under its display name                                   |
+| Cover of a post that is not published  | `coverUrl`                                                                                                            | Whoever can read the post                                                                                                                                                         |
+| Message attachment                     | `url` on each of `attachments`                                                                                        | The chat's participants while the message stands; holders of `communities:moderate` while it is flagged                                                                           |
+| Your own upload                        | `url` on a finalized upload                                                                                           | Only the person who uploaded it                                                                                                                                                   |
 
 Anything else is a `404`. The Files section of the [API reference](/docs/api) lists every route.
 
@@ -56,7 +60,7 @@ An `<img>` or `<video>` request can't carry a token; it sends cookies. Serve the
 
 ### Link lifetimes
 
-The stable URL never expires; only the storage link it redirects to does. Requesting the stable URL again returns a fresh one.
+The stable URL never expires; only the storage link it redirects to does. A public image URL never expires either. Requesting the stable URL again returns a fresh one.
 
 | File               | Storage link lifetime | Setting                   |
 | ------------------ | --------------------- | ------------------------- |

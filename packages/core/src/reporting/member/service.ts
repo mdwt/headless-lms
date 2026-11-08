@@ -364,7 +364,9 @@ export class MemberReportServiceImpl implements MemberReportService {
           ? {
               orgUserId: person.orgUserId,
               name: person.displayName,
-              imageUrl: person.imageAssetId ? this.fileUrls.personImage(person.orgUserId) : null,
+              imageUrl: person.imageAssetId
+                ? this.fileUrls.publicImage(orgId, person.orgUserId, person.imageAssetId)
+                : null,
             }
           : null,
         subject: itemView(row.subject, titles),
@@ -639,7 +641,7 @@ export class MemberReportServiceImpl implements MemberReportService {
         replay: event.settings.replay,
       },
       attendeeCount,
-      attendees: faces.rows.map((row) => attendeeFace(row, this.fileUrls)),
+      attendees: faces.rows.map((row) => attendeeFace(actor.orgId, row, this.fileUrls)),
       placesLeft: capacity === null ? null : Math.max(capacity - attendeeCount, 0),
       viewer: {
         attending,
@@ -704,7 +706,10 @@ export class MemberReportServiceImpl implements MemberReportService {
       throw new NotFoundError('Event', eventId);
     }
     const page = await this.repo.eventAttendees(actor.orgId, eventId, query);
-    return { ...page, rows: page.rows.map((row) => attendeeView(row, this.fileUrls)) };
+    return {
+      ...page,
+      rows: page.rows.map((row) => attendeeView(actor.orgId, row, this.fileUrls)),
+    };
   }
 
   async eventFile(eventId: string, assetId: string, actor: Actor): Promise<string> {
@@ -723,18 +728,6 @@ export class MemberReportServiceImpl implements MemberReportService {
       }),
       'Event file',
       assetId,
-    );
-  }
-
-  async personImage(orgUserId: string, actor: Actor): Promise<string> {
-    const [person] = await this.repo.people(actor.orgId, [orgUserId]);
-    if (!person?.imageAssetId) {
-      throw new NotFoundError('Profile photo', orgUserId);
-    }
-    return signed(
-      await this.files.signFile(actor.orgId, person.imageAssetId),
-      'Profile photo',
-      orgUserId,
     );
   }
 
@@ -765,7 +758,9 @@ export class MemberReportServiceImpl implements MemberReportService {
         const org = held?.roleOn();
         return {
           ...row,
-          imageUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
+          imageUrl: row.imageAssetId
+            ? this.fileUrls.publicImage(orgId, row.orgUserId, row.imageAssetId)
+            : null,
           team: (item?.team ?? false) || (org?.team ?? false),
           roleName: item?.team ? item.name : org?.team ? org.name : null,
           opensEverySpace:

@@ -18,7 +18,6 @@ export const memberReportDeclarations = {
   eventFile: 'member',
   activityFile: 'member',
   downloadFile: 'member',
-  personImage: 'member',
   directory: 'member',
   communityHome: 'member',
   communitySpace: 'member',

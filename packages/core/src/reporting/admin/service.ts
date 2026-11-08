@@ -34,7 +34,7 @@ export type AdminReportServiceParams = {
   permissions: PermissionsReader;
   spaces: SpaceOpenersReader;
   events: Pick<EventsService, 'findEvent'>;
-  fileUrls: Pick<FileUrls, 'personImage'>;
+  fileUrls: Pick<FileUrls, 'publicImage'>;
 };
 
 export class AdminReportServiceImpl implements AdminReportService {
@@ -42,7 +42,7 @@ export class AdminReportServiceImpl implements AdminReportService {
   private readonly permissions: PermissionsReader;
   private readonly spaces: SpaceOpenersReader;
   private readonly events: Pick<EventsService, 'findEvent'>;
-  private readonly fileUrls: Pick<FileUrls, 'personImage'>;
+  private readonly fileUrls: Pick<FileUrls, 'publicImage'>;
 
   constructor(params: AdminReportServiceParams) {
     this.repo = params.repo;
@@ -158,7 +158,7 @@ export class AdminReportServiceImpl implements AdminReportService {
     const page = await this.repo.eventAttendees(actor.orgId, eventId, query);
     return {
       ...page,
-      rows: page.rows.map((row) => attendeeView(row, this.fileUrls)),
+      rows: page.rows.map((row) => attendeeView(actor.orgId, row, this.fileUrls)),
     };
   }
 

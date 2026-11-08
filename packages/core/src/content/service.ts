@@ -86,7 +86,7 @@ export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
   libraryAssets: ContentAssetReader;
-  files: Pick<AssetFiles, 'readyFiles'>;
+  files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImage'>;
   fileUrls: FileUrls;
   scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
@@ -126,10 +126,16 @@ function startingSoonKey(eventId: string, lead: EventLead): string {
 const EVENT_LEAD_KEYS = Object.keys(EVENT_LEADS) as EventLead[];
 
 type WithThumbnail = {
+  orgId: string;
   id: string;
   type: 'course' | 'download' | 'community' | 'event';
+  status: string;
   thumbnailAssetId: string | null;
 };
+
+function shownPublicly(item: Pick<WithThumbnail, 'type' | 'status'>): boolean {
+  return item.status === 'published' || (item.type === 'event' && item.status === 'canceled');
+}
 
 function sameIdSet(current: string[], requested: string[]): boolean {
   if (current.length !== requested.length) {
@@ -150,7 +156,7 @@ export class ContentService
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
   private readonly libraryAssets: ContentAssetReader;
-  private readonly files: Pick<AssetFiles, 'readyFiles'>;
+  private readonly files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImage'>;
   private readonly fileUrls: FileUrls;
   private readonly scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   private readonly logger: Logger;
@@ -205,8 +211,24 @@ export class ContentService
   private withThumbnail<T extends WithThumbnail>(item: T): T & { thumbnailUrl: string | null } {
     return {
       ...item,
-      thumbnailUrl: item.thumbnailAssetId ? this.fileUrls.thumbnail(item.type, item.id) : null,
+      thumbnailUrl: !item.thumbnailAssetId
+        ? null
+        : shownPublicly(item)
+          ? this.fileUrls.publicImage(item.orgId, item.id, item.thumbnailAssetId)
+          : this.fileUrls.thumbnail(item.type, item.id),
     };
+  }
+
+  private syncThumbnail(item: WithThumbnail): Promise<void> {
+    return this.files.syncPublicImage(
+      item.orgId,
+      item.id,
+      shownPublicly(item) ? item.thumbnailAssetId : null,
+    );
+  }
+
+  private withdrawThumbnail(orgId: string, id: string): Promise<void> {
+    return this.files.syncPublicImage(orgId, id, null);
   }
 
   private pageWithThumbnails<T extends WithThumbnail>(
@@ -373,6 +395,7 @@ export class ContentService
       fields: Object.keys(patch),
       actorId: actor.id,
     });
+    await this.syncThumbnail(course);
     return this.withThumbnail(course);
   }
 
@@ -420,6 +443,7 @@ export class ContentService
       ]);
     });
     this.logger.info('course deleted', { orgId, courseId: id, actorId: actor.id });
+    await this.withdrawThumbnail(orgId, id);
   }
 
   // --- modules & activities ------------------------------------------------
@@ -757,6 +781,7 @@ export class ContentService
       fields: Object.keys(patch),
       actorId: actor.id,
     });
+    await this.syncThumbnail(download);
     return this.withThumbnail(download);
   }
 
@@ -781,6 +806,7 @@ export class ContentService
       ]);
     });
     this.logger.info('download deleted', { orgId, downloadId: id, actorId: actor.id });
+    await this.withdrawThumbnail(orgId, id);
   }
 
   // --- download asset links ------------------------------------------------
@@ -995,6 +1021,7 @@ export class ContentService
       actorId: actor.id,
     });
     await this.scheduleStartingSoon(orgId, previous, event);
+    await this.syncThumbnail(event);
     return this.withThumbnail(event);
   }
 
@@ -1026,6 +1053,7 @@ export class ContentService
     });
     this.logger.info('event canceled', { orgId, eventId: id, actorId: actor.id });
     await this.cancelStartingSoon(orgId, id);
+    await this.syncThumbnail(event);
     return this.withThumbnail(event);
   }
 
@@ -1050,6 +1078,7 @@ export class ContentService
       ]);
     });
     this.logger.info('event deleted', { orgId, eventId: id, actorId: actor.id });
+    await this.withdrawThumbnail(orgId, id);
     await this.cancelStartingSoon(orgId, id);
   }
 
@@ -1533,6 +1562,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('community updated', { orgId, communityId: id, actorId: actor.id });
+    await this.syncThumbnail(community);
     return this.withThumbnail(community);
   }
 
@@ -1573,6 +1603,7 @@ export class ContentService
       ]);
     });
     this.logger.info('community deleted', { orgId, communityId: id, actorId: actor.id });
+    await this.withdrawThumbnail(orgId, id);
   }
 
   async patchCommunitySettings(

@@ -54,9 +54,10 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   };
 }
 
-const fileUrls = createFileUrls('https://api.test');
+const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 
-function build(repo = fakeRepo(), images: MemberImageReader = { ownsImage: async () => true }) {
+function build(repo = fakeRepo(), reader: MemberImageReader = { ownsImage: async () => true }) {
+  const images = { ...reader, syncPublicImage: vi.fn(async () => {}) };
   const appended: NewDomainEvent[] = [];
   const uow: IdentityUnitOfWork = {
     run: (fn) =>
@@ -205,11 +206,34 @@ describe('updateProfile', () => {
     const profile = await service.updateProfile(photo, memberOf('usr_invited', 'ou_1', 'org-1'));
 
     expect(profile.imageAssetId).toBe('ast_1');
-    expect(profile.imageUrl).toBe(fileUrls.memberUpload('ast_1'));
+    expect(profile.imageUrl).toBe(fileUrls.publicImage('org-1', 'ou_1', 'ast_1'));
     expect(repo.upsertProfile).toHaveBeenCalledWith('usr_invited', {
       ...photo,
       imageAssetOrgId: 'org-1',
     });
+  });
+
+  it('publishes a new photo and withdraws a cleared one under the org user', async () => {
+    const repo = fakeRepo({ findUserById: vi.fn().mockResolvedValue(PROVISIONED) });
+    const { service, images } = build(repo);
+    await service.updateProfile(photo, memberOf('usr_invited', 'ou_1', 'org-1'));
+    vi.mocked(repo.upsertProfile).mockResolvedValueOnce({
+      userId: 'usr_invited',
+      displayName: null,
+      headline: null,
+      bio: null,
+      imageAssetOrgId: null,
+      imageAssetId: null,
+      extra: {},
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    });
+    await service.updateProfile({ imageAssetId: null }, memberOf('usr_invited', 'ou_1', 'org-1'));
+    await service.updateProfile({ headline: 'Hi' }, memberOf('usr_invited', 'ou_1', 'org-1'));
+    expect(images.syncPublicImage.mock.calls).toEqual([
+      ['org-1', 'ou_1', 'ast_1'],
+      ['org-1', 'ou_1', null],
+    ]);
   });
 
   it('refuses a photo the org user did not upload', async () => {
@@ -262,7 +286,10 @@ describe('profileOf', () => {
 
     const profile = await build(repo).service.profileOf(memberOf('usr_invited', 'ou_1', 'org-1'));
 
-    expect(profile).toEqual({ ...stored, imageUrl: fileUrls.memberUpload('ast_1') });
+    expect(profile).toEqual({
+      ...stored,
+      imageUrl: fileUrls.publicImage('org-1', 'ou_1', 'ast_1'),
+    });
   });
 
   it('serves no photo URL in another org', async () => {
@@ -292,6 +319,6 @@ describe('profileOf', () => {
       imageAssetId: 'ast_1',
       imageAssetOrgId: 'org-2',
     });
-    expect(profile.imageUrl).toBe(fileUrls.memberUpload('ast_1'));
+    expect(profile.imageUrl).toBe(fileUrls.publicImage('org-2', 'ou_1', 'ast_1'));
   });
 });

@@ -65,12 +65,20 @@ MCP tool or a repository. The organizations context owns the permission list, th
 
 ### Serving files
 
-Every file is fetched from a stable API URL that checks access on every request and redirects to a signed storage URL.
-`FileUrls` (`@headless-lms/core/assets`) builds those URLs, and responses carry them in their file fields
-(`thumbnailUrl`, `assetUrls`, `url`, `coverUrl`, `imageUrl`). The context that owns the file decides who may fetch it,
-then calls `AssetFiles.signFile`. No response carries a signed storage URL, and no route serves a file by asset id
-alone. A lesson's files are recorded on save from the editor's `assetIds(config)`; a file the lesson doesn't list is
-not served. Download files use `DELIVERY_URL_EXPIRY`; every other file uses `STORAGE_DOWNLOAD_EXPIRY`.
+Images that anyone who sees the thing may see are public: a person's profile photo, and the thumbnail or cover of a
+published course, download, community, event (published or canceled) or post. Each one is a copy in storage under
+`public/<org>/<owner>/<asset>`, served without the API from `STORAGE_PUBLIC_URL` (the CDN or bucket origin) with
+`Cache-Control: public, max-age=31536000, immutable`; a new image is a new URL. The context that owns the image calls
+`AssetFiles.syncPublicImage(orgId, ownerId, assetId | null)` after every write that can change it, and responses carry
+the public URL in `imageUrl`, `avatarUrl`, `thumbnailUrl` and `coverUrl`.
+
+Every other file, and the image of an item that is not published, is fetched from a stable API URL that checks access
+on every request and redirects to a signed storage URL. `FileUrls` (`@headless-lms/core/assets`) builds both kinds of
+URL, and responses carry them in their file fields (`thumbnailUrl`, `assetUrls`, `url`, `coverUrl`, `imageUrl`). The
+context that owns the file decides who may fetch it, then calls `AssetFiles.signFile`. No response carries a signed
+storage URL, and no route serves a file by asset id alone. A lesson's files are recorded on save from the editor's
+`assetIds(config)`; a file the lesson doesn't list is not served. Download files use `DELIVERY_URL_EXPIRY`; every other
+file uses `STORAGE_DOWNLOAD_EXPIRY`.
 
 ### Adapters, Plugins, Integrations
 

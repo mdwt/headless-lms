@@ -14,7 +14,6 @@ import {
   EventFileParams,
   EventThumbnailParams,
   MessageAttachmentParams,
-  PersonImageParams,
   PostCoverParams,
   PostAssetParams,
   UploadFileParams,
@@ -47,7 +46,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: "Redirect to a course's thumbnail",
       description:
-        'Any org user may fetch the thumbnail of a published course; a holder of `courses:read` on it may fetch it unpublished. 404 when the course has no thumbnail.',
+        'For an unpublished course, which only a holder of `courses:read` on it may fetch: a published course carries a public `thumbnailUrl` instead. 404 when the course has no thumbnail.',
       params: CourseThumbnailParams,
       response: responses,
     },
@@ -68,7 +67,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: "Redirect to an event's cover",
       description:
-        'Anyone the event read returns the event to may fetch its cover. 404 when it returns 404 or the event has no cover.',
+        'For a draft event, which only a holder of `events:read` on it may fetch: a published or canceled event carries a public `thumbnailUrl` instead. 404 when the event read returns 404 or the event has no cover.',
       params: EventThumbnailParams,
       response: responses,
     },
@@ -110,7 +109,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: "Redirect to a download's thumbnail",
       description:
-        'Any org user may fetch the thumbnail of a published download; a holder of `downloads:read` on it may fetch it unpublished. 404 when the download has no thumbnail.',
+        'For an unpublished download, which only a holder of `downloads:read` on it may fetch: a published download carries a public `thumbnailUrl` instead. 404 when the download has no thumbnail.',
       params: DownloadThumbnailParams,
       response: responses,
     },
@@ -131,7 +130,7 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
       tags,
       summary: "Redirect to a community's thumbnail",
       description:
-        'Any org user may fetch the thumbnail of a published community; a holder of `communities:read` on it may fetch it unpublished. 404 when the community has no thumbnail.',
+        'For an unpublished community, which only a holder of `communities:read` on it may fetch: a published community carries a public `thumbnailUrl` instead. 404 when the community has no thumbnail.',
       params: CommunityThumbnailParams,
       response: responses,
     },
@@ -193,7 +192,8 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
       operationId: 'getPostCover',
       tags,
       summary: "Redirect to a post's cover image",
-      description: 'Served to whoever can read the post. 404 when the post has no cover.',
+      description:
+        'For a post that is not published, served to whoever can read it: a published post carries a public `coverUrl` instead. 404 when the post has no cover.',
       params: PostCoverParams,
       response: responses,
     },
@@ -247,27 +247,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
         req.params.assetId,
         actor,
       );
-      return redirect(reply, url);
-    },
-  });
-
-  r.route({
-    method: 'GET',
-    url: '/api/member/people/:orgUserId/image',
-    config: { operation: 'reporting.member.personImage' },
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'getPersonImage',
-      tags,
-      summary: "Redirect to an org user's profile photo",
-      description:
-        'Served to org users of the same organization when the photo belongs to it. 404 when the person has no photo here.',
-      params: PersonImageParams,
-      response: responses,
-    },
-    handler: async (req, reply) => {
-      const actor = await resolveActor(container, req);
-      const url = await member.personImage(req.params.orgUserId, actor);
       return redirect(reply, url);
     },
   });

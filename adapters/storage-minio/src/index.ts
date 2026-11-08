@@ -1,12 +1,14 @@
 // MinIO (S3-compatible) implementation of the ObjectStorage port. Private
-// buckets; access via short-lived presigned URLs only.
+// buckets, except the public/ prefix, which anyone may read.
 import { Client, CopyDestinationOptions, CopySourceOptions } from "minio";
-import type {
-  Logger,
-  ObjectStorage,
-  PresignDownloadInput,
-  PresignedUpload,
-  StoredObjectInfo,
+import {
+  PUBLIC_CACHE_CONTROL,
+  PUBLIC_PREFIX,
+  type Logger,
+  type ObjectStorage,
+  type PresignDownloadInput,
+  type PresignedUpload,
+  type StoredObjectInfo,
 } from "@headless-lms/core/types";
 
 export interface MinioStorageConfig {
@@ -17,6 +19,7 @@ export interface MinioStorageConfig {
   secretKey: string;
   region: string;
   bucket: string;
+  publicUrl?: string;
   uploadExpirySeconds: number;
   downloadExpirySeconds: number;
 }
@@ -25,6 +28,7 @@ export class MinioStorageAdapter implements ObjectStorage {
   private readonly client: Client;
   private readonly bucket: string;
   private readonly region: string;
+  private readonly publicBase: string;
   readonly uploadExpirySeconds: number;
   private readonly downloadExpiry: number;
   private ensured = false;
@@ -43,6 +47,10 @@ export class MinioStorageAdapter implements ObjectStorage {
     });
     this.bucket = config.bucket;
     this.region = config.region;
+    this.publicBase = (
+      config.publicUrl ??
+      `${config.useSSL ? "https" : "http"}://${config.endPoint}:${config.port}/${config.bucket}`
+    ).replace(/\/+$/, "");
     this.uploadExpirySeconds = config.uploadExpirySeconds;
     this.downloadExpiry = config.downloadExpirySeconds;
   }
@@ -56,6 +64,7 @@ export class MinioStorageAdapter implements ObjectStorage {
     if (!exists) {
       await this.client.makeBucket(this.bucket, this.region);
     }
+    await this.client.setBucketPolicy(this.bucket, publicReadPolicy(this.bucket));
     this.ensured = true;
   }
 
@@ -126,7 +135,43 @@ export class MinioStorageAdapter implements ObjectStorage {
     );
   }
 
+  async publish(input: { from: string; to: string }): Promise<void> {
+    await this.ensureBucket();
+    const source = await this.client.statObject(this.bucket, input.from);
+    const contentType = source.metaData?.["content-type"];
+    await this.client.copyObject(
+      new CopySourceOptions({ Bucket: this.bucket, Object: input.from }),
+      new CopyDestinationOptions({
+        Bucket: this.bucket,
+        Object: input.to,
+        MetadataDirective: "REPLACE",
+        Headers: {
+          "Cache-Control": PUBLIC_CACHE_CONTROL,
+          ...(contentType ? { "Content-Type": contentType } : {}),
+        },
+      }),
+    );
+  }
+
+  publicUrl(key: string): string {
+    return `${this.publicBase}/${key.split("/").map(encodeURIComponent).join("/")}`;
+  }
+
   async remove(key: string): Promise<void> {
     await this.client.removeObject(this.bucket, key);
   }
+}
+
+function publicReadPolicy(bucket: string): string {
+  return JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: { AWS: ["*"] },
+        Action: ["s3:GetObject"],
+        Resource: [`arn:aws:s3:::${bucket}/${PUBLIC_PREFIX}*`],
+      },
+    ],
+  });
 }

@@ -1,8 +1,11 @@
 # @headless-lms/adapter-storage-minio
 
 MinIO (S3-compatible) implementation of the `ObjectStorage` port from
-`@headless-lms/core/types`. Works against MinIO or any S3-compatible store; buckets
-are private, access is via short-lived presigned URLs only.
+`@headless-lms/core/types`. Works against MinIO or any S3-compatible store. The bucket
+is private except the `public/` prefix: on startup the adapter sets a bucket policy that
+lets anyone read `public/*`, where the API publishes profile photos and the thumbnails
+and covers of published items with `Cache-Control: public, max-age=31536000, immutable`.
+Private files are reached through short-lived presigned URLs.
 
 The adapter reads no environment itself — the installation's `config.ts` parses
 env into a `MinioStorageConfig` and injects the constructed adapter:
@@ -28,3 +31,4 @@ const container = await createContainer(config, {
 | `STORAGE_BUCKET`          | yes      | `bucket`                | Created private if missing.                                                                                            |
 | `STORAGE_UPLOAD_EXPIRY`   | no       | `uploadExpirySeconds`   | Default 300. Stray member uploads older than this are swept.                                                           |
 | `STORAGE_DOWNLOAD_EXPIRY` | no       | `downloadExpirySeconds` | Download lifetime when the caller names none. Default 300. The API names `DELIVERY_URL_EXPIRY` on every URL it serves. |
+| `STORAGE_PUBLIC_URL`      | no       | `publicUrl`             | Origin serving `public/*`, such as a CDN. Default `http(s)://<endpoint>:<port>/<bucket>`.                              |

@@ -37,6 +37,14 @@ export class StorageAdapter implements ObjectStorage {
     return this.fail("copy");
   }
 
+  async publish(_input: { from: string; to: string }): Promise<void> {
+    return this.fail("publish");
+  }
+
+  publicUrl(_key: string): string {
+    return this.fail("publicUrl");
+  }
+
   async remove(_key: string): Promise<void> {
     return this.fail("remove");
   }

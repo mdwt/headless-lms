@@ -64,7 +64,7 @@ export type PostServiceParams = {
   comments: PostCommentReader;
   subscriptions: SubscriptionsRepository;
   mentions: MentionsRepository;
-  images: MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile'>;
+  images: MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile' | 'syncPublicImage'>;
   fileUrls: FileUrls;
   bodies: BodyParser;
   uow: PostUnitOfWork;
@@ -94,7 +94,9 @@ export class PostServiceImpl implements PostService {
   private readonly comments: PostCommentReader;
   private readonly subscriptions: SubscriptionsRepository;
   private readonly mentions: MentionsRepository;
-  private readonly images: MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile'>;
+  private readonly images: MemberImageReader &
+    MemberUploadReader &
+    Pick<AssetFiles, 'signFile' | 'syncPublicImage'>;
   private readonly fileUrls: FileUrls;
   private readonly bodies: BodyParser;
   private readonly uow: PostUnitOfWork;
@@ -198,6 +200,7 @@ export class PostServiceImpl implements PostService {
     if (saved.status === 'scheduled') {
       await this.arm(orgId, actor, saved, null);
     }
+    await this.syncCover(saved);
     return this.viewOf(actor, saved);
   }
 
@@ -246,6 +249,7 @@ export class PostServiceImpl implements PostService {
       fields: Object.keys(patch),
       actorId: actor.id,
     });
+    await this.syncCover(updated);
     return this.viewOf(actor, updated);
   }
 
@@ -269,6 +273,7 @@ export class PostServiceImpl implements PostService {
     if (post.status === 'scheduled') {
       await this.disarm(orgId, postId);
     }
+    await this.syncCover(saved);
     return this.viewOf(actor, saved);
   }
 
@@ -302,6 +307,7 @@ export class PostServiceImpl implements PostService {
       actorId: actor.id,
     });
     await this.arm(orgId, actor, updated, post.status === 'scheduled' ? post.scheduledAt : null);
+    await this.syncCover(updated);
     return this.viewOf(actor, updated);
   }
 
@@ -322,6 +328,7 @@ export class PostServiceImpl implements PostService {
     });
     this.logger.info('post unscheduled', { orgId, postId, actorId: actor.id });
     await this.disarm(orgId, postId);
+    await this.syncCover(updated);
     return this.viewOf(actor, updated);
   }
 
@@ -369,6 +376,7 @@ export class PostServiceImpl implements PostService {
       return;
     }
     this.logger.info('scheduled post submitted', { orgId, postId, status: saved.status, refused });
+    await this.syncCover(saved);
   }
 
   private async arm(
@@ -410,6 +418,14 @@ export class PostServiceImpl implements PostService {
     throw new UnavailableError('The post could not be scheduled; try again', { postId: post.id });
   }
 
+  private syncCover(post: Post): Promise<void> {
+    return this.images.syncPublicImage(
+      post.orgId,
+      post.id,
+      post.status === 'published' ? post.coverAssetId : null,
+    );
+  }
+
   private async disarm(orgId: string, postId: string): Promise<void> {
     try {
       await this.scheduler.cancel(POST_PUBLISH_JOB, postId);
@@ -438,6 +454,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post approved', { orgId, postId, actorId: actor.id });
+    await this.syncCover(updated);
     return this.viewOf(actor, updated);
   }
 
@@ -475,6 +492,7 @@ export class PostServiceImpl implements PostService {
       return next;
     });
     this.logger.info('post removed', { orgId, postId, actorId: actor.id });
+    await this.syncCover(updated);
     return this.viewOf(actor, updated);
   }
 
@@ -511,6 +529,7 @@ export class PostServiceImpl implements PostService {
       status: updated.status,
       actorId: actor.id,
     });
+    await this.syncCover(updated);
     return this.viewOf(actor, updated);
   }
 
@@ -905,7 +924,11 @@ export class PostServiceImpl implements PostService {
       const counts = reactions[post.id];
       return {
         ...post,
-        coverUrl: post.coverAssetId ? this.fileUrls.postCover(post.id) : null,
+        coverUrl: !post.coverAssetId
+          ? null
+          : post.status === 'published'
+            ? this.fileUrls.publicImage(orgId, post.id, post.coverAssetId)
+            : this.fileUrls.postCover(post.id),
         assets: Object.fromEntries(
           (bodyAssets.get(post.id) ?? []).flatMap((assetId) => {
             const upload = uploadOf.get(assetId);

@@ -348,7 +348,7 @@ export async function buildContainer(
     studentPortalUrl: config.studentPortalUrl,
   });
 
-  const fileUrls = createFileUrls(config.authBaseURL);
+  const fileUrls = createFileUrls(config.authBaseURL, (key) => storage.publicUrl(key));
   const assets = new AssetsServiceImpl({
     storage,
     repo: new DrizzleAssetsRepository(db, assetsLogger),

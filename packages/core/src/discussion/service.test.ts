@@ -26,7 +26,7 @@ import {
   type SettingsRepository,
 } from '../shared/settings.js';
 
-const fileUrls = createFileUrls('https://api.test');
+const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 
 function mentionStore() {
   const rows: { itemType: string; itemId: string; orgUserId: string; createdAt: Date }[] = [];
@@ -721,7 +721,7 @@ describe('activityComments', () => {
       headline: 'Founder',
       image: 'https://avatar',
       imageAssetId: 'ast_photo',
-      imageUrl: fileUrls.personImage(learner.id),
+      imageUrl: fileUrls.publicImage('o1', learner.id, 'ast_photo'),
       team: false,
       roleName: null,
     });
@@ -773,21 +773,21 @@ describe('activityComments', () => {
       { activityId: 'a1', parentId: null, body: 'root' },
       learner,
     );
-    expect(root.author.imageUrl).toBe(fileUrls.personImage(learner.id));
+    expect(root.author.imageUrl).toBe(fileUrls.publicImage('o1', learner.id, 'ast_learner'));
     const edited = await service.edit(root.id, 'root, edited', learner);
-    expect(edited.author.imageUrl).toBe(fileUrls.personImage(learner.id));
+    expect(edited.author.imageUrl).toBe(fileUrls.publicImage('o1', learner.id, 'ast_learner'));
     await service.postComment({ activityId: 'a1', parentId: root.id, body: 'reply' }, other);
     await service.remove(root.id, 'any', staff);
     const { comments } = await service.activityComments('a1', learner);
     const placeholder = comments.find((c) => c.id === root.id);
     expect(placeholder?.author).toMatchObject({
       imageAssetId: 'ast_learner',
-      imageUrl: fileUrls.personImage(learner.id),
+      imageUrl: fileUrls.publicImage('o1', learner.id, 'ast_learner'),
     });
     expect(placeholder?.removedBy).toMatchObject({
       id: staff.id,
       imageAssetId: 'ast_staff',
-      imageUrl: fileUrls.personImage(staff.id),
+      imageUrl: fileUrls.publicImage('o1', staff.id, 'ast_staff'),
     });
     expect(comments.find((c) => c.id !== root.id)?.author.imageUrl).toBeNull();
   });
@@ -1181,11 +1181,11 @@ describe('listComments', () => {
     const page = await service.listComments(q({ activityId: 'a1' }), moderator);
     expect(page.rows[0]?.author).toMatchObject({
       imageAssetId: 'ast_learner',
-      imageUrl: fileUrls.personImage(learner.id),
+      imageUrl: fileUrls.publicImage('o1', learner.id, 'ast_learner'),
     });
     expect(page.rows[0]?.reports[0]?.reporter).toMatchObject({
       imageAssetId: 'ast_other',
-      imageUrl: fileUrls.personImage(other.id),
+      imageUrl: fileUrls.publicImage('o1', other.id, 'ast_other'),
     });
   });
 

@@ -41,7 +41,9 @@ const admin = new AdminReportServiceImpl({
   permissions: { permissionsOfMany: async () => new Map() },
   spaces: { everySpaceOpeners: async () => [] },
   events: { findEvent: async () => null },
-  fileUrls: { personImage: (id) => `https://api.test/${id}` },
+  fileUrls: {
+    publicImage: (orgId, ownerId, assetId) => `https://cdn.test/${orgId}/${ownerId}/${assetId}`,
+  },
 });
 let actor: Actor = JAMES;
 

@@ -46,6 +46,7 @@ export interface AssetFiles {
   /** A signed storage URL for a ready file of the org, after the caller has checked
    *  access. `saveAs` makes it a short-lived download under that name. */
   signFile(orgId: string, assetId: string, opts?: { saveAs?: string }): Promise<string | null>;
+  syncPublicImage(orgId: string, ownerId: string, assetId: string | null): Promise<void>;
 }
 
 export interface MemberUploadInput {

@@ -118,7 +118,7 @@ function build() {
       permissions: people,
       spaces,
       events,
-      fileUrls: createFileUrls('https://api.test'),
+      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     }),
   };
 }
@@ -230,7 +230,7 @@ describe('AdminReportService', () => {
       {
         orgUserId: 'ou_james',
         name: 'James',
-        avatarUrl: 'https://api.test/api/member/people/ou_james/image',
+        avatarUrl: 'https://cdn.test/public/org_1/ou_james/ast_1',
         source: 'self',
         grantedAt: new Date('2026-05-01T09:00:00Z'),
       },

@@ -135,7 +135,7 @@ function build(world: World = {}) {
     content,
     progress: {} as never,
     files: { signFile },
-    fileUrls: createFileUrls('https://api.test'),
+    fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     access: {
       hasAccess: async (_o: string, orgUserId: string) =>
         (world.attending ?? ['ou_james']).includes(orgUserId),
@@ -246,7 +246,7 @@ describe('the member event read', () => {
       {
         orgUserId: 'ou_james',
         name: 'James',
-        avatarUrl: 'https://api.test/api/member/people/ou_james/image',
+        avatarUrl: 'https://cdn.test/public/org_1/ou_james/ast_james',
       },
       { orgUserId: 'ou_lucy', name: 'A member', avatarUrl: null },
     ]);

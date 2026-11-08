@@ -40,6 +40,8 @@ function fakeStorage(
     stat: vi.fn(async (key: string) => ({ key, ...stat })),
     list: vi.fn(async () => []),
     copy: vi.fn(async () => {}),
+    publish: vi.fn(async () => {}),
+    publicUrl: (key: string) => `https://cdn.test/${key}`,
     remove: vi.fn(async () => {}),
   };
   return storage;
@@ -123,7 +125,7 @@ function service(overrides: Partial<ConstructorParameters<typeof AssetsServiceIm
     memberImageMaxBytes: 1000,
     memberFileMaxBytes: 4000,
     downloadLinkExpirySeconds: 600,
-    fileUrls: createFileUrls('https://api.test'),
+    fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     ...overrides,
     storage,
   });
@@ -336,7 +338,7 @@ describe('AssetsService', () => {
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test'),
+      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     });
     const now = new Date();
     assets.push({
@@ -389,7 +391,7 @@ describe('AssetsService', () => {
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test'),
+      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     });
     const now = new Date('2026-10-22T12:00:00Z');
     const old = new Date('2026-10-22T10:00:00Z');
@@ -436,7 +438,7 @@ describe('AssetsService', () => {
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test'),
+      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
     });
     const old = new Date('2026-10-01T00:00:00Z');
     assets.push({
@@ -473,7 +475,7 @@ describe('AssetsService', () => {
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
       downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test'),
+      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
       logger,
     });
     const old = new Date('2026-10-01T00:00:00Z');
@@ -509,7 +511,7 @@ describe('AssetsService', () => {
     expect(entries).toContainEqual(
       expect.objectContaining({
         msg: 'unattached uploads removed',
-        meta: { orgId: 'org-1', count: 1, stray: 0, failed: 1 },
+        meta: { orgId: 'org-1', count: 1, stray: 0, publicCopies: 0, failed: 1 },
       }),
     );
   });
@@ -787,13 +789,16 @@ describe('AssetsService', () => {
       },
       { ...base, id: 'ast_ready', key: 'org/org-1/uploads/ast_ready/me.png', status: 'ready' },
     );
-    vi.mocked(storage.list).mockResolvedValue([
+    vi.mocked(storage.list).mockImplementation(async (prefix) =>
+      prefix.startsWith('public/') ? [] : uploadsListing,
+    );
+    const uploadsListing = [
       { key: 'org/org-1/uploads/ast_pending/me.png', size: 10, lastModified: expired },
       { key: 'org/org-1/uploads/ast_ready/me.png', size: 10, lastModified: expired },
       { key: 'org/org-1/uploads/ast_refused/me.png', size: 10, lastModified: expired },
       { key: 'org/org-1/uploads/ast_recent/me.png', size: 10, lastModified: live },
       { key: 'org/org-1/uploads/ast_undated/me.png', size: 10 },
-    ]);
+    ];
 
     expect(await svc.removeUnattached('org-1', now)).toBe(1);
 
@@ -808,13 +813,17 @@ describe('AssetsService', () => {
   it('is idle when no row and no stray upload is due', async () => {
     const storage = fakeStorage();
     const { svc } = service({ storage });
-    vi.mocked(storage.list).mockResolvedValue([
-      {
-        key: 'org/org-1/uploads/ast_recent/me.png',
-        size: 10,
-        lastModified: '2026-10-22T11:58:00Z',
-      },
-    ]);
+    vi.mocked(storage.list).mockImplementation(async (prefix) =>
+      prefix.startsWith('public/')
+        ? []
+        : [
+            {
+              key: 'org/org-1/uploads/ast_recent/me.png',
+              size: 10,
+              lastModified: '2026-10-22T11:58:00Z',
+            },
+          ],
+    );
     expect(await svc.removeUnattached('org-1', new Date('2026-10-22T12:00:00Z'))).toBe(0);
     expect(storage.remove).not.toHaveBeenCalled();
   });
@@ -841,7 +850,7 @@ describe('AssetsService', () => {
             memberImageMaxBytes: 1000,
             memberFileMaxBytes: 4000,
             downloadLinkExpirySeconds,
-            fileUrls: createFileUrls('https://api.test'),
+            fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
           }),
       ).toThrow('invalid downloadLinkExpirySeconds');
     }
@@ -1002,6 +1011,102 @@ describe('AssetsService', () => {
     expect(await svc.ownUploadFile(member.asset.id, uploader('ou_1'))).toBe('https://signed');
     await expect(svc.ownUploadFile(member.asset.id, uploader('ou_2'))).rejects.toThrow(
       NotFoundError,
+    );
+  });
+});
+
+describe('public images', () => {
+  const now = new Date('2026-11-08T12:00:00Z');
+  const image: Asset = {
+    orgId: 'org-1',
+    id: 'ast_cover',
+    kind: 'image',
+    source: 'library',
+    status: 'ready',
+    key: 'org/org-1/image/ast_cover/cover.png',
+    filename: 'cover.png',
+    contentType: 'image/png',
+    size: 10,
+    uploadedBy: 'ou_1',
+    contentId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  function withImage() {
+    const storage = fakeStorage();
+    const built = service({ storage });
+    built.assets.push({ ...image });
+    return { ...built, storage };
+  }
+
+  it('publishes the wanted image under its owner and removes any other copy there', async () => {
+    const { svc, storage } = withImage();
+    vi.mocked(storage.list).mockResolvedValue([{ key: 'public/org-1/crs_1/ast_old', size: 5 }]);
+    await svc.syncPublicImage('org-1', 'crs_1', 'ast_cover');
+    expect(storage.list).toHaveBeenCalledWith('public/org-1/crs_1/');
+    expect(storage.remove).toHaveBeenCalledWith('public/org-1/crs_1/ast_old');
+    expect(storage.publish).toHaveBeenCalledWith({
+      from: 'org/org-1/image/ast_cover/cover.png',
+      to: 'public/org-1/crs_1/ast_cover',
+    });
+  });
+
+  it('changes nothing when the wanted copy is already there', async () => {
+    const { svc, storage } = withImage();
+    vi.mocked(storage.list).mockResolvedValue([{ key: 'public/org-1/crs_1/ast_cover', size: 10 }]);
+    await svc.syncPublicImage('org-1', 'crs_1', 'ast_cover');
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(storage.publish).not.toHaveBeenCalled();
+  });
+
+  it('removes every copy when nothing should be public', async () => {
+    const { svc, storage } = withImage();
+    vi.mocked(storage.list).mockResolvedValue([{ key: 'public/org-1/crs_1/ast_cover', size: 10 }]);
+    await svc.syncPublicImage('org-1', 'crs_1', null);
+    expect(storage.remove).toHaveBeenCalledWith('public/org-1/crs_1/ast_cover');
+    expect(storage.publish).not.toHaveBeenCalled();
+  });
+
+  it('publishes only a ready image of the org, and never throws on a storage failure', async () => {
+    const { svc, storage, assets } = withImage();
+    assets.push({ ...image, id: 'ast_pdf', kind: 'document', contentType: 'application/pdf' });
+    await svc.syncPublicImage('org-1', 'crs_1', 'ast_pdf');
+    await svc.syncPublicImage('org-1', 'crs_1', 'ast_missing');
+    expect(storage.publish).not.toHaveBeenCalled();
+    vi.mocked(storage.list).mockRejectedValue(new Error('storage down'));
+    await expect(svc.syncPublicImage('org-1', 'crs_1', 'ast_cover')).resolves.toBeUndefined();
+  });
+
+  it('removes the public copies of an asset when the asset is removed', async () => {
+    const { svc, storage } = withImage();
+    vi.mocked(storage.list).mockResolvedValue([
+      { key: 'public/org-1/crs_1/ast_cover', size: 10 },
+      { key: 'public/org-1/crs_2/ast_other', size: 10 },
+    ]);
+    await svc.remove('ast_cover', admin());
+    expect(storage.remove).toHaveBeenCalledWith('public/org-1/crs_1/ast_cover');
+    expect(storage.remove).not.toHaveBeenCalledWith('public/org-1/crs_2/ast_other');
+  });
+
+  it('sweeps public copies whose asset is gone', async () => {
+    const { svc, storage } = withImage();
+    vi.mocked(storage.list).mockImplementation(async (prefix) =>
+      prefix === 'public/org-1/'
+        ? [
+            { key: 'public/org-1/crs_1/ast_cover', size: 10 },
+            { key: 'public/org-1/pst_9/ast_gone', size: 10 },
+          ]
+        : [],
+    );
+    expect(await svc.removeUnattached('org-1', now)).toBe(1);
+    expect(vi.mocked(storage.remove).mock.calls).toEqual([['public/org-1/pst_9/ast_gone']]);
+  });
+
+  it('builds a public image URL from the public key', () => {
+    const urls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
+    expect(urls.publicImage('org-1', 'ou_1', 'ast_me')).toBe(
+      'https://cdn.test/public/org-1/ou_1/ast_me',
     );
   });
 });

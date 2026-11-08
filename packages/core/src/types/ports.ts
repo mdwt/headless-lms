@@ -61,6 +61,11 @@ export interface ObjectStorage {
   stat(key: string): Promise<StoredObjectInfo | null>;
   list(prefix: string): Promise<StoredObjectInfo[]>;
   copy(input: { from: string; to: string }): Promise<void>;
+  publish(input: { from: string; to: string }): Promise<void>;
+  publicUrl(key: string): string;
   /** Permanently remove an object. */
   remove(key: string): Promise<void>;
 }
+
+export const PUBLIC_PREFIX = 'public/';
+export const PUBLIC_CACHE_CONTROL = 'public, max-age=31536000, immutable';

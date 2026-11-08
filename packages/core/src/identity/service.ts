@@ -7,7 +7,7 @@ import { noopLogger } from '../shared/logger.js';
 import { genId } from '../shared/id.js';
 import { ConflictError, NotFoundError } from '../shared/errors.js';
 import type { Mailer } from '../shared/mailer.js';
-import type { FileUrls, MemberImageReader } from '../assets/index.js';
+import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
 export const UNNAMED_MEMBER = 'A member';
@@ -17,7 +17,7 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly logger: Logger;
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
-  private readonly images: MemberImageReader;
+  private readonly images: MemberImageReader & Pick<AssetFiles, 'syncPublicImage'>;
   private readonly fileUrls: FileUrls;
 
   constructor(input: {
@@ -25,7 +25,7 @@ export class IdentityServiceImpl implements IdentityService {
     logger?: Logger;
     mailer: Mailer;
     uow: IdentityUnitOfWork;
-    images: MemberImageReader;
+    images: MemberImageReader & Pick<AssetFiles, 'syncPublicImage'>;
     fileUrls: FileUrls;
   }) {
     this.repo = input.repo;
@@ -113,7 +113,7 @@ export class IdentityServiceImpl implements IdentityService {
     const userId = actor.userId;
     const stored = await this.repo.findProfile(userId);
     if (stored) {
-      return this.view(actor.orgId, stored);
+      return this.view(actor.orgId, actor.id, stored);
     }
     const never = new Date(0);
     return {
@@ -130,9 +130,12 @@ export class IdentityServiceImpl implements IdentityService {
     };
   }
 
-  private view(orgId: string, profile: UserProfile): UserProfileView {
+  private view(orgId: string, orgUserId: string, profile: UserProfile): UserProfileView {
     const imageAssetId = profile.imageAssetOrgId === orgId ? profile.imageAssetId : null;
-    return { ...profile, imageUrl: imageAssetId ? this.fileUrls.memberUpload(imageAssetId) : null };
+    return {
+      ...profile,
+      imageUrl: imageAssetId ? this.fileUrls.publicImage(orgId, orgUserId, imageAssetId) : null,
+    };
   }
 
   async displayName(userId: string | null): Promise<string> {
@@ -174,6 +177,13 @@ export class IdentityServiceImpl implements IdentityService {
       patch.imageAssetId === undefined ? undefined : patch.imageAssetId === null ? null : orgId;
     const profile = await this.repo.upsertProfile(userId, { ...patch, imageAssetOrgId });
     this.logger.info('profile updated', { userId });
-    return this.view(orgId, profile);
+    if (patch.imageAssetId !== undefined) {
+      await this.images.syncPublicImage(
+        orgId,
+        orgUserId,
+        profile.imageAssetOrgId === orgId ? profile.imageAssetId : null,
+      );
+    }
+    return this.view(orgId, orgUserId, profile);
   }
 }
