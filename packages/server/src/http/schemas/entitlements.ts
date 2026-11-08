@@ -8,7 +8,7 @@ import { DateTimeInput, ListQuery, paginated } from './shared.js';
 export const EntitlementStatus = z.enum(['active', 'expired', 'revoked']);
 export type EntitlementStatus = z.infer<typeof EntitlementStatus>;
 
-export const ContentType = z.enum(['course', 'download']);
+export const ContentType = z.enum(['course', 'download', 'event']);
 export type ContentType = z.infer<typeof ContentType>;
 
 /** Reference to the granted content: identity + display name (join-derived).

@@ -87,7 +87,7 @@ export function notificationJobs(deps: NotificationJobDeps): ScheduledJob[] {
             {
               type: 'message.sent',
               scope: 'chat',
-              actorOrgUserId: latest.senderOrgUserId,
+              actorId: latest.senderOrgUserId,
               communityId: chat.communityId,
               spaceId: null,
               subject: { type: 'message', id: latest.messageId },

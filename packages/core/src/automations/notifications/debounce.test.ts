@@ -64,7 +64,7 @@ function sentList(): RecipientList {
   return {
     type: 'message.sent',
     scope: 'chat',
-    actorOrgUserId: 'ou_emma',
+    actorId: 'ou_emma',
     communityId: 'cmy_1',
     spaceId: null,
     subject: { type: 'message', id: 'msg_1' },
@@ -220,7 +220,7 @@ describe('the automations.notifications.flush job', () => {
         {
           type: 'message.sent',
           scope: 'chat',
-          actorOrgUserId: 'ou_emma',
+          actorId: 'ou_emma',
           communityId: 'cmy_1',
           spaceId: null,
           subject: { type: 'message', id: 'msg_9' },

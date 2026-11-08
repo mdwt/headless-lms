@@ -557,7 +557,7 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
     this.logger.info('automation created', {
       orgId,
       automationId: automation.id,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
     });
     await this.reconcileSchedules(orgId);
     return automation;

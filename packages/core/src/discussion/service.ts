@@ -385,7 +385,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         discussionEvents.commentCreated.make({
           orgId,
           data: { ...row, mentionedOrgUserIds: status === 'published' ? mentioned : [] },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       this.logger.info('comment created', { orgId, commentId: row.id, status, actorId: actor.id });
@@ -442,7 +442,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         discussionEvents.commentCreated.make({
           orgId,
           data: { ...row, mentionedOrgUserIds: mentioned },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       this.logger.info('comment created', {
@@ -678,7 +678,7 @@ export class DiscussionServiceImpl implements DiscussionService {
             ...next,
             mentionedOrgUserIds: next.status === 'published' ? keepAllowed(candidates, added) : [],
           },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       return next;
@@ -725,7 +725,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         discussionEvents.commentRemoved.make({
           orgId,
           data: updated,
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       this.logger.info('comment removed', { orgId, commentId, actorId: actor.id });
@@ -822,7 +822,7 @@ export class DiscussionServiceImpl implements DiscussionService {
             orgUserId: actor.id,
             reaction: emoji,
           },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
     });
@@ -861,7 +861,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         discussionEvents.commentPublished.make({
           orgId,
           data: { ...updated, mentionedOrgUserIds: mentioned },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       this.logger.info('comment published', { orgId, commentId, actorId: actor.id });
@@ -939,7 +939,7 @@ export class DiscussionServiceImpl implements DiscussionService {
         discussionEvents.commentReported.make({
           orgId,
           data: { ...saved, communityId: comment.communityId },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       this.logger.info('comment reported', { orgId, commentId, actorId: actor.id });

@@ -27,6 +27,7 @@ export const subjectTypeSchema = z.enum([
   'community',
   'course',
   'download',
+  'event',
   'bundle',
   'activity',
 ]) satisfies z.ZodType<SubjectRef['type']>;

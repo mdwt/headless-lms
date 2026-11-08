@@ -100,6 +100,7 @@ const CONTENT_NOUN: Record<ItemRole["contentType"], string> = {
   course: "Course",
   download: "Download",
   community: "Community",
+  event: "Event",
 };
 
 export function ItemRoleBadges({

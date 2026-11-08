@@ -9,6 +9,7 @@ export type PermissionGroup =
   | 'courses'
   | 'downloads'
   | 'communities'
+  | 'events'
   | 'automations';
 
 export interface PermissionDefinition {
@@ -274,6 +275,28 @@ export const PERMISSIONS = {
     description:
       "See the review queue, pending and removed posts, held comments and their titles; open every space; approve, remove, restore, pin and lock posts and comments; turn comments and reactions on and off; delete any message, see deleted messages, read reported attachments, lock chats, see the message queue; see every space member and locked spaces' rosters; invite, add, approve, decline and remove space members; resolve reports; be notified of reviews, reports and join requests. The holder's own posts publish without review.",
     about: 'community',
+  },
+  'events:read': {
+    group: 'events',
+    label: 'See events',
+    description:
+      'See the event in the admin app, drafts and canceled included; open it without a grant; see its attendees and analytics.',
+    about: 'event',
+  },
+  'events:write': {
+    group: 'events',
+    label: 'Edit events',
+    description:
+      'Edit, publish and cancel the event; set its recording; grant and revoke it for others; upload files for it and attach, rename, reorder and remove them. Creating an event needs it on the org.',
+    about: 'event',
+    implies: ['events:read'],
+  },
+  'events:delete': {
+    group: 'events',
+    label: 'Delete events',
+    description: 'Delete the event.',
+    about: 'event',
+    implies: ['events:read'],
   },
   'automations:read': {
     group: 'automations',

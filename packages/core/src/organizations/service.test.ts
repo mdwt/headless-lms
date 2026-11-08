@@ -1178,11 +1178,14 @@ describe('levels when giving and saving', () => {
   it('refuses a level that is neither the org nor a content type', async () => {
     const owner = await w.actor(s.sarah.orgUser.id);
     await expect(
-      w.service.updateRole('instructor', { levels: ['event' as never] }, owner),
-    ).rejects.toThrow(/Unknown level event/);
+      w.service.updateRole('instructor', { levels: ['podcast' as never] }, owner),
+    ).rejects.toThrow(/Unknown level podcast/);
     await expect(
-      w.service.createRole({ base: 'instructor', name: 'Host', levels: ['event' as never] }, owner),
-    ).rejects.toThrow(/Unknown level event/);
+      w.service.createRole(
+        { base: 'instructor', name: 'Host', levels: ['podcast' as never] },
+        owner,
+      ),
+    ).rejects.toThrow(/Unknown level podcast/);
     await expect(w.service.updateRole('instructor', { levels: [] }, owner)).rejects.toBeInstanceOf(
       OrganizationRuleError,
     );

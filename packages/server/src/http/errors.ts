@@ -131,7 +131,10 @@ export function classifyError(error: unknown): Refusal | undefined {
       })),
     };
   }
-  if (error instanceof ConflictError || error instanceof OrganizationRuleError) {
+  if (error instanceof ConflictError) {
+    return { status: 409, error: error.code ?? 'conflict', message: error.message };
+  }
+  if (error instanceof OrganizationRuleError) {
     return { status: 409, error: 'conflict', message: error.message };
   }
   if (error instanceof ForbiddenError || error instanceof NoActiveOrgError) {

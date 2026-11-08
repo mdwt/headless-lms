@@ -33,7 +33,7 @@ export const entitlementsQuerySchema = z
     orgUserId: idSchema.optional(),
     contentId: idSchema.optional(),
     bundleId: idSchema.optional(),
-    type: z.enum(['course', 'download']).optional(),
+    type: z.enum(['course', 'download', 'event']).optional(),
   })
   .strict();
 export type EntitlementsQuery = z.infer<typeof entitlementsQuerySchema>;

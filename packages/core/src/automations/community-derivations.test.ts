@@ -287,7 +287,7 @@ describe('community email derivations', () => {
       discussionEvents.postPublished.make({
         orgId: 'org-1',
         data: { ...post, mentionedOrgUserIds: [] },
-        metadata: { previousStatus: 'pending', actorOrgUserId: 'staff_1' },
+        metadata: { previousStatus: 'pending', actorId: 'staff_1' },
       }),
     );
     const drafted = ready(
@@ -376,7 +376,7 @@ describe('community email audiences', () => {
         discussionEvents.messageSent.make({
           orgId: 'org-1',
           data: { ...message, mentionedOrgUserIds: [] },
-          metadata: { actorOrgUserId: 'ou_1', chatStatus },
+          metadata: { actorId: 'ou_1', chatStatus },
         }),
       );
     const members = ['ou_2', 'ou_3'];

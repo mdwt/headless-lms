@@ -816,7 +816,7 @@ describe('ChatLiveForwarder', () => {
             updatedAt: AT,
             participantIds: [james.id, sarah.id],
           },
-          metadata: { actorOrgUserId: emma.id },
+          metadata: { actorId: emma.id },
         }),
       ),
     );
@@ -838,7 +838,7 @@ describe('ChatLiveForwarder', () => {
             updatedAt: AT,
             mentionedOrgUserIds: [],
           },
-          metadata: { actorOrgUserId: james.id },
+          metadata: { actorId: james.id },
         }),
       ),
     );

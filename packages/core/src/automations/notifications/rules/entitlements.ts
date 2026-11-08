@@ -68,7 +68,7 @@ async function membershipEnded(
     {
       type: 'community.membership_ended',
       scope: 'org',
-      actorOrgUserId: actorOr(event, null),
+      actorId: actorOr(event, null),
       communityId: null,
       spaceId: null,
       subject: ref,
@@ -84,7 +84,7 @@ async function spaceBase(
   orgId: string,
   member: SpaceMember,
   type: string,
-  actorOrgUserId: string | null,
+  actorId: string | null,
 ) {
   const space = await reads.space(orgId, member.spaceId);
   return space
@@ -93,7 +93,7 @@ async function spaceBase(
         base: {
           type,
           scope: 'space' as const,
-          actorOrgUserId,
+          actorId,
           communityId: member.communityId,
           spaceId: member.spaceId,
           subject: { type: 'space' as const, id: member.spaceId },
@@ -224,7 +224,7 @@ const entitlementCreated: RecipientRule = async (event, reads) => {
         {
           type: 'access.granted',
           scope: 'org',
-          actorOrgUserId: actor,
+          actorId: actor,
           communityId: null,
           spaceId: null,
           subject: target.ref,
@@ -245,7 +245,7 @@ const entitlementCreated: RecipientRule = async (event, reads) => {
         {
           type: 'community.welcome',
           scope: 'community',
-          actorOrgUserId: actor,
+          actorId: actor,
           communityId,
           spaceId: null,
           subject: { type: 'community', id: communityId },
@@ -276,7 +276,7 @@ const entitlementEndingSoon: RecipientRule = async (event, reads) => {
     {
       type: 'community.ending_soon',
       scope: 'community',
-      actorOrgUserId: null,
+      actorId: null,
       communityId: grant.communityId,
       spaceId: null,
       subject: { type: 'community', id: grant.communityId },
@@ -308,7 +308,7 @@ const entitlementDeleted: RecipientRule = async (event, reads) => {
     {
       type: 'access.revoked',
       scope: 'org',
-      actorOrgUserId: actorOr(event, null),
+      actorId: actorOr(event, null),
       communityId: null,
       spaceId: null,
       subject: target.ref,

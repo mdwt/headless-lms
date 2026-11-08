@@ -209,7 +209,7 @@ export async function roleGain(
 }
 
 export function actorOf(event: DomainEvent): string | undefined {
-  const value = event.metadata?.actorOrgUserId;
+  const value = event.metadata?.actorId;
   return typeof value === 'string' ? value : undefined;
 }
 

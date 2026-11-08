@@ -141,7 +141,7 @@ export const organizationTools: Tool[] = [
   defineTool({
     name: 'list_roles_on_content',
     title: 'List roles on content',
-    description: 'The people with a role on one course, download or community.',
+    description: 'The people with a role on one course, download, community or event.',
     operation: 'organizations.listAssignmentsOn',
     kind: 'read',
     idempotent: true,
@@ -170,7 +170,7 @@ export const organizationTools: Tool[] = [
     name: 'assign_role',
     title: 'Give a role on content',
     description:
-      "Give a person a role on one course, download or community. The role must list the item's type.",
+      "Give a person a role on one course, download, community or event. The role must list the item's type.",
     operation: 'organizations.assignRole',
     kind: 'write',
     idempotent: true,
@@ -184,7 +184,7 @@ export const organizationTools: Tool[] = [
   defineTool({
     name: 'unassign_role',
     title: 'Remove a role on content',
-    description: "Remove a person's role on one course, download or community.",
+    description: "Remove a person's role on one course, download, community or event.",
     operation: 'organizations.unassignRole',
     kind: 'destructive',
     idempotent: true,

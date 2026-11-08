@@ -106,7 +106,7 @@ export class SubscriptionServiceImpl implements SubscriptionService {
             orgUserId: actor.id,
             mutedUntil: input.state === 'muted' ? (input.mutedUntil ?? null) : null,
           },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
     });

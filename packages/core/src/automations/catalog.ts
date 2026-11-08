@@ -326,6 +326,30 @@ const TRIGGERS: CatalogTrigger[] = [
     description: 'download assets were reordered',
   },
   {
+    event: contentEvents.eventCreated,
+    label: 'Event created',
+    category: 'Events',
+    description: 'an event was created',
+  },
+  {
+    event: contentEvents.eventUpdated,
+    label: 'Event updated',
+    category: 'Events',
+    description: 'an event was updated, published, unpublished or canceled',
+  },
+  {
+    event: contentEvents.eventDeleted,
+    label: 'Event deleted',
+    category: 'Events',
+    description: 'an event was deleted',
+  },
+  {
+    event: contentEvents.eventStartingSoon,
+    label: 'Event starting soon',
+    category: 'Events',
+    description: 'an event starts in 1 day or in 1 hour',
+  },
+  {
     event: contentEvents.communityCreated,
     label: 'Community created',
     category: 'Communities',

@@ -105,7 +105,7 @@ function commentBase(
   type: string,
   place: Place,
   commentId: string,
-  actorOrgUserId: string | null,
+  actorId: string | null,
   display: Record<string, JsonValue>,
 ): ListBase {
   const subject: SubjectRef = { type: 'comment', id: commentId };
@@ -113,7 +113,7 @@ function commentBase(
     return {
       type,
       scope: 'space',
-      actorOrgUserId,
+      actorId,
       communityId: place.post.communityId,
       spaceId: place.post.spaceId,
       subject,
@@ -124,7 +124,7 @@ function commentBase(
   return {
     type,
     scope: 'org',
-    actorOrgUserId,
+    actorId,
     communityId: null,
     spaceId: null,
     subject,
@@ -246,7 +246,7 @@ const postPublished: RecipientRule = async (event, reads) => {
         {
           ...base,
           type: 'post.approved',
-          actorOrgUserId: actor,
+          actorId: actor,
           display: { postTitle: post.title, spaceName: space.name },
         },
         await recipientsOf(reads, orgId, new Reasons().add([post.orgUserId], 'subject'), {
@@ -269,7 +269,7 @@ const postPublished: RecipientRule = async (event, reads) => {
       orgId,
       {
         ...base,
-        actorOrgUserId: post.orgUserId,
+        actorId: post.orgUserId,
         display: { authorName, excerpt: text, postTitle: post.title },
       },
       post.mentionedOrgUserIds,
@@ -279,7 +279,7 @@ const postPublished: RecipientRule = async (event, reads) => {
   lists.push({
     ...base,
     type: 'post.published',
-    actorOrgUserId: post.orgUserId,
+    actorId: post.orgUserId,
     display: {
       spaceName: space.name,
       postTitle: post.title,
@@ -316,7 +316,7 @@ async function awaitingReview(
     {
       type: 'post.awaiting_review',
       scope: 'space',
-      actorOrgUserId: post.orgUserId,
+      actorId: post.orgUserId,
       communityId: post.communityId,
       spaceId: post.spaceId,
       subject: { type: 'post', id: post.id },
@@ -363,7 +363,7 @@ const postUpdated: RecipientRule = async (event, reads) => {
       orgId,
       {
         scope: 'space',
-        actorOrgUserId: post.orgUserId,
+        actorId: post.orgUserId,
         communityId: post.communityId,
         spaceId: post.spaceId,
         subject: { type: 'post', id: post.id },
@@ -405,7 +405,7 @@ const postRemoved: RecipientRule = async (event, reads) => {
     {
       type: 'post.removed',
       scope: 'space',
-      actorOrgUserId: remover,
+      actorId: remover,
       communityId: post.communityId,
       spaceId: post.spaceId,
       subject: { type: 'post', id: post.id },
@@ -436,7 +436,7 @@ const postReacted: RecipientRule = async (event, reads) => {
     {
       type: 'post.reacted',
       scope: 'space',
-      actorOrgUserId: reaction.orgUserId,
+      actorId: reaction.orgUserId,
       communityId: post.communityId,
       spaceId: post.spaceId,
       subject: { type: 'post', id: reaction.postId },
@@ -576,7 +576,7 @@ const postReported: RecipientRule = async (event, reads) => {
     {
       type: 'content.flagged',
       scope: 'space',
-      actorOrgUserId: flag.orgUserId,
+      actorId: flag.orgUserId,
       communityId: flag.communityId,
       spaceId: post.spaceId,
       subject: { type: 'post', id: flag.postId },
@@ -678,7 +678,7 @@ async function chatMentions(
     orgId,
     {
       scope: 'chat',
-      actorOrgUserId: message.orgUserId,
+      actorId: message.orgUserId,
       communityId: chat.communityId,
       spaceId: null,
       subject: { type: 'message', id: message.id },
@@ -714,7 +714,7 @@ const messageSent: RecipientRule = async (event, reads) => {
     {
       type: 'message.sent',
       scope: 'chat',
-      actorOrgUserId: message.orgUserId,
+      actorId: message.orgUserId,
       communityId: chat.communityId,
       spaceId: null,
       subject: { type: 'message', id: message.id },
@@ -767,7 +767,7 @@ const messageReacted: RecipientRule = async (event, reads) => {
     {
       type: 'message.reacted',
       scope: 'chat',
-      actorOrgUserId: reaction.orgUserId,
+      actorId: reaction.orgUserId,
       communityId: chat.communityId,
       spaceId: null,
       subject: { type: 'message', id: reaction.messageId },
@@ -799,7 +799,7 @@ const messageReported: RecipientRule = async (event, reads) => {
     {
       type: 'message.flagged',
       scope: 'chat',
-      actorOrgUserId: flag.orgUserId,
+      actorId: flag.orgUserId,
       communityId: flag.communityId,
       spaceId: null,
       subject: { type: 'message', id: flag.messageId },
@@ -834,7 +834,7 @@ const chatCreated: RecipientRule = async (event, reads) => {
     {
       type: 'chat.request',
       scope: 'chat',
-      actorOrgUserId: created.createdBy,
+      actorId: created.createdBy,
       communityId: created.communityId,
       spaceId: null,
       subject: { type: 'chat', id: created.id },
@@ -868,7 +868,7 @@ const chatParticipantAdded: RecipientRule = async (event, reads) => {
     {
       type: 'chat.added',
       scope: 'chat',
-      actorOrgUserId: added.addedBy,
+      actorId: added.addedBy,
       communityId: added.communityId,
       spaceId: null,
       subject: { type: 'chat', id: added.chatId },
@@ -932,7 +932,7 @@ const digestDue: RecipientRule = async (event, reads) => {
         {
           type: 'digest',
           scope: 'community',
-          actorOrgUserId: null,
+          actorId: null,
           communityId,
           spaceId: null,
           subject: { type: 'community', id: communityId },

@@ -13,7 +13,13 @@ function isPublishedActivity(activity: Pick<Activity, 'settings'>): boolean {
 
 type TitleReads = Pick<
   ContentService,
-  'findCourse' | 'getActivity' | 'findDownload' | 'getSpace' | 'findCommunity' | 'findBundle'
+  | 'findCourse'
+  | 'getActivity'
+  | 'findDownload'
+  | 'findEvent'
+  | 'getSpace'
+  | 'findCommunity'
+  | 'findBundle'
 > &
   Pick<ContentService, 'listBundleItems'>;
 
@@ -72,6 +78,18 @@ export class ContentItemTitles implements ItemTitles {
           (download.status === 'published' &&
             (await this.deps.access.hasAccess(actor.orgId, actor.id, download.id)))
           ? download.title
+          : null;
+      }
+      case 'event': {
+        const event = await this.deps.content.findEvent(ref.id, system);
+        if (!event) {
+          return null;
+        }
+        return can.has('events:read', event.id) ||
+          (event.status === 'published' && event.settings.type === 'public') ||
+          (event.status !== 'draft' &&
+            (await this.deps.access.hasAccess(actor.orgId, actor.id, event.id)))
+          ? event.title
           : null;
       }
       case 'bundle': {

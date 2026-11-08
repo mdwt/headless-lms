@@ -53,6 +53,8 @@ function referenced(orgId: SQL, assetId: SQL): SQL {
     or exists (select 1 from courses c where c.org_id = ${orgId} and c.thumbnail_asset_id = ${assetId})
     or exists (select 1 from downloads d where d.org_id = ${orgId} and d.thumbnail_asset_id = ${assetId})
     or exists (select 1 from communities c where c.org_id = ${orgId} and c.thumbnail_asset_id = ${assetId})
+    or exists (select 1 from event_assets ea where ea.org_id = ${orgId} and ea.asset_id = ${assetId})
+    or exists (select 1 from events e where e.org_id = ${orgId} and e.thumbnail_asset_id = ${assetId})
   )`;
 }
 

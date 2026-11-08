@@ -71,7 +71,7 @@ function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
       error: known.error,
       message: known.message,
       orgId: ctx.caller.orgId,
-      actorOrgUserId: ctx.caller.orgUserId,
+      actorId: ctx.caller.orgUserId,
       ...refusalSubject(error),
     });
     return known.message;

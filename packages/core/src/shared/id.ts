@@ -23,6 +23,8 @@ export const ID_PREFIXES = {
   activityAsset: 'aca',
   download: 'dwn',
   downloadAsset: 'dla',
+  contentEvent: 'evn',
+  eventAsset: 'eva',
   asset: 'ast',
   entitlement: 'ent',
   progress: 'prg',

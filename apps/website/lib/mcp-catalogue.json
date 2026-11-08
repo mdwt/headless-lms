@@ -576,6 +576,52 @@
       "removes": false
     },
     {
+      "permission": "events:read",
+      "resource": "events",
+      "action": "read",
+      "label": "See events",
+      "description": "See the event in the admin app, drafts and canceled included; open it without a grant; see its attendees and analytics.",
+      "about": "event",
+      "implies": [],
+      "roles": [
+        "Owner",
+        "Admin"
+      ],
+      "removes": false
+    },
+    {
+      "permission": "events:write",
+      "resource": "events",
+      "action": "write",
+      "label": "Edit events",
+      "description": "Edit, publish and cancel the event; set its recording; grant and revoke it for others; upload files for it and attach, rename, reorder and remove them. Creating an event needs it on the org.",
+      "about": "event",
+      "implies": [
+        "events:read"
+      ],
+      "roles": [
+        "Owner",
+        "Admin"
+      ],
+      "removes": false
+    },
+    {
+      "permission": "events:delete",
+      "resource": "events",
+      "action": "delete",
+      "label": "Delete events",
+      "description": "Delete the event.",
+      "about": "event",
+      "implies": [
+        "events:read"
+      ],
+      "roles": [
+        "Owner",
+        "Admin"
+      ],
+      "removes": true
+    },
+    {
       "permission": "automations:read",
       "resource": "automations",
       "action": "read",
@@ -1247,7 +1293,7 @@
     {
       "name": "list_bundles",
       "title": "List bundles",
-      "description": "Search and page through bundles: sets of courses, downloads and communities granted together.",
+      "description": "Search and page through bundles: sets of courses, downloads, communities and events granted together.",
       "resource": "bundles",
       "operation": "content.listBundles",
       "permissions": [
@@ -1286,7 +1332,7 @@
     {
       "name": "list_bundle_items",
       "title": "List bundle items",
-      "description": "The courses, downloads and communities in a bundle.",
+      "description": "The courses, downloads, communities and events in a bundle.",
       "resource": "bundles",
       "operation": "content.listBundleItems",
       "permissions": [
@@ -1307,7 +1353,7 @@
     {
       "name": "create_bundle",
       "title": "Create bundle",
-      "description": "Create a bundle, optionally with the course, download and community ids it starts with.",
+      "description": "Create a bundle, optionally with the course, download, community and event ids it starts with.",
       "resource": "bundles",
       "operation": "content.createBundle",
       "permissions": [
@@ -1361,7 +1407,7 @@
     {
       "name": "add_bundle_item",
       "title": "Add to bundle",
-      "description": "Add a course, download or community to a bundle. Returns the bundle items.",
+      "description": "Add a course, download, community or event to a bundle. Returns the bundle items.",
       "resource": "bundles",
       "operation": "content.addBundleItem",
       "permissions": [
@@ -1388,7 +1434,7 @@
     {
       "name": "remove_bundle_item",
       "title": "Remove from bundle",
-      "description": "Take a course, download or community out of a bundle. Returns the remaining items.",
+      "description": "Take a course, download, community or event out of a bundle. Returns the remaining items.",
       "resource": "bundles",
       "operation": "content.removeBundleItem",
       "permissions": [
@@ -1415,7 +1461,7 @@
     {
       "name": "delete_bundle",
       "title": "Delete bundle",
-      "description": "Permanently delete a bundle. Its courses, downloads and communities are kept.",
+      "description": "Permanently delete a bundle. Its courses, downloads, communities and events are kept.",
       "resource": "bundles",
       "operation": "content.deleteBundle",
       "permissions": [
@@ -1436,7 +1482,7 @@
     {
       "name": "list_media",
       "title": "List media",
-      "description": "Search and page through uploaded files, to use in downloads or as cover images of courses, downloads and communities. Uploading is done in the admin app.",
+      "description": "Search and page through uploaded files, to use in downloads and events or as cover images of courses, downloads, communities and events. Uploading is done in the admin app.",
       "resource": "media",
       "operation": "assets.list",
       "permissions": [
@@ -1490,6 +1536,405 @@
           "type": "string",
           "required": false,
           "description": "Only the files uploaded for this content item."
+        }
+      ]
+    },
+    {
+      "name": "list_events",
+      "title": "List events",
+      "description": "Search and page through events: live sessions at a set time, drafts and canceled ones included. Filter by status, or by a from and to date-time range the event overlaps.",
+      "resource": "events",
+      "operation": "content.listEvents",
+      "permissions": [
+        "events:read"
+      ],
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "search",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "sort",
+          "type": "\"startsAt\" | \"-startsAt\" | \"title\" | \"-title\"",
+          "required": false,
+          "description": "Default `startsAt`"
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\" | \"canceled\"",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "from",
+          "type": "date-time",
+          "required": false,
+          "description": "Events that end after this time"
+        },
+        {
+          "name": "to",
+          "type": "date-time",
+          "required": false,
+          "description": "Events that start before this time"
+        }
+      ]
+    },
+    {
+      "name": "get_event",
+      "title": "Get event",
+      "description": "One event with its times, time zone, location, recording and settings: event type, capacity, notifications and replay.",
+      "resource": "events",
+      "operation": "content.getEvent",
+      "permissions": [
+        "events:read"
+      ],
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "create_event",
+      "title": "Create event",
+      "description": "Create a draft event. startsAt and endsAt are date-times, timeZone an IANA name. Publish it with update_event.",
+      "resource": "events",
+      "operation": "content.createEvent",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "startsAt",
+          "type": "date-time",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "endsAt",
+          "type": "date-time",
+          "required": true,
+          "description": "After `startsAt`"
+        },
+        {
+          "name": "timeZone",
+          "type": "string",
+          "required": true,
+          "description": "An IANA time zone, such as `Europe/London`"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Markdown"
+        },
+        {
+          "name": "location",
+          "type": "object",
+          "required": false,
+          "description": "A venue, a meeting link, both, or neither yet. Default: neither"
+        },
+        {
+          "name": "settings",
+          "type": "object",
+          "required": false,
+          "description": "Any field left out takes its default"
+        }
+      ]
+    },
+    {
+      "name": "update_event",
+      "title": "Update event",
+      "description": "Change an event title, description, times, location, cover image, recording or settings, or publish and unpublish it with status. Fields left out stay as they are. A canceled event cannot change.",
+      "resource": "events",
+      "operation": "content.updateEvent",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Markdown"
+        },
+        {
+          "name": "startsAt",
+          "type": "date-time",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "endsAt",
+          "type": "date-time",
+          "required": false,
+          "description": "After `startsAt`"
+        },
+        {
+          "name": "timeZone",
+          "type": "string",
+          "required": false,
+          "description": "An IANA time zone, such as `Europe/London`"
+        },
+        {
+          "name": "location",
+          "type": "object",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "thumbnailAssetId",
+          "type": "string | null",
+          "required": false,
+          "description": "The cover image; null clears it"
+        },
+        {
+          "name": "recording",
+          "type": "object | null",
+          "required": false,
+          "description": "Null clears it"
+        },
+        {
+          "name": "status",
+          "type": "\"draft\" | \"published\"",
+          "required": false,
+          "description": "`published` publishes the event, `draft` unpublishes it"
+        },
+        {
+          "name": "settings",
+          "type": "object",
+          "required": false,
+          "description": "Fields left out keep their value"
+        }
+      ]
+    },
+    {
+      "name": "cancel_event",
+      "title": "Cancel event",
+      "description": "Cancel an event and tell its attendees. Canceling is final.",
+      "resource": "events",
+      "operation": "content.cancelEvent",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "destructive",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "delete_event",
+      "title": "Delete event",
+      "description": "Permanently delete an event. The uploaded files are kept.",
+      "resource": "events",
+      "operation": "content.deleteEvent",
+      "permissions": [
+        "events:delete"
+      ],
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_event_files",
+      "title": "List event files",
+      "description": "The files attached to an event, in order, with their display names.",
+      "resource": "events",
+      "operation": "content.listEventAssets",
+      "permissions": [
+        "events:read"
+      ],
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "add_event_file",
+      "title": "Add file to event",
+      "description": "Attach an uploaded file to the end of an event. Find file ids with list_media.",
+      "resource": "events",
+      "operation": "content.addEventAsset",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "assetId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "displayName",
+          "type": "string",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "rename_event_file",
+      "title": "Rename event file",
+      "description": "Set the name a file shows under in an event. null shows the file name.",
+      "resource": "events",
+      "operation": "content.renameEventAsset",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "displayName",
+          "type": "string | null",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "assetId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "reorder_event_files",
+      "title": "Reorder event files",
+      "description": "Set the file order of an event. Pass every file id attached to the event in the new order.",
+      "resource": "events",
+      "operation": "content.reorderEventAssets",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "assetIds",
+          "type": "string[]",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_event_file",
+      "title": "Remove file from event",
+      "description": "Take a file off an event. The uploaded file itself is kept.",
+      "resource": "events",
+      "operation": "content.removeEventAsset",
+      "permissions": [
+        "events:write"
+      ],
+      "kind": "destructive",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "assetId",
+          "type": "string",
+          "required": true,
+          "description": null
         }
       ]
     },
@@ -1656,7 +2101,7 @@
         },
         {
           "name": "type",
-          "type": "\"course\" | \"download\"",
+          "type": "\"course\" | \"download\" | \"event\"",
           "required": false,
           "description": null
         }
@@ -1665,7 +2110,7 @@
     {
       "name": "grant_access",
       "title": "Grant access",
-      "description": "Give a student access to one course, download or community (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.",
+      "description": "Give a student access to one course, download, community or event (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.",
       "resource": "access",
       "operation": "entitlements.grant",
       "permissions": [
@@ -1966,7 +2411,7 @@
         },
         {
           "name": "levels",
-          "type": "\"org\" | \"course\" | \"download\" | \"community\"[]",
+          "type": "\"org\" | \"course\" | \"download\" | \"community\" | \"event\"[]",
           "required": false,
           "description": null
         },
@@ -2017,7 +2462,7 @@
         },
         {
           "name": "levels",
-          "type": "\"org\" | \"course\" | \"download\" | \"community\"[]",
+          "type": "\"org\" | \"course\" | \"download\" | \"community\" | \"event\"[]",
           "required": false,
           "description": null
         },
@@ -2152,7 +2597,7 @@
     {
       "name": "list_roles_on_content",
       "title": "List roles on content",
-      "description": "The people with a role on one course, download or community.",
+      "description": "The people with a role on one course, download, community or event.",
       "resource": "people",
       "operation": "organizations.listAssignmentsOn",
       "permissions": [
@@ -2200,7 +2645,7 @@
     {
       "name": "assign_role",
       "title": "Give a role on content",
-      "description": "Give a person a role on one course, download or community. The role must list the item's type.",
+      "description": "Give a person a role on one course, download, community or event. The role must list the item's type.",
       "resource": "people",
       "operation": "organizations.assignRole",
       "permissions": [
@@ -2233,7 +2678,7 @@
     {
       "name": "unassign_role",
       "title": "Remove a role on content",
-      "description": "Remove a person's role on one course, download or community.",
+      "description": "Remove a person's role on one course, download, community or event.",
       "resource": "people",
       "operation": "organizations.unassignRole",
       "permissions": [

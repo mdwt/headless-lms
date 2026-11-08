@@ -33,6 +33,7 @@ const WRITE_PERMISSION: Record<ContentType, Permission> = {
   course: 'courses:write',
   download: 'downloads:write',
   community: 'communities:write',
+  event: 'events:write',
 };
 
 const UNATTACHED_UPLOAD_GRACE_MS = 60 * 60 * 1000;
@@ -412,12 +413,12 @@ export class AssetsServiceImpl implements AssetsService {
     await this.removeAsset(actor.orgId, id, actor.id);
   }
 
-  private async removeAsset(orgId: string, id: string, actorOrgUserId: string): Promise<void> {
+  private async removeAsset(orgId: string, id: string, actorId: string): Promise<void> {
     const asset = await this.repo.findById(orgId, id);
     if (!asset || !(await this.discard(orgId, asset))) {
       throw new NotFoundError('Asset', id);
     }
-    this.logger.info('asset removed', { orgId, assetId: id, actorOrgUserId });
+    this.logger.info('asset removed', { orgId, assetId: id, actorId });
   }
 
   private async requireReach(asset: Asset, actor: Actor): Promise<void> {

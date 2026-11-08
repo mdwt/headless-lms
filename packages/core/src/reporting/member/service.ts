@@ -304,7 +304,7 @@ export class MemberReportServiceImpl implements MemberReportService {
       ...(row.communityId ? [{ type: 'community' as const, id: row.communityId }] : []),
       ...(row.spaceId ? [{ type: 'space' as const, id: row.spaceId }] : []),
     ]);
-    const actorIds = [...new Set(rows.flatMap((row) => row.actorOrgUserId ?? []))];
+    const actorIds = [...new Set(rows.flatMap((row) => row.actorId ?? []))];
     const [people, discussionTitles, contentTitles] = await Promise.all([
       this.repo.people(orgId, actorIds),
       this.titles.discussion.titlesFor(refs, actor),
@@ -313,7 +313,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     const titles = { ...contentTitles, ...discussionTitles };
     const personById = new Map(people.map((person) => [person.orgUserId, person]));
     return rows.map((row) => {
-      const person = row.actorOrgUserId ? personById.get(row.actorOrgUserId) : undefined;
+      const person = row.actorId ? personById.get(row.actorId) : undefined;
       const community = row.communityId ? titles[`community:${row.communityId}`] : undefined;
       const space = row.spaceId ? titles[`space:${row.spaceId}`] : undefined;
       return {

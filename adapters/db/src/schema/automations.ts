@@ -108,7 +108,7 @@ export const notifications = pgTable(
     category: text("category").notNull(),
     communityId: text("community_id"),
     spaceId: text("space_id"),
-    actorOrgUserId: text("actor_org_user_id"),
+    actorId: text("actor_id"),
     subjectType: text("subject_type"),
     subjectId: text("subject_id"),
     parentType: text("parent_type"),

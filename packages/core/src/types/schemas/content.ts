@@ -3,7 +3,7 @@ import { assetUrlsSchema } from './assets.js';
 import { activityCommentsRuleSchema, commentSettingsSchema } from './discussion.js';
 import { idSchema, jsonValueSchema } from './shared.js';
 
-export const contentTypeSchema = z.enum(['course', 'download', 'community']);
+export const contentTypeSchema = z.enum(['course', 'download', 'community', 'event']);
 export type ContentType = z.infer<typeof contentTypeSchema>;
 
 export const courseStatusSchema = z.enum(['draft', 'published']);
@@ -548,3 +548,203 @@ export const addSpaceLinkInputSchema = z
   })
   .strict();
 export type AddSpaceLinkInput = z.infer<typeof addSpaceLinkInputSchema>;
+
+export const timeZoneSchema = z
+  .string()
+  .refine(isTimeZone, { message: 'must be an IANA time zone' })
+  .describe('An IANA time zone, such as `Europe/London`');
+
+const httpUrlSchema = z.url({ protocol: /^https?$/ });
+
+export const eventStatusSchema = z.enum(['draft', 'published', 'canceled']);
+export type EventStatus = z.infer<typeof eventStatusSchema>;
+
+export const eventTypeSchema = z.enum(['public', 'private']);
+export type EventType = z.infer<typeof eventTypeSchema>;
+
+const addressLineSchema = z.string().max(200).nullable();
+
+export const eventAddressSchema = z
+  .object({
+    line1: addressLineSchema,
+    line2: addressLineSchema,
+    city: addressLineSchema,
+    region: addressLineSchema,
+    postalCode: addressLineSchema,
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/, 'must be an ISO 3166-1 alpha-2 code')
+      .nullable()
+      .describe('An ISO 3166-1 alpha-2 code, such as `GB`'),
+  })
+  .strict();
+export type EventAddress = z.infer<typeof eventAddressSchema>;
+
+export const eventVenueSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    address: eventAddressSchema.nullable(),
+  })
+  .strict();
+export type EventVenue = z.infer<typeof eventVenueSchema>;
+
+export const eventOnlineSchema = z
+  .object({
+    url: httpUrlSchema.describe('The meeting link, `http` or `https`'),
+    details: z.string().max(1_000).nullable().describe('Such as a passcode or a dial-in number'),
+  })
+  .strict();
+export type EventOnline = z.infer<typeof eventOnlineSchema>;
+
+export const eventLocationSchema = z
+  .object({
+    venue: eventVenueSchema.nullable().describe('Where the event takes place in person'),
+    online: eventOnlineSchema.nullable().describe('How to join online'),
+  })
+  .strict();
+export type EventLocation = z.infer<typeof eventLocationSchema>;
+
+export const eventLocationDefaults: EventLocation = { venue: null, online: null };
+
+export const eventRecordingSchema = z
+  .object({
+    url: httpUrlSchema.describe('Where the recording is, `http` or `https`'),
+    details: z.string().max(1_000).nullable().describe('Such as a passcode'),
+  })
+  .strict();
+export type EventRecording = z.infer<typeof eventRecordingSchema>;
+
+export const eventSettingsSchema = z
+  .object({
+    type: eventTypeSchema.describe(
+      '`public`: members register themselves. `private`: by grant only',
+    ),
+    capacity: z
+      .number()
+      .int()
+      .min(1)
+      .nullable()
+      .describe('The most attendees the event takes; null means no limit'),
+    notifications: z.boolean().describe('When false, no notifications are sent for the event'),
+    replay: z.boolean().describe('When true, attendees get the recording after the end'),
+  })
+  .strict();
+export type EventSettings = z.infer<typeof eventSettingsSchema>;
+
+export const eventSettingsDefaults: EventSettings = {
+  type: 'public',
+  capacity: null,
+  notifications: true,
+  replay: true,
+};
+
+export const eventSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    type: z.literal('event'),
+    title: z.string(),
+    description: z.string(),
+    thumbnailAssetId: idSchema.nullable(),
+    status: eventStatusSchema,
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
+    timeZone: z.string(),
+    location: eventLocationSchema,
+    recording: eventRecordingSchema.nullable(),
+    settings: eventSettingsSchema,
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type Event = z.output<typeof eventSchema>;
+
+export const eventViewSchema = eventSchema.extend({ thumbnailUrl: z.string().nullable() }).strict();
+export type EventView = z.output<typeof eventViewSchema>;
+
+export const eventAssetSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    eventId: idSchema,
+    assetId: idSchema,
+    seq: z.number().int(),
+    displayName: z.string().nullable(),
+    createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+  })
+  .strict();
+export type EventAsset = z.output<typeof eventAssetSchema>;
+
+export const eventFileSchema = eventAssetSchema
+  .extend({
+    filename: z.string(),
+    contentType: z.string(),
+    size: z.number().int().min(0),
+    url: z.string(),
+  })
+  .strict();
+export type EventFile = z.output<typeof eventFileSchema>;
+
+export const eventSortSchema = z.enum(['startsAt', '-startsAt', 'title', '-title']);
+export type EventSort = z.infer<typeof eventSortSchema>;
+
+export const listEventsQuerySchema = z
+  .object({
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    search: z.string().optional(),
+    sort: eventSortSchema.optional(),
+    status: eventStatusSchema.optional(),
+    from: z.coerce.date().optional(),
+    to: z.coerce.date().optional(),
+  })
+  .strict();
+export type ListEventsQuery = z.infer<typeof listEventsQuerySchema>;
+
+export const createEventInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120),
+    description: z.string().max(5_000).optional(),
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
+    timeZone: timeZoneSchema,
+    location: eventLocationSchema.optional(),
+    settings: eventSettingsSchema.partial().optional(),
+  })
+  .strict();
+export type CreateEventInput = z.infer<typeof createEventInputSchema>;
+
+export const updateEventInputSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    description: z.string().max(5_000).optional(),
+    startsAt: z.coerce.date().optional(),
+    endsAt: z.coerce.date().optional(),
+    timeZone: timeZoneSchema.optional(),
+    location: eventLocationSchema.optional(),
+    thumbnailAssetId: idSchema.nullable().optional(),
+    recording: eventRecordingSchema.nullable().optional(),
+    status: eventStatusSchema.extract(['draft', 'published']).optional(),
+    settings: eventSettingsSchema.partial().optional(),
+  })
+  .strict();
+export type UpdateEventInput = z.infer<typeof updateEventInputSchema>;
+
+export const addEventAssetInputSchema = z
+  .object({
+    assetId: idSchema,
+    displayName: z.string().optional(),
+  })
+  .strict();
+export type AddEventAssetInput = z.infer<typeof addEventAssetInputSchema>;
+
+export const reorderEventAssetsInputSchema = z
+  .object({
+    assetIds: z.array(idSchema).max(500),
+  })
+  .strict();
+export type ReorderEventAssetsInput = z.infer<typeof reorderEventAssetsInputSchema>;
+
+export const eventLeadSchema = z.enum(['1d', '1h']);
+export type EventLead = z.infer<typeof eventLeadSchema>;

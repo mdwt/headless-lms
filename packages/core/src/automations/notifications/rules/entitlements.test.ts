@@ -131,7 +131,7 @@ describe('entitlement.space_member.created', () => {
     );
 
   it('asks the moderators to review a join request, never the person requesting', async () => {
-    const lists = await run(created('requested', { actorOrgUserId: 'ou_sarah' }));
+    const lists = await run(created('requested', { actorId: 'ou_sarah' }));
     expect(lists).toEqual([
       expect.objectContaining({
         type: 'space.join_requested',
@@ -148,18 +148,18 @@ describe('entitlement.space_member.created', () => {
       }),
     ]);
     expect(people(lists[0])).toEqual({ ou_mia: ['moderator'], ou_olivia: ['moderator'] });
-    const uncapped = await run(created('requested', { actorOrgUserId: 'ou_sarah' }), {
+    const uncapped = await run(created('requested', { actorId: 'ou_sarah' }), {
       capacity: null,
     });
     expect(uncapped[0]?.display.seatsLeft).toBe('No cap');
   });
 
   it('tells an invitee who cannot open the space yet', async () => {
-    const lists = await run(created('invited', { actorOrgUserId: 'ou_mia' }));
+    const lists = await run(created('invited', { actorId: 'ou_mia' }));
     expect(lists).toEqual([
       expect.objectContaining({
         type: 'space.invited',
-        actorOrgUserId: 'ou_mia',
+        actorId: 'ou_mia',
         display: { spaceName: 'Speaking partners', spaceId: 'spc_speaking', inviterName: 'Mia' },
       }),
     ]);
@@ -167,7 +167,7 @@ describe('entitlement.space_member.created', () => {
   });
 
   it('sends nothing for a member added straight in', async () => {
-    expect(await run(created('active', { actorOrgUserId: 'ou_mia' }))).toEqual([]);
+    expect(await run(created('active', { actorId: 'ou_mia' }))).toEqual([]);
   });
 });
 
@@ -178,7 +178,7 @@ describe('entitlement.space_member.updated and deleted', () => {
         orgId: ORG,
         data: { ...MEMBER, status: status as 'active' },
       }),
-      { actorOrgUserId: 'ou_mia', previousStatus },
+      { actorId: 'ou_mia', previousStatus },
     );
 
   it('tells the person their request was approved, not when they accept an invite', async () => {
@@ -193,7 +193,7 @@ describe('entitlement.space_member.updated and deleted', () => {
 
   const deleted = (previousStatus: string, actor: string) =>
     ready(entitlementEvents.spaceMemberDeleted.make({ orgId: ORG, data: MEMBER }), {
-      actorOrgUserId: actor,
+      actorId: actor,
       previousStatus,
     });
 

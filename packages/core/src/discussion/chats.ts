@@ -1341,7 +1341,7 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
   }
 
   private meta(actor: Actor) {
-    return { actorOrgUserId: actor.id };
+    return { actorId: actor.id };
   }
 
   private createdEvent(orgId: string, actor: Actor, chat: Chat, users: ChatUser[]) {

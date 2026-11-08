@@ -623,8 +623,8 @@ describe('posts', () => {
       'discussion.post.created',
       'discussion.post.published',
     ]);
-    expect(calls[0]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
-    expect(calls[0]?.[1]?.metadata).toEqual({ actorOrgUserId: member.id, previousStatus: null });
+    expect(calls[0]?.[0]?.metadata).toEqual({ actorId: member.id });
+    expect(calls[0]?.[1]?.metadata).toEqual({ actorId: member.id, previousStatus: null });
   });
 
   it('sends a member post to pending when the space requires review', async () => {
@@ -633,7 +633,7 @@ describe('posts', () => {
     const post = await svc.create(draftInput(), member);
     expect(post.status).toBe('pending');
     expect(calls[0]?.map((event) => event.type)).toEqual(['discussion.post.created']);
-    expect(calls[0]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id, previousStatus: null });
+    expect(calls[0]?.[0]?.metadata).toEqual({ actorId: member.id, previousStatus: null });
   });
 
   it('publishes a staff post without review', async () => {
@@ -727,14 +727,14 @@ describe('posts', () => {
     expect(edited.status).toBe('pending');
     const updated = calls.at(-1)?.[0];
     expect(updated?.type).toBe('discussion.post.updated');
-    expect(updated?.metadata).toEqual({ actorOrgUserId: member.id, previousStatus: 'pending' });
+    expect(updated?.metadata).toEqual({ actorId: member.id, previousStatus: 'pending' });
   });
 
   it('does not mark a published edit with a previous status', async () => {
     const { svc, calls } = harness();
     const created = await svc.create(draftInput(), member);
     await svc.update(created.id, { body: 'More' }, member);
-    expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
+    expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorId: member.id });
   });
 
   it('approves a pending post as a moderator and publishes it from review', async () => {
@@ -746,7 +746,7 @@ describe('posts', () => {
     expect(approved.status).toBe('published');
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
     expect(calls.at(-1)?.[0]?.metadata).toEqual({
-      actorOrgUserId: moderator.id,
+      actorId: moderator.id,
       previousStatus: 'pending',
     });
   });
@@ -762,7 +762,7 @@ describe('posts', () => {
     expect(flags[0]).toMatchObject({ resolvedAt: null, resolution: null, resolvedBy: null });
     expect(calls.at(-1)?.[0]).toMatchObject({
       type: 'discussion.post.removed',
-      metadata: { actorOrgUserId: member.id, previousStatus: 'published' },
+      metadata: { actorId: member.id, previousStatus: 'published' },
     });
   });
 
@@ -833,7 +833,7 @@ describe('posts', () => {
     expect(restored.publishedAt).toBeNull();
     expect(calls.at(-1)?.[0]).toMatchObject({
       type: 'discussion.post.updated',
-      metadata: { actorOrgUserId: moderator.id, previousStatus: 'removed' },
+      metadata: { actorId: moderator.id, previousStatus: 'removed' },
     });
     const staffPost = await svc.create(draftInput({ title: 'Staff' }), staff);
     const staffRemoved = await svc.remove(staffPost.id, null, staff);
@@ -1388,7 +1388,7 @@ describe('scheduled posts', () => {
     ]);
     expect(calls[1]?.[0]).toMatchObject({
       data: { status: 'draft', scheduledAt: null },
-      metadata: { actorOrgUserId: member.id, previousStatus: 'scheduled' },
+      metadata: { actorId: member.id, previousStatus: 'scheduled' },
     });
   });
 
@@ -1433,7 +1433,7 @@ describe('scheduled posts', () => {
       'discussion.post.updated',
       'discussion.post.updated',
     ]);
-    expect(calls[1]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
+    expect(calls[1]?.[0]?.metadata).toEqual({ actorId: member.id });
   });
 
   it('refuses to move a post the timer published meanwhile', async () => {
@@ -1466,7 +1466,7 @@ describe('scheduled posts', () => {
         expect.objectContaining({
           type: 'discussion.post.updated',
           data: expect.objectContaining({ status: 'draft', scheduledAt: null }),
-          metadata: { actorOrgUserId: member.id, previousStatus: 'scheduled' },
+          metadata: { actorId: member.id, previousStatus: 'scheduled' },
         }),
       ],
     ]);
@@ -1869,7 +1869,7 @@ describe('post mentions', () => {
     expect(calls.at(-1)?.map((event) => event.type)).toEqual(['discussion.post.published']);
     expect(lastOf(calls, 'discussion.post.published')).toMatchObject({
       data: { id: post.id, status: 'published', mentionedOrgUserIds: [] },
-      metadata: { actorOrgUserId: moderator.id, previousStatus: 'removed' },
+      metadata: { actorId: moderator.id, previousStatus: 'removed' },
     });
     expect(mentions.rows.map((row) => row.orgUserId)).toEqual([other.id]);
   });
@@ -1892,7 +1892,7 @@ describe('post reaction events', () => {
             orgUserId: other.id,
             reaction: '👍',
           },
-          metadata: { actorOrgUserId: other.id },
+          metadata: { actorId: other.id },
         }),
       ],
     ]);

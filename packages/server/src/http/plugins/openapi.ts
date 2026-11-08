@@ -62,6 +62,10 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
           name: 'Content',
           description: 'Authored content: courses and downloads, their structure and delivery',
         },
+        {
+          name: 'Events',
+          description: 'Live sessions at a set time: their details, location, recording and files',
+        },
         { name: 'Entitlements', description: 'Access grants to content' },
         {
           name: 'Progress',

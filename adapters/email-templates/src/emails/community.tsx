@@ -283,6 +283,7 @@ const ROLE_PATH: Record<string, string> = {
   course: "courses",
   download: "downloads",
   community: "communities",
+  event: "events",
 };
 
 export const roleAssigned = defineEmail<"roleAssigned">({

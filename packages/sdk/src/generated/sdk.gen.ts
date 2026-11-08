@@ -25,6 +25,10 @@ import type {
   AddCommunitySpaceMemberResponses,
   AddDownloadAssetErrors,
   AddDownloadAssetResponses,
+  AddEventAssetErrors,
+  AddEventAssetResponses,
+  AddMemberEventAssetErrors,
+  AddMemberEventAssetResponses,
   AddSpaceLinkErrors,
   AddSpaceLinkResponses,
   AddSpaceMemberErrors,
@@ -45,8 +49,12 @@ import type {
   BlockMemberResponses,
   BookmarkPostErrors,
   BookmarkPostResponses,
+  CancelEventErrors,
+  CancelEventResponses,
   CancelInviteErrors,
   CancelInviteResponses,
+  CancelMemberEventErrors,
+  CancelMemberEventResponses,
   ClearCommentReactionErrors,
   ClearCommentReactionResponses,
   ClearMessageReactionErrors,
@@ -75,8 +83,12 @@ import type {
   CreateCourseResponses,
   CreateDownloadErrors,
   CreateDownloadResponses,
+  CreateEventErrors,
+  CreateEventResponses,
   CreateInviteErrors,
   CreateInviteResponses,
+  CreateMemberEventErrors,
+  CreateMemberEventResponses,
   CreateModuleErrors,
   CreateModuleResponses,
   CreateOrganizationErrors,
@@ -115,6 +127,10 @@ import type {
   DeleteCourseResponses,
   DeleteDownloadErrors,
   DeleteDownloadResponses,
+  DeleteEventErrors,
+  DeleteEventResponses,
+  DeleteMemberEventErrors,
+  DeleteMemberEventResponses,
   DeleteMemberUploadErrors,
   DeleteMemberUploadResponses,
   DeleteModuleErrors,
@@ -175,6 +191,8 @@ import type {
   GetDownloadThumbnailErrors,
   GetEnrollmentSeriesErrors,
   GetEnrollmentSeriesResponses,
+  GetEventErrors,
+  GetEventResponses,
   GetInviteErrors,
   GetInviteResponses,
   GetLibraryFileErrors,
@@ -310,6 +328,10 @@ import type {
   ListDownloadsResponses,
   ListEntitlementsErrors,
   ListEntitlementsResponses,
+  ListEventAssetsErrors,
+  ListEventAssetsResponses,
+  ListEventsErrors,
+  ListEventsResponses,
   ListMemberActivitiesErrors,
   ListMemberActivitiesResponses,
   ListMemberChatsErrors,
@@ -320,6 +342,8 @@ import type {
   ListMemberDevicesResponses,
   ListMemberDownloadsErrors,
   ListMemberDownloadsResponses,
+  ListMemberEventAssetsErrors,
+  ListMemberEventAssetsResponses,
   ListMemberModulesErrors,
   ListMemberModulesResponses,
   ListMemberNotificationsErrors,
@@ -390,8 +414,12 @@ import type {
   RemoveCommunitySpaceMemberResponses,
   RemoveDownloadAssetErrors,
   RemoveDownloadAssetResponses,
+  RemoveEventAssetErrors,
+  RemoveEventAssetResponses,
   RemoveMemberDeviceErrors,
   RemoveMemberDeviceResponses,
+  RemoveMemberEventAssetErrors,
+  RemoveMemberEventAssetResponses,
   RemovePersonErrors,
   RemovePersonResponses,
   RemovePostErrors,
@@ -402,10 +430,18 @@ import type {
   RemoveSpaceMemberResponses,
   RenameDownloadAssetErrors,
   RenameDownloadAssetResponses,
+  RenameEventAssetErrors,
+  RenameEventAssetResponses,
+  RenameMemberEventAssetErrors,
+  RenameMemberEventAssetResponses,
   ReorderActivitiesErrors,
   ReorderActivitiesResponses,
   ReorderDownloadAssetsErrors,
   ReorderDownloadAssetsResponses,
+  ReorderEventAssetsErrors,
+  ReorderEventAssetsResponses,
+  ReorderMemberEventAssetsErrors,
+  ReorderMemberEventAssetsResponses,
   ReorderModulesErrors,
   ReorderModulesResponses,
   ReorderSpaceLinksErrors,
@@ -533,6 +569,10 @@ import type {
   UpdateCourseSettingsResponses,
   UpdateDownloadErrors,
   UpdateDownloadResponses,
+  UpdateEventErrors,
+  UpdateEventResponses,
+  UpdateMemberEventErrors,
+  UpdateMemberEventResponses,
   UpdateMemberProfileErrors,
   UpdateMemberProfileResponses,
   UpdateModuleErrors,
@@ -763,7 +803,7 @@ export class Roles {
       base: string;
       name: string;
       description?: string;
-      levels?: Array<"org" | "course" | "download" | "community">;
+      levels?: Array<"org" | "course" | "download" | "community" | "event">;
       team?: boolean;
       permissions?: {
         [key: string]: boolean;
@@ -859,7 +899,7 @@ export class Roles {
       key: string;
       name?: string;
       description?: string;
-      levels?: Array<"org" | "course" | "download" | "community">;
+      levels?: Array<"org" | "course" | "download" | "community" | "event">;
       team?: boolean;
       permissions?: {
         [key: string]: boolean;
@@ -5781,6 +5821,1002 @@ export class Communities {
   }
 }
 
+export class Events {
+  /**
+   * List events
+   *
+   * Requires `events:read`. Every event the caller holds `events:read` on, drafts and canceled included. `from` and `to` keep the events that overlap the range.
+   */
+  public static listEvents<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      sort?: "startsAt" | "-startsAt" | "title" | "-title";
+      status?: "draft" | "published" | "canceled";
+      from?: string;
+      to?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListEventsResponses, ListEventsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "search" },
+            { in: "query", key: "sort" },
+            { in: "query", key: "status" },
+            { in: "query", key: "from" },
+            { in: "query", key: "to" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListEventsResponses,
+      ListEventsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Create an event
+   *
+   * Requires `events:write`. The event starts as a draft. 400 when it ends before it starts.
+   */
+  public static createEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      title: string;
+      description?: string;
+      startsAt: string;
+      endsAt: string;
+      timeZone: string;
+      location?: {
+        /**
+         * Where the event takes place in person
+         */
+        venue: {
+          name: string;
+          address: {
+            line1: string | null;
+            line2: string | null;
+            city: string | null;
+            region: string | null;
+            postalCode: string | null;
+            /**
+             * An ISO 3166-1 alpha-2 code, such as `GB`
+             */
+            country: string | null;
+          } | null;
+        } | null;
+        /**
+         * How to join online
+         */
+        online: {
+          /**
+           * The meeting link, `http` or `https`
+           */
+          url: string;
+          /**
+           * Such as a passcode or a dial-in number
+           */
+          details: string | null;
+        } | null;
+      };
+      settings?: {
+        /**
+         * `public`: members register themselves. `private`: by grant only
+         */
+        type?: "public" | "private";
+        /**
+         * The most attendees the event takes; null means no limit
+         */
+        capacity?: number | null;
+        /**
+         * When false, no notifications are sent for the event
+         */
+        notifications?: boolean;
+        /**
+         * When true, attendees get the recording after the end
+         */
+        replay?: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateEventResponses, CreateEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "title" },
+            { in: "body", key: "description" },
+            { in: "body", key: "startsAt" },
+            { in: "body", key: "endsAt" },
+            { in: "body", key: "timeZone" },
+            { in: "body", key: "location" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateEventResponses,
+      CreateEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an event
+   *
+   * Requires `events:delete`. Its attendees lose it; its library files survive.
+   */
+  public static deleteEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteEventResponses, DeleteEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteEventResponses,
+      DeleteEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Get an event
+   *
+   * Requires `events:read`.
+   */
+  public static getEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetEventResponses, GetEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<GetEventResponses, GetEventErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/events/{eventId}",
+        ...options,
+        ...params,
+      },
+    );
+  }
+
+  /**
+   * Update an event
+   *
+   * Requires `events:write`. Changes only the fields sent; `status` publishes or unpublishes it. `thumbnailAssetId` must be a ready library image (409 `conflict` otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs `media:read` (403 otherwise). 409 `canceled` when the event is canceled.
+   */
+  public static updateEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      title?: string;
+      description?: string;
+      startsAt?: string;
+      endsAt?: string;
+      timeZone?: string;
+      location?: {
+        /**
+         * Where the event takes place in person
+         */
+        venue: {
+          name: string;
+          address: {
+            line1: string | null;
+            line2: string | null;
+            city: string | null;
+            region: string | null;
+            postalCode: string | null;
+            /**
+             * An ISO 3166-1 alpha-2 code, such as `GB`
+             */
+            country: string | null;
+          } | null;
+        } | null;
+        /**
+         * How to join online
+         */
+        online: {
+          /**
+           * The meeting link, `http` or `https`
+           */
+          url: string;
+          /**
+           * Such as a passcode or a dial-in number
+           */
+          details: string | null;
+        } | null;
+      };
+      thumbnailAssetId?: string | null;
+      recording?: {
+        /**
+         * Where the recording is, `http` or `https`
+         */
+        url: string;
+        /**
+         * Such as a passcode
+         */
+        details: string | null;
+      } | null;
+      status?: "draft" | "published";
+      settings?: {
+        /**
+         * `public`: members register themselves. `private`: by grant only
+         */
+        type?: "public" | "private";
+        /**
+         * The most attendees the event takes; null means no limit
+         */
+        capacity?: number | null;
+        /**
+         * When false, no notifications are sent for the event
+         */
+        notifications?: boolean;
+        /**
+         * When true, attendees get the recording after the end
+         */
+        replay?: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateEventResponses, UpdateEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "title" },
+            { in: "body", key: "description" },
+            { in: "body", key: "startsAt" },
+            { in: "body", key: "endsAt" },
+            { in: "body", key: "timeZone" },
+            { in: "body", key: "location" },
+            { in: "body", key: "thumbnailAssetId" },
+            { in: "body", key: "recording" },
+            { in: "body", key: "status" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateEventResponses,
+      UpdateEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel an event
+   *
+   * Requires `events:write`. Canceling is final. 409 `canceled` when it is already canceled.
+   */
+  public static cancelEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CancelEventResponses, CancelEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).post<
+      CancelEventResponses,
+      CancelEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/cancel",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List an event's files in order
+   *
+   * Requires `events:read`.
+   */
+  public static listEventAssets<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListEventAssetsResponses, ListEventAssetsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<
+      ListEventAssetsResponses,
+      ListEventAssetsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/assets",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Attach a file to an event
+   *
+   * Requires `events:write`. Added last. 409 when the file is not a ready library file or is already attached. A file not uploaded for the event needs `media:read` (403 otherwise). Returns the event's files.
+   */
+  public static addEventAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+      displayName?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AddEventAssetResponses, AddEventAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "assetId" },
+            { in: "body", key: "displayName" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddEventAssetResponses,
+      AddEventAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/assets",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Reorder an event's files
+   *
+   * Requires `events:write`. Send every attached file id exactly once (409 otherwise). Returns the event's files.
+   */
+  public static reorderEventAssets<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetIds: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ReorderEventAssetsResponses, ReorderEventAssetsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "assetIds" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      ReorderEventAssetsResponses,
+      ReorderEventAssetsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/assets/order",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a file from an event
+   *
+   * Requires `events:write`. The library file itself survives. Returns the event's files.
+   */
+  public static removeEventAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveEventAssetResponses, RemoveEventAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      RemoveEventAssetResponses,
+      RemoveEventAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Set a file's display name within an event
+   *
+   * Requires `events:write`. Null falls back to the filename. Returns the event's files.
+   */
+  public static renameEventAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+      displayName: string | null;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RenameEventAssetResponses, RenameEventAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "assetId" },
+            { in: "body", key: "displayName" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      RenameEventAssetResponses,
+      RenameEventAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/assets/{assetId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Create an event from the member app
+   *
+   * Requires `events:write`. The event starts as a draft. 400 when it ends before it starts.
+   */
+  public static createMemberEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      title: string;
+      description?: string;
+      startsAt: string;
+      endsAt: string;
+      timeZone: string;
+      location?: {
+        /**
+         * Where the event takes place in person
+         */
+        venue: {
+          name: string;
+          address: {
+            line1: string | null;
+            line2: string | null;
+            city: string | null;
+            region: string | null;
+            postalCode: string | null;
+            /**
+             * An ISO 3166-1 alpha-2 code, such as `GB`
+             */
+            country: string | null;
+          } | null;
+        } | null;
+        /**
+         * How to join online
+         */
+        online: {
+          /**
+           * The meeting link, `http` or `https`
+           */
+          url: string;
+          /**
+           * Such as a passcode or a dial-in number
+           */
+          details: string | null;
+        } | null;
+      };
+      settings?: {
+        /**
+         * `public`: members register themselves. `private`: by grant only
+         */
+        type?: "public" | "private";
+        /**
+         * The most attendees the event takes; null means no limit
+         */
+        capacity?: number | null;
+        /**
+         * When false, no notifications are sent for the event
+         */
+        notifications?: boolean;
+        /**
+         * When true, attendees get the recording after the end
+         */
+        replay?: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateMemberEventResponses, CreateMemberEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "title" },
+            { in: "body", key: "description" },
+            { in: "body", key: "startsAt" },
+            { in: "body", key: "endsAt" },
+            { in: "body", key: "timeZone" },
+            { in: "body", key: "location" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateMemberEventResponses,
+      CreateMemberEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an event you can delete
+   *
+   * Requires `events:delete`. Its attendees lose it; its library files survive.
+   */
+  public static deleteMemberEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteMemberEventResponses, DeleteMemberEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteMemberEventResponses,
+      DeleteMemberEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Update an event you run
+   *
+   * Requires `events:write`. Changes only the fields sent; `status` publishes or unpublishes it. `thumbnailAssetId` must be a ready library image (409 `conflict` otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs `media:read` (403 otherwise). 409 `canceled` when the event is canceled.
+   */
+  public static updateMemberEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      title?: string;
+      description?: string;
+      startsAt?: string;
+      endsAt?: string;
+      timeZone?: string;
+      location?: {
+        /**
+         * Where the event takes place in person
+         */
+        venue: {
+          name: string;
+          address: {
+            line1: string | null;
+            line2: string | null;
+            city: string | null;
+            region: string | null;
+            postalCode: string | null;
+            /**
+             * An ISO 3166-1 alpha-2 code, such as `GB`
+             */
+            country: string | null;
+          } | null;
+        } | null;
+        /**
+         * How to join online
+         */
+        online: {
+          /**
+           * The meeting link, `http` or `https`
+           */
+          url: string;
+          /**
+           * Such as a passcode or a dial-in number
+           */
+          details: string | null;
+        } | null;
+      };
+      thumbnailAssetId?: string | null;
+      recording?: {
+        /**
+         * Where the recording is, `http` or `https`
+         */
+        url: string;
+        /**
+         * Such as a passcode
+         */
+        details: string | null;
+      } | null;
+      status?: "draft" | "published";
+      settings?: {
+        /**
+         * `public`: members register themselves. `private`: by grant only
+         */
+        type?: "public" | "private";
+        /**
+         * The most attendees the event takes; null means no limit
+         */
+        capacity?: number | null;
+        /**
+         * When false, no notifications are sent for the event
+         */
+        notifications?: boolean;
+        /**
+         * When true, attendees get the recording after the end
+         */
+        replay?: boolean;
+      };
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateMemberEventResponses, UpdateMemberEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "title" },
+            { in: "body", key: "description" },
+            { in: "body", key: "startsAt" },
+            { in: "body", key: "endsAt" },
+            { in: "body", key: "timeZone" },
+            { in: "body", key: "location" },
+            { in: "body", key: "thumbnailAssetId" },
+            { in: "body", key: "recording" },
+            { in: "body", key: "status" },
+            { in: "body", key: "settings" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateMemberEventResponses,
+      UpdateMemberEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel an event you run
+   *
+   * Requires `events:write`. Canceling is final. 409 `canceled` when it is already canceled.
+   */
+  public static cancelMemberEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CancelMemberEventResponses, CancelMemberEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).post<
+      CancelMemberEventResponses,
+      CancelMemberEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/cancel",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the files of an event you run, in order
+   *
+   * Requires `events:read`.
+   */
+  public static listMemberEventAssets<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListMemberEventAssetsResponses,
+    ListMemberEventAssetsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<
+      ListMemberEventAssetsResponses,
+      ListMemberEventAssetsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/assets",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Attach a file to an event you run
+   *
+   * Requires `events:write`. Added last. 409 when the file is not a ready library file or is already attached. A file not uploaded for the event needs `media:read` (403 otherwise). Returns the event's files.
+   */
+  public static addMemberEventAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+      displayName?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AddMemberEventAssetResponses, AddMemberEventAssetErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "assetId" },
+            { in: "body", key: "displayName" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddMemberEventAssetResponses,
+      AddMemberEventAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/assets",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Reorder the files of an event you run
+   *
+   * Requires `events:write`. Send every attached file id exactly once (409 otherwise). Returns the event's files.
+   */
+  public static reorderMemberEventAssets<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetIds: Array<string>;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ReorderMemberEventAssetsResponses,
+    ReorderMemberEventAssetsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "assetIds" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      ReorderMemberEventAssetsResponses,
+      ReorderMemberEventAssetsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/assets/order",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove a file from an event you run
+   *
+   * Requires `events:write`. The library file itself survives. Returns the event's files.
+   */
+  public static removeMemberEventAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RemoveMemberEventAssetResponses,
+    RemoveMemberEventAssetErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      RemoveMemberEventAssetResponses,
+      RemoveMemberEventAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Set a file's display name within an event you run
+   *
+   * Requires `events:write`. Null falls back to the filename. Returns the event's files.
+   */
+  public static renameMemberEventAsset<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+      displayName: string | null;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RenameMemberEventAssetResponses,
+    RenameMemberEventAssetErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "assetId" },
+            { in: "body", key: "displayName" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      RenameMemberEventAssetResponses,
+      RenameMemberEventAssetErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/assets/{assetId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+}
+
 export class Profile {
   /**
    * Read your profile
@@ -9114,7 +10150,7 @@ export class Entitlements {
       source?: string;
       orgUserId?: string;
       contentId?: string;
-      type?: "course" | "download";
+      type?: "course" | "download" | "event";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListEntitlementsResponses, ListEntitlementsErrors, ThrowOnError, "data"> {
@@ -10214,6 +11250,9 @@ export class Access {
         | "communities:write"
         | "communities:delete"
         | "communities:moderate"
+        | "events:read"
+        | "events:write"
+        | "events:delete"
         | "automations:read"
         | "automations:write"
         | "automations:delete"

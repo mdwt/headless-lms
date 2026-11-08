@@ -17,6 +17,33 @@ const activities: Record<string, { id: string; courseId: string; settings: unkno
   },
 };
 
+const events: Record<string, { id: string; title: string; status: string; settings: unknown }> = {
+  evn_public: {
+    id: 'evn_public',
+    title: 'Office hours',
+    status: 'published',
+    settings: { type: 'public' },
+  },
+  evn_private: {
+    id: 'evn_private',
+    title: 'Hot seat',
+    status: 'published',
+    settings: { type: 'private' },
+  },
+  evn_draft: {
+    id: 'evn_draft',
+    title: 'Draft call',
+    status: 'draft',
+    settings: { type: 'public' },
+  },
+  evn_canceled: {
+    id: 'evn_canceled',
+    title: 'Canceled call',
+    status: 'canceled',
+    settings: { type: 'private' },
+  },
+};
+
 function build(grants: string[]) {
   const access = {
     hasAccess: vi.fn(async (_o: string, _u: string, contentId: string) =>
@@ -33,6 +60,7 @@ function build(grants: string[]) {
     getActivity: async (id: string) => (activities[id] ?? null) as never,
     findDownload: async (id: string) =>
       (id === 'dwn_1' ? { id, title: 'Verb tables', status: 'published' } : null) as never,
+    findEvent: async (id: string) => (events[id] ?? null) as never,
     findBundle: async (id: string) => (id === 'bun_1' ? { id, name: 'Everything' } : null) as never,
     listBundleItems: async () => [{ contentId: 'crs_1' }, { contentId: 'dwn_1' }] as never,
     findCommunity: async (id: string) =>
@@ -121,6 +149,25 @@ describe('ContentItemTitles', () => {
       'download:dwn_1': { title: 'Verb tables' },
       'bundle:bun_1': { title: 'Everything' },
       'space:spc_1': { title: 'Practice' },
+    });
+  });
+
+  it('shows an event title to its attendees, to anyone when it is published and public, and with events:read', async () => {
+    const eventRefs = Object.keys(events).map((id) => ({ type: 'event' as const, id }));
+    const emma = build(['evn_private', 'evn_canceled', 'evn_draft']).titles;
+    await expect(emma.titlesFor(eventRefs, actorWith({ id: 'ou_emma' }))).resolves.toEqual({
+      'event:evn_public': { title: 'Office hours' },
+      'event:evn_private': { title: 'Hot seat' },
+      'event:evn_canceled': { title: 'Canceled call' },
+    });
+    const { titles } = build([]);
+    await expect(titles.titlesFor(eventRefs, actorWith({ id: 'ou_james' }))).resolves.toEqual({
+      'event:evn_public': { title: 'Office hours' },
+    });
+    const tom = actorWith({ id: 'ou_tom', content: { evn_draft: ['events:read'] } });
+    await expect(titles.titlesFor(eventRefs, tom)).resolves.toEqual({
+      'event:evn_public': { title: 'Office hours' },
+      'event:evn_draft': { title: 'Draft call' },
     });
   });
 });

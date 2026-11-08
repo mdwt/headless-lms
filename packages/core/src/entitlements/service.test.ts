@@ -463,7 +463,7 @@ describe('space members', () => {
       expect.objectContaining({
         type: 'entitlement.space_member.created',
         data: expect.objectContaining({ status: 'requested' }),
-        metadata: { actorOrgUserId: 'ou_member' },
+        metadata: { actorId: 'ou_member' },
       }),
     ]);
   });
@@ -567,7 +567,7 @@ describe('space members', () => {
     expect(row.status).toBe('active');
     expect(appended[0]).toMatchObject({
       type: 'entitlement.space_member.updated',
-      metadata: { actorOrgUserId: 'ou_member', previousStatus: 'invited' },
+      metadata: { actorId: 'ou_member', previousStatus: 'invited' },
     });
   });
 
@@ -599,7 +599,7 @@ describe('space members', () => {
     expect(repo.deleteSpaceMember).toHaveBeenCalledWith('org-1', 'spm_1');
     expect(declined.appended[0]).toMatchObject({
       type: 'entitlement.space_member.deleted',
-      metadata: { actorOrgUserId: 'ou_mod', previousStatus: 'requested' },
+      metadata: { actorId: 'ou_mod', previousStatus: 'requested' },
     });
   });
 

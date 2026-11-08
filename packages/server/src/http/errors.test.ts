@@ -18,6 +18,11 @@ describe('classifyError', () => {
       error: 'conflict',
       message: 'taken',
     });
+    expect(classifyError(new ConflictError('The event is canceled', 'canceled'))).toEqual({
+      status: 409,
+      error: 'canceled',
+      message: 'The event is canceled',
+    });
   });
   it('carries the details of an unavailable refusal', () => {
     expect(classifyError(new UnavailableError('later', { postId: 'pst_1' }))).toEqual({

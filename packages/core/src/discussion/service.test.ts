@@ -1322,13 +1322,13 @@ describe('comments on a post', () => {
         orgUserId: other.id,
         reaction: '👍',
       },
-      metadata: { actorOrgUserId: other.id },
+      metadata: { actorId: other.id },
     });
     await service.edit(view.id, 'edited', learner);
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.updated',
       data: { body: 'edited', mentionedOrgUserIds: [] },
-      metadata: { actorOrgUserId: learner.id },
+      metadata: { actorId: learner.id },
     });
   });
 
@@ -1799,27 +1799,27 @@ describe('comment mentions on an activity', () => {
     );
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.created',
-      metadata: { actorOrgUserId: learner.id },
+      metadata: { actorId: learner.id },
     });
     await service.approve(c.id, staff);
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.published',
-      metadata: { actorOrgUserId: staff.id },
+      metadata: { actorId: staff.id },
     });
     await service.edit(c.id, 'edited', learner);
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.updated',
-      metadata: { actorOrgUserId: learner.id },
+      metadata: { actorId: learner.id },
     });
     await service.reportComment(c.id, 'spam', other);
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.reported',
-      metadata: { actorOrgUserId: other.id },
+      metadata: { actorId: other.id },
     });
     await service.remove(c.id, 'any', staff);
     expect(appended.at(-1)).toMatchObject({
       type: 'discussion.comment.removed',
-      metadata: { actorOrgUserId: staff.id },
+      metadata: { actorId: staff.id },
     });
   });
 

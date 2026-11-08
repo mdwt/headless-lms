@@ -8,6 +8,7 @@
     "getActivityFile",
     "getDownloadFile",
     "getPostCover",
+    "getPostAsset",
     "getMessageAttachment",
     "getPersonImage",
     "getMemberUploadFile"

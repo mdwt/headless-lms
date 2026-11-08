@@ -42,7 +42,7 @@ function commentList(
   return {
     type: 'comment.created',
     scope: 'space',
-    actorOrgUserId: 'ou_james',
+    actorId: 'ou_james',
     communityId: 'cmy_1',
     spaceId: 'spc_practice',
     subject: { type: 'comment', id: 'cmt_1' },
@@ -60,7 +60,7 @@ function mentionList(
   return {
     type: 'mention',
     scope: 'space',
-    actorOrgUserId: 'ou_james',
+    actorId: 'ou_james',
     communityId: 'cmy_1',
     spaceId: 'spc_practice',
     subject: { type: 'comment', id: 'cmt_1' },
@@ -75,7 +75,7 @@ function postList(exclude: string[] = ['ou_james']): RecipientList {
   return {
     type: 'post.published',
     scope: 'space',
-    actorOrgUserId: 'ou_james',
+    actorId: 'ou_james',
     communityId: 'cmy_1',
     spaceId: 'spc_practice',
     subject: { type: 'post', id: 'pst_2' },
@@ -261,7 +261,7 @@ describe('NotificationProcessor', () => {
       scope: 'space',
       communityId: 'cmy_1',
       spaceId: 'spc_practice',
-      actorOrgUserId: 'ou_james',
+      actorId: 'ou_james',
       subject: { type: 'comment', id: 'cmt_1' },
       parent: { type: 'post', id: 'pst_1' },
       display: { authorName: 'James', excerpt: 'Nice', postTitle: 'My first recording' },
@@ -460,7 +460,7 @@ describe('NotificationProcessor', () => {
         {
           type: 'comment.created',
           scope: 'org',
-          actorOrgUserId: 'ou_james',
+          actorId: 'ou_james',
           communityId: null,
           spaceId: null,
           subject: { type: 'comment', id: 'cmt_9' },
@@ -697,7 +697,7 @@ describe('NotificationProcessor', () => {
     it('hands message.sent lists to the debounce instead of storing them', async () => {
       const sent: RecipientList = {
         type: 'message.sent',
-        actorOrgUserId: 'ou_james',
+        actorId: 'ou_james',
         communityId: 'cmy_1',
         display: {
           senderName: 'James',
@@ -736,7 +736,7 @@ describe('NotificationProcessor', () => {
         [
           {
             type: 'message.sent',
-            actorOrgUserId: 'ou_james',
+            actorId: 'ou_james',
             communityId: 'cmy_1',
             display: {
               senderName: 'James',

@@ -219,7 +219,7 @@ describe('subscriptions', () => {
         { chatId: 'cht_1', communityId: 'cmy_1', orgUserId: james.id, mutedUntil: null },
       ],
     ]);
-    expect(events[0]?.metadata).toEqual({ actorOrgUserId: james.id });
+    expect(events[0]?.metadata).toEqual({ actorId: james.id });
   });
 
   it('follows only a post', async () => {

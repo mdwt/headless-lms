@@ -133,7 +133,7 @@ export const catalogTools: Tool[] = [
     name: 'list_bundles',
     title: 'List bundles',
     description:
-      'Search and page through bundles: sets of courses, downloads and communities granted together.',
+      'Search and page through bundles: sets of courses, downloads, communities and events granted together.',
     operation: 'content.listBundles',
     kind: 'read',
     idempotent: true,
@@ -144,7 +144,7 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'list_bundle_items',
     title: 'List bundle items',
-    description: 'The courses, downloads and communities in a bundle.',
+    description: 'The courses, downloads, communities and events in a bundle.',
     operation: 'content.listBundleItems',
     kind: 'read',
     idempotent: true,
@@ -157,7 +157,7 @@ export const catalogTools: Tool[] = [
     name: 'create_bundle',
     title: 'Create bundle',
     description:
-      'Create a bundle, optionally with the course, download and community ids it starts with.',
+      'Create a bundle, optionally with the course, download, community and event ids it starts with.',
     operation: 'content.createBundle',
     kind: 'write',
     idempotent: false,
@@ -180,7 +180,8 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'add_bundle_item',
     title: 'Add to bundle',
-    description: 'Add a course, download or community to a bundle. Returns the bundle items.',
+    description:
+      'Add a course, download, community or event to a bundle. Returns the bundle items.',
     operation: 'content.addBundleItem',
     kind: 'write',
     idempotent: false,
@@ -193,7 +194,7 @@ export const catalogTools: Tool[] = [
     name: 'remove_bundle_item',
     title: 'Remove from bundle',
     description:
-      'Take a course, download or community out of a bundle. Returns the remaining items.',
+      'Take a course, download, community or event out of a bundle. Returns the remaining items.',
     operation: 'content.removeBundleItem',
     kind: 'destructive',
     idempotent: true,
@@ -205,7 +206,8 @@ export const catalogTools: Tool[] = [
   defineTool({
     name: 'delete_bundle',
     title: 'Delete bundle',
-    description: 'Permanently delete a bundle. Its courses, downloads and communities are kept.',
+    description:
+      'Permanently delete a bundle. Its courses, downloads, communities and events are kept.',
     operation: 'content.deleteBundle',
     kind: 'destructive',
     idempotent: true,
@@ -218,7 +220,7 @@ export const catalogTools: Tool[] = [
     name: 'list_media',
     title: 'List media',
     description:
-      'Search and page through uploaded files, to use in downloads or as cover images of courses, downloads and communities. Uploading is done in the admin app.',
+      'Search and page through uploaded files, to use in downloads and events or as cover images of courses, downloads, communities and events. Uploading is done in the admin app.',
     operation: 'assets.list',
     kind: 'read',
     idempotent: true,

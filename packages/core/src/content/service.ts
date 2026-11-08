@@ -12,6 +12,11 @@ import type {
   DownloadAsset,
   DownloadFile,
   DownloadView,
+  Event,
+  EventAsset,
+  EventFile,
+  EventLead,
+  EventView,
   Module,
   SaveActivityInput,
   Space,
@@ -27,18 +32,22 @@ import type {
   ContentRepository,
   ContentUnitOfWork,
   DownloadablesService,
+  EventsService,
 } from './ports.js';
 import type {
   AddDownloadAssetInput,
+  AddEventAssetInput,
   CreateBundleInput,
   CreateCommunityInput,
   CreateCourseInput,
   CreateDownloadInput,
+  CreateEventInput,
   CreateSpaceInput,
   ListBundlesQuery,
   ListCommunitiesQuery,
   ListCoursesQuery,
   ListDownloadsQuery,
+  ListEventsQuery,
   Page,
   PatchCommunitySettingsInput,
   SetSpaceTopicsInput,
@@ -46,12 +55,15 @@ import type {
   UpdateCommunityInput,
   UpdateCourseInput,
   UpdateDownloadInput,
+  UpdateEventInput,
   UpdateSpaceInput,
 } from './types.js';
+import { isDeepStrictEqual } from 'node:util';
 import { contentEvents } from './events.js';
+import { EVENT_LEADS, EVENT_STARTING_SOON_JOB } from './jobs.js';
 import type { Actor } from '../shared/actor.js';
 import type { AssetFiles, FileUrls } from '../assets/index.js';
-import type { Logger, NewDomainEvent } from '../shared/ports.js';
+import type { Logger, NewDomainEvent, Scheduler } from '../shared/ports.js';
 import {
   ConflictError,
   ForbiddenError,
@@ -60,7 +72,7 @@ import {
 } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { spaceSettingsDefaults } from '../types/schemas/content.js';
-import type { Permission } from '../types/index.js';
+import type { EventMetadata, Permission } from '../types/index.js';
 
 /** URL-safe slug derived from a title. Domain rule owned by the service. */
 function slugify(title: string): string {
@@ -76,6 +88,7 @@ export type ContentServiceParams = {
   libraryAssets: ContentAssetReader;
   files: Pick<AssetFiles, 'readyFiles'>;
   fileUrls: FileUrls;
+  scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
 };
 
@@ -83,15 +96,38 @@ function isPublishedActivity(settings: unknown): boolean {
   return (settings as { published?: unknown } | null)?.published !== false;
 }
 
-function actorMetadata(actor: Actor): { actorOrgUserId: string } {
-  return { actorOrgUserId: actor.id };
+function actorMetadata(actor: Actor): { actorId: string } {
+  return { actorId: actor.id };
 }
 
 const COMMUNITY_READERS: readonly Permission[] = ['communities:read', 'communities:moderate'];
 
+function eventChange(actor: Actor, previous: Event, next: Event): EventMetadata {
+  return {
+    actorId: actor.id,
+    previousStatus: previous.status,
+    previousType: previous.settings.type,
+    previousStartsAt: previous.startsAt.toISOString(),
+    previousEndsAt: previous.endsAt.toISOString(),
+    locationChanged: !isDeepStrictEqual(previous.location, next.location),
+  };
+}
+
+function assertEventTimes(startsAt: Date, endsAt: Date): void {
+  if (endsAt.getTime() <= startsAt.getTime()) {
+    throw new InvalidInputError('An event must end after it starts');
+  }
+}
+
+function startingSoonKey(eventId: string, lead: EventLead): string {
+  return `${eventId}:${lead}`;
+}
+
+const EVENT_LEAD_KEYS = Object.keys(EVENT_LEADS) as EventLead[];
+
 type WithThumbnail = {
   id: string;
-  type: 'course' | 'download' | 'community';
+  type: 'course' | 'download' | 'community' | 'event';
   thumbnailAssetId: string | null;
 };
 
@@ -104,13 +140,19 @@ function sameIdSet(current: string[], requested: string[]): boolean {
 }
 
 export class ContentService
-  implements CourseManagementService, DownloadablesService, BundlesService, CommunitiesService
+  implements
+    CourseManagementService,
+    DownloadablesService,
+    BundlesService,
+    CommunitiesService,
+    EventsService
 {
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
   private readonly libraryAssets: ContentAssetReader;
   private readonly files: Pick<AssetFiles, 'readyFiles'>;
   private readonly fileUrls: FileUrls;
+  private readonly scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   private readonly logger: Logger;
 
   constructor(params: ContentServiceParams) {
@@ -119,6 +161,7 @@ export class ContentService
     this.libraryAssets = params.libraryAssets;
     this.files = params.files;
     this.fileUrls = params.fileUrls;
+    this.scheduler = params.scheduler;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -185,6 +228,19 @@ export class ContentService
     });
   }
 
+  private async eventFiles(orgId: string, links: EventAsset[]): Promise<EventFile[]> {
+    const ready = await this.files.readyFiles(
+      orgId,
+      links.map((link) => link.assetId),
+    );
+    return links.flatMap((link) => {
+      const file = ready[link.assetId];
+      return file
+        ? [{ ...link, ...file, url: this.fileUrls.eventFile(link.eventId, link.assetId) }]
+        : [];
+    });
+  }
+
   private async assertAttachable(
     actor: Actor,
     itemId: string,
@@ -243,6 +299,14 @@ export class ContentService
       this.repo.listDownloadAssets(orgId, downloadId),
     ]);
     return [download?.thumbnailAssetId ?? null, ...links.map((link) => link.assetId)];
+  }
+
+  private async eventAssetIds(orgId: string, eventId: string): Promise<(string | null)[]> {
+    const [event, links] = await Promise.all([
+      this.repo.findEventById(orgId, eventId),
+      this.repo.listEventAssets(orgId, eventId),
+    ]);
+    return [event?.thumbnailAssetId ?? null, ...links.map((link) => link.assetId)];
   }
 
   async listCourses(query: ListCoursesQuery, actor: Actor): Promise<Page<CourseView>> {
@@ -827,6 +891,324 @@ export class ContentService
     });
     this.logger.debug('download assets reordered', { orgId, downloadId });
     return this.downloadFiles(orgId, assets);
+  }
+
+  // --- events ---------------------------------------------------------------
+
+  async listEvents(query: ListEventsQuery, actor: Actor): Promise<Page<EventView>> {
+    const ids = this.visibleIds(actor, ['events:read'], 'events');
+    return this.pageWithThumbnails(await this.repo.listEvents(actor.orgId, query, ids));
+  }
+
+  async getEvent(id: string, actor: Actor): Promise<EventView> {
+    const event = await this.findEvent(id, actor);
+    if (!event) {
+      throw new NotFoundError('Event', id);
+    }
+    return event;
+  }
+
+  async findEvent(id: string, actor: Actor): Promise<EventView | null> {
+    this.require(actor, 'events:read', id);
+    const event = await this.repo.findEventById(actor.orgId, id);
+    return event ? this.withThumbnail(event) : null;
+  }
+
+  async createEvent(input: CreateEventInput, actor: Actor): Promise<EventView> {
+    this.require(actor, 'events:write');
+    assertEventTimes(input.startsAt, input.endsAt);
+    const orgId = actor.orgId;
+    const { settings, ...fields } = input;
+    const event = await this.uow.run(async ({ content, outbox }) => {
+      const created = await content.createEvent(orgId, fields);
+      const event = settings
+        ? { ...created, settings: await content.patchEventSettings(orgId, created.id, settings) }
+        : created;
+      await outbox.append([
+        contentEvents.eventCreated.make({ orgId, data: event, metadata: actorMetadata(actor) }),
+      ]);
+      return event;
+    });
+    this.logger.info('event created', {
+      orgId,
+      eventId: event.id,
+      title: event.title,
+      actorId: actor.id,
+    });
+    return this.withThumbnail(event);
+  }
+
+  async updateEvent(id: string, patch: UpdateEventInput, actor: Actor): Promise<EventView> {
+    this.require(actor, 'events:write', id);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      id,
+      [patch.thumbnailAssetId],
+      () => this.eventAssetIds(orgId, id),
+      'An event',
+    );
+    const { settings, ...fields } = patch;
+    const { previous, event } = await this.uow.run(async ({ content, outbox }) => {
+      const previous = await content.findEventById(orgId, id);
+      if (!previous) {
+        this.logger.warn('event update rejected — not found', { orgId, eventId: id });
+        throw new NotFoundError('Event', id);
+      }
+      if (previous.status === 'canceled') {
+        this.logger.warn('event update rejected — canceled', { orgId, eventId: id });
+        throw new ConflictError('The event is canceled', 'canceled');
+      }
+      assertEventTimes(fields.startsAt ?? previous.startsAt, fields.endsAt ?? previous.endsAt);
+      const updated = await content.updateEvent(orgId, id, fields);
+      if (!updated) {
+        throw new NotFoundError('Event', id);
+      }
+      const event: Event = settings
+        ? { ...updated, settings: await content.patchEventSettings(orgId, id, settings) }
+        : updated;
+      await outbox.append([
+        contentEvents.eventUpdated.make({
+          orgId,
+          data: event,
+          metadata: eventChange(actor, previous, event),
+        }),
+      ]);
+      return { previous, event };
+    });
+    this.logger.info('event updated', {
+      orgId,
+      eventId: id,
+      fields: Object.keys(patch),
+      actorId: actor.id,
+    });
+    await this.scheduleStartingSoon(orgId, previous, event);
+    return this.withThumbnail(event);
+  }
+
+  async cancelEvent(id: string, actor: Actor): Promise<EventView> {
+    this.require(actor, 'events:write', id);
+    const orgId = actor.orgId;
+    const event = await this.uow.run(async ({ content, outbox }) => {
+      const previous = await content.findEventById(orgId, id);
+      if (!previous) {
+        this.logger.warn('event cancel rejected — not found', { orgId, eventId: id });
+        throw new NotFoundError('Event', id);
+      }
+      if (previous.status === 'canceled') {
+        this.logger.warn('event cancel rejected — already canceled', { orgId, eventId: id });
+        throw new ConflictError('The event is already canceled', 'canceled');
+      }
+      const updated = await content.updateEvent(orgId, id, { status: 'canceled' });
+      if (!updated) {
+        throw new NotFoundError('Event', id);
+      }
+      await outbox.append([
+        contentEvents.eventUpdated.make({
+          orgId,
+          data: updated,
+          metadata: eventChange(actor, previous, updated),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('event canceled', { orgId, eventId: id, actorId: actor.id });
+    await this.cancelStartingSoon(orgId, id);
+    return this.withThumbnail(event);
+  }
+
+  async deleteEvent(id: string, actor: Actor): Promise<void> {
+    this.require(actor, 'events:delete', id);
+    const orgId = actor.orgId;
+    await this.uow.run(async ({ content, outbox }) => {
+      const event = await content.findEventById(orgId, id);
+      if (!event) {
+        this.logger.warn('event delete rejected — not found', { orgId, eventId: id });
+        throw new NotFoundError('Event', id);
+      }
+      const linked = await content.spacesLinkingContent(orgId, id);
+      const ok = await content.deleteEvent(orgId, id);
+      if (!ok) {
+        throw new NotFoundError('Event', id);
+      }
+      await content.deleteEventSettings(orgId, id);
+      await outbox.append([
+        contentEvents.eventDeleted.make({ orgId, data: event, metadata: actorMetadata(actor) }),
+        ...(await this.spaceUpdates(content, orgId, linked, actor)),
+      ]);
+    });
+    this.logger.info('event deleted', { orgId, eventId: id, actorId: actor.id });
+    await this.cancelStartingSoon(orgId, id);
+  }
+
+  async startingSoon(orgId: string, eventId: string, lead: EventLead, now: Date): Promise<void> {
+    const event = await this.repo.findEventById(orgId, eventId);
+    if (!event || event.status !== 'published') {
+      this.logger.debug('event no longer published', { orgId, eventId, lead });
+      return;
+    }
+    const due = new Date(event.startsAt.getTime() - EVENT_LEADS[lead]);
+    if (due > now) {
+      await this.scheduler.at(EVENT_STARTING_SOON_JOB, due, startingSoonKey(eventId, lead), {
+        orgId,
+        eventId,
+        lead,
+      });
+      this.logger.info('event starting soon timer moved', {
+        orgId,
+        eventId,
+        lead,
+        due: due.toISOString(),
+      });
+      return;
+    }
+    await this.uow.run(({ outbox }) =>
+      outbox.append([
+        contentEvents.eventStartingSoon.make({
+          orgId,
+          data: { eventId, lead, startsAt: event.startsAt },
+        }),
+      ]),
+    );
+    this.logger.info('event starting soon', { orgId, eventId, lead });
+  }
+
+  private async scheduleStartingSoon(orgId: string, previous: Event, event: Event): Promise<void> {
+    if (event.status !== 'published') {
+      if (previous.status === 'published') {
+        await this.cancelStartingSoon(orgId, event.id);
+      }
+      return;
+    }
+    if (
+      previous.status === 'published' &&
+      previous.startsAt.getTime() === event.startsAt.getTime()
+    ) {
+      return;
+    }
+    const now = Date.now();
+    for (const lead of EVENT_LEAD_KEYS) {
+      const key = startingSoonKey(event.id, lead);
+      const runAt = new Date(event.startsAt.getTime() - EVENT_LEADS[lead]);
+      try {
+        if (runAt.getTime() > now) {
+          await this.scheduler.at(EVENT_STARTING_SOON_JOB, runAt, key, {
+            orgId,
+            eventId: event.id,
+            lead,
+          });
+        } else {
+          await this.scheduler.cancel(EVENT_STARTING_SOON_JOB, key);
+        }
+      } catch (err) {
+        this.logger.error('event starting soon timer not set', {
+          orgId,
+          eventId: event.id,
+          lead,
+          err,
+        });
+      }
+    }
+  }
+
+  private async cancelStartingSoon(orgId: string, eventId: string): Promise<void> {
+    for (const lead of EVENT_LEAD_KEYS) {
+      try {
+        await this.scheduler.cancel(EVENT_STARTING_SOON_JOB, startingSoonKey(eventId, lead));
+      } catch (err) {
+        this.logger.warn('event starting soon timer not cancelled', { orgId, eventId, lead, err });
+      }
+    }
+  }
+
+  // --- event asset links ---------------------------------------------------
+
+  async listEventAssets(eventId: string, actor: Actor): Promise<EventFile[]> {
+    this.require(actor, 'events:read', eventId);
+    const orgId = actor.orgId;
+    if (!(await this.repo.findEventById(orgId, eventId))) {
+      throw new NotFoundError('Event', eventId);
+    }
+    return this.eventFiles(orgId, await this.repo.listEventAssets(orgId, eventId));
+  }
+
+  async addEventAsset(
+    eventId: string,
+    input: AddEventAssetInput,
+    actor: Actor,
+  ): Promise<EventFile[]> {
+    this.require(actor, 'events:write', eventId);
+    const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      eventId,
+      [input.assetId],
+      () => this.eventAssetIds(orgId, eventId),
+      'An event',
+    );
+    const assets = await this.uow.run(({ content }) =>
+      content.addEventAsset(orgId, eventId, input),
+    );
+    this.logger.info('event asset added', {
+      orgId,
+      eventId,
+      assetId: input.assetId,
+      actorId: actor.id,
+    });
+    return this.eventFiles(orgId, assets);
+  }
+
+  async removeEventAsset(eventId: string, assetId: string, actor: Actor): Promise<EventFile[]> {
+    this.require(actor, 'events:write', eventId);
+    const orgId = actor.orgId;
+    const assets = await this.uow.run(({ content }) =>
+      content.removeEventAsset(orgId, eventId, assetId),
+    );
+    this.logger.info('event asset removed', { orgId, eventId, assetId, actorId: actor.id });
+    return this.eventFiles(orgId, assets);
+  }
+
+  async renameEventAsset(
+    eventId: string,
+    assetId: string,
+    displayName: string | null,
+    actor: Actor,
+  ): Promise<EventFile[]> {
+    this.require(actor, 'events:write', eventId);
+    const orgId = actor.orgId;
+    const assets = await this.uow.run(({ content }) =>
+      content.renameEventAsset(orgId, eventId, assetId, displayName),
+    );
+    this.logger.info('event asset renamed', { orgId, eventId, assetId, actorId: actor.id });
+    return this.eventFiles(orgId, assets);
+  }
+
+  async reorderEventAssets(
+    eventId: string,
+    assetIds: string[],
+    actor: Actor,
+  ): Promise<EventFile[]> {
+    this.require(actor, 'events:write', eventId);
+    const orgId = actor.orgId;
+    const assets = await this.uow.run(async ({ content }) => {
+      const current = await content.listEventAssets(orgId, eventId);
+      if (
+        !sameIdSet(
+          current.map((link) => link.assetId),
+          assetIds,
+        )
+      ) {
+        this.logger.warn('event asset reorder rejected — id set mismatch', {
+          orgId,
+          eventId,
+          assetIds,
+        });
+        throw new ConflictError("Ordered asset ids does not match the event's current assets");
+      }
+      return content.reorderEventAssets(orgId, eventId, assetIds);
+    });
+    this.logger.debug('event assets reordered', { orgId, eventId });
+    return this.eventFiles(orgId, assets);
   }
 
   // --- bundles --------------------------------------------------------------

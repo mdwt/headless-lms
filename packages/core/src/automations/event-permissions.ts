@@ -17,6 +17,7 @@ const BY_PREFIX: ReadonlyArray<[string, readonly Permission[]]> = [
   ['content.download.', ['downloads:read']],
   ['content.bundle.', ['bundles:read']],
   ['content.community.', ['communities:read']],
+  ['content.event.', ['events:read']],
   ['discussion.comment.', ['courses:moderate', 'communities:moderate']],
   ['discussion.', ['communities:moderate']],
   ['asset.', ['media:read']],

@@ -554,7 +554,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
           entitlementEvents.spaceMemberUpdated.make({
             orgId,
             data: next,
-            metadata: { actorOrgUserId: actor.id, previousStatus: row.status },
+            metadata: { actorId: actor.id, previousStatus: row.status },
           }),
         ]);
         return { updated: next, previousStatus: row.status };
@@ -889,7 +889,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       entitlementEvents.spaceMemberCreated.make({
         orgId,
         data: created,
-        metadata: { actorOrgUserId: actor.id },
+        metadata: { actorId: actor.id },
       }),
     ]);
     return created;
@@ -930,7 +930,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         entitlementEvents.spaceMemberUpdated.make({
           orgId,
           data: next,
-          metadata: { actorOrgUserId: actor.id, previousStatus: from },
+          metadata: { actorId: actor.id, previousStatus: from },
         }),
       ]);
       return next;
@@ -966,7 +966,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
         entitlementEvents.spaceMemberDeleted.make({
           orgId,
           data: current,
-          metadata: { actorOrgUserId: actor.id, previousStatus: from },
+          metadata: { actorId: actor.id, previousStatus: from },
         }),
       ]);
       return current;

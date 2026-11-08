@@ -12,6 +12,8 @@ import {
   ilike,
   or,
   inArray,
+  gt,
+  lt,
   type SQL,
   type AnyColumn,
 } from "drizzle-orm";
@@ -39,6 +41,14 @@ import type {
   Download,
   DownloadAsset,
   DownloadStatus,
+  Event,
+  EventAsset,
+  EventPatch,
+  EventSettings,
+  EventStatus,
+  AddEventAssetInput,
+  CreateEventInput,
+  ListEventsQuery,
   ListBundlesQuery,
   ListCommunitiesQuery,
   ListCoursesQuery,
@@ -61,6 +71,7 @@ import {
   communitySettingsDefaults,
   courseSettingsDefaults,
   digestScheduleSchema,
+  eventSettingsDefaults,
   spaceSettingsDefaults,
   type Setting,
 } from "@headless-lms/core/schemas";
@@ -75,6 +86,8 @@ import {
   activityAssets,
   downloads,
   downloadAssets,
+  eventAssets,
+  events,
   spaceLinks,
   spaceTopics,
   spaces,
@@ -117,6 +130,28 @@ const communitySettingsJoin = and(
   eq(settings.namespace, SETTINGS_NAMESPACE),
   eq(settings.scopeId, communities.id),
 );
+
+const eventSettingsJoin = and(
+  eq(settings.orgId, events.orgId),
+  eq(settings.namespace, SETTINGS_NAMESPACE),
+  eq(settings.scopeId, events.id),
+);
+
+function toEvent(
+  row: typeof events.$inferSelect,
+  storedSettings: Record<string, unknown> | null,
+): Event {
+  return {
+    ...row,
+    status: row.status as EventStatus,
+    settings: { ...eventSettingsDefaults, ...storedSettings } as EventSettings,
+  };
+}
+
+const eventSortColumns: Record<string, AnyColumn | SQL> = {
+  startsAt: events.startsAt,
+  title: events.title,
+};
 
 function storedDigest(value: unknown): DigestSchedule | null {
   const parsed = digestScheduleSchema.safeParse(value);
@@ -972,6 +1007,281 @@ export class DrizzleContentRepository implements ContentRepository {
         );
     }
     return this.listDownloadAssets(orgId, downloadId);
+  }
+
+  // --- events -----------------------------------------------------------
+
+  async listEvents(orgId: string, query: ListEventsQuery, ids?: string[]): Promise<Page<Event>> {
+    if (ids?.length === 0) {
+      return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
+    }
+    const conditions: SQL[] = [eq(events.orgId, orgId)];
+    if (ids) {
+      conditions.push(inArray(events.id, ids));
+    }
+    if (query.status) {
+      conditions.push(eq(events.status, query.status));
+    }
+    if (query.from) {
+      conditions.push(gt(events.endsAt, query.from));
+    }
+    if (query.to) {
+      conditions.push(lt(events.startsAt, query.to));
+    }
+    const search = query.search?.trim();
+    if (search) {
+      conditions.push(ilike(events.title, `%${search}%`));
+    }
+    const where = and(...conditions);
+
+    const sort = query.sort ?? "startsAt";
+    const isDesc = sort.startsWith("-");
+    const sortExpr = eventSortColumns[isDesc ? sort.slice(1) : sort] ?? events.startsAt;
+    const direction = isDesc ? desc : asc;
+
+    const rows = await this.db
+      .select({ event: events, settingsValue: settings.value })
+      .from(events)
+      .leftJoin(settings, eventSettingsJoin)
+      .where(where)
+      .orderBy(direction(sortExpr), direction(events.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+
+    const [totalRow] = await this.db.select({ value: count() }).from(events).where(where);
+
+    return {
+      rows: rows.map((row) => toEvent(row.event, row.settingsValue)),
+      total: totalRow?.value ?? 0,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
+
+  async findEventById(orgId: string, id: string): Promise<Event | null> {
+    const [row] = await this.db
+      .select({ event: events, settingsValue: settings.value })
+      .from(events)
+      .leftJoin(settings, eventSettingsJoin)
+      .where(and(eq(events.orgId, orgId), eq(events.id, id)))
+      .limit(1);
+    return row ? toEvent(row.event, row.settingsValue) : null;
+  }
+
+  async createEvent(orgId: string, input: Omit<CreateEventInput, "settings">): Promise<Event> {
+    const id = genId("contentEvent");
+    await this.db.insert(contentItems).values({ orgId, id, type: "event" });
+    await this.db.insert(events).values({
+      orgId,
+      id,
+      title: input.title,
+      description: input.description ?? "",
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      timeZone: input.timeZone,
+      ...(input.location && { location: input.location }),
+    });
+    const created = await this.findEventById(orgId, id);
+    if (!created) {
+      throw new Error("failed to load created event");
+    }
+    return created;
+  }
+
+  async updateEvent(orgId: string, id: string, patch: EventPatch): Promise<Event | null> {
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    for (const key of [
+      "title",
+      "description",
+      "startsAt",
+      "endsAt",
+      "timeZone",
+      "location",
+      "thumbnailAssetId",
+      "recording",
+      "status",
+    ] as const) {
+      if (patch[key] !== undefined) {
+        set[key] = patch[key];
+      }
+    }
+    const [updated] = await this.db
+      .update(events)
+      .set(set)
+      .where(and(eq(events.orgId, orgId), eq(events.id, id)))
+      .returning({ id: events.id });
+    if (!updated) {
+      return null;
+    }
+    return this.findEventById(orgId, id);
+  }
+
+  async patchEventSettings(
+    orgId: string,
+    id: string,
+    value: Partial<EventSettings>,
+  ): Promise<EventSettings> {
+    const key = and(
+      eq(settings.orgId, orgId),
+      eq(settings.namespace, SETTINGS_NAMESPACE),
+      eq(settings.scopeId, id),
+    );
+    const merged = await this.tx(async (tx) => {
+      let [existing] = await tx.select().from(settings).where(key).for("update");
+      if (!existing) {
+        const [inserted] = await tx
+          .insert(settings)
+          .values({
+            orgId,
+            namespace: SETTINGS_NAMESPACE,
+            scopeId: id,
+            value: value as Setting["value"],
+          })
+          .onConflictDoNothing()
+          .returning();
+        if (inserted) {
+          return inserted.value;
+        }
+        [existing] = await tx.select().from(settings).where(key).for("update");
+        if (!existing) {
+          throw new Error("event settings patch: row vanished mid-transaction");
+        }
+      }
+      const [updated] = await tx
+        .update(settings)
+        .set({ value: deepMerge(existing.value, value) as Setting["value"], updatedAt: new Date() })
+        .where(key)
+        .returning();
+      if (!updated) {
+        throw new Error("event settings patch returned no row");
+      }
+      return updated.value;
+    });
+    return { ...eventSettingsDefaults, ...merged } as EventSettings;
+  }
+
+  async deleteEvent(orgId: string, id: string): Promise<boolean> {
+    const deleted = await this.db
+      .delete(contentItems)
+      .where(
+        and(eq(contentItems.orgId, orgId), eq(contentItems.id, id), eq(contentItems.type, "event")),
+      )
+      .returning({ id: contentItems.id });
+    return deleted.length > 0;
+  }
+
+  async deleteEventSettings(orgId: string, id: string): Promise<void> {
+    await this.db
+      .delete(settings)
+      .where(
+        and(
+          eq(settings.orgId, orgId),
+          eq(settings.namespace, SETTINGS_NAMESPACE),
+          eq(settings.scopeId, id),
+        ),
+      );
+  }
+
+  async listEventAssets(orgId: string, eventId: string): Promise<EventAsset[]> {
+    return this.db
+      .select()
+      .from(eventAssets)
+      .where(and(eq(eventAssets.orgId, orgId), eq(eventAssets.eventId, eventId)))
+      .orderBy(asc(eventAssets.seq));
+  }
+
+  private async assertEvent(orgId: string, eventId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.orgId, orgId), eq(events.id, eventId)))
+      .limit(1);
+    if (!row) {
+      throw new NotFoundError("Event", eventId);
+    }
+  }
+
+  async addEventAsset(
+    orgId: string,
+    eventId: string,
+    input: AddEventAssetInput,
+  ): Promise<EventAsset[]> {
+    await this.assertEvent(orgId, eventId);
+    const [maxRow] = await this.db
+      .select({ maxSeq: sql<number | null>`max(${eventAssets.seq})` })
+      .from(eventAssets)
+      .where(and(eq(eventAssets.orgId, orgId), eq(eventAssets.eventId, eventId)));
+    const nextSeq = (maxRow?.maxSeq ?? -1) + 1;
+    try {
+      await this.db.insert(eventAssets).values({
+        orgId,
+        eventId,
+        assetId: input.assetId,
+        seq: nextSeq,
+        displayName: input.displayName ?? null,
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictError("This asset is already linked to the event");
+      }
+      throw err;
+    }
+    return this.listEventAssets(orgId, eventId);
+  }
+
+  async removeEventAsset(orgId: string, eventId: string, assetId: string): Promise<EventAsset[]> {
+    await this.assertEvent(orgId, eventId);
+    await this.db
+      .delete(eventAssets)
+      .where(
+        and(
+          eq(eventAssets.orgId, orgId),
+          eq(eventAssets.eventId, eventId),
+          eq(eventAssets.assetId, assetId),
+        ),
+      );
+    return this.listEventAssets(orgId, eventId);
+  }
+
+  async renameEventAsset(
+    orgId: string,
+    eventId: string,
+    assetId: string,
+    displayName: string | null,
+  ): Promise<EventAsset[]> {
+    await this.assertEvent(orgId, eventId);
+    await this.db
+      .update(eventAssets)
+      .set({ displayName })
+      .where(
+        and(
+          eq(eventAssets.orgId, orgId),
+          eq(eventAssets.eventId, eventId),
+          eq(eventAssets.assetId, assetId),
+        ),
+      );
+    return this.listEventAssets(orgId, eventId);
+  }
+
+  async reorderEventAssets(
+    orgId: string,
+    eventId: string,
+    assetIds: string[],
+  ): Promise<EventAsset[]> {
+    await this.assertEvent(orgId, eventId);
+    for (const [seq, assetId] of assetIds.entries()) {
+      await this.db
+        .update(eventAssets)
+        .set({ seq })
+        .where(
+          and(
+            eq(eventAssets.orgId, orgId),
+            eq(eventAssets.eventId, eventId),
+            eq(eventAssets.assetId, assetId),
+          ),
+        );
+    }
+    return this.listEventAssets(orgId, eventId);
   }
 
   // --- bundles ----------------------------------------------------------

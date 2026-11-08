@@ -10,12 +10,14 @@ const PORTAL_PATH: Record<Exclude<Params["contentType"], "bundle">, string> = {
   course: "courses",
   download: "downloads",
   community: "communities",
+  event: "events",
 };
 
 const BUTTON: Record<Params["contentType"], string> = {
   course: "Start learning",
   download: "View download",
   community: "Open community",
+  event: "Open event",
   bundle: "Open your library",
 };
 

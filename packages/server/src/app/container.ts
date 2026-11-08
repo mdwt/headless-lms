@@ -52,6 +52,7 @@ import {
   CommunityNotificationCategories,
   ContentItemTitles,
   ContentService,
+  contentJobs,
 } from '@headless-lms/core/content';
 import {
   EntitlementsServiceImpl,
@@ -428,6 +429,7 @@ export async function buildContainer(
     libraryAssets: assets,
     files: assets,
     fileUrls,
+    scheduler: automationEngine,
     logger: contentLogger,
   });
   const pushConfig = options?.adapters?.push ?? {};
@@ -770,6 +772,7 @@ export async function buildContainer(
   automationEngine.registerJobs(
     [
       ...discussionJobs({ posts, digests, logger: discussionLogger }),
+      ...contentJobs({ events: content, logger: contentLogger }),
       ...entitlementsJobs({ grants: entitlements }),
       ...assetsJobs({ assets, orgs: organizations, logger: assetsLogger }),
       ...notificationJobs({

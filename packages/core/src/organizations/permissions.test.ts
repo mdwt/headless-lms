@@ -104,7 +104,7 @@ describe('default set', () => {
     expect(() => validateRoleSet(withRole('x', ['org'], ['nope:read' as never]))).toThrow(
       /unknown permission/,
     );
-    expect(() => validateRoleSet(withRole('x', ['event' as never], []))).toThrow(/unknown level/);
+    expect(() => validateRoleSet(withRole('x', ['podcast' as never], []))).toThrow(/unknown level/);
     expect(() => validateRoleSet(withRole('x', [], []))).toThrow(/no level/);
     expect(() => validateRoleSet(withRole('x', ['course'], ['people:write']))).toThrow(
       /doesn't fit/,

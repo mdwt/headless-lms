@@ -213,12 +213,12 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.organizationUpdated.make({
           orgId,
           data: next,
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       return next;
     });
-    this.logger.info('organization updated', { orgId, actorOrgUserId: actor.id });
+    this.logger.info('organization updated', { orgId, actorId: actor.id });
     return updated;
   }
 
@@ -472,12 +472,12 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.roleUpdated.make({
           orgId,
           data: { key, before: snapshot(before), after: snapshot(after) },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       return after;
     });
-    this.logger.info('role updated', { orgId, roleKey: key, actorOrgUserId: actor.id });
+    this.logger.info('role updated', { orgId, roleKey: key, actorId: actor.id });
     return roleView(result, await this.roles.countHolders(orgId, key));
   }
 
@@ -515,12 +515,12 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.roleCreated.make({
           orgId,
           data: { role: snapshot(role) },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       return role;
     });
-    this.logger.info('role created', { orgId, roleKey: key, actorOrgUserId: actor.id });
+    this.logger.info('role created', { orgId, roleKey: key, actorId: actor.id });
     return roleView(created, 0);
   }
 
@@ -553,12 +553,12 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.roleUpdated.make({
           orgId,
           data: { key, before: snapshot(before), after: snapshot(after) },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       return after;
     });
-    this.logger.info('role reset', { orgId, roleKey: key, actorOrgUserId: actor.id });
+    this.logger.info('role reset', { orgId, roleKey: key, actorId: actor.id });
     return roleView(result, await this.roles.countHolders(orgId, key));
   }
 
@@ -587,11 +587,11 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.roleDeleted.make({
           orgId,
           data: { key },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
     });
-    this.logger.info('role deleted', { orgId, roleKey: key, actorOrgUserId: actor.id });
+    this.logger.info('role deleted', { orgId, roleKey: key, actorId: actor.id });
   }
 
   async listTeam(query: MembersQuery, actor: Actor): Promise<Page<Member>> {
@@ -721,7 +721,7 @@ export class OrganizationServiceImpl implements OrganizationService {
           orgUserId,
           inviteId: pending.id,
           roleKey,
-          actorOrgUserId: actor.id,
+          actorId: actor.id,
         });
         return;
       }
@@ -745,11 +745,11 @@ export class OrganizationServiceImpl implements OrganizationService {
               contentType: null,
               previousRoleKey: previousKey,
             },
-            metadata: { actorOrgUserId: actor.id },
+            metadata: { actorId: actor.id },
           }),
         ]);
       }
-      this.logger.info('org role set', { orgId, orgUserId, roleKey, actorOrgUserId: actor.id });
+      this.logger.info('org role set', { orgId, orgUserId, roleKey, actorId: actor.id });
     });
     return this.assignmentViews(orgId, orgUserId);
   }
@@ -818,7 +818,7 @@ export class OrganizationServiceImpl implements OrganizationService {
               contentType,
               previousRoleKey: current?.roleKey ?? null,
             },
-            metadata: { actorOrgUserId: actor.id },
+            metadata: { actorId: actor.id },
           }),
         ]);
       }
@@ -828,7 +828,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       orgUserId,
       contentId,
       roleKey,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
     });
     return this.assignmentViews(orgId, orgUserId);
   }
@@ -869,7 +869,7 @@ export class OrganizationServiceImpl implements OrganizationService {
               contentId,
               contentType: current.contentType,
             },
-            metadata: { actorOrgUserId: actor.id },
+            metadata: { actorId: actor.id },
           }),
         ]);
       }
@@ -878,7 +878,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       orgId,
       orgUserId,
       contentId,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
     });
     return this.assignmentViews(orgId, orgUserId);
   }
@@ -916,7 +916,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       }
       await this.deleteOrgUserIn(scope, orgId, orgUser, held, actor.id);
     });
-    this.logger.info('person removed', { orgId, orgUserId, actorOrgUserId: actor.id });
+    this.logger.info('person removed', { orgId, orgUserId, actorId: actor.id });
     await this.cleanUpAfterRemoval(orgId, orgUserId, person);
   }
 
@@ -924,7 +924,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!actor.permissions.isOwner()) {
       this.logger.warn('ownership transfer refused: caller is not the owner', {
         orgId: actor.orgId,
-        actorOrgUserId: actor.id,
+        actorId: actor.id,
       });
       throw new ForbiddenError('Only the owner can transfer ownership');
     }
@@ -983,7 +983,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.ownershipTransferred.make({
           orgId,
           data: { previousOwnerOrgUserId: previousOwner.id, newOwnerOrgUserId: newOwner.id },
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
     });
@@ -1019,7 +1019,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     const known = await this.people.getUserByEmail(email);
     const existing = known ? await this.repo.findOrgUser(orgId, known.id) : null;
     if (existing?.id === actor.id) {
-      this.logger.warn('invite refused: inviting yourself', { orgId, actorOrgUserId: actor.id });
+      this.logger.warn('invite refused: inviting yourself', { orgId, actorId: actor.id });
       throw new ForbiddenError("You can't change your own roles");
     }
     let contributed = role.permissions;
@@ -1072,7 +1072,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.inviteCreated.make({
           orgId,
           data: row,
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       );
       await outbox.append(events);
@@ -1095,7 +1095,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       inviteId: invite.id,
       roleKey,
       sendEmail,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
     });
     return invite;
   }
@@ -1122,7 +1122,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       orgId,
       orgUserId,
       inviteId: invite.id,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
     });
   }
 
@@ -1142,7 +1142,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         organizationEvents.inviteCanceled.make({
           orgId,
           data: canceled,
-          metadata: { actorOrgUserId: actor.id },
+          metadata: { actorId: actor.id },
         }),
       ]);
       if (orgUser.status === 'invited' && held.length === 0 && !holdsGrant) {
@@ -1153,7 +1153,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       orgId,
       orgUserId,
       inviteId: invite.id,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
     });
   }
 
@@ -1269,7 +1269,7 @@ export class OrganizationServiceImpl implements OrganizationService {
               contentType: null,
               previousRoleKey: previousKey,
             },
-            metadata: { actorOrgUserId: inviter.id },
+            metadata: { actorId: inviter.id },
           }),
         );
       }
@@ -1337,7 +1337,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (missing.length > 0) {
       this.logger.warn('api key refused: scopes not held', {
         orgId: actor.orgId,
-        actorOrgUserId: actor.id,
+        actorId: actor.id,
         missing,
       });
       throw new ForbiddenError(`You don't hold ${missing.join(', ')}`);
@@ -1351,7 +1351,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     );
     this.logger.info('api key created', {
       orgId: actor.orgId,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
       keyId: created.id,
     });
     return created;
@@ -1361,7 +1361,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     actor.permissions.require('api_keys:delete');
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
     await this.apiKeys().revoke(orgExternalId, userExternalId, keyId);
-    this.logger.info('api key revoked', { orgId: actor.orgId, actorOrgUserId: actor.id, keyId });
+    this.logger.info('api key revoked', { orgId: actor.orgId, actorId: actor.id, keyId });
   }
 
   async listConnectedApps(actor: Actor): Promise<ConnectedApp[]> {
@@ -1374,7 +1374,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     await this.apiKeys().revokeApp(orgExternalId, userExternalId, clientId);
     this.logger.info('connected app revoked', {
       orgId: actor.orgId,
-      actorOrgUserId: actor.id,
+      actorId: actor.id,
       clientId,
     });
   }
@@ -1482,7 +1482,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     orgId: string,
     orgUser: OrgUser,
     held: { roleKey: string; contentId: string | null }[],
-    actorOrgUserId: string,
+    actorId: string,
   ): Promise<OrgUser | null> {
     const orgRoleKey = held.find((row) => row.contentId === null)?.roleKey ?? MEMBER_ROLE_KEY;
     const deleted = await scope.organizations.deleteOrgUser(orgId, orgUser.id);
@@ -1493,7 +1493,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       organizationEvents.orgUserDeleted.make({
         orgId,
         data: { ...deleted, orgRole: { key: orgRoleKey } },
-        metadata: { actorOrgUserId },
+        metadata: { actorId },
       }),
     ];
     if (orgRoleKey === MEMBER_ROLE_KEY) {
@@ -1635,7 +1635,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (missing.length > 0) {
       this.logger.warn('refused: editor lacks permissions', {
         orgId: actor.orgId,
-        actorOrgUserId: actor.id,
+        actorId: actor.id,
         missing,
       });
       throw new ForbiddenError(`You need ${missing.join(', ')}`);
@@ -1647,7 +1647,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (missing.length > 0) {
       this.logger.warn('refused: editor lacks permissions on the item', {
         orgId: actor.orgId,
-        actorOrgUserId: actor.id,
+        actorId: actor.id,
         contentId,
         missing,
       });

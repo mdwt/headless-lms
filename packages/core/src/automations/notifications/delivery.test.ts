@@ -21,7 +21,7 @@ const notification: StoredNotification = {
   category: 'mentions',
   communityId: 'cmy_1',
   spaceId: 'spc_2',
-  actorOrgUserId: 'ou_james',
+  actorId: 'ou_james',
   subject: { type: 'comment', id: 'cmt_1' },
   parent: { type: 'post', id: 'pst_1' },
   display: { authorName: 'James', excerpt: 'Nice', postTitle: 'My first recording' },

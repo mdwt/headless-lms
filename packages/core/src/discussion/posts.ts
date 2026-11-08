@@ -72,7 +72,7 @@ export type PostServiceParams = {
   logger?: Logger;
 };
 
-type EventMeta = { actorOrgUserId?: string; previousStatus?: PostStatus | null };
+type EventMeta = { actorId?: string; previousStatus?: PostStatus | null };
 
 const MAX_BODY_ASSETS = 20;
 const INLINE_TYPES = /^(image\/(png|jpeg|gif|webp|avif)|video\/.+|audio\/.+|application\/pdf)$/i;
@@ -1223,7 +1223,7 @@ export class PostServiceImpl implements PostService {
 
   private meta(actor: Actor | null, previousStatus?: PostStatus | null): EventMeta {
     return {
-      ...(actor ? { actorOrgUserId: actor.id } : {}),
+      ...(actor ? { actorId: actor.id } : {}),
       ...(previousStatus !== undefined ? { previousStatus } : {}),
     };
   }

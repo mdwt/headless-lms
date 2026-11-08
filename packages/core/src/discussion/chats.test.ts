@@ -820,8 +820,8 @@ describe('chats', () => {
       'discussion.chat.created',
       'discussion.message.sent',
     ]);
-    expect(calls[0]?.[0]?.metadata).toEqual({ actorOrgUserId: member.id });
-    expect(calls[0]?.[1]?.metadata).toEqual({ actorOrgUserId: member.id, chatStatus: 'pending' });
+    expect(calls[0]?.[0]?.metadata).toEqual({ actorId: member.id });
+    expect(calls[0]?.[1]?.metadata).toEqual({ actorId: member.id, chatStatus: 'pending' });
     expect(dataOf(calls[0]![0]!).participantIds).toEqual([member.id, other.id].sort());
   });
 
@@ -1080,8 +1080,8 @@ describe('chats', () => {
       'discussion.chat.updated',
       'discussion.message.sent',
     ]);
-    expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorOrgUserId: other.id });
-    expect(calls.at(-1)?.[1]?.metadata).toEqual({ actorOrgUserId: other.id, chatStatus: 'open' });
+    expect(calls.at(-1)?.[0]?.metadata).toEqual({ actorId: other.id });
+    expect(calls.at(-1)?.[1]?.metadata).toEqual({ actorId: other.id, chatStatus: 'open' });
     await expect(svc.accept(chat.id, other)).rejects.toThrow('This chat is not a request');
     await svc.send(chat.id, messageInput('Hi'), member);
   });
@@ -2155,7 +2155,7 @@ describe('message events', () => {
         .flat()
         .filter((row) => row.type === 'discussion.message.updated')
         .at(-1)?.metadata,
-    ).toEqual({ actorOrgUserId: member.id, chatStatus: 'open' });
+    ).toEqual({ actorId: member.id, chatStatus: 'open' });
     await h.svc.editMessage(sent.id, 'hi <@ou_third>', member);
     expect(dataOfLast(h.calls, 'discussion.message.updated')?.mentionedOrgUserIds).toEqual([]);
   });

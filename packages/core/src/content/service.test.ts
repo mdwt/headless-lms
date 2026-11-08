@@ -1,12 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
 import type { Community, SpaceDetail } from './model.js';
 import { ContentService } from './service.js';
 import { contentDeclarations } from './declarations.js';
 import { contentEvents } from './events.js';
 import type { ContentAssetReader, ContentRepository, ContentUnitOfWork } from './ports.js';
-import type { Activity, Course, Download, DownloadAsset, Module } from './model.js';
+import type {
+  Activity,
+  Course,
+  Download,
+  DownloadAsset,
+  Event,
+  EventAsset,
+  Module,
+} from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
 import type { AssetFiles } from '../assets/index.js';
 import { actorWith } from '../organizations/index.js';
@@ -91,6 +104,18 @@ function makeRepo(): ContentRepository {
     removeSpaceLink: vi.fn(),
     reorderSpaceLinks: vi.fn(),
     spacesLinkingContent: vi.fn().mockResolvedValue([]),
+    listEvents: vi.fn(),
+    findEventById: vi.fn(),
+    createEvent: vi.fn(),
+    updateEvent: vi.fn(),
+    patchEventSettings: vi.fn(),
+    deleteEvent: vi.fn(),
+    deleteEventSettings: vi.fn(),
+    listEventAssets: vi.fn().mockResolvedValue([]),
+    addEventAsset: vi.fn(),
+    removeEventAsset: vi.fn(),
+    renameEventAsset: vi.fn(),
+    reorderEventAssets: vi.fn(),
   };
 }
 
@@ -135,10 +160,25 @@ const files: Pick<AssetFiles, 'readyFiles'> = {
 
 const fileUrls = createFileUrls('https://api.test');
 
+function fakeScheduler() {
+  return {
+    at: vi.fn(async (_job: string, _runAt: Date, _key: string, _payload: unknown) => {}),
+    cancel: vi.fn(async (_job: string, _key: string) => {}),
+  };
+}
+
 function build(repo = makeRepo(), assets: ContentAssetReader = libraryAssets) {
   const { uow, append, appended } = fakeUow(repo);
-  const svc = new ContentService({ repo, uow, libraryAssets: assets, files, fileUrls });
-  return { svc, repo, append, appended };
+  const scheduler = fakeScheduler();
+  const svc = new ContentService({
+    repo,
+    uow,
+    libraryAssets: assets,
+    files,
+    fileUrls,
+    scheduler,
+  });
+  return { svc, repo, append, appended, scheduler };
 }
 
 function makeActivity(over: Partial<Activity> = {}): Activity {
@@ -772,6 +812,7 @@ describe('logging', () => {
       libraryAssets,
       files,
       fileUrls,
+      scheduler: fakeScheduler(),
       logger,
     });
 
@@ -803,6 +844,7 @@ describe('logging', () => {
       libraryAssets,
       files,
       fileUrls,
+      scheduler: fakeScheduler(),
       logger,
     });
 
@@ -834,6 +876,7 @@ describe('logging', () => {
       libraryAssets,
       files,
       fileUrls,
+      scheduler: fakeScheduler(),
       logger,
     });
 
@@ -1122,7 +1165,7 @@ describe('communities', () => {
         version: 1,
         orgId: 'org1',
         data: community,
-        metadata: { actorOrgUserId: 'ou_owner' },
+        metadata: { actorId: 'ou_owner' },
       },
     ]);
   });
@@ -1151,7 +1194,7 @@ describe('communities', () => {
     expect(repo.deleteCommunitySettings).toHaveBeenCalledWith('org1', community.id);
     expect(appended[0]).toMatchObject({
       type: 'content.community.deleted',
-      metadata: { actorOrgUserId: 'ou_owner' },
+      metadata: { actorId: 'ou_owner' },
     });
   });
 
@@ -1309,7 +1352,14 @@ describe('spaces', () => {
       calls.push('write');
       return space;
     });
-    const svc = new ContentService({ repo: makeRepo(), uow, libraryAssets, files, fileUrls });
+    const svc = new ContentService({
+      repo: makeRepo(),
+      uow,
+      libraryAssets,
+      files,
+      fileUrls,
+      scheduler: fakeScheduler(),
+    });
     const input = {
       topics: [
         { id: 'top_b', name: 'Wins' },
@@ -1386,7 +1436,7 @@ describe('spaces', () => {
 
     expect(appended[1]).toMatchObject({
       type: 'content.community.space.updated',
-      metadata: { actorOrgUserId: 'ou_owner' },
+      metadata: { actorId: 'ou_owner' },
     });
   });
 
@@ -1402,7 +1452,7 @@ describe('spaces', () => {
 
     expect(appended[1]).toMatchObject({
       type: 'content.community.space.updated',
-      metadata: { actorOrgUserId: 'ou_owner' },
+      metadata: { actorId: 'ou_owner' },
     });
   });
 
@@ -1418,7 +1468,7 @@ describe('spaces', () => {
 
     expect(appended[1]).toMatchObject({
       type: 'content.community.space.updated',
-      metadata: { actorOrgUserId: 'ou_owner' },
+      metadata: { actorId: 'ou_owner' },
     });
   });
 });
@@ -1882,5 +1932,488 @@ describe('item reads', () => {
     await expect(svc.findDownload('dl_x', owner)).resolves.toBeNull();
     await expect(svc.findBundle('bnd_x', owner)).resolves.toBeNull();
     await expect(svc.findCommunity('cmy_x', owner)).resolves.toBeNull();
+  });
+});
+
+const HOUR = 60 * 60 * 1000;
+
+function makeEvent(over: Partial<Event> = {}): Event {
+  return {
+    orgId: 'o1',
+    id: 'evn_1',
+    type: 'event',
+    title: 'Conversation practice',
+    description: '',
+    thumbnailAssetId: null,
+    status: 'draft',
+    startsAt: new Date(Date.now() + 72 * HOUR),
+    endsAt: new Date(Date.now() + 73 * HOUR),
+    timeZone: 'Europe/London',
+    location: { venue: null, online: { url: 'https://zoom.us/j/123', details: null } },
+    recording: null,
+    settings: { type: 'public', capacity: null, notifications: true, replay: true },
+    createdAt: AT,
+    updatedAt: AT,
+    ...over,
+  };
+}
+
+function updatesEventTo(repo: ContentRepository, previous: Event, next: Event) {
+  vi.mocked(repo.findEventById).mockResolvedValue(previous);
+  vi.mocked(repo.updateEvent).mockResolvedValue(next);
+}
+
+describe('events', () => {
+  const tom = actorWith({ id: 'ou_tom', orgId: 'o1', org: ['events:write'] });
+
+  it('creates a draft event with its settings and appends content.event.created', async () => {
+    const repo = makeRepo();
+    const event = makeEvent();
+    vi.mocked(repo.createEvent).mockResolvedValue(event);
+    vi.mocked(repo.patchEventSettings).mockResolvedValue({ ...event.settings, capacity: 20 });
+    const { svc, appended, scheduler } = build(repo);
+
+    const input = {
+      title: event.title,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      timeZone: event.timeZone,
+      settings: { capacity: 20 },
+    };
+    const result = await svc.createEvent(input, tom);
+
+    const { settings: _settings, ...fields } = input;
+    expect(repo.createEvent).toHaveBeenCalledWith('o1', fields);
+    expect(repo.patchEventSettings).toHaveBeenCalledWith('o1', 'evn_1', { capacity: 20 });
+    const created = { ...event, settings: { ...event.settings, capacity: 20 } };
+    expect(result).toEqual({ ...created, thumbnailUrl: null });
+    expect(appended).toEqual([
+      {
+        type: 'content.event.created',
+        version: 1,
+        orgId: 'o1',
+        data: created,
+        metadata: { actorId: 'ou_tom' },
+      },
+    ]);
+    expect(scheduler.at).not.toHaveBeenCalled();
+  });
+
+  it('refuses to create an event without events:write on the org', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+    const onOne = actorWith({ orgId: 'o1', content: { evn_1: ['events:write'] } });
+    const input = {
+      title: 'x',
+      startsAt: new Date(),
+      endsAt: new Date(Date.now() + HOUR),
+      timeZone: 'UTC',
+    };
+
+    await expect(svc.createEvent(input, onOne)).rejects.toThrow(ForbiddenError);
+    expect(repo.createEvent).not.toHaveBeenCalled();
+  });
+
+  it('refuses an event that ends before it starts', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+    const startsAt = new Date();
+
+    await expect(
+      svc.createEvent({ title: 'x', startsAt, endsAt: startsAt, timeZone: 'UTC' }, tom),
+    ).rejects.toThrow(InvalidInputError);
+    vi.mocked(repo.findEventById).mockResolvedValue(makeEvent());
+    await expect(
+      svc.updateEvent('evn_1', { endsAt: new Date(Date.now() - HOUR) }, tom),
+    ).rejects.toThrow(InvalidInputError);
+    expect(repo.createEvent).not.toHaveBeenCalled();
+    expect(repo.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it('publishes an event, carries the previous values and schedules both notices', async () => {
+    const repo = makeRepo();
+    const previous = makeEvent();
+    const published = makeEvent({ status: 'published' });
+    updatesEventTo(repo, previous, published);
+    const { svc, appended, scheduler } = build(repo);
+
+    await svc.updateEvent('evn_1', { status: 'published' }, tom);
+
+    expect(repo.updateEvent).toHaveBeenCalledWith('o1', 'evn_1', { status: 'published' });
+    expect(appended).toEqual([
+      {
+        type: 'content.event.updated',
+        version: 1,
+        orgId: 'o1',
+        data: published,
+        metadata: {
+          actorId: 'ou_tom',
+          previousStatus: 'draft',
+          previousType: 'public',
+          previousStartsAt: previous.startsAt.toISOString(),
+          previousEndsAt: previous.endsAt.toISOString(),
+          locationChanged: false,
+        },
+      },
+    ]);
+    expect(scheduler.at.mock.calls).toEqual([
+      [
+        'content.events.starting_soon',
+        new Date(published.startsAt.getTime() - 24 * HOUR),
+        'evn_1:1d',
+        { orgId: 'o1', eventId: 'evn_1', lead: '1d' },
+      ],
+      [
+        'content.events.starting_soon',
+        new Date(published.startsAt.getTime() - HOUR),
+        'evn_1:1h',
+        { orgId: 'o1', eventId: 'evn_1', lead: '1h' },
+      ],
+    ]);
+    expect(scheduler.cancel).not.toHaveBeenCalled();
+  });
+
+  it('cancels a notice whose time has passed when the event moves', async () => {
+    const repo = makeRepo();
+    const previous = makeEvent({ status: 'published' });
+    const startsAt = new Date(Date.now() + 3 * HOUR);
+    const moved = makeEvent({
+      status: 'published',
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + HOUR),
+    });
+    updatesEventTo(repo, previous, moved);
+    const { svc, scheduler, appended } = build(repo);
+
+    await svc.updateEvent('evn_1', { startsAt, endsAt: moved.endsAt }, tom);
+
+    expect(scheduler.cancel.mock.calls).toEqual([['content.events.starting_soon', 'evn_1:1d']]);
+    expect(scheduler.at.mock.calls).toEqual([
+      [
+        'content.events.starting_soon',
+        new Date(startsAt.getTime() - HOUR),
+        'evn_1:1h',
+        { orgId: 'o1', eventId: 'evn_1', lead: '1h' },
+      ],
+    ]);
+    expect(appended[0]?.metadata).toMatchObject({
+      previousStatus: 'published',
+      previousStartsAt: previous.startsAt.toISOString(),
+    });
+  });
+
+  it('leaves the notices alone when a published event changes but its start does not', async () => {
+    const repo = makeRepo();
+    const previous = makeEvent({ status: 'published' });
+    updatesEventTo(repo, previous, { ...previous, title: 'Renamed' });
+    const { svc, scheduler } = build(repo);
+
+    await svc.updateEvent('evn_1', { title: 'Renamed' }, tom);
+
+    expect(scheduler.at).not.toHaveBeenCalled();
+    expect(scheduler.cancel).not.toHaveBeenCalled();
+  });
+
+  it('cancels both notices on unpublish', async () => {
+    const repo = makeRepo();
+    const previous = makeEvent({ status: 'published' });
+    updatesEventTo(repo, previous, { ...previous, status: 'draft' });
+    const { svc, scheduler } = build(repo);
+
+    await svc.updateEvent('evn_1', { status: 'draft' }, tom);
+
+    expect(scheduler.cancel.mock.calls).toEqual([
+      ['content.events.starting_soon', 'evn_1:1d'],
+      ['content.events.starting_soon', 'evn_1:1h'],
+    ]);
+    expect(scheduler.at).not.toHaveBeenCalled();
+  });
+
+  it('marks a changed location and patches the settings in the same update', async () => {
+    const repo = makeRepo();
+    const previous = makeEvent();
+    const location = {
+      venue: { name: 'The library', address: null },
+      online: previous.location.online,
+    };
+    updatesEventTo(repo, previous, { ...previous, location });
+    vi.mocked(repo.patchEventSettings).mockResolvedValue({
+      ...previous.settings,
+      type: 'private',
+    });
+    const { svc, appended } = build(repo);
+
+    const result = await svc.updateEvent('evn_1', { location, settings: { type: 'private' } }, tom);
+
+    expect(repo.updateEvent).toHaveBeenCalledWith('o1', 'evn_1', { location });
+    expect(repo.patchEventSettings).toHaveBeenCalledWith('o1', 'evn_1', { type: 'private' });
+    expect(result.settings.type).toBe('private');
+    expect(appended[0]?.metadata).toMatchObject({ previousType: 'public', locationChanged: true });
+  });
+
+  it('refuses to change a canceled event with 409 canceled', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findEventById).mockResolvedValue(makeEvent({ status: 'canceled' }));
+    const { svc } = build(repo);
+
+    const refused = svc.updateEvent('evn_1', { status: 'published' }, tom);
+
+    await expect(refused).rejects.toThrow(ConflictError);
+    await expect(refused).rejects.toMatchObject({ code: 'canceled' });
+    expect(repo.updateEvent).not.toHaveBeenCalled();
+  });
+
+  it('needs events:write on the event to update it', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+    const reader = actorWith({ orgId: 'o1', content: { evn_1: ['events:read'] } });
+
+    await expect(svc.updateEvent('evn_1', { title: 'x' }, reader)).rejects.toThrow(ForbiddenError);
+    const host = actorWith({ id: 'ou_host', orgId: 'o1', content: { evn_1: ['events:write'] } });
+    const previous = makeEvent();
+    updatesEventTo(repo, previous, { ...previous, title: 'x' });
+    await expect(svc.updateEvent('evn_1', { title: 'x' }, host)).resolves.toMatchObject({
+      title: 'x',
+    });
+  });
+
+  it('cancels an event, tells automations and drops its notices', async () => {
+    const repo = makeRepo();
+    const previous = makeEvent({ status: 'published' });
+    const canceled = { ...previous, status: 'canceled' as const };
+    updatesEventTo(repo, previous, canceled);
+    const { svc, appended, scheduler } = build(repo);
+
+    await expect(svc.cancelEvent('evn_1', tom)).resolves.toEqual({
+      ...canceled,
+      thumbnailUrl: null,
+    });
+
+    expect(repo.updateEvent).toHaveBeenCalledWith('o1', 'evn_1', { status: 'canceled' });
+    expect(appended).toEqual([
+      expect.objectContaining({
+        type: 'content.event.updated',
+        data: canceled,
+        metadata: expect.objectContaining({ actorId: 'ou_tom', previousStatus: 'published' }),
+      }),
+    ]);
+    expect(scheduler.cancel.mock.calls).toEqual([
+      ['content.events.starting_soon', 'evn_1:1d'],
+      ['content.events.starting_soon', 'evn_1:1h'],
+    ]);
+  });
+
+  it('refuses to cancel an event twice', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findEventById).mockResolvedValue(makeEvent({ status: 'canceled' }));
+    const { svc, appended } = build(repo);
+
+    await expect(svc.cancelEvent('evn_1', tom)).rejects.toMatchObject({ code: 'canceled' });
+    expect(appended).toEqual([]);
+  });
+
+  it('deletes an event with events:delete, purges its settings and drops its notices', async () => {
+    const repo = makeRepo();
+    const event = makeEvent({ status: 'published' });
+    vi.mocked(repo.findEventById).mockResolvedValue(event);
+    vi.mocked(repo.deleteEvent).mockResolvedValue(true);
+    const { svc, appended, scheduler } = build(repo);
+
+    await expect(svc.deleteEvent('evn_1', tom)).rejects.toThrow(ForbiddenError);
+    const sarah = actorWith({ id: 'ou_sarah', orgId: 'o1', org: ['events:delete'] });
+    await svc.deleteEvent('evn_1', sarah);
+
+    expect(repo.deleteEvent).toHaveBeenCalledWith('o1', 'evn_1');
+    expect(repo.deleteEventSettings).toHaveBeenCalledWith('o1', 'evn_1');
+    expect(appended).toEqual([
+      {
+        type: 'content.event.deleted',
+        version: 1,
+        orgId: 'o1',
+        data: event,
+        metadata: { actorId: 'ou_sarah' },
+      },
+    ]);
+    expect(scheduler.cancel).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws NotFoundError for an event that does not exist', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findEventById).mockResolvedValue(null);
+    const { svc } = build(repo);
+
+    await expect(svc.getEvent('evn_x', tom)).rejects.toThrow(NotFoundError);
+    await expect(svc.updateEvent('evn_x', { title: 'x' }, tom)).rejects.toThrow(NotFoundError);
+    await expect(svc.cancelEvent('evn_x', tom)).rejects.toThrow(NotFoundError);
+    await expect(svc.deleteEvent('evn_x', ownerIn('o1'))).rejects.toThrow(NotFoundError);
+    await expect(svc.listEventAssets('evn_x', tom)).rejects.toThrow(NotFoundError);
+  });
+
+  it('lists every event to a holder on the org and only their events otherwise', async () => {
+    const repo = makeRepo();
+    const page = { rows: [makeEvent()], total: 1, page: 1, pageSize: 20 };
+    vi.mocked(repo.listEvents).mockResolvedValue(page);
+    const { svc } = build(repo);
+    const query = { page: 1, pageSize: 20 };
+
+    await svc.listEvents(query, tom);
+    await svc.listEvents(query, actorWith({ orgId: 'o1', content: { evn_1: ['events:read'] } }));
+
+    expect(vi.mocked(repo.listEvents).mock.calls).toEqual([
+      ['o1', query, undefined],
+      ['o1', query, ['evn_1']],
+    ]);
+    await expect(svc.listEvents(query, actorWith({ orgId: 'o1' }))).rejects.toThrow(ForbiddenError);
+  });
+
+  it('leaves the location and recording out of the public data', () => {
+    const event = makeEvent({ recording: { url: 'https://video.test/1', details: null } });
+    const shown = contentEvents.eventUpdated.publicData.parse(event);
+
+    expect(shown).not.toHaveProperty('location');
+    expect(shown).not.toHaveProperty('recording');
+    expect(shown).toMatchObject({ id: 'evn_1', settings: event.settings });
+  });
+});
+
+describe('event starting soon', () => {
+  it('appends content.event.starting_soon when the notice is due', async () => {
+    const repo = makeRepo();
+    const event = makeEvent({ status: 'published' });
+    vi.mocked(repo.findEventById).mockResolvedValue(event);
+    const { svc, appended, scheduler } = build(repo);
+
+    await svc.startingSoon('o1', 'evn_1', '1h', new Date(event.startsAt.getTime() - HOUR));
+
+    expect(appended).toEqual([
+      {
+        type: 'content.event.starting_soon',
+        version: 1,
+        orgId: 'o1',
+        data: { eventId: 'evn_1', lead: '1h', startsAt: event.startsAt },
+      },
+    ]);
+    expect(scheduler.at).not.toHaveBeenCalled();
+  });
+
+  it('schedules itself again when it fires before the notice is due', async () => {
+    const repo = makeRepo();
+    const event = makeEvent({ status: 'published' });
+    vi.mocked(repo.findEventById).mockResolvedValue(event);
+    const { svc, appended, scheduler } = build(repo);
+
+    await svc.startingSoon('o1', 'evn_1', '1d', new Date(event.startsAt.getTime() - 30 * HOUR));
+
+    expect(appended).toEqual([]);
+    expect(scheduler.at).toHaveBeenCalledWith(
+      'content.events.starting_soon',
+      new Date(event.startsAt.getTime() - 24 * HOUR),
+      'evn_1:1d',
+      { orgId: 'o1', eventId: 'evn_1', lead: '1d' },
+    );
+  });
+
+  it('skips an event that is no longer published', async () => {
+    const repo = makeRepo();
+    const { svc, appended, scheduler } = build(repo);
+
+    for (const found of [null, makeEvent({ status: 'draft' }), makeEvent({ status: 'canceled' })]) {
+      vi.mocked(repo.findEventById).mockResolvedValue(found);
+      await svc.startingSoon('o1', 'evn_1', '1h', new Date());
+    }
+
+    expect(appended).toEqual([]);
+    expect(scheduler.at).not.toHaveBeenCalled();
+  });
+});
+
+function makeEventAsset(over: Partial<EventAsset> = {}): EventAsset {
+  return {
+    orgId: 'o1',
+    id: 'eva_1',
+    eventId: 'evn_1',
+    assetId: 'a1',
+    seq: 0,
+    displayName: null,
+    createdAt: AT,
+    updatedAt: AT,
+    ...over,
+  };
+}
+
+describe('event assets', () => {
+  const tom = actorWith({ id: 'ou_tom', orgId: 'o1', content: { evn_1: ['events:write'] } });
+
+  it('lists the files in order with their event file urls', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findEventById).mockResolvedValue(makeEvent());
+    vi.mocked(repo.listEventAssets).mockResolvedValue([
+      makeEventAsset({ assetId: 'a1' }),
+      makeEventAsset({ id: 'eva_2', assetId: UNSIGNED, seq: 1 }),
+    ]);
+    const { svc } = build(repo);
+
+    await expect(svc.listEventAssets('evn_1', tom)).resolves.toEqual([
+      {
+        ...makeEventAsset({ assetId: 'a1' }),
+        filename: 'a1.pdf',
+        contentType: 'application/pdf',
+        size: 100,
+        url: 'https://api.test/api/member/events/evn_1/assets/a1',
+      },
+    ]);
+  });
+
+  it('adds a file uploaded for the event, and refuses another without media:read', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.addEventAsset).mockResolvedValue([makeEventAsset()]);
+    const { svc } = build(
+      repo,
+      library(() => true, 'evn_1'),
+    );
+
+    await svc.addEventAsset('evn_1', { assetId: 'a1' }, tom);
+    expect(repo.addEventAsset).toHaveBeenCalledWith('o1', 'evn_1', { assetId: 'a1' });
+
+    const other = build(
+      repo,
+      library(() => true, 'evn_other'),
+    ).svc;
+    await expect(other.addEventAsset('evn_1', { assetId: 'a2' }, tom)).rejects.toThrow(
+      ForbiddenError,
+    );
+  });
+
+  it('rejects a reorder whose ids are not exactly the current set', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.listEventAssets).mockResolvedValue([
+      makeEventAsset({ assetId: 'a1' }),
+      makeEventAsset({ id: 'eva_2', assetId: 'a2', seq: 1 }),
+    ]);
+    const { svc } = build(repo);
+
+    await expect(svc.reorderEventAssets('evn_1', ['a1', 'a1'], tom)).rejects.toThrow(ConflictError);
+    expect(repo.reorderEventAssets).not.toHaveBeenCalled();
+
+    vi.mocked(repo.reorderEventAssets).mockResolvedValue([]);
+    await svc.reorderEventAssets('evn_1', ['a2', 'a1'], tom);
+    expect(repo.reorderEventAssets).toHaveBeenCalledWith('o1', 'evn_1', ['a2', 'a1']);
+  });
+
+  it('needs events:write to rename or remove a file', async () => {
+    const repo = makeRepo();
+    const { svc } = build(repo);
+    const reader = actorWith({ orgId: 'o1', content: { evn_1: ['events:read'] } });
+
+    await expect(svc.renameEventAsset('evn_1', 'a1', 'Slides', reader)).rejects.toThrow(
+      ForbiddenError,
+    );
+    await expect(svc.removeEventAsset('evn_1', 'a1', reader)).rejects.toThrow(ForbiddenError);
+    vi.mocked(repo.renameEventAsset).mockResolvedValue([]);
+    vi.mocked(repo.removeEventAsset).mockResolvedValue([]);
+    await svc.renameEventAsset('evn_1', 'a1', 'Slides', tom);
+    await svc.removeEventAsset('evn_1', 'a1', tom);
+    expect(repo.renameEventAsset).toHaveBeenCalledWith('o1', 'evn_1', 'a1', 'Slides');
+    expect(repo.removeEventAsset).toHaveBeenCalledWith('o1', 'evn_1', 'a1');
   });
 });

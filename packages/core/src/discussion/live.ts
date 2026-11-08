@@ -81,7 +81,7 @@ export async function publishChange(
 }
 
 function actorOf(event: DomainEvent): string[] {
-  const actor = event.metadata?.actorOrgUserId;
+  const actor = event.metadata?.actorId;
   return typeof actor === 'string' ? [actor] : [];
 }
 

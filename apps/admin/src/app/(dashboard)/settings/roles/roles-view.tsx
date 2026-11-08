@@ -27,6 +27,7 @@ const LEVEL_LABEL: Record<OrgRole["levels"][number], string> = {
   course: "One course",
   download: "One download",
   community: "One community",
+  event: "One event",
 };
 
 const schema = z.object({

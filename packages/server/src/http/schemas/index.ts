@@ -4,6 +4,7 @@
 export * from './shared.js';
 export * from './content.js';
 export * from './downloads.js';
+export * from './events.js';
 export * from './bundles.js';
 export * from './activities.js';
 export * from './member.js';

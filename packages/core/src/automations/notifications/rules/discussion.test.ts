@@ -258,12 +258,12 @@ describe('discussion.post.published', () => {
     );
 
   it('returns the space audience without the author and the people the post mentions', async () => {
-    const { lists } = await run(published({ actorOrgUserId: 'ou_sarah', previousStatus: null }));
+    const { lists } = await run(published({ actorId: 'ou_sarah', previousStatus: null }));
     expect(lists.map((list) => list.type)).toEqual(['mention', 'post.published']);
     expect(byType(lists, 'post.published')).toEqual({
       type: 'post.published',
       scope: 'space',
-      actorOrgUserId: 'ou_sarah',
+      actorId: 'ou_sarah',
       communityId: 'cmy_1',
       spaceId: 'spc_practice',
       subject: { type: 'post', id: 'pst_1' },
@@ -294,15 +294,15 @@ describe('discussion.post.published', () => {
   });
 
   it('notifies nobody when a removed post is restored', async () => {
-    const { lists } = await run(published({ actorOrgUserId: 'ou_mia', previousStatus: 'removed' }));
+    const { lists } = await run(published({ actorId: 'ou_mia', previousStatus: 'removed' }));
     expect(lists).toEqual([]);
   });
 
   it('tells the author their post was approved only when it left review', async () => {
-    const approved = await run(published({ actorOrgUserId: 'ou_mia', previousStatus: 'pending' }));
+    const approved = await run(published({ actorId: 'ou_mia', previousStatus: 'pending' }));
     expect(people(byType(approved.lists, 'post.approved'))).toEqual({ ou_sarah: ['subject'] });
     expect(byType(approved.lists, 'post.approved')).toMatchObject({
-      actorOrgUserId: 'ou_mia',
+      actorId: 'ou_mia',
       display: { postTitle: 'My first recording', spaceName: 'Practice' },
     });
     expect(byType(approved.lists, 'post.published')?.audience?.exclude).toEqual([
@@ -311,7 +311,7 @@ describe('discussion.post.published', () => {
     ]);
     const scheduled = await run(published(undefined));
     expect(byType(scheduled.lists, 'post.approved')).toBeUndefined();
-    const fromDraft = await run(published({ actorOrgUserId: 'ou_sarah', previousStatus: 'draft' }));
+    const fromDraft = await run(published({ actorId: 'ou_sarah', previousStatus: 'draft' }));
     expect(byType(fromDraft.lists, 'post.approved')).toBeUndefined();
   });
 
@@ -330,7 +330,7 @@ describe('discussion.post.created and discussion.post.updated', () => {
       ready(
         discussionEvents.postCreated.make({ orgId: ORG, data: { ...POST, status: 'pending' } }),
         {
-          actorOrgUserId: 'ou_sarah',
+          actorId: 'ou_sarah',
           previousStatus: null,
         },
       ),
@@ -350,7 +350,7 @@ describe('discussion.post.created and discussion.post.updated', () => {
   it('asks for nothing when a post is created published', async () => {
     const { lists } = await run(
       ready(discussionEvents.postCreated.make({ orgId: ORG, data: POST }), {
-        actorOrgUserId: 'ou_sarah',
+        actorId: 'ou_sarah',
       }),
     );
     expect(lists).toEqual([]);
@@ -363,7 +363,7 @@ describe('discussion.post.created and discussion.post.updated', () => {
           orgId: ORG,
           data: { ...POST, status: 'pending', mentionedOrgUserIds: [] },
         }),
-        { actorOrgUserId: 'ou_sarah', previousStatus },
+        { actorId: 'ou_sarah', previousStatus },
       );
     expect((await run(event('draft'))).lists.map((list) => list.type)).toEqual([
       'post.awaiting_review',
@@ -378,7 +378,7 @@ describe('discussion.post.created and discussion.post.updated', () => {
           orgId: ORG,
           data: { ...POST, mentionedOrgUserIds: ['ou_noah'] },
         }),
-        { actorOrgUserId: 'ou_sarah', previousStatus: 'published' },
+        { actorId: 'ou_sarah', previousStatus: 'published' },
       ),
     );
     expect(lists.map((list) => list.type)).toEqual(['mention']);
@@ -393,7 +393,7 @@ describe('discussion.post.removed', () => {
         orgId: ORG,
         data: { ...POST, status: 'removed', removedBy },
       }),
-      { actorOrgUserId: removedBy, previousStatus: 'published' },
+      { actorId: removedBy, previousStatus: 'published' },
     );
 
   it('tells the author when someone else removes their post, mute or not', async () => {
@@ -401,7 +401,7 @@ describe('discussion.post.removed', () => {
     expect(lists).toEqual([
       expect.objectContaining({
         type: 'post.removed',
-        actorOrgUserId: 'ou_mia',
+        actorId: 'ou_mia',
         display: { postTitle: 'My first recording', spaceName: 'Practice' },
       }),
     ]);
@@ -438,7 +438,7 @@ describe('discussion.post.reaction.added', () => {
     expect(lists).toEqual([
       expect.objectContaining({
         type: 'post.reacted',
-        actorOrgUserId: 'ou_james',
+        actorId: 'ou_james',
         subject: { type: 'post', id: 'pst_1' },
         display: { postTitle: 'My first recording', reactorName: 'James', reaction: '🔥' },
       }),
@@ -471,7 +471,7 @@ describe('discussion.comment.created', () => {
     );
 
   it('lists the post author, the replied-to author, followers and thread participants, and the mentioned', async () => {
-    const { lists } = await run(created({}, { actorOrgUserId: 'ou_james' }), {
+    const { lists } = await run(created({}, { actorId: 'ou_james' }), {
       followers: ['ou_emma', 'ou_noah', 'ou_james'],
       thread: ['ou_james', 'ou_emma', 'ou_sarah', 'ou_mia'],
       openers: { spc_practice: ['ou_sarah', 'ou_james', 'ou_emma', 'ou_noah'] },
@@ -480,7 +480,7 @@ describe('discussion.comment.created', () => {
     const [comment, mention] = lists;
     expect(comment).toMatchObject({
       scope: 'space',
-      actorOrgUserId: 'ou_james',
+      actorId: 'ou_james',
       communityId: 'cmy_1',
       spaceId: 'spc_practice',
       subject: { type: 'comment', id: 'cmt_2' },
@@ -505,7 +505,7 @@ describe('discussion.comment.created', () => {
   });
 
   it('applies mutes on the post and the space last, keeping mentions', async () => {
-    const { lists, muted } = await run(created({}, { actorOrgUserId: 'ou_james' }), {
+    const { lists, muted } = await run(created({}, { actorId: 'ou_james' }), {
       followers: ['ou_noah'],
       muted: { 'post:pst_1': ['ou_sarah'], 'space:spc_practice': ['ou_emma'] },
     });
@@ -584,11 +584,11 @@ describe('discussion.comment.published and discussion.comment.updated', () => {
           orgId: ORG,
           data: { ...COMMENT, mentionedOrgUserIds: ['ou_mia', 'ou_noah'] },
         }),
-        { actorOrgUserId: 'ou_mia' },
+        { actorId: 'ou_mia' },
       ),
       { followers: ['ou_mia'], thread: ['ou_mia', 'ou_emma'] },
     );
-    expect(byType(lists, 'comment.created')?.actorOrgUserId).toBe('ou_james');
+    expect(byType(lists, 'comment.created')?.actorId).toBe('ou_james');
     expect(people(byType(lists, 'comment.created'))).toEqual({
       ou_sarah: ['post_author'],
       ou_emma: ['comment_author', 'thread_participant'],
@@ -603,7 +603,7 @@ describe('discussion.comment.published and discussion.comment.updated', () => {
           orgId: ORG,
           data: { ...COMMENT, status, mentionedOrgUserIds: ['ou_emma'] },
         }),
-        { actorOrgUserId: 'ou_james' },
+        { actorId: 'ou_james' },
       );
     const { lists } = await run(edited('published'));
     expect(lists.map((list) => list.type)).toEqual(['mention']);
@@ -623,14 +623,14 @@ describe('discussion.comment.removed', () => {
     );
 
   it('tells the author when someone else removes their comment', async () => {
-    const { lists } = await run(removed({ removedBy: 'ou_mia' }, { actorOrgUserId: 'ou_mia' }), {
+    const { lists } = await run(removed({ removedBy: 'ou_mia' }, { actorId: 'ou_mia' }), {
       muted: { 'post:pst_1': ['ou_james'] },
     });
     expect(lists).toEqual([
       expect.objectContaining({
         type: 'comment.removed',
         scope: 'space',
-        actorOrgUserId: 'ou_mia',
+        actorId: 'ou_mia',
         display: { postTitle: 'My first recording' },
       }),
     ]);
@@ -728,7 +728,7 @@ describe('reports', () => {
             communityId: 'cmy_1',
           },
         }),
-        { actorOrgUserId: 'ou_mia' },
+        { actorId: 'ou_mia' },
       ),
     );
     expect(lists[0]).toMatchObject({
@@ -809,7 +809,7 @@ describe('reports', () => {
             updatedAt: T,
           },
         }),
-        { actorOrgUserId: 'ou_emma' },
+        { actorId: 'ou_emma' },
       ),
       { moderators: ['ou_olivia', 'ou_emma', 'ou_mia'], members: ['ou_olivia', 'ou_emma'] },
     );
@@ -833,7 +833,7 @@ describe('chat events', () => {
         orgId: ORG,
         data: { ...MESSAGE, mentionedOrgUserIds: mentioned },
       }),
-      { actorOrgUserId: 'ou_james', chatStatus },
+      { actorId: 'ou_james', chatStatus },
     );
 
   it('lists the participants who stay in the chat, and the mentioned', async () => {
@@ -853,7 +853,7 @@ describe('chat events', () => {
     expect(lists.map((list) => list.type)).toEqual(['message.sent', 'mention']);
     expect(lists[0]).toMatchObject({
       scope: 'chat',
-      actorOrgUserId: 'ou_james',
+      actorId: 'ou_james',
       communityId: 'cmy_1',
       subject: { type: 'message', id: 'msg_1' },
       parent: { type: 'chat', id: 'cht_1' },
@@ -895,7 +895,7 @@ describe('chat events', () => {
           orgId: ORG,
           data: { ...MESSAGE, mentionedOrgUserIds: ['ou_sarah'] },
         }),
-        { actorOrgUserId: 'ou_james', chatStatus },
+        { actorId: 'ou_james', chatStatus },
       );
     expect(people((await run(edited('open'))).lists[0])).toEqual({ ou_sarah: ['mentioned'] });
     expect((await run(edited('pending'))).lists).toEqual([]);
@@ -941,7 +941,7 @@ describe('chat events', () => {
           participantIds: ['ou_james', 'ou_sarah'],
         },
       }),
-      { actorOrgUserId: 'ou_james' },
+      { actorId: 'ou_james' },
     );
 
   it('sends a request for a pending direct chat only', async () => {
@@ -979,7 +979,7 @@ describe('chat events', () => {
             addedBy: 'ou_james',
           },
         }),
-        { actorOrgUserId: 'ou_james' },
+        { actorId: 'ou_james' },
       ),
       { muted: { 'chat:cht_1': ['ou_emma'] } },
     );

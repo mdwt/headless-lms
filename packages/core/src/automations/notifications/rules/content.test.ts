@@ -59,7 +59,7 @@ describe('content.course.activity.published', () => {
       orgId: ORG,
       data: { activityId: 'act_1', moduleId: 'mod_1', courseId: 'crs_1' },
     }),
-    { actorOrgUserId: 'ou_olivia' },
+    { actorId: 'ou_olivia' },
   );
 
   it('tells every course holder about the new activity, in the org', async () => {
@@ -68,7 +68,7 @@ describe('content.course.activity.published', () => {
       {
         type: 'course.activity_added',
         scope: 'org',
-        actorOrgUserId: 'ou_olivia',
+        actorId: 'ou_olivia',
         communityId: null,
         spaceId: null,
         subject: { type: 'activity', id: 'act_1' },

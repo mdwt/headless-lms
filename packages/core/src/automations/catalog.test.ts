@@ -37,7 +37,7 @@ function sample(schema: unknown, depth = 0): unknown {
       return Object.fromEntries(
         Object.entries(shape).map(([key, value]) => [
           key,
-          key === 'timeZone' ? 'UTC' : sample(value, depth + 1),
+          key === 'timeZone' ? 'UTC' : key === 'country' ? 'GB' : sample(value, depth + 1),
         ]),
       );
     }

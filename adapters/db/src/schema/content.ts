@@ -21,6 +21,8 @@ import type {
   Course,
   Download,
   DownloadAsset,
+  Event,
+  EventAsset,
   Module,
   Space,
   SpaceLink,
@@ -61,7 +63,7 @@ export const contentItems = pgTable(
       .notNull()
       .references(() => organizations.id),
     id: text("id").notNull(),
-    type: text("type", { enum: ["course", "download", "community"] }).notNull(),
+    type: text("type", { enum: ["course", "download", "community", "event"] }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -75,7 +77,7 @@ export const contentItems = pgTable(
     // Widened per new content type.
     typeCk: check(
       "content_items_type_check",
-      sql`${t.type} in ('course', 'download', 'community')`,
+      sql`${t.type} in ('course', 'download', 'community', 'event')`,
     ),
   }),
 );
@@ -351,6 +353,89 @@ export const downloadAssets = pgTable(
   }),
 );
 
+export const events = pgTable(
+  "events",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("contentEvent")),
+    type: text("type")
+      .$type<Event["type"]>()
+      .notNull()
+      .generatedAlwaysAs(sql`'event'`),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    thumbnailAssetId: text("thumbnail_asset_id"),
+    status: text("status", { enum: ["draft", "published", "canceled"] })
+      .notNull()
+      .default("draft"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    timeZone: text("time_zone").notNull(),
+    location: jsonb("location")
+      .$type<Event["location"]>()
+      .notNull()
+      .default({ venue: null, online: null }),
+    recording: jsonb("recording").$type<Event["recording"]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    contentItemFk: foreignKey({
+      columns: [t.orgId, t.id, t.type],
+      foreignColumns: [contentItems.orgId, contentItems.id, contentItems.type],
+    }).onDelete("cascade"),
+    thumbnailAssetFk: foreignKey({
+      columns: [t.orgId, t.thumbnailAssetId],
+      foreignColumns: [assets.orgId, assets.id],
+    }),
+    thumbnailIdx: index("events_thumbnail_idx").on(t.orgId, t.thumbnailAssetId),
+    startsIdx: index("events_status_starts_idx").on(t.orgId, t.status, t.startsAt),
+    timesCk: check("events_times_check", sql`${t.endsAt} > ${t.startsAt}`),
+  }),
+);
+
+export const eventAssets = pgTable(
+  "event_assets",
+  {
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    id: text("id")
+      .notNull()
+      .$defaultFn(() => genId("eventAsset")),
+    eventId: text("event_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    seq: integer("seq").notNull().default(0),
+    displayName: text("display_name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.id] }),
+    eventFk: foreignKey({
+      columns: [t.orgId, t.eventId],
+      foreignColumns: [events.orgId, events.id],
+    }).onDelete("cascade"),
+    assetFk: foreignKey({
+      columns: [t.orgId, t.assetId],
+      foreignColumns: [assets.orgId, assets.id],
+    }),
+    eventAssetUq: unique().on(t.orgId, t.eventId, t.assetId),
+    assetIdx: index("event_assets_asset_idx").on(t.orgId, t.assetId),
+  }),
+);
+
 export const communities = pgTable(
   "communities",
   {
@@ -505,6 +590,8 @@ type _ActivitiesDrift = Expect<NoDrift<typeof activities.$inferSelect, Activity>
 type _ActivityAssetsDrift = Expect<NoDrift<typeof activityAssets.$inferSelect, ActivityAsset>>;
 type _DownloadsDrift = Expect<NoDrift<typeof downloads.$inferSelect, Download>>;
 type _DownloadAssetsDrift = Expect<NoDrift<typeof downloadAssets.$inferSelect, DownloadAsset>>;
+type _EventsDrift = Expect<NoDrift<typeof events.$inferSelect, Omit<Event, "settings">>>;
+type _EventAssetsDrift = Expect<NoDrift<typeof eventAssets.$inferSelect, EventAsset>>;
 type _CommunitiesDrift = Expect<
   NoDrift<typeof communities.$inferSelect, Omit<Community, "settings">>
 >;

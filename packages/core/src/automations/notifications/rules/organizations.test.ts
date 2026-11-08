@@ -94,7 +94,7 @@ describe('organization.role.assigned', () => {
           contentType: data.contentType ?? null,
         },
       }),
-      { actorOrgUserId: 'ou_sarah' },
+      { actorId: 'ou_sarah' },
     );
   const rule = ORGANIZATION_RULES['organization.role.assigned']!;
 
@@ -112,7 +112,7 @@ describe('organization.role.assigned', () => {
       {
         type: 'role.assigned',
         scope: 'org',
-        actorOrgUserId: 'ou_sarah',
+        actorId: 'ou_sarah',
         communityId: null,
         spaceId: null,
         subject: null,

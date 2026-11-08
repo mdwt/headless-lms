@@ -15,6 +15,13 @@ import type {
   DownloadAsset,
   DownloadFile,
   DownloadView,
+  Event,
+  EventAsset,
+  EventFile,
+  EventLead,
+  EventSettings,
+  EventStatus,
+  EventView,
   Module,
   SaveActivityInput,
   Space,
@@ -22,6 +29,10 @@ import type {
 } from './model.js';
 import type {
   AddDownloadAssetInput,
+  AddEventAssetInput,
+  CreateEventInput,
+  ListEventsQuery,
+  UpdateEventInput,
   CreateBundleInput,
   CreateCommunityInput,
   CreateCourseInput,
@@ -45,7 +56,12 @@ import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { SubjectRef } from '../types/index.js';
 
 export interface ContentService
-  extends DownloadablesService, CourseManagementService, BundlesService, CommunitiesService {}
+  extends
+    DownloadablesService,
+    CourseManagementService,
+    BundlesService,
+    CommunitiesService,
+    EventsService {}
 
 export interface ItemTitle {
   title: string;
@@ -223,6 +239,33 @@ export interface DownloadablesService {
   ): Promise<DownloadFile[]>;
 }
 
+export interface EventsService {
+  listEvents(query: ListEventsQuery, actor: Actor): Promise<Page<EventView>>;
+  getEvent(id: string, actor: Actor): Promise<EventView>;
+  findEvent(id: string, actor: Actor): Promise<EventView | null>;
+  createEvent(input: CreateEventInput, actor: Actor): Promise<EventView>;
+  /** @throws ConflictError with code `canceled` when the event is canceled. */
+  updateEvent(id: string, patch: UpdateEventInput, actor: Actor): Promise<EventView>;
+  /** @throws ConflictError with code `canceled` when the event is already canceled. */
+  cancelEvent(id: string, actor: Actor): Promise<EventView>;
+  deleteEvent(id: string, actor: Actor): Promise<void>;
+  startingSoon(orgId: string, eventId: string, lead: EventLead, now: Date): Promise<void>;
+
+  listEventAssets(eventId: string, actor: Actor): Promise<EventFile[]>;
+  addEventAsset(eventId: string, input: AddEventAssetInput, actor: Actor): Promise<EventFile[]>;
+  removeEventAsset(eventId: string, assetId: string, actor: Actor): Promise<EventFile[]>;
+  renameEventAsset(
+    eventId: string,
+    assetId: string,
+    displayName: string | null,
+    actor: Actor,
+  ): Promise<EventFile[]>;
+  /** @throws ConflictError when assetIds is not exactly the event's current asset set. */
+  reorderEventAssets(eventId: string, assetIds: string[], actor: Actor): Promise<EventFile[]>;
+}
+
+export type EventPatch = Omit<UpdateEventInput, 'status' | 'settings'> & { status?: EventStatus };
+
 export interface BundlesService {
   listBundles(query: ListBundlesQuery, actor: Actor): Promise<Page<Bundle>>;
   getBundle(id: string, actor: Actor): Promise<Bundle>;
@@ -307,6 +350,29 @@ export interface ContentRepository {
     downloadId: string,
     assetIds: string[],
   ): Promise<DownloadAsset[]>;
+
+  listEvents(orgId: string, query: ListEventsQuery, ids?: string[]): Promise<Page<Event>>;
+  findEventById(orgId: string, id: string): Promise<Event | null>;
+  createEvent(orgId: string, input: Omit<CreateEventInput, 'settings'>): Promise<Event>;
+  updateEvent(orgId: string, id: string, patch: EventPatch): Promise<Event | null>;
+  patchEventSettings(
+    orgId: string,
+    id: string,
+    value: Partial<EventSettings>,
+  ): Promise<EventSettings>;
+  deleteEvent(orgId: string, id: string): Promise<boolean>;
+  deleteEventSettings(orgId: string, id: string): Promise<void>;
+
+  listEventAssets(orgId: string, eventId: string): Promise<EventAsset[]>;
+  addEventAsset(orgId: string, eventId: string, input: AddEventAssetInput): Promise<EventAsset[]>;
+  removeEventAsset(orgId: string, eventId: string, assetId: string): Promise<EventAsset[]>;
+  renameEventAsset(
+    orgId: string,
+    eventId: string,
+    assetId: string,
+    displayName: string | null,
+  ): Promise<EventAsset[]>;
+  reorderEventAssets(orgId: string, eventId: string, assetIds: string[]): Promise<EventAsset[]>;
 
   listBundles(orgId: string, query: ListBundlesQuery): Promise<Page<Bundle>>;
   findBundleById(orgId: string, id: string): Promise<Bundle | null>;

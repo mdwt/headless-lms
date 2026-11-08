@@ -442,7 +442,7 @@ export class NotificationProcessor {
         category: category.key,
         communityId,
         spaceId: list.spaceId,
-        actorOrgUserId: list.actorOrgUserId,
+        actorId: list.actorId,
         subject: list.subject,
         parent: list.parent,
         display: list.display,

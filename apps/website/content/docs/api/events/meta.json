@@ -1,0 +1,26 @@
+{
+  "title": "Events",
+  "description": "Live sessions at a set time: their details, location, recording and files",
+  "pages": [
+    "listEvents",
+    "createEvent",
+    "getEvent",
+    "updateEvent",
+    "deleteEvent",
+    "cancelEvent",
+    "listEventAssets",
+    "addEventAsset",
+    "reorderEventAssets",
+    "renameEventAsset",
+    "removeEventAsset",
+    "createMemberEvent",
+    "updateMemberEvent",
+    "deleteMemberEvent",
+    "cancelMemberEvent",
+    "listMemberEventAssets",
+    "addMemberEventAsset",
+    "reorderMemberEventAssets",
+    "renameMemberEventAsset",
+    "removeMemberEventAsset"
+  ]
+}

@@ -18,7 +18,10 @@ export class NotFoundError extends Error {
 /** A command conflicts with existing state (duplicate email, already linked,
  *  …). The HTTP layer maps this to 409. */
 export class ConflictError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
     super(message);
     this.name = 'ConflictError';
   }

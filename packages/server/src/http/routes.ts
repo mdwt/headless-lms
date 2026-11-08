@@ -4,6 +4,7 @@ import { communitiesRoutes } from './routes/communities.js';
 import { communityModerationRoutes } from './routes/community-moderation.js';
 import { coursesRoutes } from './routes/courses.js';
 import { downloadsRoutes } from './routes/downloads.js';
+import { eventsRoutes } from './routes/events.js';
 import { bundlesRoutes } from './routes/bundles.js';
 import { memberRoutes } from './routes/member/index.js';
 import { discussionRoutes } from './routes/discussion.js';
@@ -33,6 +34,7 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
     await communitiesRoutes(instance, container);
     await communityModerationRoutes(instance, container);
     await downloadsRoutes(instance, container);
+    await eventsRoutes(instance, container);
     await bundlesRoutes(instance, container);
     await memberRoutes(instance, container);
     await discussionRoutes(instance, container);

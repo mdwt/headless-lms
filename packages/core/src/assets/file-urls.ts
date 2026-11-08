@@ -1,4 +1,4 @@
-export type ThumbnailOwner = 'course' | 'download' | 'community';
+export type ThumbnailOwner = 'course' | 'download' | 'community' | 'event';
 
 /** Stable, access-checked URLs on the API for every file a response refers to.
  *  Each one is answered by a route that checks access, then redirects to a
@@ -7,6 +7,7 @@ export interface FileUrls {
   thumbnail(owner: ThumbnailOwner, ownerId: string): string;
   activityAsset(activityId: string, assetId: string): string;
   downloadFile(downloadId: string, assetId: string): string;
+  eventFile(eventId: string, assetId: string): string;
   postCover(postId: string): string;
   postAsset(postId: string, assetId: string): string;
   messageAttachment(chatId: string, messageId: string, assetId: string): string;
@@ -20,6 +21,7 @@ const THUMBNAIL_PATHS: Record<ThumbnailOwner, string> = {
   course: 'courses',
   download: 'downloads',
   community: 'communities',
+  event: 'events',
 };
 
 export function createFileUrls(apiUrl: string): FileUrls {
@@ -31,6 +33,7 @@ export function createFileUrls(apiUrl: string): FileUrls {
     activityAsset: (activityId, assetId) =>
       at('member', 'activities', activityId, 'assets', assetId),
     downloadFile: (downloadId, assetId) => at('member', 'downloads', downloadId, 'assets', assetId),
+    eventFile: (eventId, assetId) => at('member', 'events', eventId, 'assets', assetId),
     postCover: (postId) => at('member', 'posts', postId, 'cover'),
     postAsset: (postId, assetId) => at('member', 'posts', postId, 'assets', assetId),
     messageAttachment: (chatId, messageId, assetId) =>

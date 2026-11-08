@@ -17,7 +17,7 @@ const activityPublished: RecipientRule = async (event, reads) => {
     {
       type: 'course.activity_added',
       scope: 'org',
-      actorOrgUserId: actorOr(event, null),
+      actorId: actorOr(event, null),
       communityId: null,
       spaceId: null,
       subject: { type: 'activity', id: activityId },

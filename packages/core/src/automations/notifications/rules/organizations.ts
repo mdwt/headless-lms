@@ -18,7 +18,7 @@ const roleAssigned: RecipientRule = async (event, reads) => {
     {
       type: 'role.assigned',
       scope: 'org',
-      actorOrgUserId: actorOr(event, null),
+      actorId: actorOr(event, null),
       communityId: null,
       spaceId: null,
       subject: null,

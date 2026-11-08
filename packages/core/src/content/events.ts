@@ -7,6 +7,8 @@ import {
   courseSchema,
   downloadAssetSchema,
   downloadSchema,
+  eventLeadSchema,
+  eventSchema,
   idSchema,
   moduleSchema,
   spaceDetailSchema,
@@ -102,6 +104,12 @@ const publicDownloadAsset = downloadAssetSchema
   .strip();
 
 const publicCommunity = communitySchema.omit({ settings: true }).strip();
+
+const publicEvent = eventSchema.omit({ location: true, recording: true }).strip();
+
+const eventStartingSoonSchema = z
+  .object({ eventId: idSchema, lead: eventLeadSchema, startsAt: z.coerce.date() })
+  .strict();
 
 const publicDownloadAssets = z.object({
   downloadId: idSchema,
@@ -266,6 +274,30 @@ export const contentEvents = {
     data: communitySchema,
     publicData: publicCommunity,
   }),
+  eventCreated: defineEvent({
+    type: 'content.event.created',
+    version: 1,
+    data: eventSchema,
+    publicData: publicEvent,
+  }),
+  eventUpdated: defineEvent({
+    type: 'content.event.updated',
+    version: 1,
+    data: eventSchema,
+    publicData: publicEvent,
+  }),
+  eventDeleted: defineEvent({
+    type: 'content.event.deleted',
+    version: 1,
+    data: eventSchema,
+    publicData: publicEvent,
+  }),
+  eventStartingSoon: defineEvent({
+    type: 'content.event.starting_soon',
+    version: 1,
+    data: eventStartingSoonSchema,
+    publicData: eventStartingSoonSchema,
+  }),
   spaceCreated: defineEvent({
     type: 'content.community.space.created',
     version: 1,
@@ -319,6 +351,10 @@ export type BundleItemRemoved = EventOf<typeof contentEvents.bundleItemRemoved>;
 export type CommunityCreated = EventOf<typeof contentEvents.communityCreated>;
 export type CommunityUpdated = EventOf<typeof contentEvents.communityUpdated>;
 export type CommunityDeleted = EventOf<typeof contentEvents.communityDeleted>;
+export type EventCreated = EventOf<typeof contentEvents.eventCreated>;
+export type EventUpdated = EventOf<typeof contentEvents.eventUpdated>;
+export type EventDeleted = EventOf<typeof contentEvents.eventDeleted>;
+export type EventStartingSoon = EventOf<typeof contentEvents.eventStartingSoon>;
 export type CommunitySpaceCreated = EventOf<typeof contentEvents.spaceCreated>;
 export type CommunitySpaceUpdated = EventOf<typeof contentEvents.spaceUpdated>;
 export type CommunitySpaceDeleted = EventOf<typeof contentEvents.spaceDeleted>;

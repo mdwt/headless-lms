@@ -134,6 +134,13 @@
       "when": 1793882420896,
       "tag": "0018_messages_client_id",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794139249084,
+      "tag": "0019_events",
+      "breakpoints": true
     }
   ]
 }

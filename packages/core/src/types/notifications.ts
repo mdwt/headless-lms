@@ -27,6 +27,7 @@ export interface SubjectRef {
     | 'community'
     | 'course'
     | 'download'
+    | 'event'
     | 'bundle'
     | 'activity';
   id: string;
@@ -65,7 +66,7 @@ export interface StoredNotification {
   category: string;
   communityId: string | null;
   spaceId: string | null;
-  actorOrgUserId: string | null;
+  actorId: string | null;
   subject: SubjectRef | null;
   parent: SubjectRef | null;
   display: Record<string, JsonValue>;
@@ -143,7 +144,7 @@ export interface NotificationFilter {
 export interface RecipientList {
   type: string;
   scope: Scope;
-  actorOrgUserId: string | null;
+  actorId: string | null;
   communityId: string | null;
   spaceId: string | null;
   subject: SubjectRef | null;
