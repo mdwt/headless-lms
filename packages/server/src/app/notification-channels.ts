@@ -19,7 +19,7 @@ import { isEmailRejected, isEmailRenderError, type Mailer } from '@headless-lms/
 export const IN_APP = 'inApp';
 export const EMAIL = 'email';
 
-const CONTENT_SUBJECTS = new Set(['course', 'download', 'community', 'bundle']);
+const CONTENT_SUBJECTS = new Set(['course', 'download', 'community', 'event', 'bundle']);
 
 export function buildNotificationTypeRegistry(
   declarations: NotificationTypeDeclaration[],

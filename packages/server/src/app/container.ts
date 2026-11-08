@@ -632,6 +632,8 @@ export async function buildContainer(
       repo: new DrizzleAdminRepository(db, reportingLogger),
       permissions: organizations,
       spaces: entitlements,
+      events: content,
+      fileUrls,
     }),
     member: new MemberReportServiceImpl({
       repo: new DrizzleMemberRepository(db, reportingLogger),
@@ -647,6 +649,7 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
+      studentPortalUrl: config.studentPortalUrl,
     }),
   };
 
@@ -703,7 +706,11 @@ export async function buildContainer(
         return { id: download.id, title: download.title, type: download.type };
       }
       const community = await content.findCommunity(contentId, system);
-      return community ? { id: community.id, title: community.title, type: community.type } : null;
+      if (community) {
+        return { id: community.id, title: community.title, type: community.type };
+      }
+      const event = await content.findEvent(contentId, system);
+      return event ? { id: event.id, title: event.title, type: event.type } : null;
     },
   };
 

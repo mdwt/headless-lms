@@ -1,6 +1,8 @@
 import type { Actor } from '../../shared/actor.js';
 import { NotFoundError } from '../../shared/errors.js';
 import { MEMBER_ROLE_KEY } from '../../organizations/index.js';
+import type { EventsService } from '../../content/index.js';
+import type { FileUrls } from '../../assets/index.js';
 import type {
   CommunityAnalytics,
   CommunityMember,
@@ -10,6 +12,8 @@ import type {
   CourseLearner,
   CourseLearnersQuery,
   EnrollmentPoint,
+  EventAnalytics,
+  EventAttendee,
   OverviewStats,
   Page,
   Student,
@@ -28,17 +32,23 @@ export type AdminReportServiceParams = {
   repo: AdminReportRepository;
   permissions: PermissionsReader;
   spaces: SpaceOpenersReader;
+  events: Pick<EventsService, 'findEvent'>;
+  fileUrls: Pick<FileUrls, 'personImage'>;
 };
 
 export class AdminReportServiceImpl implements AdminReportService {
   private readonly repo: AdminReportRepository;
   private readonly permissions: PermissionsReader;
   private readonly spaces: SpaceOpenersReader;
+  private readonly events: Pick<EventsService, 'findEvent'>;
+  private readonly fileUrls: Pick<FileUrls, 'personImage'>;
 
   constructor(params: AdminReportServiceParams) {
     this.repo = params.repo;
     this.permissions = params.permissions;
     this.spaces = params.spaces;
+    this.events = params.events;
+    this.fileUrls = params.fileUrls;
   }
 
   async overview(actor: Actor): Promise<OverviewStats> {
@@ -135,6 +145,33 @@ export class AdminReportServiceImpl implements AdminReportService {
         return { ...row, team, roleName, opensEverySpace: opensEverySpace.has(row.id) };
       }),
     };
+  }
+
+  async eventAttendees(
+    eventId: string,
+    query: { page: number; pageSize: number },
+    actor: Actor,
+  ): Promise<Page<EventAttendee>> {
+    actor.permissions.require('events:read', eventId);
+    found(await this.events.findEvent(eventId, actor), 'Event', eventId);
+    const page = await this.repo.eventAttendees(actor.orgId, eventId, query);
+    return {
+      ...page,
+      rows: page.rows.map((row) => ({
+        orgUserId: row.orgUserId,
+        name: row.displayName ?? 'A member',
+        avatarUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
+        source: row.source,
+        grantedAt: row.grantedAt,
+      })),
+    };
+  }
+
+  async eventAnalytics(eventId: string, actor: Actor): Promise<EventAnalytics> {
+    actor.permissions.require('events:read', eventId);
+    const event = found(await this.events.findEvent(eventId, actor), 'Event', eventId);
+    const figures = await this.repo.eventAnalytics(actor.orgId, eventId, event.startsAt);
+    return { ...figures, capacity: event.settings.capacity };
   }
 
   private async withItemRoles(orgId: string, rows: StudentRow[]): Promise<Student[]> {

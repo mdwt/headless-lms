@@ -61,7 +61,7 @@ function courseReach(
     at,
     canOpen: async (orgUserIds) => {
       const [holders, readers] = await Promise.all([
-        reads.courseHolders(orgId, courseId),
+        reads.courseMembers(orgId, courseId),
         reads.holders(orgId, 'courses:read', courseId),
       ]);
       const open = new Set([...holders, ...readers]);

@@ -20,6 +20,7 @@ export type CommunityMailDeps = {
     | 'listCommunitiesById'
     | 'findCourse'
     | 'findDownload'
+    | 'findEvent'
     | 'findBundle'
   >;
   entitlements: Pick<
@@ -114,7 +115,11 @@ export function communityMail(deps: CommunityMailDeps): {
         return { title: download.title, type: download.type };
       }
       const community = await deps.content.findCommunity(item.contentId, actor);
-      return community ? { title: community.title, type: community.type } : null;
+      if (community) {
+        return { title: community.title, type: community.type };
+      }
+      const event = await deps.content.findEvent(item.contentId, actor);
+      return event ? { title: event.title, type: event.type } : null;
     },
     async displayName(orgId, orgUserId) {
       const orgUser = await deps.organizations.getOrgUserById(orgId, orgUserId);

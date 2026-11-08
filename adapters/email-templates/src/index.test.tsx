@@ -12,6 +12,14 @@ const CTX: TemplateContext = {
   studentPortalUrl: "http://localhost:8002",
 };
 
+const EVENT = {
+  eventId: "evn_1",
+  eventTitle: "Conversation practice",
+  startsAt: "2026-05-12T16:00:00.000Z",
+  endsAt: "2026-05-12T17:00:00.000Z",
+  timeZone: "Europe/London",
+};
+
 const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
   magicLink: { url: "http://localhost:8001/magic?token=t" },
   studentInvite: { inviteUrl: "http://localhost:8002/welcome?token=t", studentName: "Sam" },
@@ -219,6 +227,11 @@ const SAMPLE_PARAMS: { [K in EmailTemplateId]: EmailTemplateParams[K] } = {
     courseId: "crs_1",
     activityId: "act_1",
   },
+  eventGranted: EVENT,
+  eventStartingSoon: { ...EVENT, leadText: "1 hour" },
+  eventChanged: { ...EVENT, changed: "time_and_location" },
+  eventCanceled: EVENT,
+  eventRevoked: EVENT,
 };
 
 const ALL_IDS = Object.keys(SAMPLE_PARAMS) as EmailTemplateId[];
@@ -269,6 +282,28 @@ describe("ReactEmailTemplateRenderer", () => {
     expect(content.html).toContain(url);
     expect(content.text).toContain(url);
   });
+
+  it("links eventGranted to the event page and to Google and Outlook calendars", async () => {
+    const content = await renderer.render("eventGranted", CTX, EVENT);
+    expect(content.subject).toBe("You're going to Conversation practice");
+    expect(content.text).toContain("http://localhost:8002/events/evn_1");
+    expect(content.text).toContain("Tuesday, May 12, 2026, 5:00 PM – 6:00 PM (Europe/London)");
+    expect(content.html).toContain("Add to Google Calendar");
+    expect(content.html).toContain(
+      "https://calendar.google.com/calendar/render?action=TEMPLATE&amp;text=Conversation+practice&amp;dates=20260512T160000Z%2F20260512T170000Z",
+    );
+    expect(content.html).toContain("Add to Outlook");
+    expect(content.html).toContain("https://outlook.live.com/calendar/0/action/compose?");
+    expect(content.html).toContain("startdt=2026-05-12T16%3A00%3A00.000Z");
+  });
+
+  it.each(["eventStartingSoon", "eventChanged", "eventCanceled", "eventRevoked"] as const)(
+    "links %s to the event page",
+    async (id) => {
+      const content = await renderer.render(id, CTX, SAMPLE_PARAMS[id]);
+      expect(content.text).toContain("http://localhost:8002/events/evn_1");
+    },
+  );
 
   it("links a bundle accessGranted to the portal", async () => {
     const content = await renderer.render("accessGranted", CTX, {

@@ -6,6 +6,7 @@ export const OverviewStats = z.object({
   draftCourses: z.number().int(),
   activeStudents: z.number().int(),
   expiringSoon: z.number().int(),
+  upcomingEvents: z.number().int().describe('Published events that have not ended'),
 });
 export type OverviewStats = z.infer<typeof OverviewStats>;
 

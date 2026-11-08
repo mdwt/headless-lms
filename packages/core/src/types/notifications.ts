@@ -13,6 +13,7 @@ export type Reason =
   | 'space_member'
   | 'community_member'
   | 'course_member'
+  | 'event_member'
   | 'moderator';
 
 export type Scope = 'org' | 'community' | 'space' | 'chat';

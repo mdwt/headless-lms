@@ -1690,6 +1690,47 @@ describe('grants to an event', () => {
     });
   });
 
+  describe('on the event routes', () => {
+    it('answers 404 when the id is not an event, before any grant or revoke', async () => {
+      const repo = fakeRepo({
+        contentTypeOf: vi.fn().mockResolvedValue('course'),
+        lockGrant: vi.fn().mockResolvedValue(SAMPLE),
+      });
+      const { svc, append } = build(repo);
+      const course = { orgUserId: 'ou_emma', contentId: 'crs_1', contentType: 'event' as const };
+      await expect(svc.grant({ ...course, expiresAt: null }, sarah)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      await expect(svc.revoke(course, sarah)).rejects.toBeInstanceOf(NotFoundError);
+      expect(repo.insert).not.toHaveBeenCalled();
+      expect(repo.lockGrant).not.toHaveBeenCalled();
+      expect(append).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 for an id that does not exist', async () => {
+      const { svc } = build(fakeRepo({ contentTypeOf: vi.fn().mockResolvedValue(null) }));
+      await expect(svc.grant({ ...addEmma, contentType: 'event' }, sarah)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+    });
+
+    it('grants and revokes an event when the type matches', async () => {
+      const { svc, repo } = build(
+        eventRepo({ lockGrant: vi.fn().mockResolvedValueOnce(null).mockResolvedValue(SAMPLE) }),
+        withEvent(),
+      );
+      await svc.grant({ ...addEmma, contentType: 'event' }, sarah);
+      expect(repo.insert).toHaveBeenCalledWith('org-1', {
+        orgUserId: 'ou_emma',
+        contentId: 'evn_1',
+        expiresAt: null,
+        source: 'manual',
+      });
+      await svc.revoke({ orgUserId: 'ou_emma', contentId: 'evn_1', contentType: 'event' }, sarah);
+      expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e1', 'revoked');
+    });
+  });
+
   it('records the caller on setStatus', async () => {
     const { svc, appended } = build();
     await svc.setStatus('e1', 'revoked', checkout);

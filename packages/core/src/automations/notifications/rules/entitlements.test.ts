@@ -6,6 +6,7 @@ import { emptyCommunityMail } from '../../community-mail.js';
 import type { NotificationReads } from '../../ports.js';
 import { NOTIFICATION_TYPES } from '../types.js';
 import { ENTITLEMENT_RULES } from './entitlements.js';
+import type { Event } from '../../../content/index.js';
 
 const ORG = 'org_1';
 const T = new Date('2026-11-01T00:00:00Z');
@@ -44,6 +45,7 @@ type World = {
   lost?: string[];
   capacity?: number | null;
   openers?: string[];
+  event?: Event;
 };
 
 function fakeReads(world: World = {}): NotificationReads {
@@ -53,7 +55,9 @@ function fakeReads(world: World = {}): NotificationReads {
     mutedAmong: async (_o, _i, ids) => ids,
     communityMembers: async () => [],
     switchedOn: async () => [],
-    courseHolders: async () => [],
+    courseMembers: async () => [],
+    event: async (_o, id) => (world.event && world.event.id === id ? world.event : null),
+    eventAttendees: async () => [],
     contentLostBy: async () => world.lost ?? ['crs_1'],
     activity: async () => null,
     emailOf: async () => null,
@@ -390,5 +394,129 @@ describe('grant endings', () => {
       'community.membership_ended',
     ]);
     expect(await run(expired)).toEqual([]);
+  });
+});
+
+const EVENT: Event = {
+  orgId: ORG,
+  id: 'evn_1',
+  type: 'event',
+  title: 'Conversation practice',
+  description: '',
+  thumbnailAssetId: null,
+  status: 'published',
+  startsAt: new Date('2026-11-12T16:00:00Z'),
+  endsAt: new Date('2026-11-12T17:00:00Z'),
+  timeZone: 'Europe/London',
+  location: { venue: null, online: { url: 'https://zoom.us/j/1', details: null } },
+  recording: null,
+  settings: { type: 'public', capacity: 20, notifications: true, replay: true },
+  createdAt: T,
+  updatedAt: T,
+};
+
+const EVENT_DISPLAY = {
+  eventTitle: 'Conversation practice',
+  startsAt: '2026-11-12T16:00:00.000Z',
+  endsAt: '2026-11-12T17:00:00.000Z',
+  timeZone: 'Europe/London',
+};
+
+describe('grants to an event', () => {
+  const eventGrant = {
+    ...GRANT,
+    contentId: 'evn_1' as string | null,
+    bundleId: null as string | null,
+    expiresAt: null,
+  };
+  const created = (actorId?: string, data = eventGrant) =>
+    ready(
+      entitlementEvents.entitlementCreated.make({ orgId: ORG, data }),
+      actorId ? { actorId } : undefined,
+    );
+  const deleted = (actorId?: string) =>
+    ready(
+      entitlementEvents.entitlementDeleted.make({
+        orgId: ORG,
+        data: { ...eventGrant, status: 'revoked' },
+      }),
+      actorId ? { actorId } : undefined,
+    );
+
+  it('tells the person staff added that they are going, instead of access granted', async () => {
+    const lists = await run(created('ou_mia'), { event: EVENT });
+    expect(lists).toEqual([
+      {
+        type: 'event.granted',
+        scope: 'org',
+        actorId: 'ou_mia',
+        communityId: null,
+        spaceId: null,
+        subject: { type: 'event', id: 'evn_1' },
+        parent: null,
+        display: EVENT_DISPLAY,
+        recipients: [{ orgUserId: 'ou_sarah', userId: 'usr_sarah', reasons: ['event_member'] }],
+      },
+    ]);
+  });
+
+  it('confirms a member who registered themselves, the one grant the actor is told about', async () => {
+    const lists = await run(created('ou_sarah'), { event: EVENT });
+    expect(lists.map((list) => list.type)).toEqual(['event.granted']);
+    expect(people(lists[0])).toEqual({ ou_sarah: ['event_member'] });
+  });
+
+  it('tells nobody who granted a course to themselves', async () => {
+    expect(
+      await run(
+        ready(entitlementEvents.entitlementCreated.make({ orgId: ORG, data: GRANT }), {
+          actorId: 'ou_sarah',
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('sends the bundle access notice, not an event notice, for a bundle that includes an event', async () => {
+    const lists = await run(
+      created('ou_mia', { ...eventGrant, contentId: null, bundleId: 'bnd_1' }),
+      { event: EVENT },
+    );
+    expect(lists.map((list) => [list.type, list.subject])).toEqual([
+      ['access.granted', { type: 'bundle', id: 'bnd_1' }],
+    ]);
+  });
+
+  it('tells the person someone else removed and who no longer attends', async () => {
+    const lists = await run(deleted('ou_mia'), { event: EVENT, lost: ['evn_1'] });
+    expect(lists).toEqual([
+      expect.objectContaining({
+        type: 'event.revoked',
+        scope: 'org',
+        actorId: 'ou_mia',
+        subject: { type: 'event', id: 'evn_1' },
+        display: EVENT_DISPLAY,
+      }),
+    ]);
+    expect(people(lists[0])).toEqual({ ou_sarah: ['event_member'] });
+  });
+
+  it('tells a person the system removed', async () => {
+    const lists = await run(deleted(), { event: EVENT, lost: ['evn_1'] });
+    expect(lists.map((list) => list.type)).toEqual(['event.revoked']);
+  });
+
+  it('tells nobody who canceled their own registration', async () => {
+    expect(await run(deleted('ou_sarah'), { event: EVENT, lost: ['evn_1'] })).toEqual([]);
+  });
+
+  it('tells nobody who still attends through a bundle', async () => {
+    expect(await run(deleted('ou_mia'), { event: EVENT, lost: [] })).toEqual([]);
+  });
+
+  it('sends nothing for an event whose notifications are off', async () => {
+    const quiet = { ...EVENT, settings: { ...EVENT.settings, notifications: false } };
+    expect(await run(created('ou_mia'), { event: quiet })).toEqual([]);
+    expect(await run(created('ou_sarah'), { event: quiet })).toEqual([]);
+    expect(await run(deleted('ou_mia'), { event: quiet, lost: ['evn_1'] })).toEqual([]);
   });
 });

@@ -4,9 +4,11 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   DirectoryQuery,
   DirectoryRow,
+  EventAttendeeRow,
+  EventReader,
   MemberReportRepository,
 } from "@headless-lms/core/reporting/member";
-import type { Page } from "@headless-lms/core/types";
+import type { MemberEventsQuery, Page } from "@headless-lms/core/types";
 import {
   contentAccess,
   orgUsers,
@@ -19,6 +21,7 @@ import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 import { communityMember, communityPublished, oneOf } from "./grant-covers.js";
+import { eventAttendeePage, memberEventIds } from "./event-reports.js";
 
 function personColumns(orgId: string) {
   return {
@@ -82,6 +85,23 @@ export class DrizzleMemberRepository implements MemberReportRepository {
       .leftJoin(userProfiles, eq(userProfiles.userId, orgUsers.userId))
       .leftJoin(users, eq(users.id, orgUsers.userId))
       .where(and(eq(orgUsers.orgId, orgId), inArray(orgUsers.id, orgUserIds)));
+  }
+
+  eventAttendees(
+    orgId: string,
+    eventId: string,
+    page: { page: number; pageSize: number },
+  ): Promise<Page<EventAttendeeRow>> {
+    return eventAttendeePage(this.db, orgId, eventId, page);
+  }
+
+  events(
+    orgId: string,
+    query: MemberEventsQuery,
+    reader: EventReader,
+    now: Date,
+  ): Promise<Page<string>> {
+    return memberEventIds(this.db, orgId, query, reader, now);
   }
 
   async spaceMemberCounts(

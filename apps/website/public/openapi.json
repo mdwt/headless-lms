@@ -5073,6 +5073,7 @@
                             "space_member",
                             "community_member",
                             "course_member",
+                            "event_member",
                             "moderator"
                           ]
                         }
@@ -5375,6 +5376,7 @@
                                       "space_member",
                                       "community_member",
                                       "course_member",
+                                      "event_member",
                                       "moderator"
                                     ]
                                   }
@@ -5575,6 +5577,7 @@
                                     "space_member",
                                     "community_member",
                                     "course_member",
+                                    "event_member",
                                     "moderator"
                                   ]
                                 }
@@ -5683,6 +5686,7 @@
                                       "space_member",
                                       "community_member",
                                       "course_member",
+                                      "event_member",
                                       "moderator"
                                     ]
                                   }
@@ -6082,6 +6086,7 @@
                                       "space_member",
                                       "community_member",
                                       "course_member",
+                                      "event_member",
                                       "moderator"
                                     ]
                                   }
@@ -10002,6 +10007,7 @@
                                       "space_member",
                                       "community_member",
                                       "course_member",
+                                      "event_member",
                                       "moderator"
                                     ]
                                   }
@@ -10272,6 +10278,7 @@
                                     "space_member",
                                     "community_member",
                                     "course_member",
+                                    "event_member",
                                     "moderator"
                                   ]
                                 }
@@ -10390,6 +10397,7 @@
                                       "space_member",
                                       "community_member",
                                       "course_member",
+                                      "event_member",
                                       "moderator"
                                     ]
                                   }
@@ -29006,6 +29014,268 @@
             }
           }
         }
+      },
+      "get": {
+        "operationId": "listEventAttendees",
+        "summary": "List an event's attendees",
+        "tags": [
+          "Events"
+        ],
+        "description": "Requires `events:read`. On the event or the org. The people attending, directly or through a bundle, by grant date. `source` is `bundle` for someone who attends only through a bundle.",
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "avatarUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "self",
+                              "manual",
+                              "automation",
+                              "bundle"
+                            ],
+                            "description": "`self`: registered themselves. `manual`: added by staff or an API client. `bundle`: attends only through a bundle"
+                          },
+                          "grantedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name",
+                          "avatarUrl",
+                          "source",
+                          "grantedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/events/{eventId}/attendees/{orgUserId}": {
@@ -29040,6 +29310,266 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{eventId}/analytics": {
+      "get": {
+        "operationId": "getEventAnalytics",
+        "summary": "An event's attendance figures",
+        "tags": [
+          "Events"
+        ],
+        "description": "Requires `events:read`. On the event or the org. The attendees now and by source, the capacity, the revoked direct grants, and the current direct grants by grant date before the start.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "attendees": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Attending now, directly or through a bundle"
+                    },
+                    "capacity": {
+                      "nullable": true,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "bySource": {
+                      "type": "object",
+                      "properties": {
+                        "self": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "manual": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "automation": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "bundle": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "self",
+                        "manual",
+                        "automation",
+                        "bundle"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Attendees per source"
+                    },
+                    "revoked": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Direct grants that are now revoked"
+                    },
+                    "grantsOverTime": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Current direct grants by grant date (UTC), before the start"
+                    }
+                  },
+                  "required": [
+                    "attendees",
+                    "capacity",
+                    "bySource",
+                    "revoked",
+                    "grantsOverTime"
+                  ],
+                  "additionalProperties": false
+                }
               }
             }
           },
@@ -31974,13 +32504,18 @@
                         "roleName": {
                           "type": "string",
                           "description": "The name of the viewer's role here"
+                        },
+                        "canCreateEvents": {
+                          "type": "boolean",
+                          "description": "The viewer holds `events:write` on the org"
                         }
                       },
                       "required": [
                         "permissions",
                         "opensEverySpace",
                         "team",
-                        "roleName"
+                        "roleName",
+                        "canCreateEvents"
                       ],
                       "additionalProperties": false,
                       "description": "The viewer in this community"
@@ -61951,6 +62486,593 @@
       }
     },
     "/api/member/events": {
+      "get": {
+        "operationId": "listMemberEvents",
+        "summary": "List the events you can see",
+        "tags": [
+          "Events"
+        ],
+        "description": "For a member of the organization. The published `public` events, and the published and canceled events you attend; with `events:read`, every published and canceled event it covers. Each as the event read returns it.",
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "past"
+              ]
+            },
+            "in": "query",
+            "name": "when",
+            "required": false,
+            "description": "`upcoming` (default): not yet ended, soonest first. `past`: ended, latest first"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "attending",
+            "required": false,
+            "description": "`true`: only the events the caller attends"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "event"
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "thumbnailAssetId": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "published",
+                              "canceled"
+                            ]
+                          },
+                          "startsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timeZone": {
+                            "type": "string"
+                          },
+                          "recording": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "url": {
+                                "type": "string",
+                                "format": "uri",
+                                "description": "Where the recording is, `http` or `https`"
+                              },
+                              "details": {
+                                "nullable": true,
+                                "description": "Such as a passcode",
+                                "type": "string",
+                                "maxLength": 1000
+                              }
+                            },
+                            "required": [
+                              "url",
+                              "details"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "thumbnailUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "location": {
+                            "nullable": true,
+                            "description": "Null when the caller sees the event only because it is published and public",
+                            "type": "object",
+                            "properties": {
+                              "venue": {
+                                "nullable": true,
+                                "description": "Where the event takes place in person",
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "address": {
+                                    "nullable": true,
+                                    "type": "object",
+                                    "properties": {
+                                      "line1": {
+                                        "nullable": true,
+                                        "type": "string",
+                                        "maxLength": 200
+                                      },
+                                      "line2": {
+                                        "nullable": true,
+                                        "type": "string",
+                                        "maxLength": 200
+                                      },
+                                      "city": {
+                                        "nullable": true,
+                                        "type": "string",
+                                        "maxLength": 200
+                                      },
+                                      "region": {
+                                        "nullable": true,
+                                        "type": "string",
+                                        "maxLength": 200
+                                      },
+                                      "postalCode": {
+                                        "nullable": true,
+                                        "type": "string",
+                                        "maxLength": 200
+                                      },
+                                      "country": {
+                                        "nullable": true,
+                                        "description": "An ISO 3166-1 alpha-2 code, such as `GB`",
+                                        "type": "string",
+                                        "pattern": "^[A-Z]{2}$"
+                                      }
+                                    },
+                                    "required": [
+                                      "line1",
+                                      "line2",
+                                      "city",
+                                      "region",
+                                      "postalCode",
+                                      "country"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "address"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "online": {
+                                "nullable": true,
+                                "description": "How to join online",
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string",
+                                    "format": "uri",
+                                    "description": "The meeting link, `http` or `https`"
+                                  },
+                                  "details": {
+                                    "nullable": true,
+                                    "description": "Such as a passcode or a dial-in number",
+                                    "type": "string",
+                                    "maxLength": 1000
+                                  }
+                                },
+                                "required": [
+                                  "url",
+                                  "details"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "venue",
+                              "online"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "settings": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "public",
+                                  "private"
+                                ],
+                                "description": "`public`: members register themselves. `private`: by grant only"
+                              },
+                              "capacity": {
+                                "nullable": true,
+                                "description": "The most attendees the event takes; null means no limit",
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "replay": {
+                                "type": "boolean",
+                                "description": "When true, attendees get the recording after the end"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "capacity",
+                              "replay"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "files": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "eventId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "assetId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "displayName": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "filename": {
+                                  "type": "string"
+                                },
+                                "contentType": {
+                                  "type": "string"
+                                },
+                                "size": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgId",
+                                "id",
+                                "eventId",
+                                "assetId",
+                                "seq",
+                                "displayName",
+                                "createdAt",
+                                "updatedAt",
+                                "filename",
+                                "contentType",
+                                "size",
+                                "url"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Empty when the caller cannot open the event"
+                          },
+                          "attendeeCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "attendees": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "orgUserId": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "avatarUrl": {
+                                  "nullable": true,
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "orgUserId",
+                                "name",
+                                "avatarUrl"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Up to 10 attendees, for the avatars"
+                          },
+                          "placesLeft": {
+                            "nullable": true,
+                            "description": "Capacity less the attendees; null with no capacity",
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "viewer": {
+                            "type": "object",
+                            "properties": {
+                              "attending": {
+                                "type": "boolean",
+                                "description": "The caller attends, directly or through a bundle"
+                              },
+                              "canRegister": {
+                                "type": "boolean",
+                                "description": "The caller may register now"
+                              },
+                              "canOpen": {
+                                "type": "boolean",
+                                "description": "The caller gets the location, files and recording"
+                              },
+                              "canManageAttendees": {
+                                "type": "boolean",
+                                "description": "The caller may add and remove attendees"
+                              },
+                              "canEdit": {
+                                "type": "boolean"
+                              },
+                              "canCancel": {
+                                "type": "boolean"
+                              },
+                              "canDelete": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attending",
+                              "canRegister",
+                              "canOpen",
+                              "canManageAttendees",
+                              "canEdit",
+                              "canCancel",
+                              "canDelete"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "orgId",
+                          "id",
+                          "type",
+                          "title",
+                          "description",
+                          "thumbnailAssetId",
+                          "status",
+                          "startsAt",
+                          "endsAt",
+                          "timeZone",
+                          "recording",
+                          "thumbnailUrl",
+                          "location",
+                          "settings",
+                          "files",
+                          "attendeeCount",
+                          "attendees",
+                          "placesLeft",
+                          "viewer"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "operationId": "createMemberEvent",
         "summary": "Create an event from the member app",
@@ -62494,6 +63616,552 @@
       }
     },
     "/api/member/events/{eventId}": {
+      "get": {
+        "operationId": "getMemberEvent",
+        "summary": "Get an event, with what you can do with it",
+        "tags": [
+          "Events"
+        ],
+        "description": "With `events:read` on the event or the org: the event in any status. As an attendee, directly or through a bundle: the published or canceled event, with the recording after the end when replay is on. Otherwise a published `public` event without its location, files and recording. 404 for anything else.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orgId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "event"
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "thumbnailAssetId": {
+                      "nullable": true,
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "published",
+                        "canceled"
+                      ]
+                    },
+                    "startsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endsAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "timeZone": {
+                      "type": "string"
+                    },
+                    "recording": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "Where the recording is, `http` or `https`"
+                        },
+                        "details": {
+                          "nullable": true,
+                          "description": "Such as a passcode",
+                          "type": "string",
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "details"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "thumbnailUrl": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "location": {
+                      "nullable": true,
+                      "description": "Null when the caller sees the event only because it is published and public",
+                      "type": "object",
+                      "properties": {
+                        "venue": {
+                          "nullable": true,
+                          "description": "Where the event takes place in person",
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "address": {
+                              "nullable": true,
+                              "type": "object",
+                              "properties": {
+                                "line1": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "maxLength": 200
+                                },
+                                "line2": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "maxLength": 200
+                                },
+                                "city": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "maxLength": 200
+                                },
+                                "region": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "maxLength": 200
+                                },
+                                "postalCode": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "maxLength": 200
+                                },
+                                "country": {
+                                  "nullable": true,
+                                  "description": "An ISO 3166-1 alpha-2 code, such as `GB`",
+                                  "type": "string",
+                                  "pattern": "^[A-Z]{2}$"
+                                }
+                              },
+                              "required": [
+                                "line1",
+                                "line2",
+                                "city",
+                                "region",
+                                "postalCode",
+                                "country"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "address"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "online": {
+                          "nullable": true,
+                          "description": "How to join online",
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "type": "string",
+                              "format": "uri",
+                              "description": "The meeting link, `http` or `https`"
+                            },
+                            "details": {
+                              "nullable": true,
+                              "description": "Such as a passcode or a dial-in number",
+                              "type": "string",
+                              "maxLength": 1000
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "details"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "venue",
+                        "online"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "settings": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "public",
+                            "private"
+                          ],
+                          "description": "`public`: members register themselves. `private`: by grant only"
+                        },
+                        "capacity": {
+                          "nullable": true,
+                          "description": "The most attendees the event takes; null means no limit",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "replay": {
+                          "type": "boolean",
+                          "description": "When true, attendees get the recording after the end"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "capacity",
+                        "replay"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "eventId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "assetId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "seq": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "displayName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "filename": {
+                            "type": "string"
+                          },
+                          "contentType": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgId",
+                          "id",
+                          "eventId",
+                          "assetId",
+                          "seq",
+                          "displayName",
+                          "createdAt",
+                          "updatedAt",
+                          "filename",
+                          "contentType",
+                          "size",
+                          "url"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Empty when the caller cannot open the event"
+                    },
+                    "attendeeCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "attendees": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "avatarUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name",
+                          "avatarUrl"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Up to 10 attendees, for the avatars"
+                    },
+                    "placesLeft": {
+                      "nullable": true,
+                      "description": "Capacity less the attendees; null with no capacity",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "viewer": {
+                      "type": "object",
+                      "properties": {
+                        "attending": {
+                          "type": "boolean",
+                          "description": "The caller attends, directly or through a bundle"
+                        },
+                        "canRegister": {
+                          "type": "boolean",
+                          "description": "The caller may register now"
+                        },
+                        "canOpen": {
+                          "type": "boolean",
+                          "description": "The caller gets the location, files and recording"
+                        },
+                        "canManageAttendees": {
+                          "type": "boolean",
+                          "description": "The caller may add and remove attendees"
+                        },
+                        "canEdit": {
+                          "type": "boolean"
+                        },
+                        "canCancel": {
+                          "type": "boolean"
+                        },
+                        "canDelete": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "attending",
+                        "canRegister",
+                        "canOpen",
+                        "canManageAttendees",
+                        "canEdit",
+                        "canCancel",
+                        "canDelete"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "orgId",
+                    "id",
+                    "type",
+                    "title",
+                    "description",
+                    "thumbnailAssetId",
+                    "status",
+                    "startsAt",
+                    "endsAt",
+                    "timeZone",
+                    "recording",
+                    "thumbnailUrl",
+                    "location",
+                    "settings",
+                    "files",
+                    "attendeeCount",
+                    "attendees",
+                    "placesLeft",
+                    "viewer"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "operationId": "updateMemberEvent",
         "summary": "Update an event you run",
@@ -63246,6 +64914,665 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/events/{eventId}/calendar": {
+      "get": {
+        "operationId": "getEventCalendar",
+        "summary": "Download an event as a calendar file",
+        "tags": [
+          "Events"
+        ],
+        "description": "An iCalendar file with the title, the times and the event page. The location and the meeting link are included when the event read returns them. 404 when the event read does.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`text/calendar`, one VEVENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "description": "`text/calendar`, one VEVENT"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/events/{eventId}/attendees": {
+      "get": {
+        "operationId": "listMemberEventAttendees",
+        "summary": "List the attendees of an event you run",
+        "tags": [
+          "Events"
+        ],
+        "description": "Requires `events:read`. On the event or the org. The people attending, directly or through a bundle, by grant date. `source` is `bundle` for someone who attends only through a bundle.",
+        "parameters": [
+          {
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "orgUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "avatarUrl": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "self",
+                              "manual",
+                              "automation",
+                              "bundle"
+                            ],
+                            "description": "`self`: registered themselves. `manual`: added by staff or an API client. `bundle`: attends only through a bundle"
+                          },
+                          "grantedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "orgUserId",
+                          "name",
+                          "avatarUrl",
+                          "source",
+                          "grantedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addMemberEventAttendee",
+        "summary": "Add an attendee to an event you run",
+        "tags": [
+          "Events"
+        ],
+        "description": "Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orgUserId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "orgUserId"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -65078,6 +67405,187 @@
             }
           }
         }
+      },
+      "get": {
+        "operationId": "getEventFile",
+        "summary": "Redirect to a file attached to an event",
+        "tags": [
+          "Files"
+        ],
+        "description": "For a holder of `events:read` on the event or the org, or an attendee of the published or canceled event. Saved under its display name. 404 otherwise, or when the file is not attached to the event.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "assetId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/member/events/{eventId}/registration": {
@@ -65453,225 +67961,6 @@
         }
       }
     },
-    "/api/member/events/{eventId}/attendees": {
-      "post": {
-        "operationId": "addMemberEventAttendee",
-        "summary": "Add an attendee to an event you run",
-        "tags": [
-          "Events"
-        ],
-        "description": "Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "orgUserId": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "orgUserId"
-                ]
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "eventId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "issues": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "description": "Where in the request, such as `body.topics[1].name`"
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/member/events/{eventId}/attendees/{orgUserId}": {
       "delete": {
         "operationId": "removeMemberEventAttendee",
@@ -65870,6 +68159,181 @@
             },
             "in": "path",
             "name": "courseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/member/events/{eventId}/thumbnail": {
+      "get": {
+        "operationId": "getEventThumbnail",
+        "summary": "Redirect to an event's cover",
+        "tags": [
+          "Files"
+        ],
+        "description": "Anyone the event read returns the event to may fetch its cover. 404 when it returns 404 or the event has no cover.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "eventId",
             "required": true
           }
         ],
@@ -67793,6 +70257,7 @@
                                 "space_member",
                                 "community_member",
                                 "course_member",
+                                "event_member",
                                 "moderator"
                               ]
                             }
@@ -67811,6 +70276,7 @@
                               "space_member",
                               "community_member",
                               "course_member",
+                              "event_member",
                               "moderator"
                             ],
                             "description": "The reason of the pair the category matched, which picks the wording, such as a reply to your comment"
@@ -68329,6 +70795,7 @@
                           "space_member",
                           "community_member",
                           "course_member",
+                          "event_member",
                           "moderator"
                         ]
                       }
@@ -68347,6 +70814,7 @@
                         "space_member",
                         "community_member",
                         "course_member",
+                        "event_member",
                         "moderator"
                       ],
                       "description": "The reason of the pair the category matched, which picks the wording, such as a reply to your comment"
@@ -80628,13 +83096,20 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "upcomingEvents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Published events that have not ended"
                     }
                   },
                   "required": [
                     "publishedCourses",
                     "draftCourses",
                     "activeStudents",
-                    "expiringSoon"
+                    "expiringSoon",
+                    "upcomingEvents"
                   ],
                   "additionalProperties": false
                 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { contentTypeSchema } from './content.js';
 import { idSchema } from './shared.js';
 
 export const entitlementStatusSchema = z.enum(['active', 'revoked']);
@@ -46,6 +47,9 @@ export const grantEntitlementInputSchema = z
     bundleId: idSchema.nullish(),
     expiresAt: z.coerce.date().nullable(),
     source: z.string().optional(),
+    contentType: contentTypeSchema
+      .optional()
+      .describe('When set, a contentId of another type is not found'),
   })
   .strict()
   .refine((v) => (v.contentId != null) !== (v.bundleId != null), {

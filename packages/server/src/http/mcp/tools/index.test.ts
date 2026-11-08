@@ -37,6 +37,8 @@ const NAMES = [
   'update_event',
   'cancel_event',
   'delete_event',
+  'list_event_attendees',
+  'get_event_analytics',
   'add_event_attendee',
   'remove_event_attendee',
   'list_event_files',

@@ -6,6 +6,8 @@ describe('RECIPIENT_RULES', () => {
     expect(Object.keys(RECIPIENT_RULES).sort()).toEqual(
       [
         'content.course.activity.published',
+        'content.event.starting_soon',
+        'content.event.updated',
         'discussion.chat.created',
         'discussion.chat.participant.added',
         'discussion.comment.created',

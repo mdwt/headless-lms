@@ -39,6 +39,8 @@ const admin = new AdminReportServiceImpl({
   repo: { courseLearners } as unknown as AdminReportRepository,
   permissions: { permissionsOfMany: async () => new Map() },
   spaces: { everySpaceOpeners: async () => [] },
+  events: { findEvent: async () => null },
+  fileUrls: { personImage: (id) => `https://api.test/${id}` },
 });
 let actor: Actor = JAMES;
 

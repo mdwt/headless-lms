@@ -177,6 +177,7 @@ export const CommunityHome = z.object({
         .describe('The viewer opens every space, so holds no place in its spaces'),
       team: z.boolean().describe('The viewer is shown as team here'),
       roleName: z.string().describe("The name of the viewer's role here"),
+      canCreateEvents: z.boolean().describe('The viewer holds `events:write` on the org'),
     })
     .describe('The viewer in this community'),
 });

@@ -6,6 +6,7 @@ import {
   EventAttendeeParams,
   EventIdParam,
   EventsQuery,
+  PageQuery,
   RenameEventAsset,
   ReorderEventAssets,
   UpdateEvent,
@@ -87,6 +88,32 @@ export const eventTools: Tool[] = [
       container.content.deleteEvent(eventId, caller.actor),
   }),
   defineTool({
+    name: 'list_event_attendees',
+    title: 'List event attendees',
+    description:
+      'The people attending an event, directly or through a bundle, by grant date, each with how they got their place: self, manual, automation or bundle.',
+    operation: 'reporting.admin.eventAttendees',
+    kind: 'read',
+    idempotent: true,
+    openWorld: false,
+    input: PageQuery.extend(EventIdParam.shape),
+    call: ({ eventId, ...page }, { container, caller }) =>
+      container.reporting.admin.eventAttendees(eventId, page, caller.actor),
+  }),
+  defineTool({
+    name: 'get_event_analytics',
+    title: 'Get event analytics',
+    description:
+      'Attendance figures for one event: attendees now and by source, capacity, revoked grants, and grants over time before the start.',
+    operation: 'reporting.admin.eventAnalytics',
+    kind: 'read',
+    idempotent: true,
+    openWorld: false,
+    input: EventIdParam,
+    call: ({ eventId }, { container, caller }) =>
+      container.reporting.admin.eventAnalytics(eventId, caller.actor),
+  }),
+  defineTool({
     name: 'add_event_attendee',
     title: 'Add event attendee',
     description:
@@ -98,7 +125,7 @@ export const eventTools: Tool[] = [
     input: AddEventAttendee.extend(EventIdParam.shape),
     call: ({ eventId, orgUserId }, { container, caller }) =>
       container.entitlements.grant(
-        { orgUserId, contentId: eventId, expiresAt: null },
+        { orgUserId, contentId: eventId, contentType: 'event', expiresAt: null },
         caller.actor,
       ),
   }),
@@ -113,7 +140,10 @@ export const eventTools: Tool[] = [
     openWorld: false,
     input: EventAttendeeParams,
     call: ({ eventId, orgUserId }, { container, caller }) =>
-      container.entitlements.revoke({ orgUserId, contentId: eventId }, caller.actor),
+      container.entitlements.revoke(
+        { orgUserId, contentId: eventId, contentType: 'event' },
+        caller.actor,
+      ),
   }),
   defineTool({
     name: 'list_event_files',

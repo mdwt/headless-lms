@@ -1,6 +1,6 @@
 # Content — Domain Spec
 
-Owns the org's authored content: the things a learner consumes. The domain is responsible for **all content types**. Today there are two — **course** and **download** — with **community** specified alongside them, and the domain is the home for every content type that follows (podcast, newsletter, and others), each with its own structure.
+Owns the org's authored content: the things a learner consumes. The domain is responsible for **all content types**: **course**, **download**, **community** and **event**, and every content type that follows (podcast, newsletter, and others), each with its own structure.
 
 What unites content types is not structure but how they behave at the edges: every type is authored and published here, gated by entitlements, progressed through by progress, and backed by assets. Course and download already share no structure — a course a tree of modules and activities, a download a flat, ordered set of asset references — yet both sit in the same domain, so neither is its shape. Structure is each type's own concern; the domain is defined by being the owner of all content and by the shared boundaries and capabilities its types have, not by any one tree.
 
@@ -17,6 +17,10 @@ The domain owns all content types. Each defines its own structure and rules.
 
 - **Community** — a product whose structure is a flat, ordered list of spaces. A grant to it makes a person a member. Members post in its spaces and message each other; what they write belongs to discussion. Content owns the community, its spaces and their rules, and the community's DM settings.
 
+**Specified with the events feature:**
+
+- **Event** — one live session at a set time: a weekly call, office hours, a workshop or an in-person meetup. The session runs in a meeting tool or at a venue; the system doesn't host it. A grant to the event makes a person an attendee. Content owns the event, its settings and its attached files.
+
 The domain also owns the **bundle**: a named set of content items sold together. A bundle is not itself consumed; a grant to it is access to each of its items (entitlements). A membership, in the business sense, is a bundle.
 
 **Future types the domain will hold** (illustrative, not built):
@@ -30,7 +34,7 @@ Types are not forced into a common structure — a course is a tree of modules a
 
 - Owns the content types and, within each, its own structure and authoring rules.
 - Owns the gating **rules** a type defines on its structure (e.g. a course's drip and unlock-on-completion).
-- Owns the **settings other contexts apply**: a course's discussion settings, a space's access rule, capacity and post defaults, a community's DM settings, notification categories and digest schedule. Content is their only writer; entitlements, discussion and automations read them.
+- Owns the **settings other contexts apply**: a course's discussion settings, a space's access rule, capacity and post defaults, a community's DM settings, notification categories and digest schedule, an event's type, capacity and whether it sends notifications. Content is their only writer; entitlements, discussion and automations read them.
 - References the assets content uses. Does **not** own access (entitlements), per-learner progress (progress), or how content is sold (offers).
 
 ## Capabilities
@@ -42,7 +46,7 @@ Shared across all content types:
 - **Define gating** — where a type supports it, set the rules on its structure (a course's drip and unlock-on-completion, a space's access rule and capacity).
 - **Define what others apply** — set a course's discussion settings, a space's post defaults and topics, and a community's DM settings, notification categories and digest schedule. Discussion, entitlements and automations read them; only content writes them.
 
-Each capability needs the type's permission on the item acted on: `courses:write` to author and publish a course, `courses:delete` to delete it, and likewise for downloads and communities. Removing a module, an activity or a space changes its item and needs the write permission. Creating an item needs the type's write permission on the org, because there is no item yet. A list holds the items the person holds the type's read permission on. Bundles need the `bundles` permissions on the org.
+Each capability needs the type's permission on the item acted on: `courses:write` to author and publish a course, `courses:delete` to delete it, and likewise for downloads, communities and events. Removing a module, an activity or a space changes its item and needs the write permission. Creating an item needs the type's write permission on the org, because there is no item yet. A list holds the items the person holds the type's read permission on. Bundles need the `bundles` permissions on the org.
 
 ## Model
 
@@ -71,6 +75,18 @@ Structure is per-type; the entities below are a type's own. The course type, as 
 - **Digest schedule** — per community: daily or weekly, the weekday for a weekly digest, the hour and the time zone. A community without one sends no digest.
 
 A space's access rule, capacity and post defaults and the community's DM settings, notification categories and digest schedule are content's definition. Entitlements reads the access rule and capacity to answer who can open a space; discussion reads the post defaults, topics and DM settings to decide what it accepts, and the digest schedule to know when a digest is due; automations reads the notification categories to file each notification and identity reads them to check a member's settings. None of them writes them. The posts in a space, and the chats in a community, are discussion's.
+
+### Event type — entities
+
+- **Event** — title, description, cover, status (`draft | published | canceled`), a start, an end after it, the time zone it was set in, its location, its recording and its settings. Ended is not a status: an event has ended once its end has passed. Canceling is final; a canceled event can't be published or changed again.
+- **Location** — a venue, with its name and address, a meeting link with details such as a passcode, both, or neither yet.
+- **Recording** — a link to the recording with its details, set after the session.
+- **Settings** — the event type, `public` (any member registers) or `private` (by grant only); the capacity, at least one or no limit, which every grant to the event counts against; whether notifications are sent about the event; and whether attendees get the recording after the end (replay).
+- **Attached file** — an ordered list of uploaded files of any kind, each with an optional display name, as a download's.
+
+What the event is lives on the event; everything that changes how it behaves is one of its settings. Entitlements reads the status, times, type and capacity to decide whether a grant is allowed; automations reads whether the event sends notifications. Neither writes them. The grants to the event, its attendees, are entitlements'.
+
+The attendees of a published event are reminded twice, a day and an hour before it starts. Content owns that timed work as a job: publishing the event, or moving its times, schedules a run for each lead still ahead; unpublishing, canceling or deleting it cancels them. When a run fires and the event is still published, content records that the event is starting soon, which automations turns into notices.
 
 ### Other types
 
@@ -102,6 +118,11 @@ For the community type:
 - `community.space.created`, `community.space.updated`, `community.space.deleted` — a change to a space's topics or links is an `updated` on the space.
 - `community.spaces.reordered`
 
+For the event type:
+
+- `event.created`, `event.updated`, `event.deleted` — publishing, unpublishing and canceling are each an `updated` carrying the new status. An `updated` names the previous status, type, start and end, and whether the location changed, so a change that matters to attendees can be told from one that doesn't. The location and the recording never leave the system with these events.
+- `event.starting_soon` — the event, how soon (a day or an hour) and when it starts, emitted by the reminder job.
+
 Other types emit their own equivalents (e.g. `episode.published`, `issue.published`). The bundle emits `bundle.created`, `bundle.updated`, `bundle.deleted`.
 
 ## Mutable structure
@@ -110,4 +131,4 @@ A type's structure changes over time — adding, removing, or reordering parts. 
 
 ## Build state
 
-The course and download types are built and **persisted**. The community type is built and **persisted**. Other types follow as they are implemented.
+The course and download types are built and **persisted**. The community type is built and **persisted**. The event type, its attached files and its reminder job are built and **persisted**. Other types follow as they are implemented.

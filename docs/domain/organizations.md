@@ -70,10 +70,10 @@ flowchart TD
 
 The permission list is part of the product. A deployment or an org can't add a permission.
 
-- A key is `resource:action`. The resource is a plural domain noun: `courses`, `people`, `automations`. A record that belongs to a resource falls under it: modules, activities and lesson comments under `courses`; spaces, topics, posts, chats and space members under `communities`. A course's learners and their progress are `progress`, because it is personal data the course's content permissions shouldn't carry.
+- A key is `resource:action`. The resource is a plural domain noun: `courses`, `people`, `automations`. A record that belongs to a resource falls under it: modules, activities and lesson comments under `courses`; spaces, topics, posts, chats and space members under `communities`; an event's attached files and its attendees under `events`. A course's learners and their progress are `progress`, because it is personal data the course's content permissions shouldn't carry.
 - The actions are `read`, `write`, `delete` and `moderate`. `read` sees the resource. `write` creates and changes it; creating a content item needs `write` on the org. `delete` permanently removes the resource itself; removing a part of it, such as a module or a space, is `write`. `moderate` acts on what other people post in an item and on who takes part in it, and the holder's own posts there skip review.
 - Each `write` and `delete` implies the resource's `read`. `courses:moderate` implies `courses:read`, because a moderator of lesson comments holds no grant to the course. `people:read` implies `progress:read`, because a person's record shows their progress in every course. `communities:moderate` implies nothing: a moderator moderates as a member, through their grant.
-- The read permission of each content type is the one exception to grants. `courses:read` and `downloads:read` open the item and its files without a grant, unpublished included. `communities:read` makes the person a member of the community without a grant and opens every space in it.
+- The read permission of each content type is the one exception to grants. `courses:read` and `downloads:read` open the item and its files without a grant, unpublished included. `communities:read` makes the person a member of the community without a grant and opens every space in it. `events:read` opens the event, its location, files and recording without a grant, in any status.
 
 | Permission                      | Allows                                                                                                                     | About     |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------- |
@@ -114,6 +114,9 @@ The permission list is part of the product. A deployment or an org can't add a p
 | `communities:write`             | Configure the community, its spaces, topics, links, settings and notification categories; publish it; delete its spaces.   | community |
 | `communities:delete`            | Delete the community.                                                                                                      | community |
 | `communities:moderate`          | Review, approve, remove, restore, pin and lock posts, comments and messages; manage space members and join requests.       | community |
+| `events:read`                   | See the event, drafts and canceled included; open it without a grant; see its attendees and analytics.                     | event     |
+| `events:write`                  | Edit, publish and cancel the event; set its recording; add and remove attendees; upload, attach and arrange its files.     | event     |
+| `events:delete`                 | Delete the event.                                                                                                          | event     |
 | `automations:read`              | See workflows, webhooks and their runs.                                                                                    | org       |
 | `automations:write`             | Create and edit workflows and webhooks, and reveal a webhook's signing secret.                                             | org       |
 | `automations:delete`            | Delete workflows and webhooks.                                                                                             | org       |
@@ -132,7 +135,7 @@ Roles are data. The product ships a default set; a deployment can replace it wit
 | `moderator`  | Moderator  | org, community | yes  | `communities:moderate`                                                                                                   |
 | `member`     | Member     | org            | no   | nothing                                                                                                                  |
 
-Instructor on the org covers every course; on one course, that course. Moderator on the org covers every community; on one community, that community. Instructor holds nothing in communities: a person who teaches and moderates holds both roles.
+Instructor on the org covers every course; on one course, that course. Moderator on the org covers every community; on one community, that community. Instructor holds nothing in communities: a person who teaches and moderates holds both roles. No default role but Owner and Admin holds an `events` permission; an org that wants others to run events gives them a role that does, on the org or on one event.
 
 - **Owner** holds every permission. Exactly one person holds it, on the org only. It moves only by transfer. It can be renamed, never changed, given or deleted.
 - **Member** is the org role of everyone who wasn't given another. It holds no permissions: what a member opens is decided by their grants. It can be renamed, never changed, given on a content item, or deleted.

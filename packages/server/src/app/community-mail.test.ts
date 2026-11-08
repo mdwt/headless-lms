@@ -20,6 +20,7 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
       listCommunitiesById: reject,
       findCourse: reject,
       findDownload: reject,
+      findEvent: reject,
       findBundle: reject,
     },
     entitlements: {

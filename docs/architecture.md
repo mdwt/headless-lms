@@ -30,8 +30,9 @@ adapters as reference when creating new ones.
 ### Access checks
 
 Whether a member can open content is decided by the entitlements context. The one exception is the read permission
-of each content type: `courses:read` and `downloads:read` open the item without a grant, unpublished included, and
-`communities:read` makes the person a member of the community and opens every space in it.
+of each content type: `courses:read` and `downloads:read` open the item without a grant, unpublished included,
+`communities:read` makes the person a member of the community and opens every space in it, and `events:read` opens
+the event, its location, files and recording in any status.
 
 - Services and the member surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
   it declares a narrow `ContentAccessReader` port, wired to entitlements in composition.
@@ -139,15 +140,16 @@ method checks the caller's permissions itself; there is no service per role.
 
 `reporting/member` is the person in the member product: a learner in a course, a member in a community, a moderator.
 It answers the courses, progress, and downloads they can open, the community directory, the community home, the
-notification list, the unread counts, and the notification settings view. The `/api/member` prefix is the member HTTP
-API. Its course, download, progress, directory, community-home, notification list, unread count and notification
-settings view routes call `reporting/member`. The other routes under that prefix call the context that owns the
-operation.
+events they can see with their calendar file and attendees, the notification list, the unread counts, and the
+notification settings view. The `/api/member` prefix is the member HTTP API. Its course, download, progress,
+directory, community-home, event read, event list, event calendar, event attendee list, notification list, unread
+count and notification settings view routes call `reporting/member`. The other routes under that prefix call the
+context that owns the operation.
 
 `reporting/admin` is the person in the admin app, whatever their role. It answers the org overview
 (`analytics:read`), course analytics (`progress:read` on the course), the roster and a learner's record
-(`people:read`), a community's members (`access:read`), and the community analytics (`communities:read` on the
-community).
+(`people:read`), a community's members (`access:read`), the community analytics (`communities:read` on the
+community), and an event's attendees and analytics (`events:read` on the event).
 
 `reporting/member` and `reporting/admin` are the services in the code.
 

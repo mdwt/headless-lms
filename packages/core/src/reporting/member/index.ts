@@ -12,6 +12,8 @@ export type {
   CommunityHome,
   CommunityHomeSpace,
   CommunityViewer,
+  EventAttendeeRow,
+  EventReader,
   MemberViewer,
   LockedCommunitySpace,
   OpenCommunitySpace,

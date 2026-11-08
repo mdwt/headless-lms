@@ -99,19 +99,20 @@ export class EntitlementsServiceImpl implements EntitlementsService {
 
   async grant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement> {
     const orgId = actor.orgId;
-    const contentId = input.contentId ?? null;
+    const { contentType, ...grant } = input;
+    const contentId = grant.contentId ?? null;
+    if (contentId === null && contentType !== undefined) {
+      throw new NotFoundError('Content', grant.bundleId ?? '');
+    }
     if (contentId !== null) {
-      const type = await this.repo.contentTypeOf(orgId, contentId);
-      if (type === null) {
-        throw new NotFoundError('Content', contentId);
-      }
+      const type = await this.typeOf(orgId, contentId, contentType);
       if (type === 'event') {
-        return this.grantEvent({ ...input, contentId }, actor);
+        return this.grantEvent({ ...grant, contentId }, actor);
       }
     }
     actor.permissions.require('access:write');
     const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
-      const created = await entitlements.insert(orgId, { ...input, source: 'manual' });
+      const created = await entitlements.insert(orgId, { ...grant, source: 'manual' });
       await outbox.append([
         entitlementEvents.entitlementCreated.make({
           orgId,
@@ -223,10 +224,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async revoke(input: RevokeGrantInput, actor: Actor): Promise<Entitlement> {
     const orgId = actor.orgId;
     const { orgUserId, contentId } = input;
-    const type = await this.repo.contentTypeOf(orgId, contentId);
-    if (type === null) {
-      throw new NotFoundError('Content', contentId);
-    }
+    const type = await this.typeOf(orgId, contentId, input.contentType);
     if (type === 'event') {
       if (orgUserId !== actor.id) {
         this.requireAttendeeManager(actor, contentId);
@@ -266,6 +264,18 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       actorId: actor.id,
     });
     return revoked;
+  }
+
+  private async typeOf(
+    orgId: string,
+    contentId: string,
+    expected: ContentType | undefined,
+  ): Promise<ContentType> {
+    const type = await this.repo.contentTypeOf(orgId, contentId);
+    if (type === null || (expected !== undefined && type !== expected)) {
+      throw new NotFoundError(expected === 'event' ? 'Event' : 'Content', contentId);
+    }
+    return type;
   }
 
   private async grantEvent(

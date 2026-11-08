@@ -8,8 +8,13 @@ import {
   Event,
   EventAssetParams,
   EventAttendeeParams,
+  EventAttendeesPage,
   EventFile,
   EventIdParam,
+  MemberEvent,
+  MemberEventsPage,
+  MemberEventsQuery,
+  PageQuery,
   RenameEventAsset,
   ReorderEventAssets,
   UpdateEvent,
@@ -25,6 +30,94 @@ export async function memberEventsRoutes(
 ): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const content = container.content;
+  const member = container.reporting.member;
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/events',
+    config: { operation: 'reporting.member.listEvents' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listMemberEvents',
+      tags: ['Events'],
+      summary: 'List the events you can see',
+      description:
+        'For a member of the organization. The published `public` events, and the published and canceled events you attend; with `events:read`, every published and canceled event it covers. Each as the event read returns it.',
+      querystring: MemberEventsQuery,
+      response: { 200: MemberEventsPage, ...refusals(400, 403) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return member.listEvents(req.query, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/events/:eventId',
+    config: { operation: 'reporting.member.getEvent' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getMemberEvent',
+      tags: ['Events'],
+      summary: 'Get an event, with what you can do with it',
+      description:
+        'With `events:read` on the event or the org: the event in any status. As an attendee, directly or through a bundle: the published or canceled event, with the recording after the end when replay is on. Otherwise a published `public` event without its location, files and recording. 404 for anything else.',
+      params: EventIdParam,
+      response: { 200: MemberEvent, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return member.getEvent(req.params.eventId, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/events/:eventId/calendar',
+    config: { operation: 'reporting.member.eventCalendar' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getEventCalendar',
+      tags: ['Events'],
+      summary: 'Download an event as a calendar file',
+      description:
+        'An iCalendar file with the title, the times and the event page. The location and the meeting link are included when the event read returns them. 404 when the event read does.',
+      params: EventIdParam,
+      response: {
+        200: z.string().describe('`text/calendar`, one VEVENT'),
+        ...refusals(403, 404),
+      },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      const body = await member.eventCalendar(req.params.eventId, actor);
+      return reply
+        .header('content-type', 'text/calendar; charset=utf-8')
+        .header('content-disposition', `attachment; filename="${req.params.eventId}.ics"`)
+        .send(body);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/events/:eventId/attendees',
+    config: { operation: 'reporting.member.eventAttendees' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listMemberEventAttendees',
+      tags: ['Events'],
+      summary: 'List the attendees of an event you run',
+      description: `${describeOperation('reporting.member.eventAttendees')} On the event or the org. The people attending, directly or through a bundle, by grant date. \`source\` is \`bundle\` for someone who attends only through a bundle.`,
+      params: EventIdParam,
+      querystring: PageQuery,
+      response: { 200: EventAttendeesPage, ...refusals(400, 403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return member.eventAttendees(req.params.eventId, req.query, actor);
+    },
+  });
 
   r.route({
     method: 'POST',
@@ -225,7 +318,12 @@ export async function memberEventsRoutes(
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       await container.entitlements.grant(
-        { orgUserId: actor.id, contentId: req.params.eventId, expiresAt: null },
+        {
+          orgUserId: actor.id,
+          contentId: req.params.eventId,
+          contentType: 'event',
+          expiresAt: null,
+        },
         actor,
       );
       return reply.code(204).send();
@@ -249,7 +347,7 @@ export async function memberEventsRoutes(
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       await container.entitlements.revoke(
-        { orgUserId: actor.id, contentId: req.params.eventId },
+        { orgUserId: actor.id, contentId: req.params.eventId, contentType: 'event' },
         actor,
       );
       return reply.code(204).send();
@@ -274,7 +372,12 @@ export async function memberEventsRoutes(
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       await container.entitlements.grant(
-        { orgUserId: req.body.orgUserId, contentId: req.params.eventId, expiresAt: null },
+        {
+          orgUserId: req.body.orgUserId,
+          contentId: req.params.eventId,
+          contentType: 'event',
+          expiresAt: null,
+        },
         actor,
       );
       return reply.code(204).send();
@@ -298,7 +401,7 @@ export async function memberEventsRoutes(
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       await container.entitlements.revoke(
-        { orgUserId: req.params.orgUserId, contentId: req.params.eventId },
+        { orgUserId: req.params.orgUserId, contentId: req.params.eventId, contentType: 'event' },
         actor,
       );
       return reply.code(204).send();

@@ -126,6 +126,17 @@ export const DEFAULT_ORG_CATEGORIES: NotificationCategory[] = [
     channels: { inApp: on, email: lockedOn },
   },
   {
+    key: 'events',
+    covers: [
+      { type: 'event.granted', reasons: ['event_member'] },
+      { type: 'event.starting_soon', reasons: ['event_member'] },
+      { type: 'event.changed', reasons: ['event_member'] },
+      { type: 'event.canceled', reasons: ['event_member'] },
+      { type: 'event.revoked', reasons: ['event_member'] },
+    ],
+    channels: { inApp: lockedOn, email: on, push: on },
+  },
+  {
     key: 'course_content',
     covers: [{ type: 'course.activity_added', reasons: ['course_member'] }],
     channels: { inApp: on, email: off, push: off },

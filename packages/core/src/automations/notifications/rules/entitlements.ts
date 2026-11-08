@@ -4,6 +4,7 @@ import type { RecipientList, SubjectRef } from '../../../types/index.js';
 import { communityModerators, previousStatusOf } from '../../community-mail.js';
 import type { NotificationReads, RecipientRule } from '../../ports.js';
 import { actorOr, eventAt, listOf, Reasons, recipientsOf } from './recipients.js';
+import { eventBase, eventDisplay } from './events.js';
 
 type Grant = { orgUserId: string; contentId: string | null; bundleId: string | null };
 type SpaceMember = { spaceId: string; communityId: string; orgUserId: string; status: string };
@@ -204,6 +205,10 @@ const spaceMemberDeleted: RecipientRule = async (event, reads) => {
     : [];
 };
 
+async function grantedEvent(reads: NotificationReads, orgId: string, grant: Grant) {
+  return grant.contentId ? reads.event(orgId, grant.contentId) : null;
+}
+
 const entitlementCreated: RecipientRule = async (event, reads) => {
   const parsed = entitlementEvents.entitlementCreated.safeParse(event);
   if (!parsed.success) {
@@ -212,6 +217,19 @@ const entitlementCreated: RecipientRule = async (event, reads) => {
   const grant = parsed.data.data;
   const orgId = event.orgId;
   const actor = actorOr(event, null);
+  const granted = await grantedEvent(reads, orgId, grant);
+  if (granted) {
+    if (!granted.settings.notifications) {
+      return [];
+    }
+    return listOf(
+      { ...eventBase('event.granted', granted, actor), display: eventDisplay(granted) },
+      await recipientsOf(reads, orgId, new Reasons().add([grant.orgUserId], 'event_member'), {
+        exclude: [],
+        at: eventAt(event),
+      }),
+    );
+  }
   const subject = await subjectOnly(event, reads, grant.orgUserId);
   if (subject.length === 0) {
     return [];
@@ -296,6 +314,23 @@ const entitlementDeleted: RecipientRule = async (event, reads) => {
     return [];
   }
   const grant = parsed.data.data;
+  const revokedFrom = await grantedEvent(reads, event.orgId, grant);
+  if (revokedFrom) {
+    if (
+      !revokedFrom.settings.notifications ||
+      !(await reads.contentLostBy(event.orgId, grant)).includes(revokedFrom.id)
+    ) {
+      return [];
+    }
+    const actor = actorOr(event, null);
+    return listOf(
+      { ...eventBase('event.revoked', revokedFrom, actor), display: eventDisplay(revokedFrom) },
+      await recipientsOf(reads, event.orgId, new Reasons().add([grant.orgUserId], 'event_member'), {
+        exclude: [actor],
+        at: eventAt(event),
+      }),
+    );
+  }
   const target = await grantSubject(reads, event.orgId, grant);
   const ended = await membershipEnded(event, reads, grant, target?.ref ?? null);
   if (ended) {

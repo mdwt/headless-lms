@@ -58,6 +58,8 @@ function build(options: {
       directory: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
       spaceMemberCounts: async () => ({}),
       people: async () => [],
+      eventAttendees: async () => ({ rows: [], total: 0, page: 1, pageSize: 10 }),
+      events: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     },
     content: {
       listSpaces: async () => SPACES,
@@ -66,6 +68,7 @@ function build(options: {
     progress: {} as never,
     files: { signFile: async () => null },
     fileUrls: createFileUrls('https://api.test'),
+    studentPortalUrl: 'https://app.test',
     access: {
       isCommunityMember: async () => options.member ?? true,
       openSpaceIds: async () => options.openSpaces ?? ['spc_announcements', 'spc_practice'],

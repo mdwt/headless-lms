@@ -12,6 +12,8 @@ import type {
   CourseLearner,
   CourseLearnersQuery,
   EnrollmentPoint,
+  EventAnalytics,
+  EventAttendeeRow,
   LearnerGrantStatus,
   OverviewStats,
   Page,
@@ -50,6 +52,7 @@ import {
 } from "./org-user-profile.js";
 import { translateDbErrors } from "./pg-errors.js";
 import { grantExpired, grantOpens } from "./grant-covers.js";
+import { eventAnalyticsFigures, eventAttendeePage, upcomingEventCount } from "./event-reports.js";
 
 const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
 // Completion now lives in the progress domain; the students report no longer
@@ -145,6 +148,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       draftCourses: Number(courseCounts?.draft ?? 0),
       activeStudents: Number(entitlementCounts?.activeStudents ?? 0),
       expiringSoon: Number(entitlementCounts?.expiringSoon ?? 0),
+      upcomingEvents: await upcomingEventCount(this.db, orgId),
     };
   }
 
@@ -949,6 +953,22 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       page: query.page,
       pageSize: query.pageSize,
     };
+  }
+
+  eventAttendees(
+    orgId: string,
+    eventId: string,
+    page: { page: number; pageSize: number },
+  ): Promise<Page<EventAttendeeRow>> {
+    return eventAttendeePage(this.db, orgId, eventId, page);
+  }
+
+  eventAnalytics(
+    orgId: string,
+    eventId: string,
+    startsAt: Date,
+  ): Promise<Omit<EventAnalytics, "capacity">> {
+    return eventAnalyticsFigures(this.db, orgId, eventId, startsAt);
   }
 }
 translateDbErrors(DrizzleAdminRepository);

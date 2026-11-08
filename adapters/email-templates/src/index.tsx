@@ -52,6 +52,13 @@ import {
   activityMention,
   courseActivityAdded,
 } from "./emails/course-activity.js";
+import {
+  eventCanceled,
+  eventChanged,
+  eventGranted,
+  eventRevoked,
+  eventStartingSoon,
+} from "./emails/events.js";
 
 interface Entry<K extends EmailTemplateId> {
   subject: (ctx: TemplateContext, params: EmailTemplateParams[K]) => string;
@@ -142,6 +149,14 @@ const registry: { [K in EmailTemplateId]: Entry<K> } = {
     Component: activityCommentFlagged.Component,
   },
   activityMention: { subject: activityMention.subject, Component: activityMention.Component },
+  eventGranted: { subject: eventGranted.subject, Component: eventGranted.Component },
+  eventStartingSoon: {
+    subject: eventStartingSoon.subject,
+    Component: eventStartingSoon.Component,
+  },
+  eventChanged: { subject: eventChanged.subject, Component: eventChanged.Component },
+  eventCanceled: { subject: eventCanceled.subject, Component: eventCanceled.Component },
+  eventRevoked: { subject: eventRevoked.subject, Component: eventRevoked.Component },
 };
 
 export class ReactEmailTemplateRenderer implements TemplateRenderer {

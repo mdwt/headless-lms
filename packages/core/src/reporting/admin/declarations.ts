@@ -12,4 +12,6 @@ export const adminReportDeclarations = {
   studentAnalytics: requires('people:read'),
   communityAnalytics: requires('communities:read'),
   communityMembers: requires('access:read'),
+  eventAttendees: requires('events:read'),
+  eventAnalytics: requires('events:read'),
 } as const satisfies Declarations<AdminReportService>;

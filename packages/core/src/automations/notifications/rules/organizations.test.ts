@@ -15,7 +15,9 @@ function fakeReads(activity = true): NotificationReads {
     mutedAmong: async (_o, _i, ids) => ids,
     communityMembers: async () => [],
     switchedOn: async () => [],
-    courseHolders: async () => ['ou_sarah', 'ou_james', 'ou_olivia'],
+    courseMembers: async () => ['ou_sarah', 'ou_james', 'ou_olivia'],
+    event: async () => null,
+    eventAttendees: async () => [],
     contentLostBy: async () => [],
     activity: async () =>
       activity

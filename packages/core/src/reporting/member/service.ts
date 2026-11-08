@@ -1,4 +1,4 @@
-import { type ContentServicePort, type SpaceDetail } from '../../content/index.js';
+import { type ContentServicePort, type EventView, type SpaceDetail } from '../../content/index.js';
 import { NotFoundError } from '../../shared/errors.js';
 import { seesSpace, type EntitlementsService, type SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
@@ -38,6 +38,10 @@ import type {
   DirectoryQuery,
   DownloadFile,
   DownloadView,
+  EventAttendee,
+  EventAttendeeRow,
+  MemberEvent,
+  MemberEventsQuery,
   MemberViewer,
   Module,
   NotificationItemView,
@@ -50,6 +54,7 @@ import type {
   SettingsChannelView,
 } from './model.js';
 import type { MemberReportRepository, MemberReportService } from './ports.js';
+import { eventCalendar } from './calendar.js';
 
 function refKey(ref: SubjectRef): string {
   return `${ref.type}:${ref.id}`;
@@ -97,21 +102,38 @@ type MemberContent = Pick<
   | 'findCommunity'
   | 'listSpaces'
   | 'getSpace'
+  | 'findEvent'
+  | 'listEventAssets'
 >;
 
 type MemberPeople = Pick<OrganizationService, 'systemActor' | 'permissionsOfMany' | 'holders'>;
+
+type Owner = 'course' | 'download' | 'community' | 'event';
 
 const READ_OF = {
   course: 'courses:read',
   download: 'downloads:read',
   community: 'communities:read',
-} as const satisfies Record<'course' | 'download' | 'community', Permission>;
+  event: 'events:read',
+} as const satisfies Record<Owner, Permission>;
 
 const THUMBNAIL_OF = {
   course: 'Course thumbnail',
   download: 'Download thumbnail',
   community: 'Community thumbnail',
-} as const satisfies Record<'course' | 'download' | 'community', string>;
+  event: 'Event thumbnail',
+} as const satisfies Record<Owner, string>;
+
+const EVENT_FACES = 10;
+const UNNAMED = 'A member';
+
+type EventSight = 'read' | 'attendee' | 'public';
+
+interface SeenEvent {
+  event: EventView;
+  sight: EventSight;
+  attending: boolean;
+}
 
 export type MemberReportServiceParams = {
   repo: MemberReportRepository;
@@ -130,6 +152,8 @@ export type MemberReportServiceParams = {
   };
   notificationSettings: Pick<NotificationSettingsService, 'get'>;
   channels: Pick<ChannelRegistry, 'list'>;
+  studentPortalUrl: string;
+  now?: () => Date;
 };
 
 export class MemberReportServiceImpl implements MemberReportService {
@@ -146,6 +170,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
   private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
   private readonly channels: Pick<ChannelRegistry, 'list'>;
+  private readonly studentPortalUrl: string;
+  private readonly now: () => Date;
 
   constructor(params: MemberReportServiceParams) {
     this.repo = params.repo;
@@ -161,6 +187,8 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.notificationCategories = params.notificationCategories;
     this.notificationSettings = params.notificationSettings;
     this.channels = params.channels;
+    this.studentPortalUrl = params.studentPortalUrl.replace(/\/+$/, '');
+    this.now = params.now ?? (() => new Date());
   }
 
   private system(actor: Actor): Actor {
@@ -443,21 +471,21 @@ export class MemberReportServiceImpl implements MemberReportService {
     return { download, assets };
   }
 
-  async thumbnailFile(
-    owner: 'course' | 'download' | 'community',
-    id: string,
-    actor: Actor,
-  ): Promise<string> {
+  async thumbnailFile(owner: Owner, id: string, actor: Actor): Promise<string> {
     const system = this.system(actor);
     const item =
-      owner === 'course'
-        ? await this.content.findCourse(id, system)
-        : owner === 'download'
-          ? await this.content.findDownload(id, system)
-          : await this.content.findCommunity(id, system);
+      owner === 'event'
+        ? (await this.seeEvent(id, actor))?.event
+        : owner === 'course'
+          ? await this.content.findCourse(id, system)
+          : owner === 'download'
+            ? await this.content.findDownload(id, system)
+            : await this.content.findCommunity(id, system);
     if (
       !item?.thumbnailAssetId ||
-      (item.status !== 'published' && !actor.permissions.has(READ_OF[owner], id))
+      (owner !== 'event' &&
+        item.status !== 'published' &&
+        !actor.permissions.has(READ_OF[owner], id))
     ) {
       throw new NotFoundError(THUMBNAIL_OF[owner], id);
     }
@@ -503,6 +531,164 @@ export class MemberReportServiceImpl implements MemberReportService {
         saveAs: file.displayName ?? file.filename,
       }),
       'Download file',
+      assetId,
+    );
+  }
+
+  private async seeEvent(eventId: string, actor: Actor): Promise<SeenEvent | null> {
+    const event = await this.content.findEvent(eventId, this.system(actor));
+    if (!event) {
+      return null;
+    }
+    const attending = await this.access.hasAccess(actor.orgId, actor.id, eventId);
+    if (actor.permissions.has('events:read', eventId)) {
+      return { event, sight: 'read', attending };
+    }
+    if (attending && (event.status === 'published' || event.status === 'canceled')) {
+      return { event, sight: 'attendee', attending };
+    }
+    if (event.status === 'published' && event.settings.type === 'public') {
+      return { event, sight: 'public', attending };
+    }
+    return null;
+  }
+
+  private async requireEvent(eventId: string, actor: Actor): Promise<SeenEvent> {
+    const seen = await this.seeEvent(eventId, actor);
+    if (!seen) {
+      throw new NotFoundError('Event', eventId);
+    }
+    return seen;
+  }
+
+  private attendeeView(row: EventAttendeeRow): EventAttendee {
+    return {
+      orgUserId: row.orgUserId,
+      name: row.displayName ?? UNNAMED,
+      avatarUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
+      source: row.source,
+      grantedAt: row.grantedAt,
+    };
+  }
+
+  private async memberEvent(seen: SeenEvent, actor: Actor, now: Date): Promise<MemberEvent> {
+    const { event, sight, attending } = seen;
+    const id = event.id;
+    const canOpen = sight !== 'public';
+    const [faces, files] = await Promise.all([
+      this.repo.eventAttendees(actor.orgId, id, { page: 1, pageSize: EVENT_FACES }),
+      canOpen ? this.content.listEventAssets(id, this.system(actor)) : Promise.resolve([]),
+    ]);
+    const capacity = event.settings.capacity;
+    const attendeeCount = faces.total;
+    const ended = event.endsAt.getTime() <= now.getTime();
+    const recording =
+      sight === 'read' || (sight === 'attendee' && ended && event.settings.replay)
+        ? event.recording
+        : null;
+    const writes = actor.permissions.has('events:write', id);
+    return {
+      orgId: event.orgId,
+      id,
+      type: event.type,
+      title: event.title,
+      description: event.description,
+      thumbnailAssetId: event.thumbnailAssetId,
+      thumbnailUrl: event.thumbnailUrl,
+      status: event.status,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      timeZone: event.timeZone,
+      location: canOpen ? event.location : null,
+      recording,
+      settings: {
+        type: event.settings.type,
+        capacity,
+        replay: event.settings.replay,
+      },
+      files,
+      attendeeCount,
+      attendees: faces.rows.map((row) => {
+        const { orgUserId, name, avatarUrl } = this.attendeeView(row);
+        return { orgUserId, name, avatarUrl };
+      }),
+      placesLeft: capacity === null ? null : Math.max(capacity - attendeeCount, 0),
+      viewer: {
+        attending,
+        canRegister:
+          event.status === 'published' &&
+          !attending &&
+          event.settings.type === 'public' &&
+          event.startsAt.getTime() > now.getTime() &&
+          (capacity === null || attendeeCount < capacity),
+        canOpen,
+        canManageAttendees: actor.permissions.has('access:write') || writes,
+        canEdit: writes,
+        canCancel: writes,
+        canDelete: actor.permissions.has('events:delete', id),
+      },
+    };
+  }
+
+  async getEvent(eventId: string, actor: Actor): Promise<MemberEvent> {
+    return this.memberEvent(await this.requireEvent(eventId, actor), actor, this.now());
+  }
+
+  async listEvents(query: MemberEventsQuery, actor: Actor): Promise<Page<MemberEvent>> {
+    const now = this.now();
+    const reads = actor.permissions.where('events:read');
+    const page = await this.repo.events(
+      actor.orgId,
+      query,
+      { orgUserId: actor.id, readAll: reads.org, readIds: reads.content },
+      now,
+    );
+    const seen = await Promise.all(page.rows.map((id) => this.seeEvent(id, actor)));
+    const rows = await Promise.all(
+      seen
+        .filter((item): item is SeenEvent => item !== null)
+        .map((item) => this.memberEvent(item, actor, now)),
+    );
+    return { ...page, rows };
+  }
+
+  async eventCalendar(eventId: string, actor: Actor): Promise<string> {
+    const { event, sight } = await this.requireEvent(eventId, actor);
+    return eventCalendar(event, {
+      pageUrl: `${this.studentPortalUrl}/events/${encodeURIComponent(event.id)}`,
+      withLocation: sight !== 'public',
+      now: this.now(),
+    });
+  }
+
+  async eventAttendees(
+    eventId: string,
+    query: { page: number; pageSize: number },
+    actor: Actor,
+  ): Promise<Page<EventAttendee>> {
+    actor.permissions.require('events:read', eventId);
+    if (!(await this.content.findEvent(eventId, this.system(actor)))) {
+      throw new NotFoundError('Event', eventId);
+    }
+    const page = await this.repo.eventAttendees(actor.orgId, eventId, query);
+    return { ...page, rows: page.rows.map((row) => this.attendeeView(row)) };
+  }
+
+  async eventFile(eventId: string, assetId: string, actor: Actor): Promise<string> {
+    const seen = await this.seeEvent(eventId, actor);
+    if (!seen || seen.sight === 'public') {
+      throw new NotFoundError('Event file', assetId);
+    }
+    const files = await this.content.listEventAssets(eventId, this.system(actor));
+    const file = files.find((f) => f.assetId === assetId);
+    if (!file) {
+      throw new NotFoundError('Event file', assetId);
+    }
+    return signed(
+      await this.files.signFile(actor.orgId, assetId, {
+        saveAs: file.displayName ?? file.filename,
+      }),
+      'Event file',
       assetId,
     );
   }
@@ -586,6 +772,7 @@ export class MemberReportServiceImpl implements MemberReportService {
         opensEverySpace: everySpace,
         team: itemRole.team || orgRole.team,
         roleName: role.name,
+        canCreateEvents: actor.permissions.has('events:write'),
       },
     };
   }

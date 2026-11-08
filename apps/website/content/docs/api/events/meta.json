@@ -13,11 +13,18 @@
     "reorderEventAssets",
     "renameEventAsset",
     "removeEventAsset",
+    "listEventAttendees",
     "addEventAttendee",
     "removeEventAttendee",
+    "getEventAnalytics",
+    "listMemberEvents",
     "createMemberEvent",
+    "getMemberEvent",
     "updateMemberEvent",
     "deleteMemberEvent",
+    "getEventCalendar",
+    "listMemberEventAttendees",
+    "addMemberEventAttendee",
     "cancelMemberEvent",
     "listMemberEventAssets",
     "addMemberEventAsset",
@@ -26,7 +33,6 @@
     "removeMemberEventAsset",
     "registerForEvent",
     "cancelEventRegistration",
-    "addMemberEventAttendee",
     "removeMemberEventAttendee"
   ]
 }

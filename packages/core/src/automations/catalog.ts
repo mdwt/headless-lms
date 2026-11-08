@@ -55,6 +55,11 @@ export const ALL_EMAIL_TEMPLATE_IDS: Record<EmailTemplateId, true> = {
   activityCommentReacted: true,
   activityCommentFlagged: true,
   activityMention: true,
+  eventGranted: true,
+  eventStartingSoon: true,
+  eventChanged: true,
+  eventCanceled: true,
+  eventRevoked: true,
 };
 
 export const DELIVER_WEBHOOK_ACTION = 'deliverWebhook';

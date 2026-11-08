@@ -17,6 +17,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       getModule: reject,
       findCourse: reject,
       findDownload: reject,
+      findEvent: reject,
       findBundle: reject,
       listBundleItems: reject,
     },
@@ -105,7 +106,7 @@ describe('notificationReads', () => {
       at,
     );
     await expect(reads.communityMembers('org_1', 'cmy_1')).resolves.toEqual(['ou_1']);
-    await expect(reads.courseHolders('org_1', 'crs_1')).resolves.toEqual(['ou_2']);
+    await expect(reads.courseMembers('org_1', 'crs_1')).resolves.toEqual(['ou_2']);
     expect(grantedOrgUserIds).toHaveBeenCalledWith('org_1', 'crs_1');
     await expect(reads.switchedOn('org_1', 'cmy_1', 'new_posts', 'spc_1')).resolves.toEqual([
       'ou_3',
@@ -114,6 +115,21 @@ describe('notificationReads', () => {
       count: 2,
       latest: null,
     });
+  });
+
+  it('reads an event as the system and its attendees from entitlements', async () => {
+    const findEvent = vi.fn(async () => ({ id: 'evn_1' }) as never);
+    const grantedOrgUserIds = vi.fn(async () => ['ou_james', 'ou_emma']);
+    const reads = notificationReads(
+      deps({
+        content: { ...base.content, findEvent },
+        entitlements: { ...base.entitlements, grantedOrgUserIds },
+      }),
+    );
+    await expect(reads.event('org_1', 'evn_1')).resolves.toEqual({ id: 'evn_1' });
+    expect(findEvent).toHaveBeenCalledWith('evn_1', { id: 'system', orgId: 'org_1' });
+    await expect(reads.eventAttendees('org_1', 'evn_1')).resolves.toEqual(['ou_james', 'ou_emma']);
+    expect(grantedOrgUserIds).toHaveBeenCalledWith('org_1', 'evn_1');
   });
 
   it('names an activity with its module and course', async () => {
@@ -161,7 +177,7 @@ describe('notificationReads', () => {
     await expect(reads.emailOf('org_1', 'usr_gone')).resolves.toBeNull();
   });
 
-  it('describes a bundle, a course, a download or a community', async () => {
+  it('describes a bundle, a course, a download, a community or an event', async () => {
     const reads = notificationReads(
       deps({
         content: {
@@ -173,9 +189,17 @@ describe('notificationReads', () => {
             (id === 'dwn_1' ? { id, title: 'Verbs', type: 'download' } : null) as never,
           findCommunity: async (id) =>
             (id === 'cmy_1' ? { id, title: 'Spring cohort', type: 'community' } : null) as never,
+          findEvent: async (id) =>
+            (id === 'evn_1'
+              ? { id, title: 'Conversation practice', type: 'event' }
+              : null) as never,
         },
       }),
     );
+    await expect(reads.contentInfo('org_1', { contentId: 'evn_1' })).resolves.toEqual({
+      title: 'Conversation practice',
+      type: 'event',
+    });
     await expect(reads.contentInfo('org_1', { bundleId: 'bun_1' })).resolves.toEqual({
       title: 'Everything',
       type: 'bundle',

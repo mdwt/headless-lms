@@ -20,6 +20,15 @@ export interface EmailContent {
   text: string;
 }
 
+/** What every event email shows: the event and its times, as ISO date-times. */
+export interface EventEmailParams {
+  eventId: string;
+  eventTitle: string;
+  startsAt: string;
+  endsAt: string;
+  timeZone: string;
+}
+
 /** Template id → params. Adding an email = adding a row here. */
 export interface EmailTemplateParams {
   magicLink: { url: string };
@@ -204,6 +213,11 @@ export interface EmailTemplateParams {
     courseId: string;
     activityId: string;
   };
+  eventGranted: EventEmailParams;
+  eventStartingSoon: EventEmailParams & { leadText: string };
+  eventChanged: EventEmailParams & { changed: 'time' | 'location' | 'time_and_location' };
+  eventCanceled: EventEmailParams;
+  eventRevoked: EventEmailParams;
 }
 
 export type EmailTemplateId = keyof EmailTemplateParams;

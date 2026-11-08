@@ -10,6 +10,9 @@ import type {
   CourseLearner,
   CourseLearnersQuery,
   EnrollmentPoint,
+  EventAnalytics,
+  EventAttendee,
+  EventAttendeeRow,
   OverviewStats,
   Page,
   Student,
@@ -37,6 +40,12 @@ export interface AdminReportService {
     query: CommunityMembersQuery,
     actor: Actor,
   ): Promise<Page<CommunityMember>>;
+  eventAttendees(
+    eventId: string,
+    query: { page: number; pageSize: number },
+    actor: Actor,
+  ): Promise<Page<EventAttendee>>;
+  eventAnalytics(eventId: string, actor: Actor): Promise<EventAnalytics>;
 }
 
 export interface PermissionsReader {
@@ -79,4 +88,16 @@ export interface AdminReportRepository {
     communityId: string,
     query: CommunityMembersQuery,
   ): Promise<Page<OrgUserProfile> | null>;
+  /** The people attending an event, directly or through a bundle, by grant date. */
+  eventAttendees(
+    orgId: string,
+    eventId: string,
+    page: { page: number; pageSize: number },
+  ): Promise<Page<EventAttendeeRow>>;
+  /** The event's figures; grants over time counts the grants made before `startsAt`. */
+  eventAnalytics(
+    orgId: string,
+    eventId: string,
+    startsAt: Date,
+  ): Promise<Omit<EventAnalytics, 'capacity'>>;
 }

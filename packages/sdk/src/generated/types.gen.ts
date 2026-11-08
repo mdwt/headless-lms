@@ -1945,6 +1945,7 @@ export type ListNotificationTypesResponses = {
       | "space_member"
       | "community_member"
       | "course_member"
+      | "event_member"
       | "moderator"
     >;
   }>;
@@ -2104,6 +2105,7 @@ export type GetOrgNotificationCategoriesResponses = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -2151,6 +2153,7 @@ export type ReplaceOrgNotificationCategoriesData = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -2254,6 +2257,7 @@ export type ReplaceOrgNotificationCategoriesResponses = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -2355,6 +2359,7 @@ export type GetDefaultNotificationCategoriesResponses = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -3725,6 +3730,7 @@ export type GetCommunityNotificationCategoriesResponses = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -3772,6 +3778,7 @@ export type ReplaceCommunityNotificationCategoriesData = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -3885,6 +3892,7 @@ export type ReplaceCommunityNotificationCategoriesResponses = {
           | "space_member"
           | "community_member"
           | "course_member"
+          | "event_member"
           | "moderator"
         >;
       }>;
@@ -9594,6 +9602,94 @@ export type RenameEventAssetResponses = {
 
 export type RenameEventAssetResponse = RenameEventAssetResponses[keyof RenameEventAssetResponses];
 
+export type ListEventAttendeesData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
+  url: "/api/events/{eventId}/attendees";
+};
+
+export type ListEventAttendeesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListEventAttendeesError = ListEventAttendeesErrors[keyof ListEventAttendeesErrors];
+
+export type ListEventAttendeesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      orgUserId: string;
+      name: string;
+      avatarUrl: string | null;
+      /**
+       * `self`: registered themselves. `manual`: added by staff or an API client. `bundle`: attends only through a bundle
+       */
+      source: "self" | "manual" | "automation" | "bundle";
+      grantedAt: string;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListEventAttendeesResponse =
+  ListEventAttendeesResponses[keyof ListEventAttendeesResponses];
+
 export type AddEventAttendeeData = {
   body: {
     orgUserId: string;
@@ -9740,6 +9836,103 @@ export type RemoveEventAttendeeResponses = {
    */
   204: unknown;
 };
+
+export type GetEventAnalyticsData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/events/{eventId}/analytics";
+};
+
+export type GetEventAnalyticsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetEventAnalyticsError = GetEventAnalyticsErrors[keyof GetEventAnalyticsErrors];
+
+export type GetEventAnalyticsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Attending now, directly or through a bundle
+     */
+    attendees: number;
+    capacity: number | null;
+    /**
+     * Attendees per source
+     */
+    bySource: {
+      self: number;
+      manual: number;
+      automation: number;
+      bundle: number;
+    };
+    /**
+     * Direct grants that are now revoked
+     */
+    revoked: number;
+    /**
+     * Current direct grants by grant date (UTC), before the start
+     */
+    grantsOverTime: Array<{
+      date: string;
+      count: number;
+    }>;
+  };
+};
+
+export type GetEventAnalyticsResponse =
+  GetEventAnalyticsResponses[keyof GetEventAnalyticsResponses];
 
 export type ListBundlesData = {
   body?: never;
@@ -10874,6 +11067,10 @@ export type GetMemberCommunityHomeResponses = {
        * The name of the viewer's role here
        */
       roleName: string;
+      /**
+       * The viewer holds `events:write` on the org
+       */
+      canCreateEvents: boolean;
     };
   };
 };
@@ -20034,6 +20231,204 @@ export type GetMemberDownloadResponses = {
 export type GetMemberDownloadResponse =
   GetMemberDownloadResponses[keyof GetMemberDownloadResponses];
 
+export type ListMemberEventsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+    /**
+     * `upcoming` (default): not yet ended, soonest first. `past`: ended, latest first
+     */
+    when?: "upcoming" | "past";
+    /**
+     * `true`: only the events the caller attends
+     */
+    attending?: string;
+  };
+  url: "/api/member/events";
+};
+
+export type ListMemberEventsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListMemberEventsError = ListMemberEventsErrors[keyof ListMemberEventsErrors];
+
+export type ListMemberEventsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      orgId: string;
+      id: string;
+      type: "event";
+      title: string;
+      description: string;
+      thumbnailAssetId: string | null;
+      status: "draft" | "published" | "canceled";
+      startsAt: string;
+      endsAt: string;
+      timeZone: string;
+      recording: {
+        /**
+         * Where the recording is, `http` or `https`
+         */
+        url: string;
+        /**
+         * Such as a passcode
+         */
+        details: string | null;
+      } | null;
+      thumbnailUrl: string | null;
+      /**
+       * Null when the caller sees the event only because it is published and public
+       */
+      location: {
+        /**
+         * Where the event takes place in person
+         */
+        venue: {
+          name: string;
+          address: {
+            line1: string | null;
+            line2: string | null;
+            city: string | null;
+            region: string | null;
+            postalCode: string | null;
+            /**
+             * An ISO 3166-1 alpha-2 code, such as `GB`
+             */
+            country: string | null;
+          } | null;
+        } | null;
+        /**
+         * How to join online
+         */
+        online: {
+          /**
+           * The meeting link, `http` or `https`
+           */
+          url: string;
+          /**
+           * Such as a passcode or a dial-in number
+           */
+          details: string | null;
+        } | null;
+      } | null;
+      settings: {
+        /**
+         * `public`: members register themselves. `private`: by grant only
+         */
+        type: "public" | "private";
+        /**
+         * The most attendees the event takes; null means no limit
+         */
+        capacity: number | null;
+        /**
+         * When true, attendees get the recording after the end
+         */
+        replay: boolean;
+      };
+      /**
+       * Empty when the caller cannot open the event
+       */
+      files: Array<{
+        orgId: string;
+        id: string;
+        eventId: string;
+        assetId: string;
+        seq: number;
+        displayName: string | null;
+        createdAt: string;
+        updatedAt: string;
+        filename: string;
+        contentType: string;
+        size: number;
+        url: string;
+      }>;
+      attendeeCount: number;
+      /**
+       * Up to 10 attendees, for the avatars
+       */
+      attendees: Array<{
+        orgUserId: string;
+        name: string;
+        avatarUrl: string | null;
+      }>;
+      /**
+       * Capacity less the attendees; null with no capacity
+       */
+      placesLeft: number | null;
+      viewer: {
+        /**
+         * The caller attends, directly or through a bundle
+         */
+        attending: boolean;
+        /**
+         * The caller may register now
+         */
+        canRegister: boolean;
+        /**
+         * The caller gets the location, files and recording
+         */
+        canOpen: boolean;
+        /**
+         * The caller may add and remove attendees
+         */
+        canManageAttendees: boolean;
+        canEdit: boolean;
+        canCancel: boolean;
+        canDelete: boolean;
+      };
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListMemberEventsResponse = ListMemberEventsResponses[keyof ListMemberEventsResponses];
+
 export type CreateMemberEventData = {
   body: {
     title: string;
@@ -20308,6 +20703,198 @@ export type DeleteMemberEventResponses = {
   204: unknown;
 };
 
+export type GetMemberEventData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}";
+};
+
+export type GetMemberEventErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetMemberEventError = GetMemberEventErrors[keyof GetMemberEventErrors];
+
+export type GetMemberEventResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    orgId: string;
+    id: string;
+    type: "event";
+    title: string;
+    description: string;
+    thumbnailAssetId: string | null;
+    status: "draft" | "published" | "canceled";
+    startsAt: string;
+    endsAt: string;
+    timeZone: string;
+    recording: {
+      /**
+       * Where the recording is, `http` or `https`
+       */
+      url: string;
+      /**
+       * Such as a passcode
+       */
+      details: string | null;
+    } | null;
+    thumbnailUrl: string | null;
+    /**
+     * Null when the caller sees the event only because it is published and public
+     */
+    location: {
+      /**
+       * Where the event takes place in person
+       */
+      venue: {
+        name: string;
+        address: {
+          line1: string | null;
+          line2: string | null;
+          city: string | null;
+          region: string | null;
+          postalCode: string | null;
+          /**
+           * An ISO 3166-1 alpha-2 code, such as `GB`
+           */
+          country: string | null;
+        } | null;
+      } | null;
+      /**
+       * How to join online
+       */
+      online: {
+        /**
+         * The meeting link, `http` or `https`
+         */
+        url: string;
+        /**
+         * Such as a passcode or a dial-in number
+         */
+        details: string | null;
+      } | null;
+    } | null;
+    settings: {
+      /**
+       * `public`: members register themselves. `private`: by grant only
+       */
+      type: "public" | "private";
+      /**
+       * The most attendees the event takes; null means no limit
+       */
+      capacity: number | null;
+      /**
+       * When true, attendees get the recording after the end
+       */
+      replay: boolean;
+    };
+    /**
+     * Empty when the caller cannot open the event
+     */
+    files: Array<{
+      orgId: string;
+      id: string;
+      eventId: string;
+      assetId: string;
+      seq: number;
+      displayName: string | null;
+      createdAt: string;
+      updatedAt: string;
+      filename: string;
+      contentType: string;
+      size: number;
+      url: string;
+    }>;
+    attendeeCount: number;
+    /**
+     * Up to 10 attendees, for the avatars
+     */
+    attendees: Array<{
+      orgUserId: string;
+      name: string;
+      avatarUrl: string | null;
+    }>;
+    /**
+     * Capacity less the attendees; null with no capacity
+     */
+    placesLeft: number | null;
+    viewer: {
+      /**
+       * The caller attends, directly or through a bundle
+       */
+      attending: boolean;
+      /**
+       * The caller may register now
+       */
+      canRegister: boolean;
+      /**
+       * The caller gets the location, files and recording
+       */
+      canOpen: boolean;
+      /**
+       * The caller may add and remove attendees
+       */
+      canManageAttendees: boolean;
+      canEdit: boolean;
+      canCancel: boolean;
+      canDelete: boolean;
+    };
+  };
+};
+
+export type GetMemberEventResponse = GetMemberEventResponses[keyof GetMemberEventResponses];
+
 export type UpdateMemberEventData = {
   body: {
     title?: string;
@@ -20549,6 +21136,244 @@ export type UpdateMemberEventResponses = {
 
 export type UpdateMemberEventResponse =
   UpdateMemberEventResponses[keyof UpdateMemberEventResponses];
+
+export type GetEventCalendarData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/calendar";
+};
+
+export type GetEventCalendarErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetEventCalendarError = GetEventCalendarErrors[keyof GetEventCalendarErrors];
+
+export type GetEventCalendarResponses = {
+  /**
+   * `text/calendar`, one VEVENT
+   */
+  200: string;
+};
+
+export type GetEventCalendarResponse = GetEventCalendarResponses[keyof GetEventCalendarResponses];
+
+export type ListMemberEventAttendeesData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: {
+    page?: number;
+    pageSize?: number;
+  };
+  url: "/api/member/events/{eventId}/attendees";
+};
+
+export type ListMemberEventAttendeesErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListMemberEventAttendeesError =
+  ListMemberEventAttendeesErrors[keyof ListMemberEventAttendeesErrors];
+
+export type ListMemberEventAttendeesResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    rows: Array<{
+      orgUserId: string;
+      name: string;
+      avatarUrl: string | null;
+      /**
+       * `self`: registered themselves. `manual`: added by staff or an API client. `bundle`: attends only through a bundle
+       */
+      source: "self" | "manual" | "automation" | "bundle";
+      grantedAt: string;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+};
+
+export type ListMemberEventAttendeesResponse =
+  ListMemberEventAttendeesResponses[keyof ListMemberEventAttendeesResponses];
+
+export type AddMemberEventAttendeeData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/attendees";
+};
+
+export type AddMemberEventAttendeeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type AddMemberEventAttendeeError =
+  AddMemberEventAttendeeErrors[keyof AddMemberEventAttendeeErrors];
+
+export type AddMemberEventAttendeeResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
 
 export type CancelMemberEventData = {
   body?: never;
@@ -21064,6 +21889,68 @@ export type RemoveMemberEventAssetResponses = {
 export type RemoveMemberEventAssetResponse =
   RemoveMemberEventAssetResponses[keyof RemoveMemberEventAssetResponses];
 
+export type GetEventFileData = {
+  body?: never;
+  path: {
+    eventId: string;
+    assetId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/assets/{assetId}";
+};
+
+export type GetEventFileErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetEventFileError = GetEventFileErrors[keyof GetEventFileErrors];
+
 export type RenameMemberEventAssetData = {
   body: {
     displayName: string | null;
@@ -21297,85 +22184,6 @@ export type RegisterForEventResponses = {
   204: unknown;
 };
 
-export type AddMemberEventAttendeeData = {
-  body: {
-    orgUserId: string;
-  };
-  path: {
-    eventId: string;
-  };
-  query?: never;
-  url: "/api/member/events/{eventId}/attendees";
-};
-
-export type AddMemberEventAttendeeErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type AddMemberEventAttendeeError =
-  AddMemberEventAttendeeErrors[keyof AddMemberEventAttendeeErrors];
-
-export type AddMemberEventAttendeeResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
-
 export type RemoveMemberEventAttendeeData = {
   body?: never;
   path: {
@@ -21506,6 +22314,67 @@ export type GetCourseThumbnailErrors = {
 };
 
 export type GetCourseThumbnailError = GetCourseThumbnailErrors[keyof GetCourseThumbnailErrors];
+
+export type GetEventThumbnailData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/thumbnail";
+};
+
+export type GetEventThumbnailErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetEventThumbnailError = GetEventThumbnailErrors[keyof GetEventThumbnailErrors];
 
 export type GetDownloadThumbnailData = {
   body?: never;
@@ -22168,6 +23037,7 @@ export type ListMemberNotificationsResponses = {
         | "space_member"
         | "community_member"
         | "course_member"
+        | "event_member"
         | "moderator"
       >;
       /**
@@ -22185,6 +23055,7 @@ export type ListMemberNotificationsResponses = {
         | "space_member"
         | "community_member"
         | "course_member"
+        | "event_member"
         | "moderator";
       category: string;
       /**
@@ -22397,6 +23268,7 @@ export type GetMemberNotificationResponses = {
       | "space_member"
       | "community_member"
       | "course_member"
+      | "event_member"
       | "moderator"
     >;
     /**
@@ -22414,6 +23286,7 @@ export type GetMemberNotificationResponses = {
       | "space_member"
       | "community_member"
       | "course_member"
+      | "event_member"
       | "moderator";
     category: string;
     /**
@@ -26535,6 +27408,10 @@ export type GetOverviewResponses = {
     draftCourses: number;
     activeStudents: number;
     expiringSoon: number;
+    /**
+     * Published events that have not ended
+     */
+    upcomingEvents: number;
   };
 };
 

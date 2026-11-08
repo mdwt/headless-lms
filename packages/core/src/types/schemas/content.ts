@@ -748,3 +748,91 @@ export type ReorderEventAssetsInput = z.infer<typeof reorderEventAssetsInputSche
 
 export const eventLeadSchema = z.enum(['1d', '1h']);
 export type EventLead = z.infer<typeof eventLeadSchema>;
+
+export const eventAttendeeSourceSchema = z.enum(['self', 'manual', 'automation', 'bundle']);
+export type EventAttendeeSource = z.infer<typeof eventAttendeeSourceSchema>;
+
+export const eventAttendeeSchema = z
+  .object({
+    orgUserId: idSchema,
+    name: z.string(),
+    avatarUrl: z.string().nullable(),
+    source: eventAttendeeSourceSchema.describe(
+      '`self`: registered themselves. `manual`: added by staff or an API client. `bundle`: attends only through a bundle',
+    ),
+    grantedAt: z.coerce.date(),
+  })
+  .strict();
+export type EventAttendee = z.output<typeof eventAttendeeSchema>;
+
+export const eventAttendeeFaceSchema = eventAttendeeSchema.pick({
+  orgUserId: true,
+  name: true,
+  avatarUrl: true,
+});
+export type EventAttendeeFace = z.output<typeof eventAttendeeFaceSchema>;
+
+export const memberEventViewerSchema = z
+  .object({
+    attending: z.boolean().describe('The caller attends, directly or through a bundle'),
+    canRegister: z.boolean().describe('The caller may register now'),
+    canOpen: z.boolean().describe('The caller gets the location, files and recording'),
+    canManageAttendees: z.boolean().describe('The caller may add and remove attendees'),
+    canEdit: z.boolean(),
+    canCancel: z.boolean(),
+    canDelete: z.boolean(),
+  })
+  .strict();
+export type MemberEventViewer = z.output<typeof memberEventViewerSchema>;
+
+export const memberEventSchema = eventViewSchema
+  .omit({ createdAt: true, updatedAt: true, location: true, settings: true })
+  .extend({
+    location: eventLocationSchema
+      .nullable()
+      .describe('Null when the caller sees the event only because it is published and public'),
+    settings: eventSettingsSchema.omit({ notifications: true }),
+    files: z.array(eventFileSchema).describe('Empty when the caller cannot open the event'),
+    attendeeCount: z.number().int().min(0),
+    attendees: z.array(eventAttendeeFaceSchema).describe('Up to 10 attendees, for the avatars'),
+    placesLeft: z
+      .number()
+      .int()
+      .min(0)
+      .nullable()
+      .describe('Capacity less the attendees; null with no capacity'),
+    viewer: memberEventViewerSchema,
+  })
+  .strict();
+export type MemberEvent = z.output<typeof memberEventSchema>;
+
+export const memberEventsQuerySchema = z
+  .object({
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    when: z.enum(['upcoming', 'past']).optional(),
+    attending: z.boolean().optional(),
+  })
+  .strict();
+export type MemberEventsQuery = z.infer<typeof memberEventsQuerySchema>;
+
+export const eventAnalyticsSchema = z
+  .object({
+    attendees: z.number().int().min(0).describe('Attending now, directly or through a bundle'),
+    capacity: z.number().int().nullable(),
+    bySource: z
+      .object({
+        self: z.number().int().min(0),
+        manual: z.number().int().min(0),
+        automation: z.number().int().min(0),
+        bundle: z.number().int().min(0),
+      })
+      .strict()
+      .describe('Attendees per source'),
+    revoked: z.number().int().min(0).describe('Direct grants that are now revoked'),
+    grantsOverTime: z
+      .array(z.object({ date: z.string(), count: z.number().int().min(0) }).strict())
+      .describe('Current direct grants by grant date (UTC), before the start'),
+  })
+  .strict();
+export type EventAnalytics = z.output<typeof eventAnalyticsSchema>;

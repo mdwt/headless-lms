@@ -26,7 +26,7 @@ describe('notification type declarations', () => {
     for (const key of keys) {
       expect(key).toMatch(/^[a-z][a-z0-9_.]{0,63}$/);
     }
-    expect(keys).toHaveLength(27);
+    expect(keys).toHaveLength(32);
   });
 
   it.each(NOTIFICATION_TYPES.map((declaration) => [declaration.type, declaration] as const))(
@@ -133,8 +133,30 @@ describe('default category lists', () => {
       'followed_threads',
       'likes_on_my_comments',
       'access',
+      'events',
       'course_content',
     ]);
+  });
+
+  it('files every event notification under events, in-app locked on, email and push on', () => {
+    const events = DEFAULT_ORG_CATEGORIES.find((c) => c.key === 'events');
+    expect(events?.covers).toEqual(
+      [
+        'event.granted',
+        'event.starting_soon',
+        'event.changed',
+        'event.canceled',
+        'event.revoked',
+      ].map((type) => ({ type, reasons: ['event_member'] })),
+    );
+    expect(events?.channels).toEqual({
+      inApp: { default: true, locked: true },
+      email: { default: true, locked: false },
+      push: { default: true, locked: false },
+    });
+    for (const type of events?.covers ?? []) {
+      expect(types.get(type.type)?.scopes).toEqual(['org']);
+    }
   });
 
   it('locks in-app on for about_you and email on for access, and leaves new posts off', () => {

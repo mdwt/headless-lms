@@ -17,6 +17,12 @@ export type ActivityFileParams = z.infer<typeof ActivityFileParams>;
 export const DownloadFileParams = z.object({ downloadId: z.string(), assetId: z.string() });
 export type DownloadFileParams = z.infer<typeof DownloadFileParams>;
 
+export const EventThumbnailParams = z.object({ eventId: z.string() });
+export type EventThumbnailParams = z.infer<typeof EventThumbnailParams>;
+
+export const EventFileParams = z.object({ eventId: z.string(), assetId: z.string() });
+export type EventFileParams = z.infer<typeof EventFileParams>;
+
 export const PostCoverParams = z.object({ postId: z.string() });
 export type PostCoverParams = z.infer<typeof PostCoverParams>;
 

@@ -32,6 +32,7 @@ import type {
 } from '../types/index.js';
 import type { CommunityMailReads } from './community-mail.js';
 import type { Actor } from '../shared/actor.js';
+import type { Event } from '../content/index.js';
 import type { MemberActor } from '../identity/index.js';
 
 export type {
@@ -62,7 +63,9 @@ export interface NotificationReads extends Omit<CommunityMailReads, 'recentMessa
     category: string,
     spaceId: string | null,
   ): Promise<string[]>;
-  courseHolders(orgId: string, courseId: string): Promise<string[]>;
+  courseMembers(orgId: string, courseId: string): Promise<string[]>;
+  event(orgId: string, eventId: string): Promise<Event | null>;
+  eventAttendees(orgId: string, eventId: string): Promise<string[]>;
   contentLostBy(
     orgId: string,
     grant: { orgUserId: string; contentId: string | null; bundleId: string | null },

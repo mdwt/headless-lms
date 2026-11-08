@@ -1,4 +1,4 @@
-import type { Declarations } from '../../shared/declarations.js';
+import { requires, type Declarations } from '../../shared/declarations.js';
 import type { MemberReportService } from './ports.js';
 
 export const memberReportDeclarations = {
@@ -11,6 +11,11 @@ export const memberReportDeclarations = {
   listDownloads: 'member',
   getDownload: 'member',
   thumbnailFile: 'member',
+  getEvent: 'member',
+  listEvents: 'member',
+  eventCalendar: 'member',
+  eventAttendees: requires('events:read'),
+  eventFile: 'member',
   activityFile: 'member',
   downloadFile: 'member',
   personImage: 'member',

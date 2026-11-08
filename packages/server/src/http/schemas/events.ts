@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   addEventAssetInputSchema,
+  eventAnalyticsSchema,
+  eventAttendeeSchema,
   eventFileSchema,
   eventLocationSchema,
   eventRecordingSchema,
@@ -9,10 +11,11 @@ import {
   eventStatusSchema,
   eventViewSchema,
   idSchema,
+  memberEventSchema,
   reorderEventAssetsInputSchema,
   timeZoneSchema,
 } from '@headless-lms/core/schemas';
-import { DateTimeInput, ListQuery, paginated } from './shared.js';
+import { DateTimeInput, ListQuery, PageQuery, paginated } from './shared.js';
 
 export const EventStatus = eventStatusSchema;
 export type EventStatus = z.infer<typeof EventStatus>;
@@ -97,3 +100,27 @@ export const EventAttendeeParams = z.object({
   orgUserId: z.string(),
 });
 export type EventAttendeeParams = z.infer<typeof EventAttendeeParams>;
+
+export const MemberEvent = memberEventSchema;
+export type MemberEvent = z.infer<typeof MemberEvent>;
+
+export const MemberEventsQuery = PageQuery.extend({
+  when: z
+    .enum(['upcoming', 'past'])
+    .optional()
+    .describe('`upcoming` (default): not yet ended, soonest first. `past`: ended, latest first'),
+  attending: z.stringbool().optional().describe('`true`: only the events the caller attends'),
+});
+export type MemberEventsQuery = z.infer<typeof MemberEventsQuery>;
+
+export const MemberEventsPage = paginated(MemberEvent);
+export type MemberEventsPage = z.infer<typeof MemberEventsPage>;
+
+export const EventAttendee = eventAttendeeSchema;
+export type EventAttendee = z.infer<typeof EventAttendee>;
+
+export const EventAttendeesPage = paginated(EventAttendee);
+export type EventAttendeesPage = z.infer<typeof EventAttendeesPage>;
+
+export const EventAnalytics = eventAnalyticsSchema;
+export type EventAnalytics = z.infer<typeof EventAnalytics>;

@@ -6,12 +6,15 @@ import {
   AddEventAttendee,
   CreateEvent,
   Event,
+  EventAnalytics,
+  EventAttendeesPage,
   EventAssetParams,
   EventAttendeeParams,
   EventFile,
   EventIdParam,
   EventsPage,
   EventsQuery,
+  PageQuery,
   RenameEventAsset,
   ReorderEventAssets,
   UpdateEvent,
@@ -263,7 +266,12 @@ export async function eventsRoutes(app: FastifyInstance, container: Container): 
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       await container.entitlements.grant(
-        { orgUserId: req.body.orgUserId, contentId: req.params.eventId, expiresAt: null },
+        {
+          orgUserId: req.body.orgUserId,
+          contentId: req.params.eventId,
+          contentType: 'event',
+          expiresAt: null,
+        },
         actor,
       );
       return reply.code(204).send();
@@ -287,10 +295,49 @@ export async function eventsRoutes(app: FastifyInstance, container: Container): 
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       await container.entitlements.revoke(
-        { orgUserId: req.params.orgUserId, contentId: req.params.eventId },
+        { orgUserId: req.params.orgUserId, contentId: req.params.eventId, contentType: 'event' },
         actor,
       );
       return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/events/:eventId/attendees',
+    config: { operation: 'reporting.admin.eventAttendees' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listEventAttendees',
+      tags: ['Events'],
+      summary: "List an event's attendees",
+      description: `${describeOperation('reporting.admin.eventAttendees')} On the event or the org. The people attending, directly or through a bundle, by grant date. \`source\` is \`bundle\` for someone who attends only through a bundle.`,
+      params: EventIdParam,
+      querystring: PageQuery,
+      response: { 200: EventAttendeesPage, ...refusals(400, 403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return container.reporting.admin.eventAttendees(req.params.eventId, req.query, actor);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/events/:eventId/analytics',
+    config: { operation: 'reporting.admin.eventAnalytics' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getEventAnalytics',
+      tags: ['Events'],
+      summary: "An event's attendance figures",
+      description: `${describeOperation('reporting.admin.eventAnalytics')} On the event or the org. The attendees now and by source, the capacity, the revoked direct grants, and the current direct grants by grant date before the start.`,
+      params: EventIdParam,
+      response: { 200: EventAnalytics, ...refusals(403, 404) },
+    },
+    handler: async (req) => {
+      const actor = await resolveActor(container, req);
+      return container.reporting.admin.eventAnalytics(req.params.eventId, actor);
     },
   });
 }

@@ -2,7 +2,9 @@
   "title": "Files",
   "description": "Stable file URLs that check access and redirect to a signed storage URL",
   "pages": [
+    "getEventFile",
     "getCourseThumbnail",
+    "getEventThumbnail",
     "getDownloadThumbnail",
     "getCommunityThumbnail",
     "getActivityFile",

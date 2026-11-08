@@ -96,6 +96,8 @@ function fakeRepo(): MemberReportRepository {
     directory: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     spaceMemberCounts: async () => ({}),
     people: async () => [],
+    eventAttendees: async () => ({ rows: [], total: 0, page: 1, pageSize: 10 }),
+    events: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
   };
 }
 
@@ -134,7 +136,9 @@ const readers: Pick<
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
+  | 'studentPortalUrl'
 > = {
+  studentPortalUrl: 'https://app.test',
   notifications: {
     list: async () => ({ items: [], total: 0, unreadCount: 0 }),
     get: async () => null,
@@ -165,6 +169,7 @@ const deps: Pick<
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
+  | 'studentPortalUrl'
 > = {
   files,
   fileUrls,
@@ -250,6 +255,8 @@ function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): Memb
     directory: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     spaceMemberCounts: async () => ({}),
     people: async () => [],
+    eventAttendees: async () => ({ rows: [], total: 0, page: 1, pageSize: 10 }),
+    events: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     ...over,
   };
 }
@@ -1175,6 +1182,7 @@ describe('a learner with a grant', () => {
       opensEverySpace: false,
       team: false,
       roleName: 'Member',
+      canCreateEvents: false,
     });
     expect(getCommunity).toHaveBeenCalledWith('cmy_1', SYSTEM);
     const emma = actorWith({
@@ -1202,7 +1210,10 @@ describe('a learner with a grant', () => {
       opensEverySpace: true,
       team: true,
       roleName: 'Moderator',
+      canCreateEvents: false,
     });
+    const tom = actorWith({ id: 'ou_tom', orgId: 'o1', org: ['events:write'] });
+    expect((await moderated.communityHome('cmy_1', tom))?.viewer.canCreateEvents).toBe(true);
   });
 
   it('refuses a community home to someone who is not a member', async () => {

@@ -11,6 +11,8 @@ import {
   CourseThumbnailParams,
   DownloadFileParams,
   DownloadThumbnailParams,
+  EventFileParams,
+  EventThumbnailParams,
   MessageAttachmentParams,
   PersonImageParams,
   PostCoverParams,
@@ -52,6 +54,48 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.thumbnailFile('course', req.params.courseId, actor);
+      return redirect(reply, url);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/events/:eventId/thumbnail',
+    config: { operation: 'reporting.member.thumbnailFile' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getEventThumbnail',
+      tags,
+      summary: "Redirect to an event's cover",
+      description:
+        'Anyone the event read returns the event to may fetch its cover. 404 when it returns 404 or the event has no cover.',
+      params: EventThumbnailParams,
+      response: responses,
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      const url = await member.thumbnailFile('event', req.params.eventId, actor);
+      return redirect(reply, url);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/events/:eventId/assets/:assetId',
+    config: { operation: 'reporting.member.eventFile' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getEventFile',
+      tags,
+      summary: 'Redirect to a file attached to an event',
+      description:
+        'For a holder of `events:read` on the event or the org, or an attendee of the published or canceled event. Saved under its display name. 404 otherwise, or when the file is not attached to the event.',
+      params: EventFileParams,
+      response: responses,
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      const url = await member.eventFile(req.params.eventId, req.params.assetId, actor);
       return redirect(reply, url);
     },
   });

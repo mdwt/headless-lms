@@ -12,7 +12,10 @@ import type { OrganizationService } from '@headless-lms/core/organizations';
 import { communityMail, type CommunityMailDeps } from './community-mail.js';
 
 export type NotificationReadsDeps = CommunityMailDeps & {
-  content: Pick<ContentService, 'getActivity' | 'getModule' | 'findCourse' | 'listBundleItems'>;
+  content: Pick<
+    ContentService,
+    'getActivity' | 'getModule' | 'findCourse' | 'findEvent' | 'listBundleItems'
+  >;
   entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'grantedOrgUserIds' | 'hasAccess'>;
   organizations: Pick<OrganizationService, 'getOrgUsersByIds' | 'systemActor'>;
   identity: Pick<IdentityService, 'getUserById'>;
@@ -44,7 +47,9 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
       deps.entitlements.communityMemberIds(orgId, communityId),
     switchedOn: (orgId, communityId, category, spaceId) =>
       deps.settings.switchedOn(orgId, communityId, category, spaceId),
-    courseHolders: (orgId, courseId) => deps.entitlements.grantedOrgUserIds(orgId, courseId),
+    courseMembers: (orgId, courseId) => deps.entitlements.grantedOrgUserIds(orgId, courseId),
+    event: (orgId, eventId) => deps.content.findEvent(eventId, system(orgId)),
+    eventAttendees: (orgId, eventId) => deps.entitlements.grantedOrgUserIds(orgId, eventId),
     async contentLostBy(orgId, grant) {
       const opened = grant.bundleId
         ? (await deps.content.listBundleItems(grant.bundleId, system(orgId))).map(

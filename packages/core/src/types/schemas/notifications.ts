@@ -13,6 +13,7 @@ export const reasonSchema = z.enum([
   'space_member',
   'community_member',
   'course_member',
+  'event_member',
   'moderator',
 ]) satisfies z.ZodType<Reason>;
 

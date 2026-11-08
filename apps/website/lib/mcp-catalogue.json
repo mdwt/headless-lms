@@ -1798,6 +1798,60 @@
       ]
     },
     {
+      "name": "list_event_attendees",
+      "title": "List event attendees",
+      "description": "The people attending an event, directly or through a bundle, by grant date, each with how they got their place: self, manual, automation or bundle.",
+      "resource": "events",
+      "operation": "reporting.admin.eventAttendees",
+      "permissions": [
+        "events:read"
+      ],
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "page",
+          "type": "integer",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "pageSize",
+          "type": "integer",
+          "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "get_event_analytics",
+      "title": "Get event analytics",
+      "description": "Attendance figures for one event: attendees now and by source, capacity, revoked grants, and grants over time before the start.",
+      "resource": "events",
+      "operation": "reporting.admin.eventAnalytics",
+      "permissions": [
+        "events:read"
+      ],
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
       "name": "add_event_attendee",
       "title": "Add event attendee",
       "description": "Grant an event to a person (orgUserId) so they attend it. The event must be published, not ended and not full. Adding someone who already attends changes nothing.",

@@ -197,8 +197,14 @@ import type {
   GetDownloadThumbnailErrors,
   GetEnrollmentSeriesErrors,
   GetEnrollmentSeriesResponses,
+  GetEventAnalyticsErrors,
+  GetEventAnalyticsResponses,
+  GetEventCalendarErrors,
+  GetEventCalendarResponses,
   GetEventErrors,
+  GetEventFileErrors,
   GetEventResponses,
+  GetEventThumbnailErrors,
   GetInviteErrors,
   GetInviteResponses,
   GetLibraryFileErrors,
@@ -220,6 +226,8 @@ import type {
   GetMemberDirectChatResponses,
   GetMemberDownloadErrors,
   GetMemberDownloadResponses,
+  GetMemberEventErrors,
+  GetMemberEventResponses,
   GetMemberFeedErrors,
   GetMemberFeedResponses,
   GetMemberMessageQueueErrors,
@@ -336,6 +344,8 @@ import type {
   ListEntitlementsResponses,
   ListEventAssetsErrors,
   ListEventAssetsResponses,
+  ListEventAttendeesErrors,
+  ListEventAttendeesResponses,
   ListEventsErrors,
   ListEventsResponses,
   ListMemberActivitiesErrors,
@@ -350,6 +360,10 @@ import type {
   ListMemberDownloadsResponses,
   ListMemberEventAssetsErrors,
   ListMemberEventAssetsResponses,
+  ListMemberEventAttendeesErrors,
+  ListMemberEventAttendeesResponses,
+  ListMemberEventsErrors,
+  ListMemberEventsResponses,
   ListMemberModulesErrors,
   ListMemberModulesResponses,
   ListMemberNotificationsErrors,
@@ -1562,6 +1576,7 @@ export class Notifications {
             | "space_member"
             | "community_member"
             | "course_member"
+            | "event_member"
             | "moderator"
           >;
         }>;
@@ -1725,6 +1740,7 @@ export class Notifications {
             | "space_member"
             | "community_member"
             | "course_member"
+            | "event_member"
             | "moderator"
           >;
         }>;
@@ -6356,6 +6372,44 @@ export class Events {
   }
 
   /**
+   * List an event's attendees
+   *
+   * Requires `events:read`. On the event or the org. The people attending, directly or through a bundle, by grant date. `source` is `bundle` for someone who attends only through a bundle.
+   */
+  public static listEventAttendees<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListEventAttendeesResponses, ListEventAttendeesErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListEventAttendeesResponses,
+      ListEventAttendeesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/attendees",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Add an attendee to an event
    *
    * Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.
@@ -6427,6 +6481,71 @@ export class Events {
     >({
       responseStyle: "data",
       url: "/api/events/{eventId}/attendees/{orgUserId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * An event's attendance figures
+   *
+   * Requires `events:read`. On the event or the org. The attendees now and by source, the capacity, the revoked direct grants, and the current direct grants by grant date before the start.
+   */
+  public static getEventAnalytics<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetEventAnalyticsResponses, GetEventAnalyticsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<
+      GetEventAnalyticsResponses,
+      GetEventAnalyticsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/analytics",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the events you can see
+   *
+   * For a member of the organization. The published `public` events, and the published and canceled events you attend; with `events:read`, every published and canceled event it covers. Each as the event read returns it.
+   */
+  public static listMemberEvents<ThrowOnError extends boolean = false>(
+    parameters?: {
+      page?: number;
+      pageSize?: number;
+      when?: "upcoming" | "past";
+      attending?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListMemberEventsResponses, ListMemberEventsErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+            { in: "query", key: "when" },
+            { in: "query", key: "attending" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListMemberEventsResponses,
+      ListMemberEventsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events",
       ...options,
       ...params,
     });
@@ -6557,6 +6676,31 @@ export class Events {
   }
 
   /**
+   * Get an event, with what you can do with it
+   *
+   * With `events:read` on the event or the org: the event in any status. As an attendee, directly or through a bundle: the published or canceled event, with the recording after the end when replay is on. Otherwise a published `public` event without its location, files and recording. 404 for anything else.
+   */
+  public static getMemberEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetMemberEventResponses, GetMemberEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<
+      GetMemberEventResponses,
+      GetMemberEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Update an event you run
    *
    * Requires `events:write`. Changes only the fields sent; `status` publishes or unpublishes it. `thumbnailAssetId` must be a ready library image (409 `conflict` otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs `media:read` (403 otherwise). 409 `canceled` when the event is canceled.
@@ -6662,6 +6806,120 @@ export class Events {
     >({
       responseStyle: "data",
       url: "/api/member/events/{eventId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Download an event as a calendar file
+   *
+   * An iCalendar file with the title, the times and the event page. The location and the meeting link are included when the event read returns them. 404 when the event read does.
+   */
+  public static getEventCalendar<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetEventCalendarResponses, GetEventCalendarErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<
+      GetEventCalendarResponses,
+      GetEventCalendarErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/calendar",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * List the attendees of an event you run
+   *
+   * Requires `events:read`. On the event or the org. The people attending, directly or through a bundle, by grant date. `source` is `bundle` for someone who attends only through a bundle.
+   */
+  public static listMemberEventAttendees<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      page?: number;
+      pageSize?: number;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ListMemberEventAttendeesResponses,
+    ListMemberEventAttendeesErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "query", key: "page" },
+            { in: "query", key: "pageSize" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<
+      ListMemberEventAttendeesResponses,
+      ListMemberEventAttendeesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/attendees",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Add an attendee to an event you run
+   *
+   * Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.
+   */
+  public static addMemberEventAttendee<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    AddMemberEventAttendeeResponses,
+    AddMemberEventAttendeeErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddMemberEventAttendeeResponses,
+      AddMemberEventAttendeeErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/attendees",
       ...options,
       ...params,
       headers: {
@@ -6957,52 +7215,6 @@ export class Events {
       url: "/api/member/events/{eventId}/registration",
       ...options,
       ...params,
-    });
-  }
-
-  /**
-   * Add an attendee to an event you run
-   *
-   * Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.
-   */
-  public static addMemberEventAttendee<ThrowOnError extends boolean = false>(
-    parameters: {
-      eventId: string;
-      orgUserId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    AddMemberEventAttendeeResponses,
-    AddMemberEventAttendeeErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "eventId" },
-            { in: "body", key: "orgUserId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).post<
-      AddMemberEventAttendeeResponses,
-      AddMemberEventAttendeeErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/events/{eventId}/attendees",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
     });
   }
 
@@ -9916,6 +10128,37 @@ export class Assets {
 
 export class Files {
   /**
+   * Redirect to a file attached to an event
+   *
+   * For a holder of `events:read` on the event or the org, or an attendee of the published or canceled event. Saved under its display name. 404 otherwise, or when the file is not attached to the event.
+   */
+  public static getEventFile<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      assetId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetEventFileErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "assetId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetEventFileErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/assets/{assetId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Redirect to a course's thumbnail
    *
    * Any org user may fetch the thumbnail of a published course; a holder of `courses:read` on it may fetch it unpublished. 404 when the course has no thumbnail.
@@ -9935,6 +10178,26 @@ export class Files {
         ...params,
       },
     );
+  }
+
+  /**
+   * Redirect to an event's cover
+   *
+   * Anyone the event read returns the event to may fetch its cover. 404 when it returns 404 or the event has no cover.
+   */
+  public static getEventThumbnail<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetEventThumbnailErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).get<unknown, GetEventThumbnailErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/thumbnail",
+      ...options,
+      ...params,
+    });
   }
 
   /**

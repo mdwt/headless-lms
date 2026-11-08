@@ -5,6 +5,7 @@ import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
 import { adminReportDeclarations } from './declarations.js';
 import type { AdminReportRepository, PermissionsReader, SpaceOpenersReader } from './ports.js';
 import { AdminReportServiceImpl } from './service.js';
+import { createFileUrls } from '../../assets/index.js';
 
 const PAGE = { page: 1, pageSize: 20 };
 
@@ -29,6 +30,7 @@ function fakeRepo(): AdminReportRepository {
       draftCourses: 0,
       activeStudents: 0,
       expiringSoon: 0,
+      upcomingEvents: 3,
     })),
     enrollments: vi.fn(async () => []),
     courseAnalytics: vi.fn(async () => null),
@@ -46,8 +48,42 @@ function fakeRepo(): AdminReportRepository {
       total: 2,
       ...PAGE,
     })),
+    eventAttendees: vi.fn(async () => ({
+      rows: [
+        {
+          orgUserId: 'ou_james',
+          displayName: 'James',
+          imageAssetId: 'ast_1',
+          source: 'self' as const,
+          grantedAt: new Date('2026-05-01T09:00:00Z'),
+        },
+        {
+          orgUserId: 'ou_lucy',
+          displayName: null,
+          imageAssetId: null,
+          source: 'bundle' as const,
+          grantedAt: new Date('2026-05-02T09:00:00Z'),
+        },
+      ],
+      total: 2,
+      ...PAGE,
+    })),
+    eventAnalytics: vi.fn(async () => ({
+      attendees: 9,
+      bySource: { self: 7, manual: 1, automation: 0, bundle: 1 },
+      revoked: 1,
+      grantsOverTime: [{ date: '2026-05-01', count: 8 }],
+    })),
   };
 }
+
+const EVENT_STARTS = new Date('2026-05-12T16:00:00Z');
+
+const events = {
+  findEvent: vi.fn(async (id: string) =>
+    id === 'evn_1' ? ({ id, startsAt: EVENT_STARTS, settings: { capacity: 20 } } as never) : null,
+  ),
+};
 
 const people: PermissionsReader = {
   permissionsOfMany: async (_orgId, ids) =>
@@ -75,7 +111,16 @@ const spaces: SpaceOpenersReader = {
 
 function build() {
   const repo = fakeRepo();
-  return { repo, svc: new AdminReportServiceImpl({ repo, permissions: people, spaces }) };
+  return {
+    repo,
+    svc: new AdminReportServiceImpl({
+      repo,
+      permissions: people,
+      spaces,
+      events,
+      fileUrls: createFileUrls('https://api.test'),
+    }),
+  };
 }
 
 describe('AdminReportService', () => {
@@ -93,6 +138,8 @@ describe('AdminReportService', () => {
       ['studentAnalytics', () => svc.studentAnalytics('ou_james', nobody)],
       ['communityAnalytics', () => svc.communityAnalytics('cmy_1', nobody)],
       ['communityMembers', () => svc.communityMembers('cmy_1', PAGE, nobody)],
+      ['eventAttendees', () => svc.eventAttendees('evn_1', PAGE, nobody)],
+      ['eventAnalytics', () => svc.eventAnalytics('evn_1', nobody)],
     ];
     expect(calls.map(([name]) => name).sort()).toEqual(Object.keys(adminReportDeclarations).sort());
     for (const [name, call] of calls) {
@@ -165,5 +212,58 @@ describe('AdminReportService', () => {
     vi.mocked(repo.courseLearners).mockResolvedValue(null);
     const tutor = actorWith({ content: { crs_9: ['progress:read'] } });
     await expect(svc.courseLearners('crs_9', PAGE, tutor)).rejects.toThrow(NotFoundError);
+  });
+
+  it('counts the upcoming events in the org overview', async () => {
+    const { svc } = build();
+    await expect(svc.overview(actorWith({ org: ['analytics:read'] }))).resolves.toMatchObject({
+      upcomingEvents: 3,
+    });
+  });
+
+  it("lists an event's attendees with events:read on it, with their source, date and avatar", async () => {
+    const { svc, repo } = build();
+    const tom = actorWith({ orgId: 'org_1', content: { evn_1: ['events:read'] } });
+    const page = await svc.eventAttendees('evn_1', PAGE, tom);
+    expect(repo.eventAttendees).toHaveBeenCalledWith('org_1', 'evn_1', PAGE);
+    expect(page.rows).toEqual([
+      {
+        orgUserId: 'ou_james',
+        name: 'James',
+        avatarUrl: 'https://api.test/api/member/people/ou_james/image',
+        source: 'self',
+        grantedAt: new Date('2026-05-01T09:00:00Z'),
+      },
+      {
+        orgUserId: 'ou_lucy',
+        name: 'A member',
+        avatarUrl: null,
+        source: 'bundle',
+        grantedAt: new Date('2026-05-02T09:00:00Z'),
+      },
+    ]);
+    await expect(svc.eventAttendees('evn_2', PAGE, tom)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('answers 404 for the attendees and analytics of an event that does not exist', async () => {
+    const { svc, repo } = build();
+    const sarah = actorWith({ org: ['events:read'] });
+    await expect(svc.eventAttendees('evn_9', PAGE, sarah)).rejects.toThrow(NotFoundError);
+    await expect(svc.eventAnalytics('evn_9', sarah)).rejects.toThrow(NotFoundError);
+    expect(repo.eventAttendees).not.toHaveBeenCalled();
+    expect(repo.eventAnalytics).not.toHaveBeenCalled();
+  });
+
+  it("adds the event's capacity to its figures, counting grants before the start", async () => {
+    const { svc, repo } = build();
+    const sarah = actorWith({ orgId: 'org_1', org: ['events:read'] });
+    await expect(svc.eventAnalytics('evn_1', sarah)).resolves.toEqual({
+      attendees: 9,
+      capacity: 20,
+      bySource: { self: 7, manual: 1, automation: 0, bundle: 1 },
+      revoked: 1,
+      grantsOverTime: [{ date: '2026-05-01', count: 8 }],
+    });
+    expect(repo.eventAnalytics).toHaveBeenCalledWith('org_1', 'evn_1', EVENT_STARTS);
   });
 });

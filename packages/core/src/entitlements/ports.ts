@@ -77,6 +77,7 @@ export interface SpaceReader {
 export interface RevokeGrantInput {
   orgUserId: string;
   contentId: string;
+  contentType?: ContentType;
 }
 
 export interface CommunityReaders {
