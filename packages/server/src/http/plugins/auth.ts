@@ -48,10 +48,11 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     const authOrgId = session.session.activeOrganizationId;
     if (authOrgId) {
       request.authOrgId = authOrgId;
-      const org = await appServer.organizations.getByExternalId(authOrgId);
-      if (org) {
-        request.orgId = org.id;
-        appServer.requestContext.set({ orgId: org.id });
+      const caller = await appServer.organizations.resolveCaller(authOrgId, session.user.id);
+      if (caller) {
+        request.resolvedCaller = caller;
+        request.orgId = caller.orgId;
+        appServer.requestContext.set({ orgId: caller.orgId });
       }
     }
   });
@@ -67,14 +68,15 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
       throw new UnauthorizedError('Choose an organization to continue');
     }
 
-    const org = await appServer.organizations.getByExternalId(authOrgId);
-    if (!org) {
+    const caller = await appServer.organizations.resolveCaller(authOrgId, session.user.id);
+    if (!caller) {
       throw new UnauthorizedError('Your session points to an organization that no longer exists');
     }
     request.authUser = session.user;
     request.userId = session.user.id;
-    request.orgId = org.id;
-    appServer.requestContext.set({ orgId: org.id });
+    request.orgId = caller.orgId;
+    request.resolvedCaller = caller;
+    appServer.requestContext.set({ orgId: caller.orgId });
     // resolveScope requires the auth-provider id too — routes that write back
     // through better-auth key on it.
     request.authOrgId = authOrgId;

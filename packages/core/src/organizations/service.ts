@@ -8,6 +8,7 @@ import type {
   OrganizationsRepository,
   OrganizationsUnitOfWork,
   OrganizationsWriteScope,
+  ResolvedCaller,
   RolesRepository,
   TeamRow,
   TransferOwnershipInput,
@@ -317,6 +318,35 @@ export class OrganizationServiceImpl implements OrganizationService {
         roles,
         ...(tokenScopes !== undefined && { tokenScopes }),
       }),
+    };
+  }
+
+  async resolveCaller(
+    authOrgId: string,
+    authUserId: string,
+    tokenScopes?: readonly Permission[],
+  ): Promise<ResolvedCaller | null> {
+    const facts = await this.roles.callerFacts(authOrgId, authUserId);
+    if (!facts) {
+      return null;
+    }
+    const orgUser = facts.orgUser;
+    return {
+      orgId: facts.orgId,
+      userId: facts.userId,
+      orgUserId: orgUser?.orgUserId ?? null,
+      actor:
+        orgUser?.status === 'active'
+          ? {
+              id: orgUser.orgUserId,
+              orgId: facts.orgId,
+              permissions: resolvePermissions({
+                assignments: orgUser.assignments,
+                roles: this.roleMap(orgUser.storedRoles),
+                ...(tokenScopes !== undefined && { tokenScopes }),
+              }),
+            }
+          : null,
     };
   }
 

@@ -202,6 +202,28 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
   });
 
   const roles: RolesRepository = {
+    callerFacts: async (authOrgId, authUserId) => {
+      const org = [...orgs.values()].find((o) => o.externalId === authOrgId);
+      if (!org) {
+        return null;
+      }
+      const user = [...people.values()].find((p) => p.externalId === authUserId);
+      const orgUser = user
+        ? [...orgUsers.values()].find((u) => u.orgId === org.id && u.userId === user.id)
+        : undefined;
+      return {
+        orgId: org.id,
+        userId: user?.id ?? null,
+        orgUser: orgUser
+          ? {
+              orgUserId: orgUser.id,
+              status: orgUser.status,
+              assignments: assignments.filter((a) => a.orgUserId === orgUser.id).map(toRow),
+              storedRoles: [...storedRoles],
+            }
+          : null,
+      };
+    },
     actorFacts: async (_orgId, id) => {
       const u = orgUsers.get(id);
       if (!u) {
@@ -466,6 +488,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     escapes,
     repo,
     roles,
+    orgs,
     assignments,
     storedRoles,
     invites,
@@ -548,6 +571,45 @@ describe('actorFor', () => {
   it('answers null for an invited org user', async () => {
     const invited = await w.person('Ivy', { status: 'invited' });
     expect(await w.service.actorFor(ORG, invited.orgUser.id)).toBeNull();
+  });
+});
+
+describe('resolveCaller', () => {
+  const externalOf = () => [...w.orgs.values()].find((o) => o.id === ORG)!.externalId!;
+  const authIdOf = (userId: string) => w.people.get(userId)!.externalId!;
+
+  it('resolves the org, the user, the org user and the actor in one read', async () => {
+    const callerFacts = vi.spyOn(w.roles, 'callerFacts');
+    const caller = await w.service.resolveCaller(externalOf(), authIdOf(s.james.orgUser.userId));
+    expect(callerFacts).toHaveBeenCalledTimes(1);
+    expect(caller).toMatchObject({
+      orgId: ORG,
+      userId: s.james.orgUser.userId,
+      orgUserId: s.james.orgUser.id,
+    });
+    expect(caller?.actor?.permissions.roleOn().key).toBe('member');
+  });
+
+  it('applies token scopes to the actor', async () => {
+    const caller = await w.service.resolveCaller(externalOf(), authIdOf(s.sarah.orgUser.userId), [
+      'people:read',
+    ]);
+    expect(caller?.actor?.permissions.has('people:read')).toBe(true);
+    expect(caller?.actor?.permissions.has('people:write')).toBe(false);
+  });
+
+  it('answers no actor for an invited org user, no org user for a stranger, and null for an unknown org', async () => {
+    const invited = await w.person('Ivy', { status: 'invited' });
+    await expect(
+      w.service.resolveCaller(externalOf(), authIdOf(invited.orgUser.userId)),
+    ).resolves.toMatchObject({ orgUserId: invited.orgUser.id, actor: null });
+    await expect(w.service.resolveCaller(externalOf(), 'usr_stranger')).resolves.toMatchObject({
+      orgId: ORG,
+      userId: null,
+      orgUserId: null,
+      actor: null,
+    });
+    await expect(w.service.resolveCaller('org_missing', 'usr_any')).resolves.toBeNull();
   });
 
   it("applies a role's rename and permission change to every holder", async () => {

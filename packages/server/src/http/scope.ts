@@ -2,6 +2,7 @@ import type { FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
 import type { Actor } from '@headless-lms/core/shared/actor';
 import type { Permission } from '@headless-lms/core/types';
+import type { ResolvedCaller } from '@headless-lms/core/organizations';
 
 export interface Caller {
   actor: Actor;
@@ -14,34 +15,30 @@ export interface Caller {
 
 export class NoActiveOrgError extends Error {}
 
-async function callerOf(
+function callerFrom(
   container: Container,
+  resolved: ResolvedCaller | null,
   authUserId: string,
   authOrgId: string,
-  tokenScopes?: readonly Permission[],
-): Promise<Caller> {
-  const org = await container.organizations.getByExternalId(authOrgId);
-  if (!org) {
+): Caller {
+  if (!resolved) {
     throw new NoActiveOrgError('The active organization no longer exists');
   }
-  const user = await container.identity.getUserByExternalId(authUserId);
-  if (!user) {
+  if (!resolved.userId) {
     throw new NoActiveOrgError('Your account is not set up yet');
   }
-  const orgUser = await container.organizations.getOrgUser(org.id, user.id);
-  if (!orgUser) {
+  if (!resolved.orgUserId) {
     throw new NoActiveOrgError('You are not a member of this organization');
   }
-  container.requestContext.set({ orgId: org.id, actorId: orgUser.id });
-  const actor = await container.organizations.actorFor(org.id, orgUser.id, tokenScopes);
-  if (!actor) {
+  container.requestContext.set({ orgId: resolved.orgId, actorId: resolved.orgUserId });
+  if (!resolved.actor) {
     throw new NoActiveOrgError('Accept your invitation to this organization to continue');
   }
   return {
-    actor,
-    orgId: org.id,
-    userId: user.id,
-    orgUserId: orgUser.id,
+    actor: resolved.actor,
+    orgId: resolved.orgId,
+    userId: resolved.userId,
+    orgUserId: resolved.orgUserId,
     authOrgId,
     authUserId,
   };
@@ -56,18 +53,26 @@ export async function resolveCaller(container: Container, req: FastifyRequest): 
   if (!authOrgId || !req.orgId) {
     throw new NoActiveOrgError('Choose an organization to continue');
   }
-  return callerOf(container, authUser.id, authOrgId);
+  const resolved =
+    req.resolvedCaller ?? (await container.organizations.resolveCaller(authOrgId, authUser.id));
+  req.resolvedCaller = resolved ?? undefined;
+  return callerFrom(container, resolved, authUser.id, authOrgId);
 }
 
 export async function resolveActor(container: Container, req: FastifyRequest): Promise<Actor> {
   return (await resolveCaller(container, req)).actor;
 }
 
-export function resolveCallerFor(
+export async function resolveCallerFor(
   container: Container,
   authUserId: string,
   authOrgId: string,
   tokenScopes: readonly Permission[],
 ): Promise<Caller> {
-  return callerOf(container, authUserId, authOrgId, tokenScopes);
+  return callerFrom(
+    container,
+    await container.organizations.resolveCaller(authOrgId, authUserId, tokenScopes),
+    authUserId,
+    authOrgId,
+  );
 }

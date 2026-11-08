@@ -9,6 +9,7 @@ import { registerAuth } from '../../plugins/auth.js';
 import { errorHandler } from '../../plugins/error-handler.js';
 import { mcpEndpoints } from '../../../app/mcp-endpoints.js';
 import { memberChatRoutes } from './chats.js';
+import { resolvedCaller } from '../../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Spanish in 90 Days', slug: 'spanish', externalId: 'org_1' };
 const USER = { id: 'usr_sarah', externalId: 'usr_sarah' };
@@ -71,6 +72,7 @@ const container = {
     getByExternalId: async () => ORG,
     getOrgUser: async () => orgUser,
     actorFor: async () => ACTOR,
+    resolveCaller: async () => resolvedCaller(ORG, USER, orgUser, ACTOR),
   },
   identity: {
     getUserByExternalId: async () => USER,

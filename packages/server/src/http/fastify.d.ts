@@ -1,5 +1,6 @@
 import 'fastify';
 import type { User } from '@headless-lms/core/types';
+import type { ResolvedCaller } from '@headless-lms/core/organizations';
 
 /** The session's account as the HTTP layer sees it. Re-exported from the
  *  package entry point so this module — and its augmentation — gets loaded. */
@@ -34,5 +35,6 @@ declare module 'fastify' {
      *  and every other domain row references. Not `authUser.id`: the two match
      *  only for a self-signup, never for a person an admin provisioned first. */
     userId: string;
+    resolvedCaller?: ResolvedCaller;
   }
 }

@@ -1,9 +1,10 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
   OWNER_ROLE_KEY,
   type ActorFacts,
   type AssignmentRow,
+  type CallerFacts,
   type RolesRepository,
   type StoredOrgRole,
 } from "@headless-lms/core/organizations";
@@ -53,69 +54,113 @@ function toRow(row: {
   };
 }
 
+type StoredRoleJson = {
+  key: string;
+  name: string | null;
+  description: string | null;
+  base: string;
+  levels: string[] | null;
+  permissions: Record<string, boolean>;
+  team: boolean | null;
+};
+
+type FactsRow = {
+  org_user_id: string | null;
+  status: "invited" | "active" | null;
+  assignments: { roleKey: string; contentId: string | null; contentType: string | null }[];
+  roles: StoredRoleJson[];
+};
+
+function toStoredJson(role: StoredRoleJson): StoredOrgRole {
+  return {
+    key: role.key,
+    name: role.name,
+    description: role.description,
+    base: role.base,
+    levels: (role.levels as Level[] | null) ?? null,
+    permissions: role.permissions as Partial<Record<Permission, boolean>>,
+    team: role.team,
+  };
+}
+
+function assignmentsOf(orgId: SQL, orgUserId: SQL): SQL {
+  return sql`coalesce(
+    (select json_agg(json_build_object(
+        'roleKey', ra.role_key,
+        'contentId', ra.content_id,
+        'contentType', ra.content_type))
+     from role_assignments ra
+     where ra.org_id = ${orgId} and ra.org_user_id = ${orgUserId}),
+    '[]'::json
+  )`;
+}
+
+function rolesOf(orgId: SQL): SQL {
+  return sql`coalesce(
+    (select json_agg(json_build_object(
+        'key', r.key,
+        'name', r.name,
+        'description', r.description,
+        'base', r.base,
+        'levels', r.levels,
+        'permissions', r.permissions,
+        'team', r.team))
+     from org_roles r
+     where r.org_id = ${orgId}),
+    '[]'::json
+  )`;
+}
+
 export class DrizzleRolesRepository implements RolesRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
   async actorFacts(orgId: string, orgUserId: string): Promise<ActorFacts | null> {
-    const result = await this.db.execute<{
-      id: string;
-      status: "invited" | "active";
-      assignments: { roleKey: string; contentId: string | null; contentType: string | null }[];
-      roles: {
-        key: string;
-        name: string | null;
-        description: string | null;
-        base: string;
-        levels: string[] | null;
-        permissions: Record<string, boolean>;
-        team: boolean | null;
-      }[];
-    }>(sql`
-      select
-        ou.id,
-        ou.status,
-        coalesce(
-          (select json_agg(json_build_object(
-              'roleKey', ra.role_key,
-              'contentId', ra.content_id,
-              'contentType', ra.content_type))
-           from role_assignments ra
-           where ra.org_id = ou.org_id and ra.org_user_id = ou.id),
-          '[]'::json
-        ) as assignments,
-        coalesce(
-          (select json_agg(json_build_object(
-              'key', r.key,
-              'name', r.name,
-              'description', r.description,
-              'base', r.base,
-              'levels', r.levels,
-              'permissions', r.permissions,
-              'team', r.team))
-           from org_roles r
-           where r.org_id = ou.org_id),
-          '[]'::json
-        ) as roles
+    const result = await this.db.execute<FactsRow>(sql`
+      select ou.id as org_user_id, ou.status,
+        ${assignmentsOf(sql`ou.org_id`, sql`ou.id`)} as assignments,
+        ${rolesOf(sql`ou.org_id`)} as roles
       from org_users ou
       where ou.org_id = ${orgId} and ou.id = ${orgUserId}
+    `);
+    const row = result.rows[0];
+    if (!row?.org_user_id || !row.status) {
+      return null;
+    }
+    return {
+      orgUserId: row.org_user_id,
+      status: row.status,
+      assignments: row.assignments.map(toRow),
+      storedRoles: row.roles.map(toStoredJson),
+    };
+  }
+
+  async callerFacts(authOrgId: string, authUserId: string): Promise<CallerFacts | null> {
+    const result = await this.db.execute<FactsRow & { org_id: string; user_id: string | null }>(sql`
+      select o.id as org_id, u.id as user_id, ou.id as org_user_id, ou.status,
+        ${assignmentsOf(sql`o.id`, sql`ou.id`)} as assignments,
+        ${rolesOf(sql`o.id`)} as roles
+      from organizations o
+      left join users u on u.external_id = ${authUserId}
+      left join org_users ou on ou.org_id = o.id and ou.user_id = u.id
+      where o.external_id = ${authOrgId}
+      limit 1
     `);
     const row = result.rows[0];
     if (!row) {
       return null;
     }
     return {
-      orgUserId: row.id,
-      status: row.status,
-      assignments: row.assignments.map(toRow),
-      storedRoles: row.roles.map((r) => ({
-        key: r.key,
-        name: r.name,
-        description: r.description,
-        base: r.base,
-        levels: (r.levels as Level[] | null) ?? null,
-        permissions: r.permissions as Partial<Record<Permission, boolean>>,
-        team: r.team,
-      })),
+      orgId: row.org_id,
+      userId: row.user_id,
+      orgUser:
+        row.org_user_id && row.status
+          ? {
+              orgUserId: row.org_user_id,
+              status: row.status,
+              assignments: row.assignments.map(toRow),
+              storedRoles: row.roles.map(toStoredJson),
+            }
+          : null,
     };
   }
 

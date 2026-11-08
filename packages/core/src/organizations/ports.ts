@@ -69,6 +69,11 @@ export interface OrganizationService {
     orgUserId: string,
     tokenScopes?: readonly Permission[],
   ): Promise<Actor | null>;
+  resolveCaller(
+    authOrgId: string,
+    authUserId: string,
+    tokenScopes?: readonly Permission[],
+  ): Promise<ResolvedCaller | null>;
   systemActor(orgId: string): Actor;
   permissionsOfMany(
     orgId: string,
@@ -121,8 +126,22 @@ export interface ActorFacts {
   storedRoles: StoredOrgRole[];
 }
 
+export interface CallerFacts {
+  orgId: string;
+  userId: string | null;
+  orgUser: ActorFacts | null;
+}
+
+export interface ResolvedCaller {
+  orgId: string;
+  userId: string | null;
+  orgUserId: string | null;
+  actor: Actor | null;
+}
+
 export interface RolesRepository {
   actorFacts(orgId: string, orgUserId: string): Promise<ActorFacts | null>;
+  callerFacts(authOrgId: string, authUserId: string): Promise<CallerFacts | null>;
   storedRoles(orgId: string): Promise<StoredOrgRole[]>;
   saveStoredRole(orgId: string, role: StoredOrgRole): Promise<void>;
   deleteStoredRole(orgId: string, key: string): Promise<boolean>;

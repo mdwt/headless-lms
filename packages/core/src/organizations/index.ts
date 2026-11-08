@@ -31,6 +31,8 @@ export type {
   OrganizationsRepository,
   RolesRepository,
   ActorFacts,
+  CallerFacts,
+  ResolvedCaller,
   NewOrganizationRow,
   NewInviteRow,
 } from './ports.js';

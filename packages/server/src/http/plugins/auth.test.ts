@@ -14,6 +14,7 @@ const SESSION = {
 };
 
 const logContext: Record<string, unknown>[] = [];
+const resolved: { authOrgId: string; authUserId: string }[] = [];
 
 const container = {
   mcp: mcpEndpoints({
@@ -23,8 +24,12 @@ const container = {
   requestContext: { set: (fields: Record<string, unknown>) => logContext.push(fields) },
   auth: { verify: async () => SESSION, handler: async () => new Response(null) },
   organizations: {
-    getById: async (id: string) => (id === ORG.id ? ORG : null),
-    getByExternalId: async (externalId: string) => (externalId === ORG.externalId ? ORG : null),
+    resolveCaller: async (authOrgId: string, authUserId: string) => {
+      resolved.push({ authOrgId, authUserId });
+      return authOrgId === ORG.externalId
+        ? { orgId: ORG.id, userId: authUserId, orgUserId: 'ou_1', actor: null }
+        : null;
+    },
   },
 } as unknown as Container;
 
@@ -58,6 +63,13 @@ describe('requireOrgSession', () => {
     const res = await app.inject({ method: 'GET', url: '/org-scoped' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ authOrgId: 'org_1', orgId: 'org_1', userId: 'usr_1' });
+  });
+
+  it('resolves the caller with one read and leaves it on the request', async () => {
+    resolved.length = 0;
+    const res = await app.inject({ method: 'GET', url: '/org-scoped' });
+    expect(res.statusCode).toBe(200);
+    expect(resolved).toEqual([{ authOrgId: 'org_1', authUserId: 'usr_1' }]);
   });
 
   it('puts the org on the request log context', async () => {

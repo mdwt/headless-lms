@@ -8,6 +8,7 @@ import { registerAuth } from '../../plugins/auth.js';
 import { errorHandler } from '../../plugins/error-handler.js';
 import { mcpEndpoints } from '../../../app/mcp-endpoints.js';
 import { memberNotificationRoutes } from './notifications.js';
+import { resolvedCaller } from '../../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const ORG_USER = { id: 'ou_sarah', orgId: 'org_1', status: 'active', userId: 'usr_1' };
@@ -55,6 +56,7 @@ const container = {
     getByExternalId: async () => ORG,
     getOrgUser: async () => ORG_USER,
     actorFor: async () => SARAH,
+    resolveCaller: async () => resolvedCaller(ORG, { id: 'usr_1' }, ORG_USER, SARAH),
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   reporting: {

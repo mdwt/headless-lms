@@ -13,6 +13,7 @@ import {
   type AdminReportRepository,
   type CourseLearner,
 } from '@headless-lms/core/reporting/admin';
+import { resolvedCaller } from '../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const JAMES = actorWith({ id: 'ou_james', orgId: ORG.id, content: { crs_1: ['progress:read'] } });
@@ -60,6 +61,8 @@ const container = {
     getById: async () => ORG,
     getOrgUser: async () => ({ id: actor.id, orgId: ORG.id }),
     actorFor: async () => actor,
+    resolveCaller: async () =>
+      resolvedCaller(ORG, { id: 'usr_1' }, { id: actor.id, orgId: ORG.id }, actor),
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },

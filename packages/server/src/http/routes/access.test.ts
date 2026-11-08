@@ -9,6 +9,7 @@ import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { registerAuth } from '../plugins/auth.js';
 import { errorHandler } from '../plugins/error-handler.js';
 import { accessRoutes } from './access.js';
+import { resolvedCaller } from '../test-caller.js';
 
 const ORG = { id: 'org_dom', name: 'Acme', slug: 'acme', externalId: 'org_auth' };
 const SESSION = {
@@ -54,6 +55,8 @@ const container = {
     getByExternalId: async (externalId: string) => (externalId === ORG.externalId ? ORG : null),
     getOrgUser: async () => ({ id: 'ou_1', status: 'active' }),
     actorFor: async () => actor,
+    resolveCaller: async () =>
+      resolvedCaller(ORG, { id: 'dom_usr_1' }, { id: 'ou_1', status: 'active' }, actor),
     permissionList: () => permissionList(),
     viewerPermissions: (a: Actor) => ({
       orgRole: { key: 'instructor', name: 'Instructor' },

@@ -10,6 +10,7 @@ import { mcpEndpoints } from '../../../app/mcp-endpoints.js';
 import { memberChatRoutes } from './chats.js';
 import { memberCommunityRoutes } from './community.js';
 import { memberPostRoutes } from './posts.js';
+import { resolvedCaller } from '../../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const USER = { id: 'usr_1', externalId: 'usr_1' };
@@ -42,6 +43,7 @@ const container = {
     getByExternalId: async () => ORG,
     getOrgUser: async () => ORG_USER,
     actorFor: async () => ACTOR,
+    resolveCaller: async () => resolvedCaller(ORG, USER, ORG_USER, ACTOR),
   },
   identity: {
     getUserByExternalId: async () => USER,

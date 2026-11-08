@@ -11,9 +11,9 @@ import "server-only";
  * `crossSubDomainCookies` changes don't break SSR validation. No proxy, no
  * rewrite, no better-auth running inside Next.
  *
- * The API enriches get-session via `customSession` with the caller's active
- * org and memberships, so the whole resolution is a single call —
- * no fan-out to get-active-member / get-full-organization / organization/list.
+ * The session comes from get-session and the memberships from Better Auth's
+ * organization/list, fetched in parallel; the active org is the membership
+ * matching the session's `activeOrganizationId`.
  *
  * Wrapped in `React.cache` so the `(dashboard)` layout and every page in the
  * same request share a single resolution (no duplicate fetches).
@@ -40,10 +40,10 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
   const cookie = (await cookies()).toString();
   if (!cookie) return null;
 
-  const res = await fetch(`${API_URL}/api/auth/get-session`, {
-    headers: { cookie },
-    cache: "no-store",
-  });
+  const [res, orgsRes] = await Promise.all([
+    fetch(`${API_URL}/api/auth/get-session`, { headers: { cookie }, cache: "no-store" }),
+    fetch(`${API_URL}/api/auth/organization/list`, { headers: { cookie }, cache: "no-store" }),
+  ]);
   if (!res.ok) {
     log.warn({ status: res.status }, "session rejected by api");
     return null;
@@ -51,8 +51,6 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
   const data = (await res.json()) as {
     user?: SessionPerson;
     session?: { activeOrganizationId?: string | null };
-    activeOrganization?: { id?: string; name?: string; slug?: string } | null;
-    organizations?: unknown;
   } | null;
   if (!data?.user) {
     log.debug("no session on request");
@@ -61,15 +59,7 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
 
   const activeOrgId = data.session?.activeOrganizationId ?? null;
 
-  const organization: ServerSession["organization"] = data.activeOrganization?.id
-    ? {
-        id: data.activeOrganization.id,
-        name: data.activeOrganization.name ?? "",
-        slug: data.activeOrganization.slug ?? "",
-      }
-    : null;
-
-  const raw = data.organizations;
+  const raw: unknown = orgsRes.ok ? await orgsRes.json() : [];
   const organizations: ServerSession["organizations"] = Array.isArray(raw)
     ? raw
         .filter(
@@ -78,6 +68,8 @@ export const getServerSession = cache(async (): Promise<ServerSession | null> =>
         )
         .map((o) => ({ id: o.id, name: o.name ?? "", slug: o.slug ?? "" }))
     : [];
+  const organization: ServerSession["organization"] =
+    organizations.find((o) => o.id === activeOrgId) ?? null;
 
   const status: ServerSession["status"] = organization
     ? "authenticated"

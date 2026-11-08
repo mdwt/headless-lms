@@ -2,6 +2,7 @@ import { expect } from 'vitest';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { ALL_PERMISSIONS, actorWith } from '@headless-lms/core/organizations';
 import type { Actor } from '@headless-lms/core/shared/actor';
+import type { Permission } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { createToolServer } from './server.js';
@@ -18,6 +19,13 @@ export const USER = {
 };
 export const ORG_USER = { id: 'ou_1', orgId: 'org_1', userId: 'usr_1', status: 'active' };
 export const OWNER: Actor = actorWith({ id: ORG_USER.id, orgId: ORG.id, owner: true });
+
+type Lookups = {
+  getByExternalId: (id: string) => Promise<{ id: string } | null>;
+  getUserByExternalId: (id: string) => Promise<{ id: string } | null>;
+  getOrgUser: (orgId: string, userId: string) => Promise<{ id: string } | null>;
+  actorFor: (orgId: string, orgUserId: string, tokenScopes?: Permission[]) => Promise<Actor | null>;
+};
 
 export function fakeContainer(overrides: Record<string, unknown> = {}): Container {
   const logger = {
@@ -49,6 +57,18 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
         orgId === ORG.id && userId === USER.id ? ORG_USER : null,
       actorFor: async (orgId: string, orgUserId: string) =>
         orgId === ORG.id && orgUserId === ORG_USER.id ? OWNER : null,
+      resolveCaller: async (authOrgId: string, authUserId: string, tokenScopes?: Permission[]) => {
+        const orgs = base.organizations as Lookups;
+        const people = base.identity as Pick<Lookups, 'getUserByExternalId'>;
+        const org = await orgs.getByExternalId(authOrgId);
+        if (!org) {
+          return null;
+        }
+        const user = await people.getUserByExternalId(authUserId);
+        const orgUser = user ? await orgs.getOrgUser(org.id, user.id) : null;
+        const actor = orgUser ? await orgs.actorFor(org.id, orgUser.id, tokenScopes) : null;
+        return { orgId: org.id, userId: user?.id ?? null, orgUserId: orgUser?.id ?? null, actor };
+      },
     },
     identity: {
       getUserByExternalId: async (id: string) => (id === USER.id ? USER : null),

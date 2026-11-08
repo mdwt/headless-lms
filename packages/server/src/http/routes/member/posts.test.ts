@@ -10,6 +10,7 @@ import { memberChatRoutes } from './chats.js';
 import { mcpEndpoints } from '../../../app/mcp-endpoints.js';
 import { ConflictError, UnavailableError } from '@headless-lms/core/shared/errors';
 import { actorWith } from '@headless-lms/core/organizations';
+import { resolvedCaller } from '../../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const ORG_USER = { id: 'ou_mod', orgId: ORG.id, userId: 'usr_1' };
@@ -82,6 +83,7 @@ const container = {
     getByExternalId: async () => ORG,
     getOrgUser: async () => orgUser,
     actorFor: async () => ACTOR,
+    resolveCaller: async () => resolvedCaller(ORG, { id: 'usr_1' }, orgUser, ACTOR),
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   discussion: {

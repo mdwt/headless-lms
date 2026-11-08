@@ -20,7 +20,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
 import { NotFoundError } from "@headless-lms/core/shared/errors";
-import { customSession, jwt, magicLink, organization } from "better-auth/plugins";
+import { jwt, magicLink, organization } from "better-auth/plugins";
 import { getOrgAdapter } from "better-auth/plugins/organization";
 import {
   type AccessTokenAuthorization,
@@ -211,31 +211,6 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       }) as BetterAuthPlugin,
       ...(opts.mcp.oauthEnabled ? mcpOAuthPlugins(opts) : []),
       apiKey({ enableMetadata: true, rateLimit: { enabled: false } }) as BetterAuthPlugin,
-      customSession(async ({ user, session }) => {
-        const memberships = await opts.db
-          .select({
-            id: authSchema.organization.id,
-            name: authSchema.organization.name,
-            slug: authSchema.organization.slug,
-          })
-          .from(authSchema.member)
-          .innerJoin(
-            authSchema.organization,
-            eq(authSchema.member.organizationId, authSchema.organization.id),
-          )
-          .where(eq(authSchema.member.userId, user.id));
-        const activeOrgId =
-          (session as { activeOrganizationId?: string | null }).activeOrganizationId ?? null;
-        const active = memberships.find((m) => m.id === activeOrgId) ?? null;
-        return {
-          user,
-          session,
-          activeOrganization: active
-            ? { id: active.id, name: active.name, slug: active.slug }
-            : null,
-          organizations: memberships.map(({ id, name, slug }) => ({ id, name, slug })),
-        };
-      }),
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
@@ -598,10 +573,7 @@ export class BetterAuth
         updatedAt: res.user.updatedAt,
       },
       session: {
-        // customSession erases the org plugin's session extension from the
-        // inferred type; the field is still present at runtime.
-        activeOrganizationId:
-          (res.session as { activeOrganizationId?: string | null }).activeOrganizationId ?? null,
+        activeOrganizationId: res.session.activeOrganizationId ?? null,
       },
     };
   }

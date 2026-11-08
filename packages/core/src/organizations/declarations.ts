@@ -17,6 +17,7 @@ export const organizationsDeclarations = {
   getOrgUsersForUser: 'system',
   orgIds: 'system',
   actorFor: 'system',
+  resolveCaller: 'system',
   systemActor: 'system',
   permissionsOfMany: 'system',
   holders: 'system',

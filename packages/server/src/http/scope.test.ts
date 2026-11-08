@@ -8,21 +8,47 @@ import type { Container } from '../app/container.js';
 type OrgUser = { id: string; orgId: string; status: 'active' | 'invited' };
 
 function container(opts: {
+  calls?: { resolve: number };
   org?: { id: string; name: string; slug: string } | null;
   user?: { id: string } | null;
   orgUsers?: Record<string, OrgUser>;
   seen?: Array<{ orgId: string; orgUserId: string; tokenScopes?: readonly Permission[] }>;
 }): Container {
+  const organizations = {
+    getById: async () => opts.org ?? null,
+    getByExternalId: async (id: string) => (id === opts.org?.id ? opts.org : null),
+    getOrgUser: async (orgId: string, userId: string) =>
+      opts.orgUsers?.[`${orgId}:${userId}`] ?? null,
+    actorFor: async (orgId: string, orgUserId: string, tokenScopes?: readonly Permission[]) => {
+      opts.seen?.push({ orgId, orgUserId, ...(tokenScopes && { tokenScopes }) });
+      const row = Object.values(opts.orgUsers ?? {}).find((u) => u.id === orgUserId);
+      return row?.status === 'active' ? actorWith({ id: orgUserId, orgId, owner: true }) : null;
+    },
+  };
+  const identity = {
+    getUserByExternalId: async (id: string) => (id === opts.user?.id ? opts.user : null),
+  };
   return {
     organizations: {
-      getById: async () => opts.org ?? null,
-      getByExternalId: async (id: string) => (id === opts.org?.id ? opts.org : null),
-      getOrgUser: async (orgId: string, userId: string) =>
-        opts.orgUsers?.[`${orgId}:${userId}`] ?? null,
-      actorFor: async (orgId: string, orgUserId: string, tokenScopes?: readonly Permission[]) => {
-        opts.seen?.push({ orgId, orgUserId, ...(tokenScopes && { tokenScopes }) });
-        const row = Object.values(opts.orgUsers ?? {}).find((u) => u.id === orgUserId);
-        return row?.status === 'active' ? actorWith({ id: orgUserId, orgId, owner: true }) : null;
+      ...organizations,
+      resolveCaller: async (
+        authOrgId: string,
+        authUserId: string,
+        tokenScopes?: readonly Permission[],
+      ) => {
+        if (opts.calls) {
+          opts.calls.resolve += 1;
+        }
+        const org = await organizations.getByExternalId(authOrgId);
+        if (!org) {
+          return null;
+        }
+        const user = await identity.getUserByExternalId(authUserId);
+        const orgUser = user ? await organizations.getOrgUser(org.id, user.id) : null;
+        const actor = orgUser
+          ? await organizations.actorFor(org.id, orgUser.id, tokenScopes)
+          : null;
+        return { orgId: org.id, userId: user?.id ?? null, orgUserId: orgUser?.id ?? null, actor };
       },
     },
     identity: {
@@ -111,6 +137,28 @@ describe('resolveCaller', () => {
     await expect(
       resolveCaller(container({ org: acme, user: null }), req({ id: 'usr_1' })),
     ).rejects.toBeInstanceOf(NoActiveOrgError);
+  });
+});
+
+describe('resolving once per request', () => {
+  it('resolves the caller in one read and reuses it for every later call in the request', async () => {
+    const calls = { resolve: 0 };
+    const c = container({ calls, org: acme, user: { id: 'usr_1' }, orgUsers: active });
+    const request = req({ id: 'usr_1' });
+    const first = await resolveCaller(c, request);
+    const second = await resolveCaller(c, request);
+    expect(calls.resolve).toBe(1);
+    expect(second.actor).toBe(first.actor);
+  });
+
+  it('uses the caller the session guard already resolved, without reading again', async () => {
+    const calls = { resolve: 0 };
+    const c = container({ calls, org: acme, user: { id: 'usr_1' }, orgUsers: active });
+    const actor = actorWith({ id: 'orm_1', orgId: 'org_1', owner: true });
+    const request = req({ id: 'usr_1' }) as FastifyRequest & { resolvedCaller: unknown };
+    request.resolvedCaller = { orgId: 'org_1', userId: 'usr_1', orgUserId: 'orm_1', actor };
+    await expect(resolveCaller(c, request)).resolves.toMatchObject({ orgUserId: 'orm_1', actor });
+    expect(calls.resolve).toBe(0);
   });
 });
 

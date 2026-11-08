@@ -21,6 +21,7 @@ import { errorHandler } from '../plugins/error-handler.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { communitiesRoutes } from './communities.js';
 import { organizationsRoutes } from './organizations.js';
+import { resolvedCaller } from '../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const orgUser = { id: 'ou_staff', orgId: ORG.id, status: 'active' };
@@ -70,6 +71,7 @@ const container = {
     getById: async () => ORG,
     getOrgUser: async () => orgUser,
     actorFor: async () => actor,
+    resolveCaller: async () => resolvedCaller(ORG, { id: 'usr_1' }, orgUser, actor),
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },

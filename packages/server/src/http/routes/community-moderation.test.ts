@@ -9,6 +9,7 @@ import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { actorWith } from '@headless-lms/core/organizations';
 import type { Actor } from '@headless-lms/core/shared/actor';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
+import { resolvedCaller } from '../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const AT = '2026-10-29T12:00:00.000Z';
@@ -57,6 +58,7 @@ const container = {
     getById: async () => ORG,
     getOrgUser: async () => orgUser,
     actorFor: async () => actor,
+    resolveCaller: async () => resolvedCaller(ORG, { id: 'usr_1' }, orgUser, actor),
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },
