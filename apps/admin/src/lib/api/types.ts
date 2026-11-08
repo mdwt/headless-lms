@@ -20,6 +20,8 @@ import type {
   GetCommunitySpaceQueueResponse,
   GetPostResponse,
   GetDownloadResponse,
+  GetEventAnalyticsResponse,
+  GetEventResponse,
   GetCourseAnalyticsResponse,
   GetEnrollmentSeriesResponse,
   GetOverviewResponse,
@@ -47,6 +49,9 @@ import type {
   ListDownloadAssetsResponse,
   ListDownloadsResponse,
   ListEntitlementsResponse,
+  ListEventAssetsResponse,
+  ListEventAttendeesResponse,
+  ListEventsResponse,
   ListTeamResponse,
   ListRolesResponse,
   ListRolesOnResponse,
@@ -72,6 +77,17 @@ export type Download = GetDownloadResponse;
 export type DownloadStatus = Download["status"];
 /** A download's file as the API serves it: the link row with its file's name, type, size and URL. */
 export type DownloadAsset = ListDownloadAssetsResponse[number];
+
+export type EventItem = GetEventResponse;
+export type EventStatus = EventItem["status"];
+export type EventSettings = EventItem["settings"];
+export type EventLocation = EventItem["location"];
+export type EventRecording = NonNullable<EventItem["recording"]>;
+export type EventFile = ListEventAssetsResponse[number];
+export type EventsPage = ListEventsResponse;
+export type EventAttendeesPage = ListEventAttendeesResponse;
+export type EventAttendee = EventAttendeesPage["rows"][number];
+export type EventAnalytics = GetEventAnalyticsResponse;
 
 export type Bundle = GetBundleResponse;
 /** Bare bundle→content link row, exactly as the API stores it. */
@@ -145,7 +161,7 @@ export type EntitlementGrant = ListEntitlementsResponse["rows"][number];
 export type EntitlementStatus = EntitlementGrant["status"] | "expired";
 
 /** The type of a single grantable, bundleable content item. */
-export type ContentType = "course" | "download" | "community";
+export type ContentType = "course" | "download" | "community" | "event";
 
 /**
  * A grant row joined client-side with the student's identity and the granted

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Download, Plus, Users, X } from "lucide-react";
+import { BookOpen, CalendarDays, Download, Plus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/forms/field";
@@ -30,6 +30,7 @@ const TYPE: Record<ContentType, { label: string; group: string; icon: typeof Boo
   course: { label: "Course", group: "Courses", icon: BookOpen },
   download: { label: "Download", group: "Downloads", icon: Download },
   community: { label: "Community", group: "Communities", icon: Users },
+  event: { label: "Event", group: "Events", icon: CalendarDays },
 };
 
 export function LinksEditor({

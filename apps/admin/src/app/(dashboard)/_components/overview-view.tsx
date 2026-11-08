@@ -23,6 +23,7 @@ const STAT_CONFIG: { key: keyof OverviewStats; label: string }[] = [
   { key: "draftCourses", label: "Draft courses" },
   { key: "activeStudents", label: "Active students" },
   { key: "expiringSoon", label: "Expiring soon" },
+  { key: "upcomingEvents", label: "Upcoming events" },
 ];
 
 interface OverviewViewProps {
@@ -33,6 +34,7 @@ interface OverviewViewProps {
   range: EnrollmentRangeKey;
   canCreateCourse: boolean;
   canSeeAccess: boolean;
+  canSeeEvents: boolean;
   manages: boolean;
 }
 
@@ -44,6 +46,7 @@ export function OverviewView({
   range,
   canCreateCourse,
   canSeeAccess,
+  canSeeEvents,
   manages,
 }: OverviewViewProps) {
   const firstName = user.name.trim().split(/\s+/)[0] ?? user.name;
@@ -69,15 +72,25 @@ export function OverviewView({
 
           {enrollments ? <EnrollmentsChart data={enrollments} range={range} /> : null}
 
-          {canSeeAccess ? (
+          {canSeeAccess || canSeeEvents ? (
             <div className="@container">
               <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2">
-                <FocusPanel
-                  href="/entitlements"
-                  title="Expiring soon"
-                  description="Active entitlements lapsing within 30 days."
-                  count={overview.expiringSoon}
-                />
+                {canSeeAccess ? (
+                  <FocusPanel
+                    href="/entitlements"
+                    title="Expiring soon"
+                    description="Active entitlements lapsing within 30 days."
+                    count={overview.expiringSoon}
+                  />
+                ) : null}
+                {canSeeEvents ? (
+                  <FocusPanel
+                    href="/events?f_startsAt=upcoming&f_status=published"
+                    title="Upcoming events"
+                    description="Published events that haven't ended."
+                    count={overview.upcomingEvents}
+                  />
+                ) : null}
               </div>
             </div>
           ) : null}

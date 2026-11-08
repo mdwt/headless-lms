@@ -31,6 +31,7 @@ import {
   Content,
   Discussion,
   Entitlements,
+  Events,
   Integrations,
   Notifications,
   People,
@@ -63,6 +64,10 @@ import type {
   EnrollmentSeries,
   Entitlement,
   EntitlementGrant,
+  EventAnalytics,
+  EventAttendee,
+  EventFile,
+  EventItem,
   IntegrationConnection,
   ListParams,
   Member,
@@ -95,6 +100,7 @@ async function contentTitleOf(
 ): Promise<string> {
   if (type === "course") return (await Content.getCourse({ id }, headers)).title;
   if (type === "download") return (await Content.getDownload({ downloadId: id }, headers)).title;
+  if (type === "event") return (await Events.getEvent({ eventId: id }, headers)).title;
   return (await Communities.getCommunity({ communityId: id }, headers)).title;
 }
 
@@ -167,6 +173,22 @@ async function composeEntitlements(
 }
 
 type Headers = Awaited<ReturnType<typeof authHeaders>>;
+
+async function eventsLite(headers: Headers): Promise<{ id: string; title: string }[]> {
+  try {
+    const page = await Events.listEvents({ pageSize: 100, sort: "title" }, headers);
+    return page.rows;
+  } catch {
+    return [];
+  }
+}
+
+function eventRange(filter: string | undefined): { from?: string; to?: string } {
+  const now = new Date().toISOString();
+  if (filter === "upcoming") return { from: now };
+  if (filter === "past") return { to: now };
+  return {};
+}
 
 async function peopleById(
   ids: string[],
@@ -260,12 +282,15 @@ export const serverApi = {
     )[]
   > {
     const headers = await authHeaders();
-    const [coursesPage, downloadsPage, communitiesPage, bundlesPage] = await Promise.all([
-      Content.listCourses({ pageSize: 100, sort: "title" }, headers),
-      Content.listDownloads({ pageSize: 100, sort: "title" }, headers),
-      Communities.listCommunities({ pageSize: 100, sort: "title" }, headers),
-      Content.listBundles({ pageSize: 100, sort: "name" }, headers),
-    ]);
+    const [coursesPage, downloadsPage, communitiesPage, eventRows, bundlesPage] = await Promise.all(
+      [
+        Content.listCourses({ pageSize: 100, sort: "title" }, headers),
+        Content.listDownloads({ pageSize: 100, sort: "title" }, headers),
+        Communities.listCommunities({ pageSize: 100, sort: "title" }, headers),
+        eventsLite(headers),
+        Content.listBundles({ pageSize: 100, sort: "name" }, headers),
+      ],
+    );
     const bundleItems = await Promise.all(
       bundlesPage.rows.map((b) => Content.listBundleItems({ bundleId: b.id }, headers)),
     );
@@ -273,6 +298,7 @@ export const serverApi = {
       ...coursesPage.rows.map((c) => [c.id, c.title] as const),
       ...downloadsPage.rows.map((d) => [d.id, d.title] as const),
       ...communitiesPage.rows.map((c) => [c.id, c.title] as const),
+      ...eventRows.map((e) => [e.id, e.title] as const),
     ]);
     const byTitle = (a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title);
     const bundles = bundlesPage.rows
@@ -292,7 +318,10 @@ export const serverApi = {
     const communities = communitiesPage.rows
       .map((c) => ({ id: c.id, title: c.title, type: "community" as const }))
       .sort(byTitle);
-    return [...bundles, ...courses, ...downloads, ...communities];
+    const events = eventRows
+      .map((e) => ({ id: e.id, title: e.title, type: "event" as const }))
+      .sort(byTitle);
+    return [...bundles, ...courses, ...downloads, ...communities, ...events];
   },
 
   // bundles
@@ -344,6 +373,43 @@ export const serverApi = {
       totalSize: assets.reduce((sum, a) => sum + a.size, 0),
       entitledCount: entitled?.total ?? null,
     };
+  },
+
+  // events
+  async listEvents(params: ListParams): Promise<Paginated<EventItem>> {
+    const sort = params.sort?.[0];
+    const status = params.filters?.status?.[0];
+    return await Events.listEvents(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search || undefined,
+        sort: sort
+          ? (`${sort.desc ? "-" : ""}${sort.id === "title" ? "title" : "startsAt"}` as const)
+          : undefined,
+        status:
+          status === "draft" || status === "published" || status === "canceled"
+            ? status
+            : undefined,
+        ...eventRange(params.filters?.startsAt?.[0]),
+      },
+      await authHeaders(),
+    );
+  },
+  async getEvent(eventId: string): Promise<EventItem> {
+    return await Events.getEvent({ eventId }, await authHeaders());
+  },
+  async listEventAssets(eventId: string): Promise<EventFile[]> {
+    return await Events.listEventAssets({ eventId }, await authHeaders());
+  },
+  async eventAttendees(eventId: string, params: ListParams): Promise<Paginated<EventAttendee>> {
+    return await Events.listEventAttendees(
+      { eventId, page: params.page, pageSize: params.pageSize },
+      await authHeaders(),
+    );
+  },
+  async eventAnalytics(eventId: string): Promise<EventAnalytics> {
+    return await Events.getEventAnalytics({ eventId }, await authHeaders());
   },
 
   // students
@@ -435,7 +501,7 @@ export const serverApi = {
   async contentTitles(permissions: Permissions): Promise<Record<string, string>> {
     const headers = await authHeaders();
     const none = Promise.resolve({ rows: [] as { id: string; title: string }[] });
-    const [courses, downloads, communities] = await Promise.all([
+    const [courses, downloads, communities, events] = await Promise.all([
       permissions.anywhere("courses:read")
         ? Content.listCourses({ pageSize: 100, sort: "title" }, headers)
         : none,
@@ -445,9 +511,12 @@ export const serverApi = {
       permissions.anywhere("communities:read")
         ? Communities.listCommunities({ pageSize: 100, sort: "title" }, headers)
         : none,
+      permissions.anywhere("events:read")
+        ? Events.listEvents({ pageSize: 100, sort: "title" }, headers)
+        : none,
     ]);
     return Object.fromEntries(
-      [...courses.rows, ...downloads.rows, ...communities.rows].map(
+      [...courses.rows, ...downloads.rows, ...communities.rows, ...events.rows].map(
         (c) => [c.id, c.title] as const,
       ),
     );

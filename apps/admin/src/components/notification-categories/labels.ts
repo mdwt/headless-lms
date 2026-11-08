@@ -12,6 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   new_posts: "New posts",
   digest: "Digest",
   access: "Access",
+  events: "Events",
   course_content: "Course content",
 };
 

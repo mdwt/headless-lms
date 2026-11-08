@@ -30,6 +30,7 @@ export default async function OverviewPage({
       range={range.key}
       canCreateCourse={permissions.has("courses:write")}
       canSeeAccess={permissions.has("access:read")}
+      canSeeEvents={permissions.anywhere("events:read")}
       manages={permissions.manages}
     />
   );

@@ -6,7 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, fullName, relativeTime } from "@/lib/format";
 import type { Entitlement } from "@/lib/api/types";
 
-const SOURCE_LABEL: Record<string, string> = { manual: "Manual", import: "Import" };
+const SOURCE_LABEL: Record<string, string> = {
+  manual: "Manual",
+  import: "Import",
+  self: "Registered",
+  automation: "Automation",
+};
 
 /**
  * The students granted access to one content item (course or download).

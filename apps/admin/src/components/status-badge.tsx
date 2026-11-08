@@ -4,6 +4,7 @@ import type {
   AutomationRunStatus,
   CourseStatus,
   EntitlementStatus,
+  EventStatus,
   IntegrationStatus,
   MemberStatus,
   ItemRole,
@@ -36,6 +37,16 @@ function StatusBadge({
 }
 
 export function CourseStatusBadge({ status }: { status: CourseStatus }) {
+  return status === "published" ? (
+    <StatusBadge variant="success">Published</StatusBadge>
+  ) : (
+    <StatusBadge variant="neutral">Draft</StatusBadge>
+  );
+}
+
+export function EventStatusBadge({ status, ended }: { status: EventStatus; ended: boolean }) {
+  if (status === "canceled") return <StatusBadge variant="danger">Canceled</StatusBadge>;
+  if (ended) return <StatusBadge variant="neutral">Ended</StatusBadge>;
   return status === "published" ? (
     <StatusBadge variant="success">Published</StatusBadge>
   ) : (

@@ -30,6 +30,7 @@ describe("contentTypeOf", () => {
     expect(contentTypeOf("crs_2QZ4mK")).toBe("course");
     expect(contentTypeOf("dwn_2QZ4mK")).toBe("download");
     expect(contentTypeOf("cmy_2QZ4mK")).toBe("community");
+    expect(contentTypeOf("evn_2QZ4mK")).toBe("event");
     expect(contentTypeOf("bun_2QZ4mK")).toBeNull();
     expect(contentTypeOf("crs")).toBeNull();
   });

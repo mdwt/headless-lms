@@ -40,6 +40,7 @@ const ALL_NAV: NavItem[] = [
         label: "Communities",
         needs: ["communities:read", "communities:moderate"],
       },
+      { href: "/events", label: "Events", needs: ["events:read"] },
       { href: "/bundles", label: "Bundles", needs: ["bundles:read"] },
     ],
   },

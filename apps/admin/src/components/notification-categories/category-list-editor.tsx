@@ -165,7 +165,7 @@ export function CategoryListEditor({
       description={
         scope === "community"
           ? "The switches on a member's notification settings in this community, in priority order. A notification files under the first category that covers it."
-          : "The switches on a member's notification settings for courses, access and their account, in priority order. A notification files under the first category that covers it."
+          : "The switches on a member's notification settings for courses, access, events and their account, in priority order. A notification files under the first category that covers it."
       }
       footer={
         <>

@@ -36,12 +36,13 @@ const GROUP_LABEL: Record<LiteContent["type"], string> = {
   course: "Courses",
   download: "Downloads",
   community: "Communities",
+  event: "Events",
   bundle: "Bundles",
 };
 
 const schema = z
   .object({
-    contentId: z.string().min(1, "Select a course, download, community or bundle"),
+    contentId: z.string().min(1, "Select a course, download, community, event or bundle"),
     expiryMode: z.enum(["never", "date"]),
     expiresAt: z.string().optional(),
   })
@@ -120,7 +121,7 @@ export function GrantAccessDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Grant access"
-      description="Grant this student access to a course, download, community or bundle. They'll get immediate access."
+      description="Grant this student access to a course, download, community, event or bundle. They'll get immediate access."
       formId={FORM_ID}
       submitLabel="Grant access"
       pending={pending}
@@ -136,8 +137,8 @@ export function GrantAccessDialog({
                 value={field.value}
                 onValueChange={field.onChange}
                 options={contentOptions}
-                placeholder="Select a course, download, community or bundle"
-                searchPlaceholder="Search courses, downloads, communities and bundles…"
+                placeholder="Select a course, download, community, event or bundle"
+                searchPlaceholder="Search courses, downloads, communities, events and bundles…"
                 emptyText="No content matches"
                 aria-invalid={!!errors.contentId}
               />

@@ -15,6 +15,8 @@ import type { Entitlement } from "@/lib/api/types";
 const SOURCE_LABEL: Record<Entitlement["source"], string> = {
   manual: "Manual",
   import: "Import",
+  self: "Registered",
+  automation: "Automation",
 };
 
 /** True when an active entitlement lapses within days (warning tone). */
@@ -71,7 +73,9 @@ export function entitlementColumns(
     {
       accessorKey: "source",
       header: ({ column }) => <ColumnHeader column={column} title="Source" />,
-      cell: ({ row }) => <Badge variant="outline">{SOURCE_LABEL[row.original.source]}</Badge>,
+      cell: ({ row }) => (
+        <Badge variant="outline">{SOURCE_LABEL[row.original.source] ?? row.original.source}</Badge>
+      ),
       enableSorting: false,
     },
     {

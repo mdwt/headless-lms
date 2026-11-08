@@ -130,6 +130,8 @@ function EntitlementsTableInner({
             options: [
               { label: "Manual", value: "manual" },
               { label: "Import", value: "import" },
+              { label: "Registered", value: "self" },
+              { label: "Automation", value: "automation" },
             ],
           },
         ]}

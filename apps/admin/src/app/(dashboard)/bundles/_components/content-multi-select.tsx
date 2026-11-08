@@ -1,7 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, Check, ChevronDown, FileDown, Users, X, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  FileDown,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -22,12 +31,14 @@ const GROUPS: [string, ContentType][] = [
   ["Courses", "course"],
   ["Downloads", "download"],
   ["Communities", "community"],
+  ["Events", "event"],
 ];
 
 const TYPE_ICON: Record<ContentType, LucideIcon> = {
   course: BookOpen,
   download: FileDown,
   community: Users,
+  event: CalendarDays,
 };
 
 /**

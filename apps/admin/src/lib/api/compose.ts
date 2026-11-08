@@ -60,6 +60,7 @@ const CONTENT_TYPE_BY_PREFIX: Record<string, ContentType> = {
   crs: "course",
   dwn: "download",
   cmy: "community",
+  evn: "event",
 };
 
 /** A content id's type, read off its id prefix (`crs_`, `dwn_`, `cmy_`). */
