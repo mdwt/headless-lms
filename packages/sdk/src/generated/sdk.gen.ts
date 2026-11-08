@@ -27,8 +27,12 @@ import type {
   AddDownloadAssetResponses,
   AddEventAssetErrors,
   AddEventAssetResponses,
+  AddEventAttendeeErrors,
+  AddEventAttendeeResponses,
   AddMemberEventAssetErrors,
   AddMemberEventAssetResponses,
+  AddMemberEventAttendeeErrors,
+  AddMemberEventAttendeeResponses,
   AddSpaceLinkErrors,
   AddSpaceLinkResponses,
   AddSpaceMemberErrors,
@@ -50,6 +54,8 @@ import type {
   BookmarkPostErrors,
   BookmarkPostResponses,
   CancelEventErrors,
+  CancelEventRegistrationErrors,
+  CancelEventRegistrationResponses,
   CancelEventResponses,
   CancelInviteErrors,
   CancelInviteResponses,
@@ -402,6 +408,8 @@ import type {
   ReconnectIntegrationResponses,
   RefuseSpaceInviteErrors,
   RefuseSpaceInviteResponses,
+  RegisterForEventErrors,
+  RegisterForEventResponses,
   RegisterMemberDeviceErrors,
   RegisterMemberDeviceResponses,
   RemoveBundleItemErrors,
@@ -416,10 +424,14 @@ import type {
   RemoveDownloadAssetResponses,
   RemoveEventAssetErrors,
   RemoveEventAssetResponses,
+  RemoveEventAttendeeErrors,
+  RemoveEventAttendeeResponses,
   RemoveMemberDeviceErrors,
   RemoveMemberDeviceResponses,
   RemoveMemberEventAssetErrors,
   RemoveMemberEventAssetResponses,
+  RemoveMemberEventAttendeeErrors,
+  RemoveMemberEventAttendeeResponses,
   RemovePersonErrors,
   RemovePersonResponses,
   RemovePostErrors,
@@ -6344,6 +6356,83 @@ export class Events {
   }
 
   /**
+   * Add an attendee to an event
+   *
+   * Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.
+   */
+  public static addEventAttendee<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<AddEventAttendeeResponses, AddEventAttendeeErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddEventAttendeeResponses,
+      AddEventAttendeeErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/attendees",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove an attendee from an event
+   *
+   * Requires `access:write`, or `events:write` on the event or the org. Revokes the person's direct grant to the event. 404 when they have no direct active grant; someone who attends only through a bundle has none.
+   */
+  public static removeEventAttendee<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RemoveEventAttendeeResponses, RemoveEventAttendeeErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      RemoveEventAttendeeResponses,
+      RemoveEventAttendeeErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/events/{eventId}/attendees/{orgUserId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
    * Create an event from the member app
    *
    * Requires `events:write`. The event starts as a draft. 400 when it ends before it starts.
@@ -6813,6 +6902,148 @@ export class Events {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+
+  /**
+   * Cancel your registration for an event
+   *
+   * Any active member of the organization revokes their own direct grant to the event, which frees the place. 404 when the caller has no direct active grant.
+   */
+  public static cancelEventRegistration<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    CancelEventRegistrationResponses,
+    CancelEventRegistrationErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).delete<
+      CancelEventRegistrationResponses,
+      CancelEventRegistrationErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/registration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Register for an event
+   *
+   * Any active member of the organization registers themselves for a published `public` event that has not started, with source `self`. 403 when the event is `private`; 404 when it does not exist or is not published; 409 `already_registered`, `started` or `full`.
+   */
+  public static registerForEvent<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<RegisterForEventResponses, RegisterForEventErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).post<
+      RegisterForEventResponses,
+      RegisterForEventErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/registration",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Add an attendee to an event you run
+   *
+   * Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.
+   */
+  public static addMemberEventAttendee<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    AddMemberEventAttendeeResponses,
+    AddMemberEventAttendeeErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "body", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      AddMemberEventAttendeeResponses,
+      AddMemberEventAttendeeErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/attendees",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove an attendee from an event you run
+   *
+   * Requires `access:write`, or `events:write` on the event or the org. Revokes the person's direct grant to the event. 404 when they have no direct active grant; someone who attends only through a bundle has none.
+   */
+  public static removeMemberEventAttendee<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+      orgUserId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    RemoveMemberEventAttendeeResponses,
+    RemoveMemberEventAttendeeErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "eventId" },
+            { in: "path", key: "orgUserId" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).delete<
+      RemoveMemberEventAttendeeResponses,
+      RemoveMemberEventAttendeeErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/attendees/{orgUserId}",
+      ...options,
+      ...params,
     });
   }
 }
@@ -10188,7 +10419,7 @@ export class Entitlements {
   /**
    * Grant a person access to content or a bundle
    *
-   * Requires `access:write`. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later.
+   * Requires one of `access:write`, `events:write`. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. `events:write` grants only events. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.
    */
   public static grantEntitlement<ThrowOnError extends boolean = false>(
     parameters: {

@@ -68,6 +68,18 @@ const cases: ToolCase[] = [
     returns: undefined,
   },
   {
+    tool: 'add_event_attendee',
+    args: { eventId: 'evn_1', orgUserId: 'ou_emma' },
+    service: 'entitlements.grant',
+    expected: [{ orgUserId: 'ou_emma', contentId: 'evn_1', expiresAt: null }, OWNER],
+  },
+  {
+    tool: 'remove_event_attendee',
+    args: { eventId: 'evn_1', orgUserId: 'ou_emma' },
+    service: 'entitlements.revoke',
+    expected: [{ orgUserId: 'ou_emma', contentId: 'evn_1' }, OWNER],
+  },
+  {
     tool: 'list_event_files',
     args: { eventId: 'evn_1' },
     service: 'content.listEventAssets',
@@ -113,6 +125,8 @@ describe('event tools', () => {
       ['update_event', 'content.updateEvent', 'write', true, false],
       ['cancel_event', 'content.cancelEvent', 'destructive', false, false],
       ['delete_event', 'content.deleteEvent', 'destructive', true, false],
+      ['add_event_attendee', 'entitlements.grant', 'write', true, false],
+      ['remove_event_attendee', 'entitlements.revoke', 'destructive', false, false],
       ['list_event_files', 'content.listEventAssets', 'read', true, false],
       ['add_event_file', 'content.addEventAsset', 'write', false, false],
       ['rename_event_file', 'content.renameEventAsset', 'write', true, false],

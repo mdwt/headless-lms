@@ -4,7 +4,7 @@
 // outbox append commit in ONE transaction (transactional outbox). This
 // service never publishes — the outbox relay republishes committed events to
 // the EventBus at-least-once.
-import type { Space, SpaceRowLock } from '../content/index.js';
+import type { Event, Space, SpaceRowLock } from '../content/index.js';
 import type {
   ContentType,
   Entitlement,
@@ -23,6 +23,7 @@ import type {
   InsertSpaceMemberInput,
   OpenableSpace,
   PermissionHolders,
+  RevokeGrantInput,
   SpaceAccessRule,
   SpaceReader,
 } from './ports.js';
@@ -97,14 +98,25 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   }
 
   async grant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement> {
-    actor.permissions.require('access:write');
     const orgId = actor.orgId;
+    const contentId = input.contentId ?? null;
+    if (contentId !== null) {
+      const type = await this.repo.contentTypeOf(orgId, contentId);
+      if (type === null) {
+        throw new NotFoundError('Content', contentId);
+      }
+      if (type === 'event') {
+        return this.grantEvent({ ...input, contentId }, actor);
+      }
+    }
+    actor.permissions.require('access:write');
     const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
-      const created = await entitlements.insert(orgId, input);
+      const created = await entitlements.insert(orgId, { ...input, source: 'manual' });
       await outbox.append([
         entitlementEvents.entitlementCreated.make({
           orgId,
           data: created,
+          metadata: this.actorMetadata(actor),
         }),
       ]);
       return created;
@@ -123,10 +135,20 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async ensureGrant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement> {
     actor.permissions.require('access:write');
     const orgId = actor.orgId;
+    const event = await this.eventOf(orgId, input.contentId ?? null);
+    if (event) {
+      assertOpenForAttendees(event, new Date());
+    }
+    const metadata = this.actorMetadata(actor);
     const { entitlement, change } = await this.uow.run(async ({ entitlements, outbox }) => {
+      if (event) {
+        await this.ensurePlace(entitlements, orgId, event, input.orgUserId);
+      }
       const created = await entitlements.insertIfAbsent(orgId, input);
       if (created) {
-        await outbox.append([entitlementEvents.entitlementCreated.make({ orgId, data: created })]);
+        await outbox.append([
+          entitlementEvents.entitlementCreated.make({ orgId, data: created, metadata }),
+        ]);
         return { entitlement: created, change: 'created' as const };
       }
       const existing = await entitlements.lockGrant(orgId, input);
@@ -144,7 +166,9 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       if (!updated) {
         throw new NotFoundError('Entitlement', existing.id);
       }
-      await outbox.append([entitlementEvents.entitlementUpdated.make({ orgId, data: updated })]);
+      await outbox.append([
+        entitlementEvents.entitlementUpdated.make({ orgId, data: updated, metadata }),
+      ]);
       return { entitlement: updated, change: 'updated' as const };
     });
     if (change) {
@@ -163,6 +187,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
   async setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement> {
     actor.permissions.require('access:write');
     const orgId = actor.orgId;
+    const metadata = this.actorMetadata(actor);
     const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
       const updated = await entitlements.setStatus(orgId, id, status);
       if (!updated) {
@@ -173,10 +198,12 @@ export class EntitlementsServiceImpl implements EntitlementsService {
           ? entitlementEvents.entitlementDeleted.make({
               orgId,
               data: updated,
+              metadata,
             })
           : entitlementEvents.entitlementUpdated.make({
               orgId,
               data: updated,
+              metadata,
             }),
       ]);
       return updated;
@@ -191,6 +218,187 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       actorId: actor.id,
     });
     return entitlement;
+  }
+
+  async revoke(input: RevokeGrantInput, actor: Actor): Promise<Entitlement> {
+    const orgId = actor.orgId;
+    const { orgUserId, contentId } = input;
+    const type = await this.repo.contentTypeOf(orgId, contentId);
+    if (type === null) {
+      throw new NotFoundError('Content', contentId);
+    }
+    if (type === 'event') {
+      if (orgUserId !== actor.id) {
+        this.requireAttendeeManager(actor, contentId);
+      }
+    } else {
+      actor.permissions.require('access:write');
+    }
+    const revoked = await this.uow.run(async ({ entitlements, outbox }) => {
+      const existing = await entitlements.lockGrant(orgId, { orgUserId, contentId });
+      if (!existing || !activeNow(existing, new Date())) {
+        this.logger.warn('entitlement revoke rejected — no direct active grant', {
+          orgId,
+          orgUserId,
+          contentId,
+          actorId: actor.id,
+        });
+        throw new NotFoundError('Entitlement', `${orgUserId}:${contentId}`);
+      }
+      const updated = await entitlements.setStatus(orgId, existing.id, 'revoked');
+      if (!updated) {
+        throw new NotFoundError('Entitlement', existing.id);
+      }
+      await outbox.append([
+        entitlementEvents.entitlementDeleted.make({
+          orgId,
+          data: updated,
+          metadata: this.actorMetadata(actor),
+        }),
+      ]);
+      return updated;
+    });
+    this.logger.info('entitlement revoked', {
+      orgId,
+      entitlementId: revoked.id,
+      orgUserId,
+      contentId,
+      actorId: actor.id,
+    });
+    return revoked;
+  }
+
+  private async grantEvent(
+    input: GrantEntitlementInput & { contentId: string },
+    actor: Actor,
+  ): Promise<Entitlement> {
+    const orgId = actor.orgId;
+    const eventId = input.contentId;
+    const orgUserId = input.orgUserId;
+    const self = orgUserId === actor.id;
+    if (!self) {
+      this.requireAttendeeManager(actor, eventId);
+    }
+    const event = await this.content.getEvent(eventId, this.system(orgId));
+    const now = new Date();
+    if (self) {
+      await this.assertCanRegister(event, actor, now);
+    } else {
+      assertOpenForAttendees(event, now);
+    }
+    const { entitlement, created } = await this.uow.run(async ({ entitlements, outbox }) => {
+      if (event.settings.capacity !== null) {
+        await entitlements.lockCapacity(orgId, eventId);
+      }
+      const existing = await entitlements.lockGrant(orgId, { orgUserId, contentId: eventId });
+      if (existing && activeNow(existing, now)) {
+        if (self) {
+          throw alreadyRegistered();
+        }
+        return { entitlement: existing, created: false };
+      }
+      await this.assertPlace(entitlements, orgId, event, orgUserId);
+      const inserted = await entitlements.insert(orgId, {
+        orgUserId,
+        contentId: eventId,
+        expiresAt: self ? null : (input.expiresAt ?? null),
+        source: self ? 'self' : 'manual',
+      });
+      await outbox.append([
+        entitlementEvents.entitlementCreated.make({
+          orgId,
+          data: inserted,
+          metadata: this.actorMetadata(actor),
+        }),
+      ]);
+      return { entitlement: inserted, created: true };
+    });
+    if (created) {
+      this.logger.info('entitlement granted', {
+        orgId,
+        entitlementId: entitlement.id,
+        orgUserId,
+        contentId: eventId,
+        source: entitlement.source,
+        actorId: actor.id,
+      });
+    }
+    return entitlement;
+  }
+
+  private async assertCanRegister(event: Event, actor: Actor, now: Date): Promise<void> {
+    if (event.status !== 'published') {
+      throw new NotFoundError('Event', event.id);
+    }
+    if (await this.repo.hasAccess(actor.orgId, actor.id, event.id)) {
+      throw alreadyRegistered();
+    }
+    if (event.settings.type !== 'public') {
+      this.logger.warn('event registration refused — private', {
+        orgId: actor.orgId,
+        eventId: event.id,
+        actorId: actor.id,
+      });
+      throw new ForbiddenError('This event is private: only its organizers can add attendees');
+    }
+    if (event.startsAt.getTime() <= now.getTime()) {
+      throw new ConflictError('This event has already started', 'started');
+    }
+  }
+
+  private requireAttendeeManager(actor: Actor, eventId: string): void {
+    if (actor.permissions.has('access:write') || actor.permissions.has('events:write', eventId)) {
+      return;
+    }
+    this.logger.warn('event attendees refused — cannot manage', {
+      orgId: actor.orgId,
+      eventId,
+      actorId: actor.id,
+    });
+    throw new ForbiddenError('You need access:write, or events:write on this event');
+  }
+
+  private async eventOf(orgId: string, contentId: string | null): Promise<Event | null> {
+    if (contentId === null || (await this.repo.contentTypeOf(orgId, contentId)) !== 'event') {
+      return null;
+    }
+    return this.content.getEvent(contentId, this.system(orgId));
+  }
+
+  private async ensurePlace(
+    entitlements: EntitlementsRepository,
+    orgId: string,
+    event: Event,
+    orgUserId: string,
+  ): Promise<void> {
+    if (event.settings.capacity === null) {
+      return;
+    }
+    await entitlements.lockCapacity(orgId, event.id);
+    if (await entitlements.lockGrant(orgId, { orgUserId, contentId: event.id })) {
+      return;
+    }
+    await this.assertPlace(entitlements, orgId, event, orgUserId);
+  }
+
+  private async assertPlace(
+    entitlements: EntitlementsRepository,
+    orgId: string,
+    event: Event,
+    orgUserId: string,
+  ): Promise<void> {
+    const capacity = event.settings.capacity;
+    if (capacity === null) {
+      return;
+    }
+    const attendees = await entitlements.grantedOrgUserIds(orgId, event.id);
+    if (attendees.filter((id) => id !== orgUserId).length >= capacity) {
+      throw new ConflictError('This event is full', 'full');
+    }
+  }
+
+  private actorMetadata(actor: Actor): { actorId?: string } {
+    return actor.id === this.system(actor.orgId).id ? {} : { actorId: actor.id };
   }
 
   hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean> {
@@ -343,8 +551,8 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return this.repo.communityMemberIds(orgId, communityId, readers);
   }
 
-  contentHolderIds(orgId: string, contentId: string): Promise<string[]> {
-    return this.repo.contentHolderIds(orgId, contentId);
+  grantedOrgUserIds(orgId: string, contentId: string): Promise<string[]> {
+    return this.repo.grantedOrgUserIds(orgId, contentId);
   }
 
   async countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number> {
@@ -1002,6 +1210,26 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     if (count >= space.capacity) {
       throw new ConflictError('This space is full');
     }
+  }
+}
+
+function alreadyRegistered(): ConflictError {
+  return new ConflictError('You are already going to this event', 'already_registered');
+}
+
+function activeNow(grant: Entitlement, now: Date): boolean {
+  return (
+    grant.status === 'active' &&
+    (grant.expiresAt === null || grant.expiresAt.getTime() > now.getTime())
+  );
+}
+
+function assertOpenForAttendees(event: Event, now: Date): void {
+  if (event.status !== 'published') {
+    throw new ConflictError('This event is not published', 'not_published');
+  }
+  if (event.endsAt.getTime() <= now.getTime()) {
+    throw new ConflictError('This event has ended', 'ended');
   }
 }
 

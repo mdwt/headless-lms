@@ -13,6 +13,8 @@
     "reorderEventAssets",
     "renameEventAsset",
     "removeEventAsset",
+    "addEventAttendee",
+    "removeEventAttendee",
     "createMemberEvent",
     "updateMemberEvent",
     "deleteMemberEvent",
@@ -21,6 +23,10 @@
     "addMemberEventAsset",
     "reorderMemberEventAssets",
     "renameMemberEventAsset",
-    "removeMemberEventAsset"
+    "removeMemberEventAsset",
+    "registerForEvent",
+    "cancelEventRegistration",
+    "addMemberEventAttendee",
+    "removeMemberEventAttendee"
   ]
 }

@@ -7,6 +7,6 @@ description: Access grants to content
 
 <Cards>
 <Card href="/docs/api/entitlements/listEntitlements" title="List entitlements" description="Requires one of `access:read`, `progress:read`. `access:read` lists every grant; `progress:read` on a course lists that course's grants when `contentId` names it." />
-<Card href="/docs/api/entitlements/grantEntitlement" title="Grant a person access to content or a bundle" description="Requires `access:write`. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later." />
+<Card href="/docs/api/entitlements/grantEntitlement" title="Grant a person access to content or a bundle" description="Requires one of `access:write`, `events:write`. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. `events:write` grants only events. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist." />
 <Card href="/docs/api/entitlements/setEntitlementStatus" title="Revoke or reinstate an entitlement" description="Requires `access:write`. Access follows the status at once." />
 </Cards>

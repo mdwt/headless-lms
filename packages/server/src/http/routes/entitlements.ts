@@ -49,9 +49,9 @@ export async function entitlementsRoutes(
       operationId: 'grantEntitlement',
       tags: ['Entitlements'],
       summary: 'Grant a person access to content or a bundle',
-      description: `${describeOperation('entitlements.grant')} Name exactly one of \`contentId\` and \`bundleId\`. A bundle grant covers whatever the bundle holds, now and later.`,
+      description: `${describeOperation('entitlements.grant')} Name exactly one of \`contentId\` and \`bundleId\`. A bundle grant covers whatever the bundle holds, now and later. \`events:write\` grants only events. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 \`not_published\`, \`ended\` or \`full\` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.`,
       body: GrantEntitlement,
-      response: { 201: Entitlement, ...refusals(403, 409) },
+      response: { 201: Entitlement, ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);

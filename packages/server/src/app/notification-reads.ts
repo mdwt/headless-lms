@@ -13,7 +13,7 @@ import { communityMail, type CommunityMailDeps } from './community-mail.js';
 
 export type NotificationReadsDeps = CommunityMailDeps & {
   content: Pick<ContentService, 'getActivity' | 'getModule' | 'findCourse' | 'listBundleItems'>;
-  entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'contentHolderIds' | 'hasAccess'>;
+  entitlements: Pick<EntitlementsService, 'communityMemberIds' | 'grantedOrgUserIds' | 'hasAccess'>;
   organizations: Pick<OrganizationService, 'getOrgUsersByIds' | 'systemActor'>;
   identity: Pick<IdentityService, 'getUserById'>;
   posts: Pick<PostService, 'publishedBetween'>;
@@ -44,7 +44,7 @@ export function notificationReads(deps: NotificationReadsDeps): NotificationRead
       deps.entitlements.communityMemberIds(orgId, communityId),
     switchedOn: (orgId, communityId, category, spaceId) =>
       deps.settings.switchedOn(orgId, communityId, category, spaceId),
-    courseHolders: (orgId, courseId) => deps.entitlements.contentHolderIds(orgId, courseId),
+    courseHolders: (orgId, courseId) => deps.entitlements.grantedOrgUserIds(orgId, courseId),
     async contentLostBy(orgId, grant) {
       const opened = grant.bundleId
         ? (await deps.content.listBundleItems(grant.bundleId, system(orgId))).map(

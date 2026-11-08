@@ -10,7 +10,7 @@ import type {
   SpaceMemberStatus,
 } from './model.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
-import type { Space, SpaceRowLock } from '../content/index.js';
+import type { Event, Space, SpaceRowLock } from '../content/index.js';
 import type { Actor } from '../shared/actor.js';
 import type { Permission } from '../types/index.js';
 
@@ -71,6 +71,12 @@ export interface PermissionHolders {
 export interface SpaceReader {
   getSpace(spaceId: string, actor: Actor): Promise<Space | null>;
   listSpaces(communityId: string, actor: Actor): Promise<Space[]>;
+  getEvent(eventId: string, actor: Actor): Promise<Event>;
+}
+
+export interface RevokeGrantInput {
+  orgUserId: string;
+  contentId: string;
 }
 
 export interface CommunityReaders {
@@ -105,6 +111,7 @@ export interface EntitlementsService extends CommunityAccessReader {
   grant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
   ensureGrant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
   setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement>;
+  revoke(input: RevokeGrantInput, actor: Actor): Promise<Entitlement>;
   /** Whether this org user can open the content right now, through a grant to
    *  it or to a bundle holding it. The only access check — nothing else may
    *  derive access from grants. */
@@ -160,7 +167,7 @@ export interface EntitlementsService extends CommunityAccessReader {
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
   openCommunityIds(actor: Actor): Promise<string[]>;
   communityMemberIds(orgId: string, communityId: string): Promise<string[]>;
-  contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
+  grantedOrgUserIds(orgId: string, contentId: string): Promise<string[]>;
   countActiveSpaceMembers(orgId: string, spaceId: string): Promise<number>;
   /** Org users who open every space of the community, so hold no place in its spaces. */
   everySpaceOpeners(orgId: string, communityId: string): Promise<string[]>;
@@ -227,7 +234,8 @@ export interface EntitlementsRepository {
   communityMemberIds(orgId: string, communityId: string, readerIds: string[]): Promise<string[]>;
   communityIdsOpenedFor(orgId: string, orgUserId: string): Promise<string[]>;
   openCommunityIds(orgId: string, orgUserId: string, readers: CommunityReaders): Promise<string[]>;
-  contentHolderIds(orgId: string, contentId: string): Promise<string[]>;
+  grantedOrgUserIds(orgId: string, contentId: string): Promise<string[]>;
+  lockCapacity(orgId: string, contentId: string): Promise<void>;
 }
 
 /** Tx-scoped port bundle for this context's mutating use cases — every member

@@ -3,9 +3,11 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import {
   AddEventAsset,
+  AddEventAttendee,
   CreateEvent,
   Event,
   EventAssetParams,
+  EventAttendeeParams,
   EventFile,
   EventIdParam,
   RenameEventAsset,
@@ -203,6 +205,103 @@ export async function memberEventsRoutes(
     handler: async (req) => {
       const actor = await resolveActor(container, req);
       return content.removeEventAsset(req.params.eventId, req.params.assetId, actor);
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/member/events/:eventId/registration',
+    config: { operation: 'entitlements.grant' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'registerForEvent',
+      tags: ['Events'],
+      summary: 'Register for an event',
+      description:
+        'Any active member of the organization registers themselves for a published `public` event that has not started, with source `self`. 403 when the event is `private`; 404 when it does not exist or is not published; 409 `already_registered`, `started` or `full`.',
+      params: EventIdParam,
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      await container.entitlements.grant(
+        { orgUserId: actor.id, contentId: req.params.eventId, expiresAt: null },
+        actor,
+      );
+      return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/member/events/:eventId/registration',
+    config: { operation: 'entitlements.revoke' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'cancelEventRegistration',
+      tags: ['Events'],
+      summary: 'Cancel your registration for an event',
+      description:
+        'Any active member of the organization revokes their own direct grant to the event, which frees the place. 404 when the caller has no direct active grant.',
+      params: EventIdParam,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      await container.entitlements.revoke(
+        { orgUserId: actor.id, contentId: req.params.eventId },
+        actor,
+      );
+      return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/member/events/:eventId/attendees',
+    config: { operation: 'entitlements.grant' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'addMemberEventAttendee',
+      tags: ['Events'],
+      summary: 'Add an attendee to an event you run',
+      description:
+        'Requires `access:write`, or `events:write` on the event or the org. Grants the event to the person, with source `manual`. Adding someone who already attends changes nothing. 404 when the event or the person does not exist; 409 `not_published`, `ended` or `full`.',
+      params: EventIdParam,
+      body: AddEventAttendee,
+      response: { 204: z.void(), ...refusals(400, 403, 404, 409) },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      await container.entitlements.grant(
+        { orgUserId: req.body.orgUserId, contentId: req.params.eventId, expiresAt: null },
+        actor,
+      );
+      return reply.code(204).send();
+    },
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/member/events/:eventId/attendees/:orgUserId',
+    config: { operation: 'entitlements.revoke' },
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'removeMemberEventAttendee',
+      tags: ['Events'],
+      summary: 'Remove an attendee from an event you run',
+      description:
+        "Requires `access:write`, or `events:write` on the event or the org. Revokes the person's direct grant to the event. 404 when they have no direct active grant; someone who attends only through a bundle has none.",
+      params: EventAttendeeParams,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      await container.entitlements.revoke(
+        { orgUserId: req.params.orgUserId, contentId: req.params.eventId },
+        actor,
+      );
+      return reply.code(204).send();
     },
   });
 }

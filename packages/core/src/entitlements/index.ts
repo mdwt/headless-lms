@@ -18,6 +18,7 @@ export type {
   InsertSpaceMemberInput,
   OpenableSpace,
   PermissionHolders,
+  RevokeGrantInput,
   SpaceAccessRule,
   SpaceMembersQuery,
   SpaceReader,

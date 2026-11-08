@@ -30,7 +30,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       communityIdsOpenedFor: reject,
       ensureGrant: reject,
       communityMemberIds: reject,
-      contentHolderIds: reject,
+      grantedOrgUserIds: reject,
       hasAccess: reject,
     },
     organizations: {
@@ -83,13 +83,13 @@ describe('notificationReads', () => {
   it('passes mutes, members, switched-on members, holders and unread messages through', async () => {
     const mutedAmong = vi.fn(async () => ['ou_emma']);
     const communityMemberIds = vi.fn(async () => ['ou_1']);
-    const contentHolderIds = vi.fn(async () => ['ou_2']);
+    const grantedOrgUserIds = vi.fn(async () => ['ou_2']);
     const switchedOn = vi.fn(async () => ['ou_3']);
     const unreadInChat = vi.fn(async () => ({ count: 2, latest: null }));
     const reads = notificationReads(
       deps({
         subscriptions: { ...base.subscriptions, mutedAmong },
-        entitlements: { ...base.entitlements, communityMemberIds, contentHolderIds },
+        entitlements: { ...base.entitlements, communityMemberIds, grantedOrgUserIds },
         settings: { switchedOn },
         chats: { ...base.chats, unreadInChat },
       }),
@@ -106,7 +106,7 @@ describe('notificationReads', () => {
     );
     await expect(reads.communityMembers('org_1', 'cmy_1')).resolves.toEqual(['ou_1']);
     await expect(reads.courseHolders('org_1', 'crs_1')).resolves.toEqual(['ou_2']);
-    expect(contentHolderIds).toHaveBeenCalledWith('org_1', 'crs_1');
+    expect(grantedOrgUserIds).toHaveBeenCalledWith('org_1', 'crs_1');
     await expect(reads.switchedOn('org_1', 'cmy_1', 'new_posts', 'spc_1')).resolves.toEqual([
       'ou_3',
     ]);

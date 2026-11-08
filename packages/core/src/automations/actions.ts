@@ -192,7 +192,13 @@ async function grantAccess(
     typeof days === 'number' && Number.isFinite(days)
       ? new Date(Date.now() + days * 86_400_000)
       : null;
-  await deps.grants.grant(event.orgId, { orgUserId, contentId, bundleId, expiresAt });
+  await deps.grants.grant(event.orgId, {
+    orgUserId,
+    contentId,
+    bundleId,
+    expiresAt,
+    source: 'automation',
+  });
 }
 
 async function deliverWebhook(

@@ -1,7 +1,7 @@
 import { sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import { entitlements } from "../schema/entitlements.js";
 
-export type GrantedContentType = "course" | "download" | "community";
+export type GrantedContentType = "course" | "download" | "community" | "event";
 
 export interface GrantColumns {
   orgId: SQLWrapper;

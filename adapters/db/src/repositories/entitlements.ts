@@ -40,9 +40,17 @@ import {
   holdsCommunity,
   oneOf,
 } from "./grant-covers.js";
-import { bundles, communities, contentItems, courses, downloads } from "../schema/content.js";
+import {
+  bundles,
+  communities,
+  contentItems,
+  courses,
+  downloads,
+  events,
+} from "../schema/content.js";
 import { noopLogger } from "@headless-lms/core/shared/logger";
-import { translateDbErrors } from "./pg-errors.js";
+import { pgErrorFields, translateDbErrors } from "./pg-errors.js";
+import { NotFoundError } from "@headless-lms/core/shared/errors";
 
 type ResolvedStatus = "active" | "expired" | "revoked";
 
@@ -83,7 +91,7 @@ const opensPublishedCommunity = and(
 // content table plus one for bundles; exactly one hits per row (a grant targets
 // either a bundle or a single content item), so the COALESCE picks the single
 // non-null title. Extended per new content type.
-const contentTitle = sql<string>`coalesce(${courses.title}, ${downloads.title}, ${communities.title}, ${bundles.name})`;
+const contentTitle = sql<string>`coalesce(${courses.title}, ${downloads.title}, ${communities.title}, ${events.title}, ${bundles.name})`;
 
 // Sortable columns by the client-facing field name. `status` sorts on the derived
 // expression so the ordering matches the displayed value; `contentTitle` on the
@@ -184,6 +192,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
         communities,
         and(eq(communities.orgId, entitlements.orgId), eq(communities.id, entitlements.contentId)),
       )
+      .leftJoin(
+        events,
+        and(eq(events.orgId, entitlements.orgId), eq(events.id, entitlements.contentId)),
+      )
       .where(where);
   }
 
@@ -266,6 +278,10 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
         communities,
         and(eq(communities.orgId, entitlements.orgId), eq(communities.id, entitlements.contentId)),
       )
+      .leftJoin(
+        events,
+        and(eq(events.orgId, entitlements.orgId), eq(events.id, entitlements.contentId)),
+      )
       .where(where);
 
     return {
@@ -286,28 +302,31 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       ? [entitlements.orgId, entitlements.orgUserId, entitlements.bundleId]
       : [entitlements.orgId, entitlements.orgUserId, entitlements.contentId];
 
-    const [row] = await this.db
-      .insert(entitlements)
-      .values({
-        orgId,
-        orgUserId: input.orgUserId,
-        bundleId,
-        contentId,
-        status: "active",
-        source: "manual",
-        grantedAt: new Date(),
-        expiresAt: input.expiresAt,
-      })
-      .onConflictDoUpdate({
-        target,
-        set: {
+    const [row] = await orgUserMustExist(
+      input.orgUserId,
+      this.db
+        .insert(entitlements)
+        .values({
+          orgId,
+          orgUserId: input.orgUserId,
+          bundleId,
+          contentId,
           status: "active",
-          source: "manual",
+          source: input.source ?? "manual",
           grantedAt: new Date(),
           expiresAt: input.expiresAt,
-        },
-      })
-      .returning(selection);
+        })
+        .onConflictDoUpdate({
+          target,
+          set: {
+            status: "active",
+            source: input.source ?? "manual",
+            grantedAt: new Date(),
+            expiresAt: input.expiresAt,
+          },
+        })
+        .returning(selection),
+    );
     if (!row) {
       throw new Error("failed to insert entitlement");
     }
@@ -320,20 +339,23 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     const target = bundleId
       ? [entitlements.orgId, entitlements.orgUserId, entitlements.bundleId]
       : [entitlements.orgId, entitlements.orgUserId, entitlements.contentId];
-    const [row] = await this.db
-      .insert(entitlements)
-      .values({
-        orgId,
-        orgUserId: input.orgUserId,
-        bundleId,
-        contentId,
-        status: "active",
-        source: "manual",
-        grantedAt: new Date(),
-        expiresAt: input.expiresAt,
-      })
-      .onConflictDoNothing({ target })
-      .returning(selection);
+    const [row] = await orgUserMustExist(
+      input.orgUserId,
+      this.db
+        .insert(entitlements)
+        .values({
+          orgId,
+          orgUserId: input.orgUserId,
+          bundleId,
+          contentId,
+          status: "active",
+          source: input.source ?? "manual",
+          grantedAt: new Date(),
+          expiresAt: input.expiresAt,
+        })
+        .onConflictDoNothing({ target })
+        .returning(selection),
+    );
     return row ? toEntitlement(row) : null;
   }
 
@@ -802,7 +824,13 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
     return rows.map((row) => row.id);
   }
 
-  async contentHolderIds(orgId: string, contentId: string): Promise<string[]> {
+  async lockCapacity(orgId: string, contentId: string): Promise<void> {
+    await this.db.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`entitlements:${orgId}:${contentId}`}))`,
+    );
+  }
+
+  async grantedOrgUserIds(orgId: string, contentId: string): Promise<string[]> {
     const rows = await this.db
       .selectDistinct({ orgUserId: contentAccess.orgUserId })
       .from(contentAccess)
@@ -836,6 +864,20 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       )
       .orderBy(asc(communities.id));
     return rows.map((row) => row.id);
+  }
+}
+
+const ORG_USER_FK = "entitlements_org_id_org_user_id_org_users_org_id_id_fk";
+
+async function orgUserMustExist<T>(orgUserId: string, query: PromiseLike<T>): Promise<T> {
+  try {
+    return await query;
+  } catch (err) {
+    const pg = pgErrorFields(err);
+    if (pg?.code === "23503" && pg.constraint === ORG_USER_FK) {
+      throw new NotFoundError("Org user", orgUserId);
+    }
+    throw err;
   }
 }
 

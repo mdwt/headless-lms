@@ -88,3 +88,12 @@ export const EventAssetParams = z.object({
   assetId: z.string(),
 });
 export type EventAssetParams = z.infer<typeof EventAssetParams>;
+
+export const AddEventAttendee = z.object({ orgUserId: idSchema });
+export type AddEventAttendee = z.infer<typeof AddEventAttendee>;
+
+export const EventAttendeeParams = z.object({
+  eventId: z.string(),
+  orgUserId: z.string(),
+});
+export type EventAttendeeParams = z.infer<typeof EventAttendeeParams>;

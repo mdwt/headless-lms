@@ -1,7 +1,9 @@
 import {
   AddEventAsset,
+  AddEventAttendee,
   CreateEvent,
   EventAssetParams,
+  EventAttendeeParams,
   EventIdParam,
   EventsQuery,
   RenameEventAsset,
@@ -83,6 +85,35 @@ export const eventTools: Tool[] = [
     input: EventIdParam,
     call: ({ eventId }, { container, caller }) =>
       container.content.deleteEvent(eventId, caller.actor),
+  }),
+  defineTool({
+    name: 'add_event_attendee',
+    title: 'Add event attendee',
+    description:
+      'Grant an event to a person (orgUserId) so they attend it. The event must be published, not ended and not full. Adding someone who already attends changes nothing.',
+    operation: 'entitlements.grant',
+    kind: 'write',
+    idempotent: true,
+    openWorld: false,
+    input: AddEventAttendee.extend(EventIdParam.shape),
+    call: ({ eventId, orgUserId }, { container, caller }) =>
+      container.entitlements.grant(
+        { orgUserId, contentId: eventId, expiresAt: null },
+        caller.actor,
+      ),
+  }),
+  defineTool({
+    name: 'remove_event_attendee',
+    title: 'Remove event attendee',
+    description:
+      "Revoke a person's direct grant to an event. Someone who attends only through a bundle keeps attending.",
+    operation: 'entitlements.revoke',
+    kind: 'destructive',
+    idempotent: false,
+    openWorld: false,
+    input: EventAttendeeParams,
+    call: ({ eventId, orgUserId }, { container, caller }) =>
+      container.entitlements.revoke({ orgUserId, contentId: eventId }, caller.actor),
   }),
   defineTool({
     name: 'list_event_files',

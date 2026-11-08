@@ -197,10 +197,53 @@ describe("transitions", () => {
   });
 });
 
+describe("grants to an event", () => {
+  const grant = { orgUserId: "ou_1", contentId: "evn_1", expiresAt: null };
+  const row = {
+    orgId: "org-1",
+    id: "ent_1",
+    orgUserId: "ou_1",
+    bundleId: null,
+    contentId: "evn_1",
+    status: "active",
+    source: "self",
+    grantedAt: new Date(),
+    expiresAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  it("writes the given source on both inserts and manual by default", async () => {
+    const { repo, queries } = capturingDb([Object.values(row)]);
+    await repo.insert("org-1", { ...grant, source: "self" });
+    await repo.insertIfAbsent("org-1", { ...grant, source: "automation" });
+    await repo.insert("org-1", grant);
+    expect(queries[0]!.values).toContain("self");
+    expect(queries[0]!.values).not.toContain("manual");
+    expect(queries[1]!.values).toContain("automation");
+    expect(queries[2]!.values).toContain("manual");
+  });
+
+  it("takes a transaction lock keyed on the content id", async () => {
+    const { repo, queries } = capturingDb();
+    await repo.lockCapacity("org-1", "evn_1");
+    expect(queries[0]!.text).toMatch(/pg_advisory_xact_lock\(hashtext\(\$1\)\)/);
+    expect(queries[0]!.values).toEqual(["entitlements:org-1:evn_1"]);
+  });
+
+  it("lists and searches grants by the event title", async () => {
+    const { repo, queries } = capturingDb();
+    await repo.list("org-1", { page: 1, pageSize: 20, search: "practice", type: "event" });
+    expect(queries[0]!.text).toContain('left join "events"');
+    expect(queries[0]!.text).toContain('"events"."title"');
+    expect(queries[1]!.text).toContain('left join "events"');
+  });
+});
+
 describe("holders", () => {
   it("lists the people whose active grants open the content", async () => {
     const { repo, queries } = capturingDb([["ou_1"], ["ou_2"]]);
-    await expect(repo.contentHolderIds("org-1", "crs_1")).resolves.toEqual(["ou_1", "ou_2"]);
+    await expect(repo.grantedOrgUserIds("org-1", "crs_1")).resolves.toEqual(["ou_1", "ou_2"]);
     const { text, values } = queries[0]!;
     expect(text).toMatch(/^select distinct "org_user_id" from "content_access"/);
     expect(values).toEqual(["org-1", "crs_1"]);

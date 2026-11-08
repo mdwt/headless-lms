@@ -1798,6 +1798,62 @@
       ]
     },
     {
+      "name": "add_event_attendee",
+      "title": "Add event attendee",
+      "description": "Grant an event to a person (orgUserId) so they attend it. The event must be published, not ended and not full. Adding someone who already attends changes nothing.",
+      "resource": "access",
+      "operation": "entitlements.grant",
+      "permissions": [
+        "access:write",
+        "events:write"
+      ],
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "remove_event_attendee",
+      "title": "Remove event attendee",
+      "description": "Revoke a person's direct grant to an event. Someone who attends only through a bundle keeps attending.",
+      "resource": "access",
+      "operation": "entitlements.revoke",
+      "permissions": [
+        "access:write",
+        "events:write"
+      ],
+      "kind": "destructive",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "eventId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
+          "description": null
+        }
+      ]
+    },
+    {
       "name": "list_event_files",
       "title": "List event files",
       "description": "The files attached to an event, in order, with their display names.",
@@ -2114,7 +2170,8 @@
       "resource": "access",
       "operation": "entitlements.grant",
       "permissions": [
-        "access:write"
+        "access:write",
+        "events:write"
       ],
       "kind": "write",
       "idempotent": false,

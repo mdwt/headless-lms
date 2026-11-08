@@ -9594,6 +9594,153 @@ export type RenameEventAssetResponses = {
 
 export type RenameEventAssetResponse = RenameEventAssetResponses[keyof RenameEventAssetResponses];
 
+export type AddEventAttendeeData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/events/{eventId}/attendees";
+};
+
+export type AddEventAttendeeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type AddEventAttendeeError = AddEventAttendeeErrors[keyof AddEventAttendeeErrors];
+
+export type AddEventAttendeeResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type RemoveEventAttendeeData = {
+  body?: never;
+  path: {
+    eventId: string;
+    orgUserId: string;
+  };
+  query?: never;
+  url: "/api/events/{eventId}/attendees/{orgUserId}";
+};
+
+export type RemoveEventAttendeeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RemoveEventAttendeeError = RemoveEventAttendeeErrors[keyof RemoveEventAttendeeErrors];
+
+export type RemoveEventAttendeeResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
 export type ListBundlesData = {
   body?: never;
   path?: never;
@@ -21005,6 +21152,300 @@ export type RenameMemberEventAssetResponses = {
 export type RenameMemberEventAssetResponse =
   RenameMemberEventAssetResponses[keyof RenameMemberEventAssetResponses];
 
+export type CancelEventRegistrationData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/registration";
+};
+
+export type CancelEventRegistrationErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CancelEventRegistrationError =
+  CancelEventRegistrationErrors[keyof CancelEventRegistrationErrors];
+
+export type CancelEventRegistrationResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type RegisterForEventData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/registration";
+};
+
+export type RegisterForEventErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RegisterForEventError = RegisterForEventErrors[keyof RegisterForEventErrors];
+
+export type RegisterForEventResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type AddMemberEventAttendeeData = {
+  body: {
+    orgUserId: string;
+  };
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/attendees";
+};
+
+export type AddMemberEventAttendeeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type AddMemberEventAttendeeError =
+  AddMemberEventAttendeeErrors[keyof AddMemberEventAttendeeErrors];
+
+export type AddMemberEventAttendeeResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type RemoveMemberEventAttendeeData = {
+  body?: never;
+  path: {
+    eventId: string;
+    orgUserId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/attendees/{orgUserId}";
+};
+
+export type RemoveMemberEventAttendeeErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type RemoveMemberEventAttendeeError =
+  RemoveMemberEventAttendeeErrors[keyof RemoveMemberEventAttendeeErrors];
+
+export type RemoveMemberEventAttendeeResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
 export type GetCourseThumbnailData = {
   body?: never;
   path: {
@@ -24637,6 +25078,14 @@ export type GrantEntitlementErrors = {
    * Default Response
    */
   403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
     error: string;
     message?: string;
     requestId?: string;

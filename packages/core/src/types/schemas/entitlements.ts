@@ -45,6 +45,7 @@ export const grantEntitlementInputSchema = z
     contentId: idSchema.nullish(),
     bundleId: idSchema.nullish(),
     expiresAt: z.coerce.date().nullable(),
+    source: z.string().optional(),
   })
   .strict()
   .refine((v) => (v.contentId != null) !== (v.bundleId != null), {

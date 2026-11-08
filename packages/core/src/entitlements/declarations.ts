@@ -3,9 +3,10 @@ import type { EntitlementsService } from './ports.js';
 
 export const entitlementsDeclarations = {
   list: requires('access:read', 'progress:read'),
-  grant: requires('access:write'),
+  grant: requires('access:write', 'events:write'),
   ensureGrant: requires('access:write'),
   setStatus: requires('access:write'),
+  revoke: requires('access:write', 'events:write'),
   hasAccess: 'system',
   listAccessibleContent: 'system',
   holdsAnyGrant: 'system',
@@ -35,7 +36,7 @@ export const entitlementsDeclarations = {
   communityIdsOpenedFor: 'system',
   openCommunityIds: 'system',
   communityMemberIds: 'system',
-  contentHolderIds: 'system',
+  grantedOrgUserIds: 'system',
   countActiveSpaceMembers: 'system',
   everySpaceOpeners: 'system',
 } as const satisfies Declarations<EntitlementsService>;
