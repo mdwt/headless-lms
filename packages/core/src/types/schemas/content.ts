@@ -777,7 +777,13 @@ export const memberEventViewerSchema = z
     attending: z.boolean().describe('The caller attends, directly or through a bundle'),
     canRegister: z.boolean().describe('The caller may register now'),
     canOpen: z.boolean().describe('The caller gets the location, files and recording'),
+    canLeave: z
+      .boolean()
+      .describe('The caller holds a direct grant they may give up; false through a bundle only'),
     canManageAttendees: z.boolean().describe('The caller may add and remove attendees'),
+    canAddAttendees: z
+      .boolean()
+      .describe('The caller may add attendees now: they manage attendees and the event is open'),
     canEdit: z.boolean(),
     canCancel: z.boolean(),
     canDelete: z.boolean(),
@@ -805,6 +811,11 @@ export const memberEventSchema = eventViewSchema
   })
   .strict();
 export type MemberEvent = z.output<typeof memberEventSchema>;
+
+export const memberEventSummarySchema = memberEventSchema
+  .omit({ description: true, files: true })
+  .describe('An event as listed: the event read without its description and files');
+export type MemberEventSummary = z.output<typeof memberEventSummarySchema>;
 
 export const memberEventsQuerySchema = z
   .object({

@@ -97,6 +97,8 @@ function fakeRepo(): MemberReportRepository {
     spaceMemberCounts: async () => ({}),
     people: async () => [],
     eventAttendees: async () => ({ rows: [], total: 0, page: 1, pageSize: 10 }),
+    eventFaces: async () => ({}),
+    directEventGrants: async () => [],
     events: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
   };
 }
@@ -256,6 +258,8 @@ function fakeEntitlementReader(over: Partial<MemberReportRepository> = {}): Memb
     spaceMemberCounts: async () => ({}),
     people: async () => [],
     eventAttendees: async () => ({ rows: [], total: 0, page: 1, pageSize: 10 }),
+    eventFaces: async () => ({}),
+    directEventGrants: async () => [],
     events: async () => ({ rows: [], total: 0, page: 1, pageSize: 20 }),
     ...over,
   };

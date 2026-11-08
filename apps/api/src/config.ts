@@ -117,6 +117,29 @@ export function parseMemberFileMaxBytes(): number {
   return value;
 }
 
+function parseCount(name: string, min: number): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < min) {
+    throw new Error(`invalid ${name} "${raw}" (expected an integer of at least ${min})`);
+  }
+  return value;
+}
+
+export function parseDatabasePool(): NonNullable<ContainerConfig["databasePool"]> {
+  const max = parseCount("DATABASE_POOL_MAX", 1);
+  const idleTimeoutMillis = parseCount("DATABASE_POOL_IDLE_TIMEOUT_MS", 0);
+  const connectionTimeoutMillis = parseCount("DATABASE_POOL_CONNECTION_TIMEOUT_MS", 0);
+  return {
+    ...(max !== undefined && { max }),
+    ...(idleTimeoutMillis !== undefined && { idleTimeoutMillis }),
+    ...(connectionTimeoutMillis !== undefined && { connectionTimeoutMillis }),
+  };
+}
+
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
   return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
@@ -153,6 +176,7 @@ function loadContainerConfig(): ContainerConfig {
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     databaseUrl: process.env.DATABASE_URL ?? "",
+    databasePool: parseDatabasePool(),
     authBaseURL: apiOrigin,
     authSecret: process.env.BETTER_AUTH_SECRET ?? "",
     trustedOrigins,

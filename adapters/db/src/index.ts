@@ -1,4 +1,4 @@
-export { createDb, schema, type Db } from "./client.js";
+export { createDb, schema, type Db, type DatabasePoolOptions } from "./client.js";
 export * from "./unit-of-work.js";
 export { runMigrations, migrationsFolder } from "./migrate.js";
 export * from "./repositories/assets.js";

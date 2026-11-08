@@ -9,6 +9,7 @@ import type {
   EntitlementsRepository,
   GrantKey,
   GrantTarget,
+  InsertGrantInput,
   InsertSpaceMemberInput,
   SpaceMembersQuery,
 } from "@headless-lms/core/entitlements";
@@ -17,7 +18,6 @@ import type {
   Entitlement,
   EntitlementStatus,
   EntitlementsQuery,
-  GrantEntitlementInput,
   Logger,
   Page,
   SpaceMember,
@@ -295,7 +295,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
   /** A grant targets exactly one of a bundle or a content item (db check
    *  constraint), so the upsert is inferred on whichever of the two partial
    *  uniques the target uses. */
-  async insert(orgId: string, input: GrantEntitlementInput): Promise<Entitlement> {
+  async insert(orgId: string, input: InsertGrantInput): Promise<Entitlement> {
     const bundleId = input.bundleId ?? null;
     const contentId = input.contentId ?? null;
     const target = bundleId
@@ -312,7 +312,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           bundleId,
           contentId,
           status: "active",
-          source: input.source ?? "manual",
+          source: input.source,
           grantedAt: new Date(),
           expiresAt: input.expiresAt,
         })
@@ -320,7 +320,7 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
           target,
           set: {
             status: "active",
-            source: input.source ?? "manual",
+            source: input.source,
             grantedAt: new Date(),
             expiresAt: input.expiresAt,
           },
@@ -331,32 +331,6 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       throw new Error("failed to insert entitlement");
     }
     return toEntitlement(row);
-  }
-
-  async insertIfAbsent(orgId: string, input: GrantEntitlementInput): Promise<Entitlement | null> {
-    const bundleId = input.bundleId ?? null;
-    const contentId = input.contentId ?? null;
-    const target = bundleId
-      ? [entitlements.orgId, entitlements.orgUserId, entitlements.bundleId]
-      : [entitlements.orgId, entitlements.orgUserId, entitlements.contentId];
-    const [row] = await orgUserMustExist(
-      input.orgUserId,
-      this.db
-        .insert(entitlements)
-        .values({
-          orgId,
-          orgUserId: input.orgUserId,
-          bundleId,
-          contentId,
-          status: "active",
-          source: input.source ?? "manual",
-          grantedAt: new Date(),
-          expiresAt: input.expiresAt,
-        })
-        .onConflictDoNothing({ target })
-        .returning(selection),
-    );
-    return row ? toEntitlement(row) : null;
   }
 
   async lockGrant(orgId: string, key: GrantKey): Promise<Entitlement | null> {
@@ -374,19 +348,6 @@ export class DrizzleEntitlementsRepository implements EntitlementsRepository {
       .where(and(eq(entitlements.orgId, orgId), eq(entitlements.orgUserId, key.orgUserId), target))
       .for("update")
       .limit(1);
-    return row ? toEntitlement(row) : null;
-  }
-
-  async setExpiresAt(
-    orgId: string,
-    id: string,
-    expiresAt: Date | null,
-  ): Promise<Entitlement | null> {
-    const [row] = await this.db
-      .update(entitlements)
-      .set({ expiresAt })
-      .where(and(eq(entitlements.orgId, orgId), eq(entitlements.id, id)))
-      .returning(selection);
     return row ? toEntitlement(row) : null;
   }
 

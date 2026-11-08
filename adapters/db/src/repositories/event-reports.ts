@@ -6,34 +6,32 @@ import type {
   MemberEventsQuery,
   Page,
 } from "@headless-lms/core/types";
+import { eventSettingsDefaults } from "@headless-lms/core/schemas";
+import type {
+  EventAttendeeRow,
+  EventFaces,
+  EventReader,
+} from "@headless-lms/core/reporting/events";
 import { oneOf } from "./grant-covers.js";
+import { SETTINGS_NAMESPACE } from "./content.js";
 
-export interface EventAttendeeRecord {
-  orgUserId: string;
-  displayName: string | null;
-  imageAssetId: string | null;
-  source: EventAttendeeSource;
-  grantedAt: Date;
-}
-
-export interface EventReader {
-  orgUserId: string;
-  readAll: boolean;
-  readIds: string[];
-}
-
-function attendance(orgId: string, eventId: string): SQL {
+function attendance(orgId: string, eventIds: string[]): SQL {
   return sql`
-    select ca.org_user_id,
+    select ca.content_id, ca.org_user_id,
       max(case when e.content_id is not null then e.source end) as direct_source,
       min(case when e.content_id is not null then ca.granted_at end) as direct_at,
       min(ca.granted_at) as any_at
     from content_access ca
     join entitlements e on e.org_id = ca.org_id and e.id = ca.entitlement_id
-    where ca.org_id = ${orgId} and ca.content_id = ${eventId}
-    group by ca.org_user_id
+    where ca.org_id = ${orgId} and ${oneOf(sql`ca.content_id`, eventIds)}
+    group by ca.content_id, ca.org_user_id
   `;
 }
+
+const DISPLAY_NAME = sql`coalesce(
+  nullif(trim(up.display_name), ''),
+  nullif(trim(concat_ws(' ', u.first_name, u.last_name)), '')
+)`;
 
 const SOURCE = sql`case
   when a.direct_source in ('self', 'automation') then a.direct_source
@@ -46,14 +44,11 @@ export async function eventAttendeePage(
   orgId: string,
   eventId: string,
   page: { page: number; pageSize: number },
-): Promise<Page<EventAttendeeRecord>> {
+): Promise<Page<EventAttendeeRow>> {
   const result = await db.execute(sql`
-    with a as (${attendance(orgId, eventId)})
+    with a as (${attendance(orgId, [eventId])})
     select a.org_user_id,
-      coalesce(
-        nullif(trim(up.display_name), ''),
-        nullif(trim(concat_ws(' ', u.first_name, u.last_name)), '')
-      ) as display_name,
+      ${DISPLAY_NAME} as display_name,
       case when up.image_asset_org_id = ${orgId} then up.image_asset_id end as image_asset_id,
       ${SOURCE} as source,
       coalesce(a.direct_at, a.any_at) as granted_at,
@@ -113,7 +108,7 @@ export async function eventAnalyticsFigures(
 ): Promise<Omit<EventAnalytics, "capacity">> {
   const [sources, revoked, overTime] = await Promise.all([
     db.execute(sql`
-      with a as (${attendance(orgId, eventId)})
+      with a as (${attendance(orgId, [eventId])})
       select ${SOURCE} as source, count(*) as count from a group by 1
     `),
     db.execute(sql`
@@ -148,6 +143,77 @@ export async function eventAnalyticsFigures(
   };
 }
 
+export async function eventFacesFor(
+  db: NodePgDatabase,
+  orgId: string,
+  eventIds: string[],
+  limit: number,
+): Promise<Record<string, EventFaces>> {
+  const faces: Record<string, EventFaces> = Object.fromEntries(
+    eventIds.map((id) => [id, { total: 0, rows: [] }]),
+  );
+  if (eventIds.length === 0) {
+    return faces;
+  }
+  const result = await db.execute(sql`
+    with a as (${attendance(orgId, eventIds)}),
+    ranked as (
+      select a.content_id, a.org_user_id,
+        ${DISPLAY_NAME} as display_name,
+        case when up.image_asset_org_id = ${orgId} then up.image_asset_id end as image_asset_id,
+        row_number() over (
+          partition by a.content_id
+          order by coalesce(a.direct_at, a.any_at), a.org_user_id
+        ) as position,
+        count(*) over (partition by a.content_id) as total
+      from a
+      join org_users ou on ou.org_id = ${orgId} and ou.id = a.org_user_id
+      left join users u on u.id = ou.user_id
+      left join user_profiles up on up.user_id = ou.user_id
+    )
+    select content_id, org_user_id, display_name, image_asset_id, total
+    from ranked
+    where position <= ${limit}
+    order by content_id, position
+  `);
+  for (const row of result.rows as {
+    content_id: string;
+    org_user_id: string;
+    display_name: string | null;
+    image_asset_id: string | null;
+    total: string | number;
+  }[]) {
+    const entry = faces[row.content_id];
+    if (!entry) {
+      continue;
+    }
+    entry.total = Number(row.total);
+    entry.rows.push({
+      orgUserId: row.org_user_id,
+      displayName: row.display_name,
+      imageAssetId: row.image_asset_id,
+    });
+  }
+  return faces;
+}
+
+export async function directEventGrantIds(
+  db: NodePgDatabase,
+  orgId: string,
+  orgUserId: string,
+  eventIds: string[],
+): Promise<string[]> {
+  const result = await db.execute(sql`
+    select distinct e.content_id from entitlements e
+    where e.org_id = ${orgId}
+      and e.org_user_id = ${orgUserId}
+      and ${oneOf(sql`e.content_id`, eventIds)}
+      and e.status = 'active'
+      and (e.expires_at is null or e.expires_at > now())
+  `);
+  return (result.rows as { content_id: string }[]).map((row) => row.content_id);
+}
+
 export async function memberEventIds(
   db: NodePgDatabase,
   orgId: string,
@@ -163,7 +229,7 @@ export async function memberEventIds(
     ? sql`true`
     : sql`(
         ${oneOf(sql`ev.id`, reader.readIds)}
-        or (ev.status = 'published' and coalesce(s.value ->> 'type', 'public') = 'public')
+        or (ev.status = 'published' and coalesce(s.value ->> 'type', ${eventSettingsDefaults.type}) = 'public')
         or ${attends}
       )`;
   const past = query.when === "past";
@@ -176,7 +242,7 @@ export async function memberEventIds(
   `;
   const from = sql`
     from events ev
-    left join settings s on s.org_id = ev.org_id and s.namespace = 'content' and s.scope_id = ev.id
+    left join settings s on s.org_id = ev.org_id and s.namespace = ${SETTINGS_NAMESPACE} and s.scope_id = ev.id
   `;
   const order = past ? sql`ev.starts_at desc, ev.id desc` : sql`ev.starts_at asc, ev.id asc`;
   const [rows, totals] = await Promise.all([

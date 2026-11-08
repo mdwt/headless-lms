@@ -119,6 +119,7 @@ export const eventTools: Tool[] = [
     description:
       'Grant an event to a person (orgUserId) so they attend it. The event must be published, not ended and not full. Adding someone who already attends changes nothing.',
     operation: 'entitlements.grant',
+    listedFor: ['access:write', 'events:write'],
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -135,6 +136,7 @@ export const eventTools: Tool[] = [
     description:
       "Revoke a person's direct grant to an event. Someone who attends only through a bundle keeps attending.",
     operation: 'entitlements.revoke',
+    listedFor: ['access:write', 'events:write'],
     kind: 'destructive',
     idempotent: false,
     openWorld: false,

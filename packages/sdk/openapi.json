@@ -62569,9 +62569,6 @@
                           "title": {
                             "type": "string"
                           },
-                          "description": {
-                            "type": "string"
-                          },
                           "thumbnailAssetId": {
                             "nullable": true,
                             "type": "string",
@@ -62750,77 +62747,6 @@
                             ],
                             "additionalProperties": false
                           },
-                          "files": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "orgId": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "id": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "eventId": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "assetId": {
-                                  "type": "string",
-                                  "minLength": 1
-                                },
-                                "seq": {
-                                  "type": "integer",
-                                  "minimum": -9007199254740991,
-                                  "maximum": 9007199254740991
-                                },
-                                "displayName": {
-                                  "nullable": true,
-                                  "type": "string"
-                                },
-                                "createdAt": {
-                                  "type": "string",
-                                  "format": "date-time"
-                                },
-                                "updatedAt": {
-                                  "type": "string",
-                                  "format": "date-time"
-                                },
-                                "filename": {
-                                  "type": "string"
-                                },
-                                "contentType": {
-                                  "type": "string"
-                                },
-                                "size": {
-                                  "type": "integer",
-                                  "minimum": 0,
-                                  "maximum": 9007199254740991
-                                },
-                                "url": {
-                                  "type": "string"
-                                }
-                              },
-                              "required": [
-                                "orgId",
-                                "id",
-                                "eventId",
-                                "assetId",
-                                "seq",
-                                "displayName",
-                                "createdAt",
-                                "updatedAt",
-                                "filename",
-                                "contentType",
-                                "size",
-                                "url"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "description": "Empty when the caller cannot open the event"
-                          },
                           "attendeeCount": {
                             "type": "integer",
                             "minimum": 0,
@@ -62874,9 +62800,17 @@
                                 "type": "boolean",
                                 "description": "The caller gets the location, files and recording"
                               },
+                              "canLeave": {
+                                "type": "boolean",
+                                "description": "The caller holds a direct grant they may give up; false through a bundle only"
+                              },
                               "canManageAttendees": {
                                 "type": "boolean",
                                 "description": "The caller may add and remove attendees"
+                              },
+                              "canAddAttendees": {
+                                "type": "boolean",
+                                "description": "The caller may add attendees now: they manage attendees and the event is open"
                               },
                               "canEdit": {
                                 "type": "boolean"
@@ -62892,7 +62826,9 @@
                               "attending",
                               "canRegister",
                               "canOpen",
+                              "canLeave",
                               "canManageAttendees",
+                              "canAddAttendees",
                               "canEdit",
                               "canCancel",
                               "canDelete"
@@ -62905,7 +62841,6 @@
                           "id",
                           "type",
                           "title",
-                          "description",
                           "thumbnailAssetId",
                           "status",
                           "startsAt",
@@ -62915,13 +62850,13 @@
                           "thumbnailUrl",
                           "location",
                           "settings",
-                          "files",
                           "attendeeCount",
                           "attendees",
                           "placesLeft",
                           "viewer"
                         ],
-                        "additionalProperties": false
+                        "additionalProperties": false,
+                        "description": "An event as listed: the event read without its description and files"
                       }
                     },
                     "total": {
@@ -63963,9 +63898,17 @@
                           "type": "boolean",
                           "description": "The caller gets the location, files and recording"
                         },
+                        "canLeave": {
+                          "type": "boolean",
+                          "description": "The caller holds a direct grant they may give up; false through a bundle only"
+                        },
                         "canManageAttendees": {
                           "type": "boolean",
                           "description": "The caller may add and remove attendees"
+                        },
+                        "canAddAttendees": {
+                          "type": "boolean",
+                          "description": "The caller may add attendees now: they manage attendees and the event is open"
                         },
                         "canEdit": {
                           "type": "boolean"
@@ -63981,7 +63924,9 @@
                         "attending",
                         "canRegister",
                         "canOpen",
+                        "canLeave",
                         "canManageAttendees",
+                        "canAddAttendees",
                         "canEdit",
                         "canCancel",
                         "canDelete"
@@ -78780,7 +78725,7 @@
         "tags": [
           "Entitlements"
         ],
-        "description": "Requires one of `access:write`, `events:write`. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. `events:write` grants only events. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.",
+        "description": "Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.",
         "requestBody": {
           "required": true,
           "content": {

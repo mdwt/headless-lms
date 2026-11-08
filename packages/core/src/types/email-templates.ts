@@ -20,7 +20,6 @@ export interface EmailContent {
   text: string;
 }
 
-/** What every event email shows: the event and its times, as ISO date-times. */
 export interface EventEmailParams {
   eventId: string;
   eventTitle: string;

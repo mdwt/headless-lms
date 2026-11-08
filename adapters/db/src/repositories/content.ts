@@ -117,7 +117,7 @@ function refusedLink(err: unknown): ConflictError | undefined {
 // A course's settings live in the shared `settings` table (namespace
 // 'content', scoped by course id) — joined here so the repository answers in
 // whole courses regardless of where the pieces are stored.
-const SETTINGS_NAMESPACE = "content";
+export const SETTINGS_NAMESPACE = "content";
 
 const courseSettingsJoin = and(
   eq(settings.orgId, courses.orgId),
@@ -374,49 +374,7 @@ export class DrizzleContentRepository implements ContentRepository {
     id: string,
     value: Partial<CourseSettings>,
   ): Promise<CourseSettings> {
-    const key = and(
-      eq(settings.orgId, orgId),
-      eq(settings.namespace, SETTINGS_NAMESPACE),
-      eq(settings.scopeId, id),
-    );
-
-    // Merge in JS under a row lock, same as the settings repository: the read
-    // and the write must be one atomic unit or concurrent patches would
-    // clobber each other's sibling keys.
-    const merged = await this.tx(async (tx) => {
-      let [existing] = await tx.select().from(settings).where(key).for("update");
-
-      if (!existing) {
-        const [inserted] = await tx
-          .insert(settings)
-          .values({
-            orgId,
-            namespace: SETTINGS_NAMESPACE,
-            scopeId: id,
-            value: value as Setting["value"],
-          })
-          .onConflictDoNothing()
-          .returning();
-        if (inserted) {
-          return inserted.value;
-        }
-        [existing] = await tx.select().from(settings).where(key).for("update");
-        if (!existing) {
-          throw new Error("course settings patch: row vanished mid-transaction");
-        }
-      }
-
-      const [updated] = await tx
-        .update(settings)
-        .set({ value: deepMerge(existing.value, value) as Setting["value"], updatedAt: new Date() })
-        .where(key)
-        .returning();
-      if (!updated) {
-        throw new Error("course settings patch returned no row");
-      }
-      return updated.value;
-    });
-
+    const merged = await this.patchSettings(orgId, id, value);
     return { ...courseSettingsDefaults, ...merged } as CourseSettings;
   }
 
@@ -1009,8 +967,6 @@ export class DrizzleContentRepository implements ContentRepository {
     return this.listDownloadAssets(orgId, downloadId);
   }
 
-  // --- events -----------------------------------------------------------
-
   async listEvents(orgId: string, query: ListEventsQuery, ids?: string[]): Promise<Page<Event>> {
     if (ids?.length === 0) {
       return { rows: [], total: 0, page: query.page, pageSize: query.pageSize };
@@ -1068,6 +1024,15 @@ export class DrizzleContentRepository implements ContentRepository {
     return row ? toEvent(row.event, row.settingsValue) : null;
   }
 
+  async findEventsByIds(orgId: string, ids: string[]): Promise<Event[]> {
+    const rows = await this.db
+      .select({ event: events, settingsValue: settings.value })
+      .from(events)
+      .leftJoin(settings, eventSettingsJoin)
+      .where(and(eq(events.orgId, orgId), inArray(events.id, ids)));
+    return rows.map((row) => toEvent(row.event, row.settingsValue));
+  }
+
   async createEvent(orgId: string, input: Omit<CreateEventInput, "settings">): Promise<Event> {
     const id = genId("contentEvent");
     await this.db.insert(contentItems).values({ orgId, id, type: "event" });
@@ -1121,42 +1086,7 @@ export class DrizzleContentRepository implements ContentRepository {
     id: string,
     value: Partial<EventSettings>,
   ): Promise<EventSettings> {
-    const key = and(
-      eq(settings.orgId, orgId),
-      eq(settings.namespace, SETTINGS_NAMESPACE),
-      eq(settings.scopeId, id),
-    );
-    const merged = await this.tx(async (tx) => {
-      let [existing] = await tx.select().from(settings).where(key).for("update");
-      if (!existing) {
-        const [inserted] = await tx
-          .insert(settings)
-          .values({
-            orgId,
-            namespace: SETTINGS_NAMESPACE,
-            scopeId: id,
-            value: value as Setting["value"],
-          })
-          .onConflictDoNothing()
-          .returning();
-        if (inserted) {
-          return inserted.value;
-        }
-        [existing] = await tx.select().from(settings).where(key).for("update");
-        if (!existing) {
-          throw new Error("event settings patch: row vanished mid-transaction");
-        }
-      }
-      const [updated] = await tx
-        .update(settings)
-        .set({ value: deepMerge(existing.value, value) as Setting["value"], updatedAt: new Date() })
-        .where(key)
-        .returning();
-      if (!updated) {
-        throw new Error("event settings patch returned no row");
-      }
-      return updated.value;
-    });
+    const merged = await this.patchSettings(orgId, id, value);
     return { ...eventSettingsDefaults, ...merged } as EventSettings;
   }
 
@@ -1188,6 +1118,14 @@ export class DrizzleContentRepository implements ContentRepository {
       .from(eventAssets)
       .where(and(eq(eventAssets.orgId, orgId), eq(eventAssets.eventId, eventId)))
       .orderBy(asc(eventAssets.seq));
+  }
+
+  async listEventAssetsFor(orgId: string, eventIds: string[]): Promise<EventAsset[]> {
+    return this.db
+      .select()
+      .from(eventAssets)
+      .where(and(eq(eventAssets.orgId, orgId), inArray(eventAssets.eventId, eventIds)))
+      .orderBy(asc(eventAssets.eventId), asc(eventAssets.seq));
   }
 
   private async assertEvent(orgId: string, eventId: string): Promise<void> {
@@ -1616,38 +1554,47 @@ export class DrizzleContentRepository implements ContentRepository {
       return null;
     }
     const { digest, ...dm } = input;
-    const patch = digest === undefined ? { dm } : { dm, digest };
+    await this.patchSettings(orgId, id, digest === undefined ? { dm } : { dm, digest });
+    return this.findCommunityById(orgId, id);
+  }
+
+  private async patchSettings(
+    orgId: string,
+    scopeId: string,
+    patch: object,
+  ): Promise<Setting["value"]> {
     const key = and(
       eq(settings.orgId, orgId),
       eq(settings.namespace, SETTINGS_NAMESPACE),
-      eq(settings.scopeId, id),
+      eq(settings.scopeId, scopeId),
     );
-    await this.tx(async (tx) => {
+    const value = patch as Setting["value"];
+    return this.tx(async (tx) => {
       let [existing] = await tx.select().from(settings).where(key).for("update");
-      const value = patch as Setting["value"];
       if (!existing) {
         const [inserted] = await tx
           .insert(settings)
-          .values({ orgId, namespace: SETTINGS_NAMESPACE, scopeId: id, value })
+          .values({ orgId, namespace: SETTINGS_NAMESPACE, scopeId, value })
           .onConflictDoNothing()
           .returning();
         if (inserted) {
-          return;
+          return inserted.value;
         }
         [existing] = await tx.select().from(settings).where(key).for("update");
         if (!existing) {
-          throw new Error("community settings patch: row vanished mid-transaction");
+          throw new Error(`settings patch for ${scopeId}: row vanished mid-transaction`);
         }
       }
-      await tx
+      const [updated] = await tx
         .update(settings)
-        .set({
-          value: deepMerge(existing.value, patch) as Setting["value"],
-          updatedAt: new Date(),
-        })
-        .where(key);
+        .set({ value: deepMerge(existing.value, patch) as Setting["value"], updatedAt: new Date() })
+        .where(key)
+        .returning();
+      if (!updated) {
+        throw new Error(`settings patch for ${scopeId} returned no row`);
+      }
+      return updated.value;
     });
-    return this.findCommunityById(orgId, id);
   }
 
   async deleteCommunity(orgId: string, id: string): Promise<boolean> {

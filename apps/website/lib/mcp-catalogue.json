@@ -2224,8 +2224,7 @@
       "resource": "access",
       "operation": "entitlements.grant",
       "permissions": [
-        "access:write",
-        "events:write"
+        "access:write"
       ],
       "kind": "write",
       "idempotent": false,

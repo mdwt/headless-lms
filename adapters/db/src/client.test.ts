@@ -13,4 +13,20 @@ describe("createDb", () => {
     });
     await db.$client.end();
   });
+
+  it("sizes the pool and its timeouts from the options, and keeps pg's defaults otherwise", async () => {
+    const tuned = createDb("postgres://localhost:1/none", undefined, {
+      max: 25,
+      idleTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 2_000,
+    });
+    expect(tuned.$client.options).toMatchObject({
+      max: 25,
+      idleTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 2_000,
+    });
+    const plain = createDb("postgres://localhost:1/none");
+    expect(plain.$client.options.max).toBe(10);
+    await Promise.all([tuned.$client.end(), plain.$client.end()]);
+  });
 });

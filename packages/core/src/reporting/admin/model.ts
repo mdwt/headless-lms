@@ -1,21 +1,9 @@
 // reporting/admin — read models for the admin app. Framework-free.
-import type {
-  ContentType,
-  EventAttendeeSource,
-  OrgUserProfile,
-  OrgUserStatus,
-} from '../../types/index.js';
+import type { ContentType, OrgUserProfile, OrgUserStatus } from '../../types/index.js';
+import type { ItemRole } from '../../organizations/index.js';
 
 export type { EventAnalytics, EventAttendee } from '../../types/index.js';
-
-export interface EventAttendeeRow {
-  orgUserId: string;
-  displayName: string | null;
-  imageAssetId: string | null;
-  source: EventAttendeeSource;
-  grantedAt: Date;
-}
-import type { ItemRole } from '../../organizations/index.js';
+export type { EventAttendeeRow } from '../events/index.js';
 
 export interface SpacePostCount {
   spaceId: string;

@@ -12,6 +12,7 @@ import {
   eventViewSchema,
   idSchema,
   memberEventSchema,
+  memberEventSummarySchema,
   reorderEventAssetsInputSchema,
   timeZoneSchema,
 } from '@headless-lms/core/schemas';
@@ -113,7 +114,10 @@ export const MemberEventsQuery = PageQuery.extend({
 });
 export type MemberEventsQuery = z.infer<typeof MemberEventsQuery>;
 
-export const MemberEventsPage = paginated(MemberEvent);
+export const MemberEventSummary = memberEventSummarySchema;
+export type MemberEventSummary = z.infer<typeof MemberEventSummary>;
+
+export const MemberEventsPage = paginated(MemberEventSummary);
 export type MemberEventsPage = z.infer<typeof MemberEventsPage>;
 
 export const EventAttendee = eventAttendeeSchema;

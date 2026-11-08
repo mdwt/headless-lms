@@ -29,7 +29,7 @@ function deps(over: Partial<NotificationReadsDeps> = {}): NotificationReadsDeps 
       spaceOpeners: reject,
       countActiveSpaceMembers: reject,
       communityIdsOpenedFor: reject,
-      ensureGrant: reject,
+      grant: reject,
       communityMemberIds: reject,
       grantedOrgUserIds: reject,
       hasAccess: reject,

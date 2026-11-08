@@ -32,7 +32,7 @@ export type CommunityMailDeps = {
     | 'spaceOpeners'
     | 'countActiveSpaceMembers'
     | 'communityIdsOpenedFor'
-    | 'ensureGrant'
+    | 'grant'
   >;
   organizations: Pick<
     OrganizationService,
@@ -187,7 +187,7 @@ export function communityMail(deps: CommunityMailDeps): {
   return {
     mail,
     grants: {
-      grant: (orgId, input) => deps.entitlements.ensureGrant(input, system(orgId)),
+      grant: (orgId, input) => deps.entitlements.grant(input, system(orgId)),
     },
   };
 }

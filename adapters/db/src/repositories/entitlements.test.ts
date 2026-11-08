@@ -184,13 +184,13 @@ describe("transitions", () => {
     expect(queries[0]!.text).toMatch(/for update/);
   });
 
-  it("inserts an absent grant without touching an existing one and locks the existing one", async () => {
+  it("upserts a grant and locks an existing one for update", async () => {
     const { repo, queries } = capturingDb([]);
-    await expect(
-      repo.insertIfAbsent("org-1", { orgUserId: "ou_1", contentId: "cmy_1", expiresAt: null }),
-    ).resolves.toBeNull();
+    await repo
+      .insert("org-1", { orgUserId: "ou_1", contentId: "cmy_1", expiresAt: null, source: "manual" })
+      .catch(() => undefined);
     expect(queries[0]!.text).toMatch(
-      /on conflict \("org_id","org_user_id","content_id"\) do nothing/,
+      /on conflict \("org_id","org_user_id","content_id"\) do update/,
     );
     await repo.lockGrant("org-1", { orgUserId: "ou_1", contentId: "cmy_1" });
     expect(queries[1]!.text).toMatch(/for update/);
@@ -213,15 +213,13 @@ describe("grants to an event", () => {
     updatedAt: new Date(),
   };
 
-  it("writes the given source on both inserts and manual by default", async () => {
+  it("writes the source it is given", async () => {
     const { repo, queries } = capturingDb([Object.values(row)]);
     await repo.insert("org-1", { ...grant, source: "self" });
-    await repo.insertIfAbsent("org-1", { ...grant, source: "automation" });
-    await repo.insert("org-1", grant);
+    await repo.insert("org-1", { ...grant, source: "automation" });
     expect(queries[0]!.values).toContain("self");
     expect(queries[0]!.values).not.toContain("manual");
     expect(queries[1]!.values).toContain("automation");
-    expect(queries[2]!.values).toContain("manual");
   });
 
   it("takes a transaction lock keyed on the content id", async () => {

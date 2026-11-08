@@ -156,6 +156,37 @@ describe.skipIf(!url)("event reports on Postgres", () => {
     expect(beyond).toMatchObject({ rows: [], total: 5 });
   });
 
+  it("reads the first attendees and the count of several events in one query", async () => {
+    const faces = await member.eventFaces(org, [upcoming, hidden, draft], 2);
+    expect(faces[upcoming]).toEqual({
+      total: 5,
+      rows: [
+        { orgUserId: people.lucy, displayName: null, imageAssetId: null },
+        { orgUserId: people.james, displayName: "James", imageAssetId: null },
+      ],
+    });
+    expect(faces[hidden]).toEqual({
+      total: 1,
+      rows: [{ orgUserId: people.emma, displayName: "Emma", imageAssetId: null }],
+    });
+    expect(faces[draft]).toEqual({ total: 0, rows: [] });
+    await expect(member.eventFaces(org, [], 10)).resolves.toEqual({});
+  });
+
+  it("finds the caller's direct, current grants among events, never a bundle place", async () => {
+    await expect(member.directEventGrants(org, people.james, [upcoming, hidden])).resolves.toEqual([
+      upcoming,
+    ]);
+    await expect(member.directEventGrants(org, people.lucy, [upcoming])).resolves.toEqual([]);
+    await expect(member.directEventGrants(org, people.ben, [upcoming])).resolves.toEqual([]);
+  });
+
+  it("reads several events and their files by id", async () => {
+    const found = await content.findEventsByIds(org, [upcoming, past, "evn_missing"]);
+    expect(found.map((event) => event.id).sort()).toEqual([upcoming, past].sort());
+    await expect(content.listEventAssetsFor(org, [upcoming, past])).resolves.toEqual([]);
+  });
+
   it("counts the attendees by source, the revoked grants and the direct grants before the start", async () => {
     const event = await content.findEventById(org, upcoming);
     await expect(admin.eventAnalytics(org, upcoming, event!.startsAt)).resolves.toEqual({

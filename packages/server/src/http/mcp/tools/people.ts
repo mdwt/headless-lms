@@ -74,6 +74,7 @@ export const peopleTools: Tool[] = [
     description:
       'Give a student access to one course, download, community or event (contentId) or to a bundle (bundleId), never both. expiresAt is a date-time, or null for no expiry.',
     operation: 'entitlements.grant',
+    listedFor: ['access:write'],
     kind: 'write',
     idempotent: false,
     openWorld: false,

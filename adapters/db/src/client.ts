@@ -18,8 +18,18 @@ export * as schema from "./schema/index.js";
 
 export type Db = ReturnType<typeof createDb>;
 
-export function createDb(connectionString: string, logger: Logger = noopLogger) {
-  const pool = new pg.Pool({ connectionString });
+export interface DatabasePoolOptions {
+  max?: number;
+  idleTimeoutMillis?: number;
+  connectionTimeoutMillis?: number;
+}
+
+export function createDb(
+  connectionString: string,
+  logger: Logger = noopLogger,
+  poolOptions: DatabasePoolOptions = {},
+) {
+  const pool = new pg.Pool({ connectionString, ...poolOptions });
   pool.on("error", (error) => {
     logger.warn("database connection lost", { error: error.message });
   });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { contentTypeSchema } from './content.js';
+import { contentTypeSchema, eventAttendeeSourceSchema } from './content.js';
 import { idSchema } from './shared.js';
 
 export const entitlementStatusSchema = z.enum(['active', 'revoked']);
@@ -46,7 +46,6 @@ export const grantEntitlementInputSchema = z
     contentId: idSchema.nullish(),
     bundleId: idSchema.nullish(),
     expiresAt: z.coerce.date().nullable(),
-    source: z.string().optional(),
     contentType: contentTypeSchema
       .optional()
       .describe('When set, a contentId of another type is not found'),
@@ -54,8 +53,14 @@ export const grantEntitlementInputSchema = z
   .strict()
   .refine((v) => (v.contentId != null) !== (v.bundleId != null), {
     message: 'Provide exactly one of contentId or bundleId',
+  })
+  .refine((v) => v.contentType === undefined || v.contentId != null, {
+    message: 'contentType applies to a contentId only',
   });
 export type GrantEntitlementInput = z.output<typeof grantEntitlementInputSchema>;
+
+export const grantSourceSchema = eventAttendeeSourceSchema.exclude(['bundle']);
+export type GrantSource = z.infer<typeof grantSourceSchema>;
 
 export const spaceMemberStatusSchema = z.enum(['requested', 'invited', 'active', 'revoked']);
 export type SpaceMemberStatus = z.infer<typeof spaceMemberStatusSchema>;

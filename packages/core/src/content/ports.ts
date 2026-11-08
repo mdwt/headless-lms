@@ -243,15 +243,15 @@ export interface EventsService {
   listEvents(query: ListEventsQuery, actor: Actor): Promise<Page<EventView>>;
   getEvent(id: string, actor: Actor): Promise<EventView>;
   findEvent(id: string, actor: Actor): Promise<EventView | null>;
+  findEvents(ids: string[], actor: Actor): Promise<EventView[]>;
   createEvent(input: CreateEventInput, actor: Actor): Promise<EventView>;
-  /** @throws ConflictError with code `canceled` when the event is canceled. */
   updateEvent(id: string, patch: UpdateEventInput, actor: Actor): Promise<EventView>;
-  /** @throws ConflictError with code `canceled` when the event is already canceled. */
   cancelEvent(id: string, actor: Actor): Promise<EventView>;
   deleteEvent(id: string, actor: Actor): Promise<void>;
   startingSoon(orgId: string, eventId: string, lead: EventLead, now: Date): Promise<void>;
 
   listEventAssets(eventId: string, actor: Actor): Promise<EventFile[]>;
+  eventFilesFor(eventIds: string[], actor: Actor): Promise<Record<string, EventFile[]>>;
   addEventAsset(eventId: string, input: AddEventAssetInput, actor: Actor): Promise<EventFile[]>;
   removeEventAsset(eventId: string, assetId: string, actor: Actor): Promise<EventFile[]>;
   renameEventAsset(
@@ -260,7 +260,6 @@ export interface EventsService {
     displayName: string | null,
     actor: Actor,
   ): Promise<EventFile[]>;
-  /** @throws ConflictError when assetIds is not exactly the event's current asset set. */
   reorderEventAssets(eventId: string, assetIds: string[], actor: Actor): Promise<EventFile[]>;
 }
 
@@ -353,6 +352,7 @@ export interface ContentRepository {
 
   listEvents(orgId: string, query: ListEventsQuery, ids?: string[]): Promise<Page<Event>>;
   findEventById(orgId: string, id: string): Promise<Event | null>;
+  findEventsByIds(orgId: string, ids: string[]): Promise<Event[]>;
   createEvent(orgId: string, input: Omit<CreateEventInput, 'settings'>): Promise<Event>;
   updateEvent(orgId: string, id: string, patch: EventPatch): Promise<Event | null>;
   patchEventSettings(
@@ -364,6 +364,7 @@ export interface ContentRepository {
   deleteEventSettings(orgId: string, id: string): Promise<void>;
 
   listEventAssets(orgId: string, eventId: string): Promise<EventAsset[]>;
+  listEventAssetsFor(orgId: string, eventIds: string[]): Promise<EventAsset[]>;
   addEventAsset(orgId: string, eventId: string, input: AddEventAssetInput): Promise<EventAsset[]>;
   removeEventAsset(orgId: string, eventId: string, assetId: string): Promise<EventAsset[]>;
   renameEventAsset(

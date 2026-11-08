@@ -20303,7 +20303,6 @@ export type ListMemberEventsResponses = {
       id: string;
       type: "event";
       title: string;
-      description: string;
       thumbnailAssetId: string | null;
       status: "draft" | "published" | "canceled";
       startsAt: string;
@@ -20369,23 +20368,6 @@ export type ListMemberEventsResponses = {
          */
         replay: boolean;
       };
-      /**
-       * Empty when the caller cannot open the event
-       */
-      files: Array<{
-        orgId: string;
-        id: string;
-        eventId: string;
-        assetId: string;
-        seq: number;
-        displayName: string | null;
-        createdAt: string;
-        updatedAt: string;
-        filename: string;
-        contentType: string;
-        size: number;
-        url: string;
-      }>;
       attendeeCount: number;
       /**
        * Up to 10 attendees, for the avatars
@@ -20413,9 +20395,17 @@ export type ListMemberEventsResponses = {
          */
         canOpen: boolean;
         /**
+         * The caller holds a direct grant they may give up; false through a bundle only
+         */
+        canLeave: boolean;
+        /**
          * The caller may add and remove attendees
          */
         canManageAttendees: boolean;
+        /**
+         * The caller may add attendees now: they manage attendees and the event is open
+         */
+        canAddAttendees: boolean;
         canEdit: boolean;
         canCancel: boolean;
         canDelete: boolean;
@@ -20883,9 +20873,17 @@ export type GetMemberEventResponses = {
        */
       canOpen: boolean;
       /**
+       * The caller holds a direct grant they may give up; false through a bundle only
+       */
+      canLeave: boolean;
+      /**
        * The caller may add and remove attendees
        */
       canManageAttendees: boolean;
+      /**
+       * The caller may add attendees now: they manage attendees and the event is open
+       */
+      canAddAttendees: boolean;
       canEdit: boolean;
       canCancel: boolean;
       canDelete: boolean;

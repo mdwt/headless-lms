@@ -23,7 +23,7 @@ export default async function StudentDetailPage({
   const [student, entitlements, content, analytics] = await Promise.all([
     serverApi.getStudent(studentId),
     canSeeAccess ? serverApi.studentEntitlements(studentId) : Promise.resolve([]),
-    canGrant ? serverApi.contentLite() : Promise.resolve([]),
+    canGrant ? serverApi.contentLite(permissions) : Promise.resolve([]),
     serverApi.studentAnalytics(studentId),
   ]);
 

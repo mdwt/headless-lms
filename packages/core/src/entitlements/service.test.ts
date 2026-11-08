@@ -5,7 +5,7 @@ import type {
   EntitlementsUnitOfWork,
   PermissionHolders,
   SpaceMembersQuery,
-  SpaceReader,
+  ContentReader,
 } from './ports.js';
 import type { Entitlement, SpaceMember } from './model.js';
 import type { NewDomainEvent, OutboxAppender } from '../shared/ports.js';
@@ -118,9 +118,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
   return {
     list: vi.fn().mockResolvedValue({ rows: [SAMPLE], total: 1, page: 1, pageSize: 20 }),
     insert: vi.fn().mockResolvedValue(SAMPLE),
-    insertIfAbsent: vi.fn().mockResolvedValue(SAMPLE),
     lockGrant: vi.fn().mockResolvedValue(SAMPLE),
-    setExpiresAt: vi.fn(async (_orgId, id, expiresAt) => ({ ...SAMPLE, id, expiresAt })),
     setStatus: vi.fn().mockResolvedValue(SAMPLE),
     hasAccess: vi.fn().mockResolvedValue(true),
     listAccessibleContent: vi.fn().mockResolvedValue(['c1']),
@@ -151,7 +149,7 @@ function fakeRepo(over?: Partial<EntitlementsRepository>): EntitlementsRepositor
   };
 }
 
-function inviteContent(): SpaceReader {
+function inviteContent(): ContentReader {
   return fakeContent({
     getSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }),
   });
@@ -161,7 +159,7 @@ function inviteLock(): SpaceRowLock {
   return { lockSpace: vi.fn().mockResolvedValue({ ...SPACE, accessRule: 'by_invite' }) };
 }
 
-function fakeContent(over?: Partial<SpaceReader>): SpaceReader {
+function fakeContent(over?: Partial<ContentReader>): ContentReader {
   return {
     getSpace: vi.fn().mockResolvedValue(SPACE),
     listSpaces: vi.fn().mockResolvedValue([SPACE]),
@@ -1024,73 +1022,24 @@ describe('access rule of the space', () => {
   });
 });
 
-describe('ensureGrant', () => {
-  const input = {
-    orgUserId: 's1',
-    contentId: 'c1',
-    expiresAt: new Date('2026-09-01T00:00:00Z'),
-  };
+describe('grant from an automation', () => {
+  const input = { orgUserId: 's1', contentId: 'c1', expiresAt: new Date('2026-09-01T00:00:00Z') };
 
-  it('creates an absent grant and emits entitlement.created', async () => {
+  it('grants as the system actor with source automation and no actor in the metadata', async () => {
     const { svc, repo, appended } = build();
-    await svc.ensureGrant(input, admin);
-    expect(repo.insertIfAbsent).toHaveBeenCalledWith('org-1', input);
-    expect(repo.insert).not.toHaveBeenCalled();
-    expect(appended).toEqual([expect.objectContaining({ type: 'entitlement.created' })]);
-  });
-
-  it('keeps an active grant whose expiry is already later and emits nothing', async () => {
-    const repo = fakeRepo({
-      insertIfAbsent: vi.fn().mockResolvedValue(null),
-      lockGrant: vi.fn().mockResolvedValue({ ...SAMPLE, expiresAt: null }),
-    });
-    const { svc, append } = build(repo);
-    const result = await svc.ensureGrant(input, admin);
-    expect(result.expiresAt).toBeNull();
-    expect(repo.setExpiresAt).not.toHaveBeenCalled();
-    expect(append).not.toHaveBeenCalled();
-  });
-
-  it('extends an active grant to the later expiry and emits entitlement.updated', async () => {
-    const repo = fakeRepo({
-      insertIfAbsent: vi.fn().mockResolvedValue(null),
-      lockGrant: vi
-        .fn()
-        .mockResolvedValue({ ...SAMPLE, expiresAt: new Date('2026-07-01T00:00:00Z') }),
-    });
-    const { svc, appended } = build(repo);
-    await svc.ensureGrant(input, admin);
-    expect(repo.setExpiresAt).toHaveBeenCalledWith('org-1', 'e1', input.expiresAt);
+    await svc.grant(input, SYSTEM);
+    expect(repo.insert).toHaveBeenCalledWith('org-1', { ...input, source: 'automation' });
     expect(appended).toEqual([
-      expect.objectContaining({
-        type: 'entitlement.updated',
-        data: expect.objectContaining({ expiresAt: input.expiresAt }),
-      }),
+      expect.objectContaining({ type: 'entitlement.created', metadata: {} }),
     ]);
   });
 
-  it('extends a dated grant to lifetime when the action gives no expiry', async () => {
-    const repo = fakeRepo({
-      insertIfAbsent: vi.fn().mockResolvedValue(null),
-      lockGrant: vi
-        .fn()
-        .mockResolvedValue({ ...SAMPLE, expiresAt: new Date('2026-07-01T00:00:00Z') }),
-    });
-    const { svc } = build(repo);
-    await svc.ensureGrant({ ...input, expiresAt: null }, admin);
-    expect(repo.setExpiresAt).toHaveBeenCalledWith('org-1', 'e1', null);
-  });
-
-  it('leaves a revoked grant revoked and emits nothing', async () => {
-    const repo = fakeRepo({
-      insertIfAbsent: vi.fn().mockResolvedValue(null),
-      lockGrant: vi.fn().mockResolvedValue({ ...SAMPLE, status: 'revoked' }),
-    });
-    const { svc, append } = build(repo);
-    const result = await svc.ensureGrant(input, admin);
-    expect(result.status).toBe('revoked');
-    expect(repo.setExpiresAt).not.toHaveBeenCalled();
-    expect(append).not.toHaveBeenCalled();
+  it('grants a revoked grant again, with the new expiry', async () => {
+    const { svc, repo } = build(
+      fakeRepo({ lockGrant: vi.fn().mockResolvedValue({ ...SAMPLE, status: 'revoked' }) }),
+    );
+    await svc.grant(input, SYSTEM);
+    expect(repo.insert).toHaveBeenCalledWith('org-1', { ...input, source: 'automation' });
   });
 });
 
@@ -1098,11 +1047,11 @@ describe('permission checks', () => {
   const nobody = actorWith({ id: 'ou_nobody', orgId: 'org-1' });
   const input = { orgUserId: 's1', contentId: 'c1', expiresAt: null };
 
-  it('refuses grant, ensureGrant and setStatus without access:write', async () => {
+  it('refuses grant and setStatus without access:write', async () => {
     const { svc, append } = build();
     const reader = actorWith({ orgId: 'org-1', org: ['access:read'] });
     await expect(svc.grant(input, nobody)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(svc.ensureGrant(input, reader)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.grant(input, reader)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.setStatus('e1', 'revoked', reader)).rejects.toBeInstanceOf(ForbiddenError);
     expect(append).not.toHaveBeenCalled();
   });
@@ -1115,10 +1064,7 @@ describe('permission checks', () => {
     );
     const calls: Record<string, () => Promise<unknown>> = {
       list: () => svc.list({ page: 1, pageSize: 20 }, nobody),
-      grant: () => svc.grant(input, nobody),
-      ensureGrant: () => svc.ensureGrant(input, nobody),
       setStatus: () => svc.setStatus('e1', 'revoked', nobody),
-      revoke: () => svc.revoke({ orgUserId: 's1', contentId: 'c1' }, nobody),
       invite: () => svc.invite('cmy_1', 'spc_1', 'ou_member', nobody),
       addSpaceMember: () => svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', nobody),
       approve: () => svc.approve('cmy_1', 'spc_1', 'ou_member', nobody),
@@ -1146,7 +1092,6 @@ describe('permission checks', () => {
     });
     const own = { orgUserId: 's1', contentId: 'crs_1', expiresAt: null };
     await expect(svc.grant(own, james)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(svc.ensureGrant(own, james)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.setStatus('e1', 'revoked', james)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.list({ page: 1, pageSize: 20 }, james)).rejects.toBeInstanceOf(ForbiddenError);
     expect(append).not.toHaveBeenCalled();
@@ -1154,7 +1099,17 @@ describe('permission checks', () => {
 
   it('lets the system actor give a grant, as automations do', async () => {
     const { svc } = build();
-    await expect(svc.ensureGrant(input, SYSTEM)).resolves.toMatchObject({ id: 'e1' });
+    await expect(svc.grant(input, SYSTEM)).resolves.toMatchObject({ id: 'e1' });
+  });
+
+  it('refuses grant and revoke on content that is not an event before saying whether it exists', async () => {
+    for (const type of ['course', null] as const) {
+      const { svc } = build(fakeRepo({ contentTypeOf: vi.fn().mockResolvedValue(type) }));
+      await expect(svc.grant(input, nobody)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(svc.revoke({ orgUserId: 's1', contentId: 'c1' }, nobody)).rejects.toBeInstanceOf(
+        ForbiddenError,
+      );
+    }
   });
 
   it('lists every grant with access:read and refuses without it', async () => {
@@ -1414,9 +1369,13 @@ describe('grants to an event', () => {
       }
     });
 
-    it('answers 404 for an id that is no content', async () => {
-      const { svc } = build(eventRepo({ contentTypeOf: vi.fn().mockResolvedValue(null) }));
-      await expect(svc.grant(register, james)).rejects.toBeInstanceOf(NotFoundError);
+    it('answers 404 on the event routes for an id that is no event', async () => {
+      for (const type of [null, 'course'] as const) {
+        const { svc } = build(eventRepo({ contentTypeOf: vi.fn().mockResolvedValue(type) }));
+        await expect(
+          svc.grant({ ...register, contentType: 'event' }, james),
+        ).rejects.toBeInstanceOf(NotFoundError);
+      }
     });
 
     it('refuses already_registered to an attendee, through a bundle too', async () => {
@@ -1586,20 +1545,17 @@ describe('grants to an event', () => {
     expect(repo.insert).not.toHaveBeenCalled();
   });
 
-  describe('ensureGrant', () => {
-    const automation = { ...addEmma, source: 'automation' };
-
-    it('inserts an absent grant with the given source, without an actor for the system', async () => {
-      const repo = eventRepo({
-        insertIfAbsent: vi.fn(async (_o, input) => ({
-          ...SAMPLE,
-          source: input.source ?? 'manual',
-        })),
-      });
-      const { svc, appended } = build(repo, withEvent({ settings: { capacity: 5 } }));
-      await svc.ensureGrant(automation, SYSTEM);
-      expect(repo.insertIfAbsent).toHaveBeenCalledWith('org-1', automation);
+  describe('from an automation', () => {
+    it('grants with source automation and no actor, under the capacity lock', async () => {
+      const { svc, repo, appended } = build(eventRepo(), withEvent({ settings: { capacity: 5 } }));
+      await svc.grant(addEmma, SYSTEM);
       expect(repo.lockCapacity).toHaveBeenCalledWith('org-1', 'evn_1');
+      expect(repo.insert).toHaveBeenCalledWith('org-1', {
+        orgUserId: 'ou_emma',
+        contentId: 'evn_1',
+        expiresAt: null,
+        source: 'automation',
+      });
       expect(appended).toEqual([
         expect.objectContaining({ type: 'entitlement.created', metadata: {} }),
       ]);
@@ -1607,34 +1563,53 @@ describe('grants to an event', () => {
 
     it('fails on a draft, an ended or a full event', async () => {
       const draft = build(eventRepo(), withEvent({ status: 'draft' }));
-      await expect(draft.svc.ensureGrant(automation, SYSTEM)).rejects.toMatchObject({
+      await expect(draft.svc.grant(addEmma, SYSTEM)).rejects.toMatchObject({
         code: 'not_published',
       });
       const ended = build(eventRepo(), withEvent({ endsAt: new Date(Date.now() - 1) }));
-      await expect(ended.svc.ensureGrant(automation, SYSTEM)).rejects.toMatchObject({
-        code: 'ended',
-      });
+      await expect(ended.svc.grant(addEmma, SYSTEM)).rejects.toMatchObject({ code: 'ended' });
       const full = build(
         eventRepo({ grantedOrgUserIds: vi.fn().mockResolvedValue(['ou_a']) }),
         withEvent({ settings: { capacity: 1 } }),
       );
-      await expect(full.svc.ensureGrant(automation, SYSTEM)).rejects.toMatchObject({
-        code: 'full',
-      });
-      expect(full.repo.insertIfAbsent).not.toHaveBeenCalled();
+      await expect(full.svc.grant(addEmma, SYSTEM)).rejects.toMatchObject({ code: 'full' });
+      expect(full.repo.insert).not.toHaveBeenCalled();
     });
 
-    it('leaves a revoked grant revoked without counting the places', async () => {
-      const revoked = { ...SAMPLE, status: 'revoked' as const };
-      const repo = eventRepo({
-        insertIfAbsent: vi.fn().mockResolvedValue(null),
-        lockGrant: vi.fn().mockResolvedValue(revoked),
-        grantedOrgUserIds: vi.fn().mockResolvedValue(['ou_a']),
-      });
-      const { svc, append } = build(repo, withEvent({ settings: { capacity: 1 } }));
-      await expect(svc.ensureGrant(automation, SYSTEM)).resolves.toEqual(revoked);
-      expect(repo.grantedOrgUserIds).not.toHaveBeenCalled();
-      expect(append).not.toHaveBeenCalled();
+    it('counts the places when the person holds only an expired grant to a full event', async () => {
+      const expired = {
+        ...SAMPLE,
+        orgUserId: 'ou_emma',
+        contentId: 'evn_1',
+        expiresAt: new Date(Date.now() - 60_000),
+      };
+      const { svc, repo } = build(
+        eventRepo({
+          lockGrant: vi.fn().mockResolvedValue(expired),
+          grantedOrgUserIds: vi.fn().mockResolvedValue(['ou_a']),
+        }),
+        withEvent({ settings: { capacity: 1 } }),
+      );
+      await expect(svc.grant(addEmma, SYSTEM)).rejects.toMatchObject({ code: 'full' });
+      expect(repo.insert).not.toHaveBeenCalled();
+    });
+
+    it('grants a revoked grant again when there is a place', async () => {
+      const revoked = {
+        ...SAMPLE,
+        orgUserId: 'ou_emma',
+        contentId: 'evn_1',
+        status: 'revoked' as const,
+      };
+      const { svc, repo } = build(
+        eventRepo({ lockGrant: vi.fn().mockResolvedValue(revoked) }),
+        withEvent({ settings: { capacity: 2 } }),
+      );
+      await svc.grant(addEmma, SYSTEM);
+      expect(repo.insert).toHaveBeenCalledWith(
+        'org-1',
+        expect.objectContaining({ orgUserId: 'ou_emma', source: 'automation' }),
+      );
     });
   });
 

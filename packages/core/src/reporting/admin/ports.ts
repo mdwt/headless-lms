@@ -88,13 +88,11 @@ export interface AdminReportRepository {
     communityId: string,
     query: CommunityMembersQuery,
   ): Promise<Page<OrgUserProfile> | null>;
-  /** The people attending an event, directly or through a bundle, by grant date. */
   eventAttendees(
     orgId: string,
     eventId: string,
     page: { page: number; pageSize: number },
   ): Promise<Page<EventAttendeeRow>>;
-  /** The event's figures; grants over time counts the grants made before `startsAt`. */
   eventAnalytics(
     orgId: string,
     eventId: string,

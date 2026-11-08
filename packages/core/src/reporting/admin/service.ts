@@ -27,6 +27,7 @@ import type {
   PermissionsReader,
   SpaceOpenersReader,
 } from './ports.js';
+import { attendeeView } from '../events/index.js';
 
 export type AdminReportServiceParams = {
   repo: AdminReportRepository;
@@ -157,13 +158,7 @@ export class AdminReportServiceImpl implements AdminReportService {
     const page = await this.repo.eventAttendees(actor.orgId, eventId, query);
     return {
       ...page,
-      rows: page.rows.map((row) => ({
-        orgUserId: row.orgUserId,
-        name: row.displayName ?? 'A member',
-        avatarUrl: row.imageAssetId ? this.fileUrls.personImage(row.orgUserId) : null,
-        source: row.source,
-        grantedAt: row.grantedAt,
-      })),
+      rows: page.rows.map((row) => attendeeView(row, this.fileUrls)),
     };
   }
 

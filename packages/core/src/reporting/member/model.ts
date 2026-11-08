@@ -3,7 +3,6 @@ import type { ResolvedChannel } from '../../shared/notification-settings.js';
 // entities (identical wire shape); adds the enrollment reference the service
 // resolves against the content service.
 import type {
-  EventAttendeeSource,
   DigestSchedule,
   JsonValue,
   Permission,
@@ -13,7 +12,12 @@ import type {
   SubscriptionView,
 } from '../../types/index.js';
 
-export type { EventAttendee, MemberEvent, MemberEventsQuery } from '../../types/index.js';
+export type {
+  EventAttendee,
+  MemberEvent,
+  MemberEventSummary,
+  MemberEventsQuery,
+} from '../../types/index.js';
 
 export type {
   ActivityView,
@@ -62,19 +66,7 @@ export interface CommunityViewer {
   canCreateEvents: boolean;
 }
 
-export interface EventAttendeeRow {
-  orgUserId: string;
-  displayName: string | null;
-  imageAssetId: string | null;
-  source: EventAttendeeSource;
-  grantedAt: Date;
-}
-
-export interface EventReader {
-  orgUserId: string;
-  readAll: boolean;
-  readIds: string[];
-}
+export type { EventAttendeeRow, EventReader } from '../events/index.js';
 
 export interface CommunityHomeLink {
   id: string;

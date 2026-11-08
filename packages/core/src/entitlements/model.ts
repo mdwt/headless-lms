@@ -5,6 +5,7 @@ export type {
   Entitlement,
   EntitlementsQuery,
   GrantEntitlementInput,
+  GrantSource,
   Page,
   SpaceMember,
   SpaceMemberSource,

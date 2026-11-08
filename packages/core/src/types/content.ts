@@ -52,6 +52,7 @@ export type {
   EventAttendeeFace,
   EventAttendeeSource,
   MemberEvent,
+  MemberEventSummary,
   MemberEventViewer,
   MemberEventsQuery,
   ListEventsQuery,

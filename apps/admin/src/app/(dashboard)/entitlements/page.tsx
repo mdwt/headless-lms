@@ -21,7 +21,7 @@ export default async function EntitlementsPage({
   const [{ rows, total }, students, content] = await Promise.all([
     serverApi.listEntitlements(params),
     canGrant ? serverApi.studentsLite() : Promise.resolve([]),
-    canGrant ? serverApi.contentLite() : Promise.resolve([]),
+    canGrant ? serverApi.contentLite(permissions) : Promise.resolve([]),
   ]);
 
   return (

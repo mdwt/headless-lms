@@ -10,7 +10,7 @@ import type { Mailer } from '../shared/mailer.js';
 import type { FileUrls, MemberImageReader } from '../assets/index.js';
 import { identityEvents } from './events.js';
 
-const UNNAMED = 'A member';
+export const UNNAMED_MEMBER = 'A member';
 
 export class IdentityServiceImpl implements IdentityService {
   private readonly repo: IdentityRepository;
@@ -137,7 +137,7 @@ export class IdentityServiceImpl implements IdentityService {
 
   async displayName(userId: string | null): Promise<string> {
     if (userId === null) {
-      return UNNAMED;
+      return UNNAMED_MEMBER;
     }
     const [profile, user] = await Promise.all([
       this.repo.findProfile(userId),
@@ -148,7 +148,7 @@ export class IdentityServiceImpl implements IdentityService {
       return named;
     }
     const composed = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
-    return composed || UNNAMED;
+    return composed || UNNAMED_MEMBER;
   }
 
   async updateProfile(patch: UpdateProfileInput, actor: MemberActor): Promise<UserProfileView> {

@@ -9,6 +9,7 @@ import type {
   MemberReportRepository,
 } from "@headless-lms/core/reporting/member";
 import type { MemberEventsQuery, Page } from "@headless-lms/core/types";
+import type { EventFaces } from "@headless-lms/core/reporting/events";
 import {
   contentAccess,
   orgUsers,
@@ -21,7 +22,12 @@ import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
 import { translateDbErrors } from "./pg-errors.js";
 import { communityMember, communityPublished, oneOf } from "./grant-covers.js";
-import { eventAttendeePage, memberEventIds } from "./event-reports.js";
+import {
+  directEventGrantIds,
+  eventAttendeePage,
+  eventFacesFor,
+  memberEventIds,
+} from "./event-reports.js";
 
 function personColumns(orgId: string) {
   return {
@@ -93,6 +99,18 @@ export class DrizzleMemberRepository implements MemberReportRepository {
     page: { page: number; pageSize: number },
   ): Promise<Page<EventAttendeeRow>> {
     return eventAttendeePage(this.db, orgId, eventId, page);
+  }
+
+  eventFaces(
+    orgId: string,
+    eventIds: string[],
+    limit: number,
+  ): Promise<Record<string, EventFaces>> {
+    return eventFacesFor(this.db, orgId, eventIds, limit);
+  }
+
+  directEventGrants(orgId: string, orgUserId: string, eventIds: string[]): Promise<string[]> {
+    return directEventGrantIds(this.db, orgId, orgUserId, eventIds);
   }
 
   events(

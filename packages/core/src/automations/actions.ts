@@ -197,7 +197,6 @@ async function grantAccess(
     contentId,
     bundleId,
     expiresAt,
-    source: 'automation',
   });
 }
 

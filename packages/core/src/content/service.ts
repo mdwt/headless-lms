@@ -896,8 +896,6 @@ export class ContentService
     return this.downloadFiles(orgId, assets);
   }
 
-  // --- events ---------------------------------------------------------------
-
   async listEvents(query: ListEventsQuery, actor: Actor): Promise<Page<EventView>> {
     const ids = this.visibleIds(actor, ['events:read'], 'events');
     return this.pageWithThumbnails(await this.repo.listEvents(actor.orgId, query, ids));
@@ -915,6 +913,17 @@ export class ContentService
     this.require(actor, 'events:read', id);
     const event = await this.repo.findEventById(actor.orgId, id);
     return event ? this.withThumbnail(event) : null;
+  }
+
+  async findEvents(ids: string[], actor: Actor): Promise<EventView[]> {
+    for (const id of ids) {
+      this.require(actor, 'events:read', id);
+    }
+    if (ids.length === 0) {
+      return [];
+    }
+    const found = await this.repo.findEventsByIds(actor.orgId, ids);
+    return found.map((event) => this.withThumbnail(event));
   }
 
   async createEvent(input: CreateEventInput, actor: Actor): Promise<EventView> {
@@ -1124,8 +1133,6 @@ export class ContentService
     }
   }
 
-  // --- event asset links ---------------------------------------------------
-
   async listEventAssets(eventId: string, actor: Actor): Promise<EventFile[]> {
     this.require(actor, 'events:read', eventId);
     const orgId = actor.orgId;
@@ -1133,6 +1140,24 @@ export class ContentService
       throw new NotFoundError('Event', eventId);
     }
     return this.eventFiles(orgId, await this.repo.listEventAssets(orgId, eventId));
+  }
+
+  async eventFilesFor(eventIds: string[], actor: Actor): Promise<Record<string, EventFile[]>> {
+    for (const id of eventIds) {
+      this.require(actor, 'events:read', id);
+    }
+    const byEvent: Record<string, EventFile[]> = Object.fromEntries(eventIds.map((id) => [id, []]));
+    if (eventIds.length === 0) {
+      return byEvent;
+    }
+    const files = await this.eventFiles(
+      actor.orgId,
+      await this.repo.listEventAssetsFor(actor.orgId, eventIds),
+    );
+    for (const file of files) {
+      byEvent[file.eventId]?.push(file);
+    }
+    return byEvent;
   }
 
   async addEventAsset(

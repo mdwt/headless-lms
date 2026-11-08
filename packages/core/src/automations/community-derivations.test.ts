@@ -552,7 +552,6 @@ describe('executeAction grant and schedule', () => {
       contentId: 'cmy_1',
       bundleId: null,
       expiresAt: new Date('2026-01-09T00:00:00.000Z'),
-      source: 'automation',
     });
   });
 });

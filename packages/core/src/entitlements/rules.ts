@@ -20,10 +20,3 @@ export function seesSpace(
 ): boolean {
   return everySpace || accessRule !== 'by_invite' || (status !== undefined && status !== 'revoked');
 }
-
-export function laterExpiry(a: Date | null, b: Date | null): Date | null {
-  if (a === null || b === null) {
-    return null;
-  }
-  return a.getTime() >= b.getTime() ? a : b;
-}

@@ -90,6 +90,7 @@ const ATTENDEES: EventAttendeeRow[] = [
 type World = {
   event?: EventView | null;
   attending?: string[];
+  direct?: string[];
   attendees?: EventAttendeeRow[];
   ids?: string[];
 };
@@ -106,6 +107,14 @@ function build(world: World = {}) {
       total: attendees.length,
       ...page,
     })),
+    eventFaces: vi.fn(async (_o: string, ids: string[], limit: number) =>
+      Object.fromEntries(
+        ids.map((id) => [id, { total: attendees.length, rows: attendees.slice(0, limit) }]),
+      ),
+    ),
+    directEventGrants: vi.fn(async (_o: string, orgUserId: string, ids: string[]) =>
+      (world.direct ?? world.attending ?? ['ou_james']).includes(orgUserId) ? ids : [],
+    ),
     events: vi.fn(async (_o: string, query) => ({
       rows: world.ids ?? ['evn_1'],
       total: (world.ids ?? ['evn_1']).length,
@@ -115,7 +124,10 @@ function build(world: World = {}) {
   };
   const content = {
     findEvent: vi.fn(async (id: string) => (event && id === event.id ? event : null)),
-    listEventAssets: vi.fn(async () => [FILE]),
+    findEvents: vi.fn(async (ids: string[]) => (event && ids.includes(event.id) ? [event] : [])),
+    eventFilesFor: vi.fn(async (ids: string[]) =>
+      Object.fromEntries(ids.map((id) => [id, id === 'evn_1' ? [FILE] : []])),
+    ),
   } as unknown as ContentServicePort;
   const signFile = vi.fn(async (_orgId: string, assetId: string) => `https://signed/${assetId}`);
   const svc = new MemberReportServiceImpl({
@@ -127,6 +139,8 @@ function build(world: World = {}) {
     access: {
       hasAccess: async (_o: string, orgUserId: string) =>
         (world.attending ?? ['ou_james']).includes(orgUserId),
+      listAccessibleContent: async (_o: string, orgUserId: string) =>
+        (world.attending ?? ['ou_james']).includes(orgUserId) ? ['evn_1'] : [],
     } as never,
     people: {
       systemActor: () => SYSTEM,
@@ -199,7 +213,7 @@ describe('the member event read', () => {
     expect(read.files).toEqual([]);
     expect(read.recording).toBeNull();
     expect(read.viewer.canOpen).toBe(false);
-    expect(content.listEventAssets).not.toHaveBeenCalled();
+    expect(content.eventFilesFor).not.toHaveBeenCalled();
   });
 
   it('answers 404 to a member for a private event, a draft or a canceled event they do not attend', async () => {
@@ -226,7 +240,7 @@ describe('the member event read', () => {
   it('counts the attendees, shows their faces and the places left', async () => {
     const { svc, repo } = build();
     const read = await svc.getEvent('evn_1', emma);
-    expect(repo.eventAttendees).toHaveBeenCalledWith(ORG, 'evn_1', { page: 1, pageSize: 10 });
+    expect(repo.eventFaces).toHaveBeenCalledWith(ORG, ['evn_1'], 10);
     expect(read.attendeeCount).toBe(2);
     expect(read.attendees).toEqual([
       {
@@ -251,11 +265,28 @@ describe('the viewer flags', () => {
       attending: false,
       canRegister: true,
       canOpen: false,
+      canLeave: false,
       canManageAttendees: false,
+      canAddAttendees: false,
       canEdit: false,
       canCancel: false,
       canDelete: false,
     });
+  });
+
+  it('lets an attendee leave only through a direct grant', async () => {
+    const direct = await build().svc.getEvent('evn_1', james);
+    expect(direct.viewer).toMatchObject({ attending: true, canLeave: true });
+    const bundled = await build({ direct: [] }).svc.getEvent('evn_1', james);
+    expect(bundled.viewer).toMatchObject({ attending: true, canLeave: false });
+  });
+
+  it('lets attendee managers add people only while the event is published and not over', async () => {
+    expect((await build().svc.getEvent('evn_1', tom)).viewer.canAddAttendees).toBe(true);
+    const over = await build({ event: ended() }).svc.getEvent('evn_1', tom);
+    expect(over.viewer).toMatchObject({ canManageAttendees: true, canAddAttendees: false });
+    const draft = await build({ event: { ...EVENT, status: 'draft' } }).svc.getEvent('evn_1', tom);
+    expect(draft.viewer.canAddAttendees).toBe(false);
   });
 
   it('marks an attendee attending, who cannot register again', async () => {
@@ -329,8 +360,22 @@ describe('the member event list', () => {
   it('redacts each listed event as the single read does', async () => {
     const { svc } = build();
     const [row] = (await svc.listEvents({ page: 1, pageSize: 20 }, emma)).rows;
+    expect(row).not.toHaveProperty('description');
+    expect(row).not.toHaveProperty('files');
     expect(row?.location).toBeNull();
     expect(row?.viewer.canRegister).toBe(true);
+  });
+
+  it('reads a whole page with one call per kind of data, however many events it holds', async () => {
+    const ids = Array.from({ length: 50 }, (_, i) => `evn_${i + 1}`);
+    const { svc, repo, content } = build({ ids });
+    await svc.listEvents({ page: 1, pageSize: 50 }, tom);
+    expect(content.findEvents).toHaveBeenCalledTimes(1);
+    expect(content.findEvents).toHaveBeenCalledWith(ids, SYSTEM);
+    expect(repo.eventFaces).toHaveBeenCalledTimes(1);
+    expect(content.eventFilesFor).not.toHaveBeenCalled();
+    expect(content.findEvent).not.toHaveBeenCalled();
+    expect(repo.eventAttendees).not.toHaveBeenCalled();
   });
 });
 

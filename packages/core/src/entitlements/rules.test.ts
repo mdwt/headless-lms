@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { laterExpiry, opensSpace, seesSpace } from './rules.js';
+import { opensSpace, seesSpace } from './rules.js';
 
 describe('opensSpace', () => {
   it('ignores space-member rows in an all-members space', () => {
@@ -25,19 +25,5 @@ describe('seesSpace', () => {
     expect(seesSpace(false, 'by_invite', 'invited')).toBe(true);
     expect(seesSpace(true, 'by_invite', undefined)).toBe(true);
     expect(seesSpace(false, 'by_request', undefined)).toBe(true);
-  });
-});
-
-describe('laterExpiry', () => {
-  it('treats a lifetime grant as later than any date', () => {
-    const date = new Date('2026-01-01T00:00:00Z');
-    expect(laterExpiry(null, date)).toBeNull();
-    expect(laterExpiry(date, null)).toBeNull();
-    expect(laterExpiry(date, new Date('2027-01-01T00:00:00Z'))).toEqual(
-      new Date('2027-01-01T00:00:00Z'),
-    );
-    expect(laterExpiry(new Date('2027-01-01T00:00:00Z'), date)).toEqual(
-      new Date('2027-01-01T00:00:00Z'),
-    );
   });
 });

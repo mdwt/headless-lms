@@ -3,10 +3,9 @@ import type { EntitlementsService } from './ports.js';
 
 export const entitlementsDeclarations = {
   list: requires('access:read', 'progress:read'),
-  grant: requires('access:write', 'events:write'),
-  ensureGrant: requires('access:write'),
+  grant: 'member',
   setStatus: requires('access:write'),
-  revoke: requires('access:write', 'events:write'),
+  revoke: 'member',
   hasAccess: 'system',
   listAccessibleContent: 'system',
   holdsAnyGrant: 'system',

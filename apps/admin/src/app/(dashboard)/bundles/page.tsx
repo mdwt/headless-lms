@@ -19,7 +19,7 @@ export default async function BundlesPage({
 
   const [{ rows, total }, content] = await Promise.all([
     serverApi.listBundles(params),
-    permissions.has("bundles:write") ? serverApi.contentLite() : Promise.resolve([]),
+    permissions.has("bundles:write") ? serverApi.contentLite(permissions) : Promise.resolve([]),
   ]);
 
   // A bundle's contents are single items — bundles can't contain bundles.

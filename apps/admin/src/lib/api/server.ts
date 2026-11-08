@@ -174,15 +174,6 @@ async function composeEntitlements(
 
 type Headers = Awaited<ReturnType<typeof authHeaders>>;
 
-async function eventsLite(headers: Headers): Promise<{ id: string; title: string }[]> {
-  try {
-    const page = await Events.listEvents({ pageSize: 100, sort: "title" }, headers);
-    return page.rows;
-  } catch {
-    return [];
-  }
-}
-
 function eventRange(filter: string | undefined): { from?: string; to?: string } {
   const now = new Date().toISOString();
   if (filter === "upcoming") return { from: now };
@@ -275,22 +266,25 @@ export const serverApi = {
   // Every grantable target offered by the entitlements grant pickers, tagged
   // with its type so the UI can group them. Bundles lead the list and carry
   // their item titles so the picker can show what a bundle contains.
-  async contentLite(): Promise<
+  async contentLite(
+    permissions: Permissions,
+  ): Promise<
     (
       | { id: string; title: string; type: ContentType }
       | { id: string; title: string; type: "bundle"; itemTitles: string[] }
     )[]
   > {
     const headers = await authHeaders();
-    const [coursesPage, downloadsPage, communitiesPage, eventRows, bundlesPage] = await Promise.all(
-      [
+    const [coursesPage, downloadsPage, communitiesPage, eventsPage, bundlesPage] =
+      await Promise.all([
         Content.listCourses({ pageSize: 100, sort: "title" }, headers),
         Content.listDownloads({ pageSize: 100, sort: "title" }, headers),
         Communities.listCommunities({ pageSize: 100, sort: "title" }, headers),
-        eventsLite(headers),
+        permissions.anywhere("events:read")
+          ? Events.listEvents({ pageSize: 100, sort: "title" }, headers)
+          : Promise.resolve({ rows: [] as { id: string; title: string }[] }),
         Content.listBundles({ pageSize: 100, sort: "name" }, headers),
-      ],
-    );
+      ]);
     const bundleItems = await Promise.all(
       bundlesPage.rows.map((b) => Content.listBundleItems({ bundleId: b.id }, headers)),
     );
@@ -298,7 +292,7 @@ export const serverApi = {
       ...coursesPage.rows.map((c) => [c.id, c.title] as const),
       ...downloadsPage.rows.map((d) => [d.id, d.title] as const),
       ...communitiesPage.rows.map((c) => [c.id, c.title] as const),
-      ...eventRows.map((e) => [e.id, e.title] as const),
+      ...eventsPage.rows.map((e) => [e.id, e.title] as const),
     ]);
     const byTitle = (a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title);
     const bundles = bundlesPage.rows
@@ -318,7 +312,7 @@ export const serverApi = {
     const communities = communitiesPage.rows
       .map((c) => ({ id: c.id, title: c.title, type: "community" as const }))
       .sort(byTitle);
-    const events = eventRows
+    const events = eventsPage.rows
       .map((e) => ({ id: e.id, title: e.title, type: "event" as const }))
       .sort(byTitle);
     return [...bundles, ...courses, ...downloads, ...communities, ...events];

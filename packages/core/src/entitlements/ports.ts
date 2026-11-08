@@ -4,6 +4,7 @@ import type {
   Entitlement,
   EntitlementsQuery,
   GrantEntitlementInput,
+  GrantSource,
   Page,
   SpaceMember,
   SpaceMemberSource,
@@ -68,7 +69,7 @@ export interface PermissionHolders {
   systemActor(orgId: string): Actor;
 }
 
-export interface SpaceReader {
+export interface ContentReader {
   getSpace(spaceId: string, actor: Actor): Promise<Space | null>;
   listSpaces(communityId: string, actor: Actor): Promise<Space[]>;
   getEvent(eventId: string, actor: Actor): Promise<Event>;
@@ -98,6 +99,10 @@ export interface SpaceMembersQuery {
   excluding?: string[];
 }
 
+export type InsertGrantInput = Omit<GrantEntitlementInput, 'contentType'> & {
+  source: GrantSource;
+};
+
 export interface InsertSpaceMemberInput {
   communityId: string;
   spaceId: string;
@@ -110,7 +115,6 @@ export interface InsertSpaceMemberInput {
 export interface EntitlementsService extends CommunityAccessReader {
   list(query: EntitlementsQuery, actor: Actor): Promise<Page<Entitlement>>;
   grant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
-  ensureGrant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
   setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement>;
   revoke(input: RevokeGrantInput, actor: Actor): Promise<Entitlement>;
   /** Whether this org user can open the content right now, through a grant to
@@ -177,10 +181,8 @@ export interface EntitlementsService extends CommunityAccessReader {
 // Outbound port (persistence contract the repository fulfils).
 export interface EntitlementsRepository {
   list(orgId: string, query: EntitlementsQuery): Promise<Page<Entitlement>>;
-  insert(orgId: string, input: GrantEntitlementInput): Promise<Entitlement>;
-  insertIfAbsent(orgId: string, input: GrantEntitlementInput): Promise<Entitlement | null>;
+  insert(orgId: string, input: InsertGrantInput): Promise<Entitlement>;
   lockGrant(orgId: string, key: GrantKey): Promise<Entitlement | null>;
-  setExpiresAt(orgId: string, id: string, expiresAt: Date | null): Promise<Entitlement | null>;
   setStatus(orgId: string, id: string, status: 'active' | 'revoked'): Promise<Entitlement | null>;
   hasAccess(orgId: string, orgUserId: string, contentId: string): Promise<boolean>;
   listAccessibleContent(orgId: string, orgUserId: string, type?: ContentType): Promise<string[]>;

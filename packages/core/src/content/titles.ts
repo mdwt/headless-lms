@@ -1,6 +1,7 @@
 import type { Actor } from '../shared/actor.js';
 import type { Activity, SubjectRef } from '../types/index.js';
 import type { ContentService, ItemTitle, ItemTitleAccess, ItemTitles } from './ports.js';
+import { eventSight } from './event-sight.js';
 
 export function activityTitle(activity: Pick<Activity, 'settings'>): string {
   const title = (activity.settings as { title?: unknown } | null)?.title;
@@ -85,12 +86,14 @@ export class ContentItemTitles implements ItemTitles {
         if (!event) {
           return null;
         }
-        return can.has('events:read', event.id) ||
-          (event.status === 'published' && event.settings.type === 'public') ||
-          (event.status !== 'draft' &&
-            (await this.deps.access.hasAccess(actor.orgId, actor.id, event.id)))
-          ? event.title
-          : null;
+        const canRead = can.has('events:read', event.id);
+        const seen =
+          eventSight(event, { canRead, attending: false }) ??
+          eventSight(event, {
+            canRead,
+            attending: await this.deps.access.hasAccess(actor.orgId, actor.id, event.id),
+          });
+        return seen ? event.title : null;
       }
       case 'bundle': {
         const bundle = await this.deps.content.findBundle(ref.id, system);

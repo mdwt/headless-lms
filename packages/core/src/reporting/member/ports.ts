@@ -15,6 +15,7 @@ import type {
   EventAttendeeRow,
   EventReader,
   MemberEvent,
+  MemberEventSummary,
   MemberEventsQuery,
   MemberViewer,
   Module,
@@ -26,6 +27,7 @@ import type {
 } from './model.js';
 import type { NotificationFilter } from '../../types/index.js';
 import type { MemberActor } from '../../identity/index.js';
+import type { EventFaces } from '../events/index.js';
 
 export interface MemberReportService {
   /** Who the caller is in the org, and the permissions they hold. */
@@ -47,19 +49,14 @@ export interface MemberReportService {
     id: string,
     actor: Actor,
   ): Promise<string>;
-  /** The event as the caller may see it, with their viewer flags. */
   getEvent(eventId: string, actor: Actor): Promise<MemberEvent>;
-  /** The published and canceled events the caller can read. */
-  listEvents(query: MemberEventsQuery, actor: Actor): Promise<Page<MemberEvent>>;
-  /** The event as an iCalendar file. */
+  listEvents(query: MemberEventsQuery, actor: Actor): Promise<Page<MemberEventSummary>>;
   eventCalendar(eventId: string, actor: Actor): Promise<string>;
-  /** The people attending the event, for a holder of `events:read` on it. */
   eventAttendees(
     eventId: string,
     query: { page: number; pageSize: number },
     actor: Actor,
   ): Promise<Page<EventAttendee>>;
-  /** Signed download URL of a file attached to an event the caller can open. */
   eventFile(eventId: string, assetId: string, actor: Actor): Promise<string>;
   /** Signed URL of an asset the activity links, for a person who can open its course. */
   activityFile(activityId: string, assetId: string, actor: Actor): Promise<string>;
@@ -103,13 +100,13 @@ export interface MemberReportRepository {
     excluding: string[],
   ): Promise<Record<string, number>>;
   people(orgId: string, orgUserIds: string[]): Promise<DirectoryRow[]>;
-  /** The people attending an event, directly or through a bundle, by grant date. */
   eventAttendees(
     orgId: string,
     eventId: string,
     page: { page: number; pageSize: number },
   ): Promise<Page<EventAttendeeRow>>;
-  /** Ids of the published and canceled events the reader can read, in the query's order. */
+  eventFaces(orgId: string, eventIds: string[], limit: number): Promise<Record<string, EventFaces>>;
+  directEventGrants(orgId: string, orgUserId: string, eventIds: string[]): Promise<string[]>;
   events(
     orgId: string,
     query: MemberEventsQuery,

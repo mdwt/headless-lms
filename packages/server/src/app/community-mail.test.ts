@@ -31,7 +31,7 @@ function deps(over: Partial<CommunityMailDeps> = {}): CommunityMailDeps {
       spaceOpeners: reject,
       countActiveSpaceMembers: reject,
       communityIdsOpenedFor: reject,
-      ensureGrant: reject,
+      grant: reject,
     },
     organizations: {
       getById: reject,
@@ -195,14 +195,14 @@ describe('communityMail', () => {
     expect(itemSubscriptions).toHaveBeenCalledWith('org_1', { type: 'chat', id: 'cht_1' });
   });
 
-  it('grants through the idempotent grant', async () => {
-    const ensureGrant = vi.fn(async () => ({}) as never);
-    const { grants } = communityMail(deps({ entitlements: entitlements({ ensureGrant }) }));
+  it('grants through the one grant, as the system actor', async () => {
+    const grant = vi.fn(async () => ({}) as never);
+    const { grants } = communityMail(deps({ entitlements: entitlements({ grant }) }));
     const input = { orgUserId: 'ou_sarah', contentId: 'cmy_1', expiresAt: null };
 
     await grants.grant('org_1', input);
 
-    expect(ensureGrant).toHaveBeenCalledWith(input, SYSTEM);
+    expect(grant).toHaveBeenCalledWith(input, SYSTEM);
   });
 
   it('reads content titles as the system actor', async () => {

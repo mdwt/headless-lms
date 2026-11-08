@@ -1,5 +1,5 @@
 // identity context — public surface.
-export { IdentityServiceImpl } from './service.js';
+export { IdentityServiceImpl, UNNAMED_MEMBER } from './service.js';
 export { NotificationSettingsServiceImpl } from './notification-settings.js';
 export { DevicesServiceImpl } from './devices.js';
 export { identityEvents } from './events.js';
