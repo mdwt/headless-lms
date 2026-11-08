@@ -2364,8 +2364,23 @@ describe('event assets', () => {
     ]);
   });
 
+  it('answers 404 for a file on an event that does not exist, before checking the file', async () => {
+    const repo = makeRepo();
+    const { svc } = build(
+      repo,
+      library(() => false, null),
+    );
+
+    await expect(svc.addEventAsset('evn_1', { assetId: 'a1' }, tom)).rejects.toThrow(NotFoundError);
+    await expect(svc.updateEvent('evn_1', { thumbnailAssetId: 'a1' }, tom)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect(repo.addEventAsset).not.toHaveBeenCalled();
+  });
+
   it('adds a file uploaded for the event, and refuses another without media:read', async () => {
     const repo = makeRepo();
+    vi.mocked(repo.findEventById).mockResolvedValue(makeEvent());
     vi.mocked(repo.addEventAsset).mockResolvedValue([makeEventAsset()]);
     const { svc } = build(
       repo,

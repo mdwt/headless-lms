@@ -306,7 +306,10 @@ export class ContentService
       this.repo.findEventById(orgId, eventId),
       this.repo.listEventAssets(orgId, eventId),
     ]);
-    return [event?.thumbnailAssetId ?? null, ...links.map((link) => link.assetId)];
+    if (!event) {
+      throw new NotFoundError('Event', eventId);
+    }
+    return [event.thumbnailAssetId, ...links.map((link) => link.assetId)];
   }
 
   async listCourses(query: ListCoursesQuery, actor: Actor): Promise<Page<CourseView>> {

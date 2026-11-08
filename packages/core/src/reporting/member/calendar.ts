@@ -23,18 +23,21 @@ function octets(value: string): number {
 
 function fold(line: string): string {
   const parts: string[] = [];
-  let rest = line;
+  let part = '';
+  let size = 0;
   let width = 75;
-  while (octets(rest) > width) {
-    let cut = width;
-    while (octets(rest.slice(0, cut)) > width) {
-      cut -= 1;
+  for (const char of line) {
+    const length = octets(char);
+    if (size + length > width) {
+      parts.push(part);
+      part = '';
+      size = 0;
+      width = 74;
     }
-    parts.push(rest.slice(0, cut));
-    rest = rest.slice(cut);
-    width = 74;
+    part += char;
+    size += length;
   }
-  parts.push(rest);
+  parts.push(part);
   return parts.join('\r\n ');
 }
 

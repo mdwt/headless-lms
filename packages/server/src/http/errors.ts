@@ -78,7 +78,11 @@ type IssueParams = {
 function describeIssue(keyword: string | undefined, params: IssueParams, fallback: string): string {
   switch (keyword) {
     case 'invalid_type':
-      if (params.received === 'undefined' || params.received === 'null') {
+      if (
+        params.received === 'undefined' ||
+        params.received === 'null' ||
+        /received (undefined|null)$/.test(fallback)
+      ) {
         return 'is required';
       }
       return params.expected ? `must be ${withArticle(params.expected)}` : fallback;
@@ -101,7 +105,9 @@ function describeIssue(keyword: string | undefined, params: IssueParams, fallbac
     case 'invalid_value':
       return `must be one of ${(params.values ?? []).map((value) => JSON.stringify(value)).join(', ')}`;
     case 'invalid_format':
-      return params.format ? `must be a valid ${params.format.replace(/_/g, ' ')}` : fallback;
+      return params.format && params.format !== 'regex'
+        ? `must be a valid ${params.format.replace(/_/g, ' ')}`
+        : fallback;
     case 'invalid_union':
       return 'is not in an accepted shape';
     default:

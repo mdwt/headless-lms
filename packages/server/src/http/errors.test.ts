@@ -55,6 +55,38 @@ describe('classifyError', () => {
       ],
     });
   });
+  it('says a missing field is required and keeps a pattern’s own message', () => {
+    const issue = (instancePath: string, keyword: string, message: string, params: object) => ({
+      [Symbol.for('ZodFastifySchemaValidationError')]: true,
+      keyword,
+      instancePath,
+      schemaPath: `#${instancePath}/${keyword}`,
+      message,
+      params,
+    });
+    const error = Object.assign(new Error('invalid'), {
+      validationContext: 'body',
+      validation: [
+        issue('/title', 'invalid_type', 'Invalid input: expected string, received undefined', {
+          expected: 'string',
+        }),
+        issue('/country', 'invalid_format', 'must be an ISO 3166-1 alpha-2 code', {
+          format: 'regex',
+          pattern: '/^[A-Z]{2}$/',
+        }),
+        issue('/url', 'invalid_format', 'Invalid URL', { format: 'url' }),
+        issue('/capacity', 'invalid_type', 'Invalid input: expected number, received string', {
+          expected: 'number',
+        }),
+      ],
+    });
+    expect(classifyError(error)?.issues).toEqual([
+      { path: 'body.title', message: 'is required' },
+      { path: 'body.country', message: 'must be an ISO 3166-1 alpha-2 code' },
+      { path: 'body.url', message: 'must be a valid url' },
+      { path: 'body.capacity', message: 'must be a number' },
+    ]);
+  });
   it('answers other 4xx errors without echoing their message', () => {
     expect(
       classifyError(Object.assign(new Error('bad'), { statusCode: 400, code: 'FST_ERR' })),

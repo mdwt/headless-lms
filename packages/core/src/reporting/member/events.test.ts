@@ -407,6 +407,18 @@ describe('eventCalendar', () => {
     }
     expect(ics).toContain('\r\n x');
   });
+
+  it('folds between characters, never inside one', () => {
+    const title = `${'🎉'.repeat(25)} Café ${'漢字'.repeat(10)}`;
+    const ics = eventCalendar({ ...EVENT, title }, { pageUrl, withLocation: false, now });
+    for (const line of ics.split('\r\n')) {
+      expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+      expect(line).not.toMatch(
+        /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/,
+      );
+    }
+    expect(ics.replace(/\r\n /g, '')).toContain(`SUMMARY:${title}\r\n`);
+  });
 });
 
 describe('event files and the cover', () => {
