@@ -14,6 +14,7 @@ export const identityDeclarations = {
   profileOf: 'member',
   displayName: 'system',
   updateProfile: 'member',
+  withdrawOrgPhoto: 'system',
 } as const satisfies Declarations<IdentityService>;
 
 export const devicesDeclarations = {

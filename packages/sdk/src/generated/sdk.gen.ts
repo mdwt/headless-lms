@@ -256,7 +256,6 @@ import type {
   GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
   GetOverviewResponses,
-  GetPersonImageErrors,
   GetPostAssetErrors,
   GetPostCoverErrors,
   GetPostErrors,
@@ -10161,7 +10160,7 @@ export class Files {
   /**
    * Redirect to a course's thumbnail
    *
-   * Any org user may fetch the thumbnail of a published course; a holder of `courses:read` on it may fetch it unpublished. 404 when the course has no thumbnail.
+   * For an unpublished course, which only a holder of `courses:read` on it may fetch: a published course carries a public `thumbnailUrl` instead. 404 when the course has no thumbnail.
    */
   public static getCourseThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -10183,7 +10182,7 @@ export class Files {
   /**
    * Redirect to an event's cover
    *
-   * Anyone the event read returns the event to may fetch its cover. 404 when it returns 404 or the event has no cover.
+   * For a draft event, which only a holder of `events:read` on it may fetch: a published or canceled event carries a public `thumbnailUrl` instead. 404 when the event read returns 404 or the event has no cover.
    */
   public static getEventThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -10203,7 +10202,7 @@ export class Files {
   /**
    * Redirect to a download's thumbnail
    *
-   * Any org user may fetch the thumbnail of a published download; a holder of `downloads:read` on it may fetch it unpublished. 404 when the download has no thumbnail.
+   * For an unpublished download, which only a holder of `downloads:read` on it may fetch: a published download carries a public `thumbnailUrl` instead. 404 when the download has no thumbnail.
    */
   public static getDownloadThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -10228,7 +10227,7 @@ export class Files {
   /**
    * Redirect to a community's thumbnail
    *
-   * Any org user may fetch the thumbnail of a published community; a holder of `communities:read` on it may fetch it unpublished. 404 when the community has no thumbnail.
+   * For an unpublished community, which only a holder of `communities:read` on it may fetch: a published community carries a public `thumbnailUrl` instead. 404 when the community has no thumbnail.
    */
   public static getCommunityThumbnail<ThrowOnError extends boolean = false>(
     parameters: {
@@ -10318,7 +10317,7 @@ export class Files {
   /**
    * Redirect to a post's cover image
    *
-   * Served to whoever can read the post. 404 when the post has no cover.
+   * For a post that is not published, served to whoever can read it: a published post carries a public `coverUrl` instead. 404 when the post has no cover.
    */
   public static getPostCover<ThrowOnError extends boolean = false>(
     parameters: {
@@ -10399,26 +10398,6 @@ export class Files {
     >({
       responseStyle: "data",
       url: "/api/member/chats/{chatId}/messages/{messageId}/attachments/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to an org user's profile photo
-   *
-   * Served to org users of the same organization when the photo belongs to it. 404 when the person has no photo here.
-   */
-  public static getPersonImage<ThrowOnError extends boolean = false>(
-    parameters: {
-      orgUserId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetPersonImageErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
-    return (options?.client ?? client).get<unknown, GetPersonImageErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/people/{orgUserId}/image",
       ...options,
       ...params,
     });

@@ -186,4 +186,8 @@ export class IdentityServiceImpl implements IdentityService {
     }
     return this.view(orgId, orgUserId, profile);
   }
+
+  async withdrawOrgPhoto(orgId: string, orgUserId: string): Promise<void> {
+    await this.images.syncPublicImage(orgId, orgUserId, null);
+  }
 }

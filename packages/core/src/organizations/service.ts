@@ -1428,6 +1428,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         () => this.apiKeys().revokeAllFor(orgExternalId, userExternalId),
       ]);
     }
+    steps.push(['profile photo', () => this.people.withdrawOrgPhoto(orgId, orgUserId)]);
     if (person) {
       steps.push([
         'pending invite',

@@ -68096,7 +68096,7 @@
         "tags": [
           "Files"
         ],
-        "description": "Any org user may fetch the thumbnail of a published course; a holder of `courses:read` on it may fetch it unpublished. 404 when the course has no thumbnail.",
+        "description": "For an unpublished course, which only a holder of `courses:read` on it may fetch: a published course carries a public `thumbnailUrl` instead. 404 when the course has no thumbnail.",
         "parameters": [
           {
             "schema": {
@@ -68271,7 +68271,7 @@
         "tags": [
           "Files"
         ],
-        "description": "Anyone the event read returns the event to may fetch its cover. 404 when it returns 404 or the event has no cover.",
+        "description": "For a draft event, which only a holder of `events:read` on it may fetch: a published or canceled event carries a public `thumbnailUrl` instead. 404 when the event read returns 404 or the event has no cover.",
         "parameters": [
           {
             "schema": {
@@ -68446,7 +68446,7 @@
         "tags": [
           "Files"
         ],
-        "description": "Any org user may fetch the thumbnail of a published download; a holder of `downloads:read` on it may fetch it unpublished. 404 when the download has no thumbnail.",
+        "description": "For an unpublished download, which only a holder of `downloads:read` on it may fetch: a published download carries a public `thumbnailUrl` instead. 404 when the download has no thumbnail.",
         "parameters": [
           {
             "schema": {
@@ -68621,7 +68621,7 @@
         "tags": [
           "Files"
         ],
-        "description": "Any org user may fetch the thumbnail of a published community; a holder of `communities:read` on it may fetch it unpublished. 404 when the community has no thumbnail.",
+        "description": "For an unpublished community, which only a holder of `communities:read` on it may fetch: a published community carries a public `thumbnailUrl` instead. 404 when the community has no thumbnail.",
         "parameters": [
           {
             "schema": {
@@ -69162,7 +69162,7 @@
         "tags": [
           "Files"
         ],
-        "description": "Served to whoever can read the post. 404 when the post has no cover.",
+        "description": "For a post that is not published, served to whoever can read it: a published post carries a public `coverUrl` instead. 404 when the post has no cover.",
         "parameters": [
           {
             "schema": {
@@ -69544,181 +69544,6 @@
             },
             "in": "path",
             "name": "assetId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "issues": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "description": "Where in the request, such as `body.topics[1].name`"
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/member/people/{orgUserId}/image": {
-      "get": {
-        "operationId": "getPersonImage",
-        "summary": "Redirect to an org user's profile photo",
-        "tags": [
-          "Files"
-        ],
-        "description": "Served to org users of the same organization when the photo belongs to it. 404 when the person has no photo here.",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "orgUserId",
             "required": true
           }
         ],

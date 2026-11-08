@@ -22809,67 +22809,6 @@ export type GetMessageAttachmentErrors = {
 export type GetMessageAttachmentError =
   GetMessageAttachmentErrors[keyof GetMessageAttachmentErrors];
 
-export type GetPersonImageData = {
-  body?: never;
-  path: {
-    orgUserId: string;
-  };
-  query?: never;
-  url: "/api/member/people/{orgUserId}/image";
-};
-
-export type GetPersonImageErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type GetPersonImageError = GetPersonImageErrors[keyof GetPersonImageErrors];
-
 export type GetMemberUploadFileData = {
   body?: never;
   path: {
