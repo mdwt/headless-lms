@@ -42,6 +42,7 @@ import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js'
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type { IdentityService } from '../identity/index.js';
+import type { AssetFiles } from '../assets/index.js';
 import { genId, prefixId } from '../shared/id.js';
 import { levelSchema } from '../types/schemas/organizations.js';
 import type {
@@ -97,6 +98,7 @@ export type OrganizationServiceParams = {
   roles: RolesRepository;
   membersRepo: MembersRepository;
   people: IdentityService;
+  images: Pick<AssetFiles, 'syncPublicImage'>;
   uow: OrganizationsUnitOfWork;
   orgAdmin: () => OrgAdmin;
   apiKeys?: () => ApiKeys;
@@ -135,6 +137,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly roles: RolesRepository;
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
+  private readonly images: Pick<AssetFiles, 'syncPublicImage'>;
   private readonly uow: OrganizationsUnitOfWork;
   private readonly orgAdmin: () => OrgAdmin;
   private readonly apiKeysPort?: () => ApiKeys;
@@ -149,6 +152,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.roles = params.roles;
     this.membersRepo = params.membersRepo;
     this.people = params.people;
+    this.images = params.images;
     this.uow = params.uow;
     this.orgAdmin = params.orgAdmin;
     this.apiKeysPort = params.apiKeys;
@@ -1428,7 +1432,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         () => this.apiKeys().revokeAllFor(orgExternalId, userExternalId),
       ]);
     }
-    steps.push(['profile photo', () => this.people.withdrawOrgPhoto(orgId, orgUserId)]);
+    steps.push(['profile photo', () => this.images.syncPublicImage(orgId, orgUserId, null)]);
     if (person) {
       steps.push([
         'pending invite',

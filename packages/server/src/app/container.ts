@@ -401,6 +401,7 @@ export async function buildContainer(
     },
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
+    images: assets,
     uow: organizationsUow,
     orgAdmin: () => {
       if (!orgAdminRef.current) {

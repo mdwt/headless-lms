@@ -65,7 +65,6 @@ export interface IdentityService extends UserProvisioner, UserResolver, UserEdit
   profileOf(actor: MemberActor): Promise<UserProfileView>;
   displayName(userId: string | null): Promise<string>;
   updateProfile(patch: UpdateProfileInput, actor: MemberActor): Promise<UserProfileView>;
-  withdrawOrgPhoto(orgId: string, orgUserId: string): Promise<void>;
 }
 
 // Outbound port (persistence contract the repository fulfils).

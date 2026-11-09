@@ -360,7 +360,6 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
 
   const identity = {
     getUserById: async (id: string) => people.get(id) ?? null,
-    withdrawOrgPhoto: vi.fn(async () => {}),
     getUserByExternalId: async (id: string) =>
       [...people.values()].find((p) => p.externalId === id) ?? null,
     getUserByEmail: async (email: string) =>
@@ -439,11 +438,13 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     },
   });
   const send = vi.fn(async () => {});
+  const images = { syncPublicImage: vi.fn(async () => {}) };
   const service = new OrganizationServiceImpl({
     repo,
     roles,
     membersRepo,
     people: guardedPeople,
+    images,
     uow,
     orgAdmin: () => orgAdmin,
     apiKeys: () => apiKeys,
@@ -495,7 +496,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     invites,
     orgUsers,
     people,
-    identity,
+    images,
     events,
     orgAdmin,
     apiKeys,
@@ -815,7 +816,7 @@ describe('removePerson', () => {
     expect(w.orgUsers.has(s.oliver.orgUser.id)).toBe(false);
     expect(w.orgAdmin.removeMembership).toHaveBeenCalledWith(ORG, 'ba_oliver');
     expect(w.apiKeys.revokeAllFor).toHaveBeenCalledWith(ORG, 'ba_oliver');
-    expect(vi.mocked(w.identity.withdrawOrgPhoto)).toHaveBeenCalledWith(ORG, s.oliver.orgUser.id);
+    expect(w.images.syncPublicImage).toHaveBeenCalledWith(ORG, s.oliver.orgUser.id, null);
   });
 
   it('refuses removing the owner, even for an Admin', async () => {
