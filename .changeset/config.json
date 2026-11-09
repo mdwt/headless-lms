@@ -18,15 +18,8 @@
     "website",
     "@headless-lms/api",
     "@headless-lms/content-plate",
-    "@headless-lms/editor",
-    "@headless-lms/plugin-slack",
     "@headless-lms/adapter-body-markdown",
-    "@headless-lms/adapter-email-resend",
-    "@headless-lms/adapter-email-ses",
-    "@headless-lms/adapter-email-templates",
     "@headless-lms/adapter-push",
-    "@headless-lms/adapter-pubsub-postgres",
-    "@headless-lms/adapter-storage-s3",
-    "@headless-lms/adapter-workflow-hatchet"
+    "@headless-lms/adapter-pubsub-postgres"
   ]
 }

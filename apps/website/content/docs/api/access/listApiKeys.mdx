@@ -23,11 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage
-        document="../../packages/sdk/openapi.json"
-        operations={[{ path: "/api/access/api-keys", method: "get" }]}
-        showDescription
-      />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/access/api-keys","method":"get"}]} showDescription />
     </>
   );
 }

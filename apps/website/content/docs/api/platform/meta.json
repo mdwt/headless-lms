@@ -1,5 +1,8 @@
 {
   "title": "Platform",
   "description": "Organizations and their API keys, created with the platform key",
-  "pages": ["createPlatformOrganization", "createPlatformApiKey"]
+  "pages": [
+    "createPlatformOrganization",
+    "createPlatformApiKey"
+  ]
 }

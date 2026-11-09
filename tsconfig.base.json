@@ -29,6 +29,7 @@
         "./adapters/defaults/src/*/index.ts",
         "./adapters/defaults/src/*.ts"
       ],
+      "@headless-lms/adapter-body-markdown": ["./adapters/body-markdown/src/index.ts"],
       "@headless-lms/adapter-email-resend": ["./adapters/email-resend/src/index.ts"],
       "@headless-lms/adapter-email-templates": ["./adapters/email-templates/src/index.tsx"],
       "@headless-lms/adapter-push": ["./adapters/push/src/index.ts"],
