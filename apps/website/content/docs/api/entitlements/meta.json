@@ -4,6 +4,6 @@
   "pages": [
     "listEntitlements",
     "grantEntitlement",
-    "setEntitlementStatus"
+    "revokeEntitlement"
   ]
 }

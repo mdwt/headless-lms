@@ -6,7 +6,7 @@ Owns access truth: the student↔content access grant, its validity, and its lif
 
 - Owns the **access grant**: a student↔content grant, its status, and its source.
 - Owns the **space member**: a person's place in one by-request or by-invite community space. Not a grant.
-- Owns granting access, listing grants, and changing a grant's status (revoke / reinstate).
+- Owns granting access, listing grants, and revoking them.
 - Owns who attends an event: an attendee is a person with an active grant to it, directly or through a bundle. Registering, adding and removing attendees, and the event's capacity check, are grants here.
 - The grant references content by its identity, or a bundle by its identity (see the content domain spec).
 - Access ≠ completion: a grant and progress move independently.
@@ -14,10 +14,9 @@ Owns access truth: the student↔content access grant, its validity, and its lif
 
 ## Capabilities
 
-- Grant access — entitle a student to a piece of content, with an optional expiry.
+- Grant access — entitle a student to a piece of content or a bundle, with an optional expiry. Granting again makes a revoked or expired grant active.
 - List grants — browse and filter entitlements by student, content, content type, status, or source.
-- Change status — revoke a grant or reinstate a revoked one.
-- Revoke a person's grant — revoke the direct grant one person holds to one content item. For an event the person may revoke their own; anyone else needs to be able to manage its attendees.
+- Revoke a person's grant — revoke the direct grant one person holds to one content item or one bundle. For an event the person may revoke their own; anyone else needs to be able to manage its attendees.
 - Register for an event — a member grants a `public` event to themselves.
 - Resolve access — answer what a student can open right now (see Access resolution).
 - Space membership — request, invite, approve, accept, decline, leave and remove a person's place in a by-request or by-invite space, and enforce that space's capacity.

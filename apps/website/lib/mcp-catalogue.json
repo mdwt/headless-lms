@@ -2046,24 +2046,30 @@
       ]
     },
     {
-      "name": "set_access_status",
-      "title": "Revoke or reinstate access",
-      "description": "Revoke an access grant, or reinstate a revoked one.",
+      "name": "revoke_access",
+      "title": "Revoke access",
+      "description": "Revoke a student's direct grant to one course, download, community or event (contentId) or to a bundle (bundleId), never both. Access through a bundle stays. grant_access makes it active again.",
       "group": "Students, access and analytics",
       "kind": "destructive",
-      "idempotent": true,
+      "idempotent": false,
       "openWorld": false,
       "fields": [
         {
-          "name": "status",
-          "type": "\"active\" | \"revoked\"",
+          "name": "orgUserId",
+          "type": "string",
           "required": true,
           "description": null
         },
         {
-          "name": "id",
-          "type": "string",
-          "required": true,
+          "name": "contentId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "bundleId",
+          "type": "string | null",
+          "required": false,
           "description": null
         }
       ]

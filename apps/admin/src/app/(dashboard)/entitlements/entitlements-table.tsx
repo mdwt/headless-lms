@@ -18,7 +18,7 @@ import {
   type LiteContent,
   type LiteStudent,
 } from "./_components/grant-access-dialog";
-import { setEntitlementStatusAction } from "./actions";
+import { grantEntitlementAction, revokeEntitlementAction } from "./actions";
 
 /** Deep-equal on the small, JSON-safe `ListParams` shape (both sides built by
  *  the same `parseListParams`, so key order is stable). */
@@ -69,7 +69,12 @@ function EntitlementsTableInner({
       startTransition(async () => {
         applyOptimistic({ id: e.id, status: "active" });
         try {
-          await setEntitlementStatusAction(e.id, "reinstate");
+          await grantEntitlementAction({
+            orgUserId: e.orgUserId,
+            contentId: e.contentId,
+            bundleId: e.bundleId,
+            expiresAt: e.expiresAt,
+          });
           toast.success("Access reinstated");
         } catch (err) {
           toast.error("Couldn't update access", { description: (err as Error).message });
@@ -85,7 +90,11 @@ function EntitlementsTableInner({
     startTransition(async () => {
       applyOptimistic({ id: target.id, status: "revoked" });
       try {
-        await setEntitlementStatusAction(target.id, "revoke");
+        await revokeEntitlementAction({
+          orgUserId: target.orgUserId,
+          contentId: target.contentId,
+          bundleId: target.bundleId,
+        });
         toast.success("Access revoked");
         setRevokeTarget(null);
       } catch (err) {

@@ -78837,14 +78837,14 @@
         }
       }
     },
-    "/api/entitlements/{id}": {
-      "patch": {
-        "operationId": "setEntitlementStatus",
-        "summary": "Revoke or reinstate an entitlement",
+    "/api/entitlements/revocation": {
+      "post": {
+        "operationId": "revokeEntitlement",
+        "summary": "Revoke a person's grant to content or a bundle",
         "tags": [
           "Entitlements"
         ],
-        "description": "Requires `access:write`. Access follows the status at once.",
+        "description": "Requires `access:write`; to revoke an event, `events:write` on it is enough, and a person may revoke their own. Name exactly one of `contentId` and `bundleId`. Revokes the person's direct grant; access through a bundle stays. Granting again makes it active. 404 when they have no direct active grant.",
         "requestBody": {
           "required": true,
           "content": {
@@ -78852,31 +78852,28 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": {
+                  "orgUserId": {
                     "type": "string",
-                    "enum": [
-                      "active",
-                      "revoked"
-                    ]
+                    "minLength": 1
+                  },
+                  "contentId": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "bundleId": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
                   }
                 },
                 "required": [
-                  "status"
+                  "orgUserId"
                 ]
               }
             }
           }
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ],
         "responses": {
           "200": {
             "description": "Default Response",

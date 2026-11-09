@@ -233,15 +233,33 @@ describe('EntitlementsService', () => {
     ]);
   });
 
-  it('sets status (revoke/reactivate) via the tx-bound repository', async () => {
+  it('revokes a direct grant to content via the tx-bound repository', async () => {
     const { svc, repo } = build();
-    await svc.setStatus('e1', 'revoked', admin);
+    await svc.revoke({ orgUserId: 's1', contentId: 'c1' }, admin);
+    expect(repo.lockGrant).toHaveBeenCalledWith('org-1', {
+      orgUserId: 's1',
+      contentId: 'c1',
+      bundleId: null,
+    });
     expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e1', 'revoked');
+  });
+
+  it('revokes a grant to a bundle without reading a content type', async () => {
+    const bundleGrant = { ...SAMPLE, id: 'e2', contentId: null, bundleId: 'b1' };
+    const { svc, repo } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(bundleGrant) }));
+    await svc.revoke({ orgUserId: 's1', bundleId: 'b1' }, admin);
+    expect(repo.contentTypeOf).not.toHaveBeenCalled();
+    expect(repo.lockGrant).toHaveBeenCalledWith('org-1', {
+      orgUserId: 's1',
+      contentId: null,
+      bundleId: 'b1',
+    });
+    expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e2', 'revoked');
   });
 
   it('appends entitlement.deleted on revoke', async () => {
     const { svc, appended } = build();
-    await svc.setStatus('e1', 'revoked', admin);
+    await svc.revoke({ orgUserId: 's1', contentId: 'c1' }, admin);
     expect(appended).toEqual([
       expect.objectContaining({
         type: 'entitlement.deleted',
@@ -251,21 +269,12 @@ describe('EntitlementsService', () => {
     ]);
   });
 
-  it('appends entitlement.updated on reactivation', async () => {
-    const { svc, appended } = build();
-    await svc.setStatus('e1', 'active', admin);
-    expect(appended).toEqual([
-      expect.objectContaining({
-        type: 'entitlement.updated',
-        orgId: 'org-1',
-        data: SAMPLE,
-      }),
-    ]);
-  });
-
-  it('throws NotFoundError and appends nothing when setStatus finds no entitlement', async () => {
-    const { svc, append } = build(fakeRepo({ setStatus: vi.fn().mockResolvedValue(null) }));
-    await expect(svc.setStatus('missing', 'revoked', admin)).rejects.toThrow(NotFoundError);
+  it('throws NotFoundError and appends nothing when revoke finds no grant to the bundle', async () => {
+    const { svc, repo, append } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(null) }));
+    await expect(svc.revoke({ orgUserId: 's1', bundleId: 'b1' }, admin)).rejects.toThrow(
+      NotFoundError,
+    );
+    expect(repo.setStatus).not.toHaveBeenCalled();
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -299,7 +308,7 @@ describe('EntitlementsService', () => {
 });
 
 describe('logging', () => {
-  it('logs grant and status changes at info', async () => {
+  it('logs grant and revoke at info', async () => {
     const { createCapturingLogger } = await import('../shared/logger.js');
     const { logger, entries } = createCapturingLogger();
     const repo = fakeRepo();
@@ -320,11 +329,11 @@ describe('logging', () => {
       },
       admin,
     );
-    await svc.setStatus(entitlement.id, 'revoked', admin);
+    await svc.revoke({ orgUserId: 's1', contentId: 'c1' }, admin);
 
     expect(entries.map((e) => [e.level, e.msg])).toEqual([
       ['info', 'entitlement granted'],
-      ['info', 'entitlement status changed'],
+      ['info', 'entitlement revoked'],
     ]);
     expect(entries[0]?.meta).toMatchObject({
       orgId: 'org-1',
@@ -335,7 +344,8 @@ describe('logging', () => {
     expect(entries[1]?.meta).toMatchObject({
       orgId: 'org-1',
       entitlementId: entitlement.id,
-      status: 'revoked',
+      orgUserId: 's1',
+      contentId: 'c1',
     });
   });
 });
@@ -1046,12 +1056,17 @@ describe('permission checks', () => {
   const nobody = actorWith({ id: 'ou_nobody', orgId: 'org-1' });
   const input = { orgUserId: 's1', contentId: 'c1', expiresAt: null };
 
-  it('refuses grant and setStatus without access:write', async () => {
+  it('refuses grant and revoke without access:write', async () => {
     const { svc, append } = build();
     const reader = actorWith({ orgId: 'org-1', org: ['access:read'] });
     await expect(svc.grant(input, nobody)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(svc.grant(input, reader)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(svc.setStatus('e1', 'revoked', reader)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.revoke({ orgUserId: 's1', contentId: 'c1' }, reader)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(svc.revoke({ orgUserId: 's1', bundleId: 'b1' }, reader)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -1063,7 +1078,7 @@ describe('permission checks', () => {
     );
     const calls: Record<string, () => Promise<unknown>> = {
       list: () => svc.list({ page: 1, pageSize: 20 }, nobody),
-      setStatus: () => svc.setStatus('e1', 'revoked', nobody),
+      revoke: () => svc.revoke({ orgUserId: 's1', contentId: 'c1' }, nobody),
       invite: () => svc.invite('cmy_1', 'spc_1', 'ou_member', nobody),
       addSpaceMember: () => svc.addSpaceMember('cmy_1', 'spc_1', 'ou_member', nobody),
       approve: () => svc.approve('cmy_1', 'spc_1', 'ou_member', nobody),
@@ -1087,7 +1102,9 @@ describe('permission checks', () => {
     });
     const own = { orgUserId: 's1', contentId: 'crs_1', expiresAt: null };
     await expect(svc.grant(own, james)).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(svc.setStatus('e1', 'revoked', james)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(svc.revoke({ orgUserId: 's1', contentId: 'crs_1' }, james)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     await expect(svc.list({ page: 1, pageSize: 20 }, james)).rejects.toBeInstanceOf(ForbiddenError);
     expect(append).not.toHaveBeenCalled();
   });
@@ -1616,7 +1633,7 @@ describe('grants to an event', () => {
       const repo = eventRepo({ lockGrant: vi.fn().mockResolvedValue({ ...SAMPLE, id: 'e9' }) });
       const { svc, appended } = build(repo);
       await svc.revoke(own, james);
-      expect(repo.lockGrant).toHaveBeenCalledWith('org-1', own);
+      expect(repo.lockGrant).toHaveBeenCalledWith('org-1', { ...own, bundleId: null });
       expect(repo.setStatus).toHaveBeenCalledWith('org-1', 'e9', 'revoked');
       expect(appended).toEqual([
         expect.objectContaining({ type: 'entitlement.deleted', metadata: { actorId: 'ou_james' } }),
@@ -1701,13 +1718,11 @@ describe('grants to an event', () => {
     });
   });
 
-  it('records the caller on setStatus', async () => {
+  it('records the caller on revoke', async () => {
     const { svc, appended } = build();
-    await svc.setStatus('e1', 'revoked', checkout);
-    await svc.setStatus('e1', 'active', checkout);
+    await svc.revoke({ orgUserId: 's1', contentId: 'c1' }, checkout);
     expect(appended).toEqual([
       expect.objectContaining({ type: 'entitlement.deleted', metadata: { actorId: 'ou_key' } }),
-      expect.objectContaining({ type: 'entitlement.updated', metadata: { actorId: 'ou_key' } }),
     ]);
   });
 });

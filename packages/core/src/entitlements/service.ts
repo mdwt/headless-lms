@@ -139,69 +139,37 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     return entitlement;
   }
 
-  async setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement> {
-    actor.permissions.require('access:write');
-    const orgId = actor.orgId;
-    const metadata = this.actorMetadata(actor);
-    const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
-      const updated = await entitlements.setStatus(orgId, id, status);
-      if (!updated) {
-        return null;
-      }
-      await outbox.append([
-        status === 'revoked'
-          ? entitlementEvents.entitlementDeleted.make({
-              orgId,
-              data: updated,
-              metadata,
-            })
-          : entitlementEvents.entitlementUpdated.make({
-              orgId,
-              data: updated,
-              metadata,
-            }),
-      ]);
-      return updated;
-    });
-    if (!entitlement) {
-      throw new NotFoundError('Entitlement', id);
-    }
-    this.logger.info('entitlement status changed', {
-      orgId,
-      entitlementId: id,
-      status,
-      actorId: actor.id,
-    });
-    return entitlement;
-  }
-
   async revoke(input: RevokeGrantInput, actor: Actor): Promise<Entitlement> {
     const orgId = actor.orgId;
-    const { orgUserId, contentId } = input;
-    const type = await this.repo.contentTypeOf(orgId, contentId);
+    const { orgUserId } = input;
+    const contentId = input.contentId ?? null;
+    const bundleId = input.bundleId ?? null;
+    const type = contentId === null ? null : await this.repo.contentTypeOf(orgId, contentId);
     if (input.contentType !== undefined && type !== input.contentType) {
-      throw new NotFoundError(input.contentType === 'event' ? 'Event' : 'Content', contentId);
+      throw new NotFoundError(input.contentType === 'event' ? 'Event' : 'Content', contentId ?? '');
     }
-    if (type === 'event') {
+    if (type === 'event' && contentId !== null) {
       if (orgUserId !== actor.id) {
         this.requireAttendeeManager(actor, contentId);
       }
     } else {
       actor.permissions.require('access:write');
-      if (type === null) {
+      if (contentId !== null && type === null) {
         throw new NotFoundError('Content', contentId);
       }
     }
+    const target = contentId ?? bundleId;
     const revoked = await this.uow.run(async ({ entitlements, outbox }) => {
-      const existing = await entitlements.lockGrant(orgId, { orgUserId, contentId });
+      const existing = await entitlements.lockGrant(orgId, { orgUserId, contentId, bundleId });
       if (!existing || !activeNow(existing, new Date())) {
         this.logger.warn('entitlement revoke rejected — no direct active grant', {
           orgId,
           orgUserId,
           contentId,
+          bundleId,
           actorId: actor.id,
         });
-        throw new NotFoundError('Entitlement', `${orgUserId}:${contentId}`);
+        throw new NotFoundError('Entitlement', `${orgUserId}:${target}`);
       }
       const updated = await entitlements.setStatus(orgId, existing.id, 'revoked');
       if (!updated) {
@@ -221,6 +189,7 @@ export class EntitlementsServiceImpl implements EntitlementsService {
       entitlementId: revoked.id,
       orgUserId,
       contentId,
+      bundleId,
       actorId: actor.id,
     });
     return revoked;

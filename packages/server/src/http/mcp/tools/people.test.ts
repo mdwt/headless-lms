@@ -59,10 +59,10 @@ const cases: ToolCase[] = [
     ],
   },
   {
-    tool: 'set_access_status',
-    args: { id: 'ent_1', status: 'revoked' },
-    service: 'entitlements.setStatus',
-    expected: ['ent_1', 'revoked', OWNER],
+    tool: 'revoke_access',
+    args: { orgUserId: 'ou_9', bundleId: 'bnd_1' },
+    service: 'entitlements.revoke',
+    expected: [{ orgUserId: 'ou_9', bundleId: 'bnd_1' }, OWNER],
   },
   { tool: 'get_dashboard', args: {}, service: 'reporting.admin.overview', expected: [OWNER] },
   {
@@ -106,7 +106,7 @@ describe('student, access and analytics tools', () => {
       ['invite_student', 'write', false, true],
       ['list_access', 'read', true, false],
       ['grant_access', 'write', false, false],
-      ['set_access_status', 'destructive', true, false],
+      ['revoke_access', 'destructive', false, false],
       ['get_dashboard', 'read', true, false],
       ['get_enrollment_trend', 'read', true, false],
       ['get_course_analytics', 'read', true, false],

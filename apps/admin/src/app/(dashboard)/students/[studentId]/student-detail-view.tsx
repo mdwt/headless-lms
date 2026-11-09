@@ -24,7 +24,7 @@ import type {
 } from "@/lib/api/types";
 
 import { GrantAccessDialog, type LiteContent } from "../_components/grant-access-dialog";
-import { setEntitlementStatusAction } from "../../entitlements/actions";
+import { grantEntitlementAction, revokeEntitlementAction } from "../../entitlements/actions";
 import { removePersonAction, resendInviteAction } from "../../settings/team/actions";
 
 /**
@@ -69,7 +69,12 @@ export function StudentDetailView({
   const onReinstate = (e: Entitlement) =>
     startAccessUpdate(async () => {
       try {
-        await setEntitlementStatusAction(e.id, "reinstate");
+        await grantEntitlementAction({
+          orgUserId: e.orgUserId,
+          contentId: e.contentId,
+          bundleId: e.bundleId,
+          expiresAt: e.expiresAt,
+        });
         toast.success("Access reinstated");
         router.refresh();
       } catch (err) {
@@ -82,7 +87,11 @@ export function StudentDetailView({
     const target = revokeTarget;
     startAccessUpdate(async () => {
       try {
-        await setEntitlementStatusAction(target.id, "revoke");
+        await revokeEntitlementAction({
+          orgUserId: target.orgUserId,
+          contentId: target.contentId,
+          bundleId: target.bundleId,
+        });
         toast.success("Access revoked");
         setRevokeTarget(null);
         router.refresh();

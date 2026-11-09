@@ -51,11 +51,13 @@ export const GrantEntitlement = z
   });
 export type GrantEntitlement = z.infer<typeof GrantEntitlement>;
 
-/** Revoke/reinstate access by setting the active|revoked status. */
-export const SetEntitlementStatus = z.object({
-  status: z.enum(['active', 'revoked']),
-});
-export type SetEntitlementStatus = z.infer<typeof SetEntitlementStatus>;
-
-export const EntitlementIdParam = z.object({ id: z.string() });
-export type EntitlementIdParam = z.infer<typeof EntitlementIdParam>;
+export const RevokeEntitlement = z
+  .object({
+    orgUserId: idSchema,
+    contentId: idSchema.nullish(),
+    bundleId: idSchema.nullish(),
+  })
+  .refine((v) => (v.contentId != null) !== (v.bundleId != null), {
+    message: 'Provide exactly one of contentId or bundleId',
+  });
+export type RevokeEntitlement = z.infer<typeof RevokeEntitlement>;

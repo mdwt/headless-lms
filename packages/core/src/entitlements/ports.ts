@@ -77,7 +77,8 @@ export interface ContentReader {
 
 export interface RevokeGrantInput {
   orgUserId: string;
-  contentId: string;
+  contentId?: string | null;
+  bundleId?: string | null;
   contentType?: ContentType;
 }
 
@@ -115,7 +116,6 @@ export interface InsertSpaceMemberInput {
 export interface EntitlementsService extends CommunityAccessReader {
   list(query: EntitlementsQuery, actor: Actor): Promise<Page<Entitlement>>;
   grant(input: GrantEntitlementInput, actor: Actor): Promise<Entitlement>;
-  setStatus(id: string, status: 'active' | 'revoked', actor: Actor): Promise<Entitlement>;
   revoke(input: RevokeGrantInput, actor: Actor): Promise<Entitlement>;
   /** Whether this org user can open the content right now, through a grant to
    *  it or to a bundle holding it. The only access check — nothing else may

@@ -3,11 +3,10 @@ import {
   CourseLearnersQuery,
   CreateInvite,
   EnrollmentSeriesQuery,
-  EntitlementIdParam,
   EntitlementsQuery,
   GrantEntitlement,
   Invite,
-  SetEntitlementStatus,
+  RevokeEntitlement,
   StudentIdParam,
   StudentsQuery,
 } from '../../schemas/index.js';
@@ -61,15 +60,15 @@ export const peopleTools: Tool[] = [
     call: (input, { container, caller }) => container.entitlements.grant(input, caller.actor),
   }),
   defineTool({
-    name: 'set_access_status',
-    title: 'Revoke or reinstate access',
-    description: 'Revoke an access grant, or reinstate a revoked one.',
+    name: 'revoke_access',
+    title: 'Revoke access',
+    description:
+      "Revoke a student's direct grant to one course, download, community or event (contentId) or to a bundle (bundleId), never both. Access through a bundle stays. grant_access makes it active again.",
     kind: 'destructive',
-    idempotent: true,
+    idempotent: false,
     openWorld: false,
-    input: SetEntitlementStatus.extend(EntitlementIdParam.shape),
-    call: ({ id, status }, { container, caller }) =>
-      container.entitlements.setStatus(id, status, caller.actor),
+    input: RevokeEntitlement,
+    call: (input, { container, caller }) => container.entitlements.revoke(input, caller.actor),
   }),
   defineTool({
     name: 'get_dashboard',

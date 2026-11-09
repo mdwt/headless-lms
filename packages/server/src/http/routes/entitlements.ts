@@ -3,11 +3,10 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   Entitlement,
-  EntitlementIdParam,
   EntitlementsPage,
   EntitlementsQuery,
   GrantEntitlement,
-  SetEntitlementStatus,
+  RevokeEntitlement,
   refusals,
 } from '../schemas/index.js';
 import type { Container } from '../../app/container.js';
@@ -58,21 +57,20 @@ export async function entitlementsRoutes(
   });
 
   r.route({
-    method: 'PATCH',
-    url: '/api/entitlements/:id',
+    method: 'POST',
+    url: '/api/entitlements/revocation',
     preHandler: app.requireOrgSession,
     schema: {
-      operationId: 'setEntitlementStatus',
+      operationId: 'revokeEntitlement',
       tags: ['Entitlements'],
-      summary: 'Revoke or reinstate an entitlement',
-      description: `Requires \`access:write\`. Access follows the status at once.`,
-      params: EntitlementIdParam,
-      body: SetEntitlementStatus,
+      summary: "Revoke a person's grant to content or a bundle",
+      description: `Requires \`access:write\`; to revoke an event, \`events:write\` on it is enough, and a person may revoke their own. Name exactly one of \`contentId\` and \`bundleId\`. Revokes the person's direct grant; access through a bundle stays. Granting again makes it active. 404 when they have no direct active grant.`,
+      body: RevokeEntitlement,
       response: { 200: Entitlement, ...refusals(403, 404) },
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      return entitlements.setStatus(req.params.id, req.body.status, actor);
+      return entitlements.revoke(req.body, actor);
     },
   });
 }

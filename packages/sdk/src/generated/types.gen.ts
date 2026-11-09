@@ -25941,18 +25941,18 @@ export type GrantEntitlementResponses = {
 
 export type GrantEntitlementResponse = GrantEntitlementResponses[keyof GrantEntitlementResponses];
 
-export type SetEntitlementStatusData = {
+export type RevokeEntitlementData = {
   body: {
-    status: "active" | "revoked";
+    orgUserId: string;
+    contentId?: string | null;
+    bundleId?: string | null;
   };
-  path: {
-    id: string;
-  };
+  path?: never;
   query?: never;
-  url: "/api/entitlements/{id}";
+  url: "/api/entitlements/revocation";
 };
 
-export type SetEntitlementStatusErrors = {
+export type RevokeEntitlementErrors = {
   /**
    * Default Response
    */
@@ -26002,10 +26002,9 @@ export type SetEntitlementStatusErrors = {
   };
 };
 
-export type SetEntitlementStatusError =
-  SetEntitlementStatusErrors[keyof SetEntitlementStatusErrors];
+export type RevokeEntitlementError = RevokeEntitlementErrors[keyof RevokeEntitlementErrors];
 
-export type SetEntitlementStatusResponses = {
+export type RevokeEntitlementResponses = {
   /**
    * Default Response
    */
@@ -26024,8 +26023,8 @@ export type SetEntitlementStatusResponses = {
   };
 };
 
-export type SetEntitlementStatusResponse =
-  SetEntitlementStatusResponses[keyof SetEntitlementStatusResponses];
+export type RevokeEntitlementResponse =
+  RevokeEntitlementResponses[keyof RevokeEntitlementResponses];
 
 export type ListAutomationsData = {
   body?: never;

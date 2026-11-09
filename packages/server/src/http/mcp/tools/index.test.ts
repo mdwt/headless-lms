@@ -49,7 +49,7 @@ const NAMES = [
   'invite_student',
   'list_access',
   'grant_access',
-  'set_access_status',
+  'revoke_access',
   'get_dashboard',
   'get_enrollment_trend',
   'get_course_analytics',

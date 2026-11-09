@@ -527,6 +527,8 @@ import type {
   RestorePostResponses,
   RevokeConnectedAppErrors,
   RevokeConnectedAppResponses,
+  RevokeEntitlementErrors,
+  RevokeEntitlementResponses,
   RotateWebhookSecretErrors,
   RotateWebhookSecretResponses,
   SchedulePostErrors,
@@ -539,8 +541,6 @@ import type {
   SetChatSubscriptionResponses,
   SetCommentReactionErrors,
   SetCommentReactionResponses,
-  SetEntitlementStatusErrors,
-  SetEntitlementStatusResponses,
   SetMemberCommunityNotificationSettingsErrors,
   SetMemberCommunityNotificationSettingsResponses,
   SetMemberNotificationSettingsErrors,
@@ -10710,41 +10710,38 @@ export class Entitlements {
   }
 
   /**
-   * Revoke or reinstate an entitlement
+   * Revoke a person's grant to content or a bundle
    *
-   * Requires `access:write`. Access follows the status at once.
+   * Requires `access:write`; to revoke an event, `events:write` on it is enough, and a person may revoke their own. Name exactly one of `contentId` and `bundleId`. Revokes the person's direct grant; access through a bundle stays. Granting again makes it active. 404 when they have no direct active grant.
    */
-  public static setEntitlementStatus<ThrowOnError extends boolean = false>(
+  public static revokeEntitlement<ThrowOnError extends boolean = false>(
     parameters: {
-      id: string;
-      status: "active" | "revoked";
+      orgUserId: string;
+      contentId?: string | null;
+      bundleId?: string | null;
     },
     options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    SetEntitlementStatusResponses,
-    SetEntitlementStatusErrors,
-    ThrowOnError,
-    "data"
-  > {
+  ): RequestResult<RevokeEntitlementResponses, RevokeEntitlementErrors, ThrowOnError, "data"> {
     const params = buildClientParams(
       [parameters],
       [
         {
           args: [
-            { in: "path", key: "id" },
-            { in: "body", key: "status" },
+            { in: "body", key: "orgUserId" },
+            { in: "body", key: "contentId" },
+            { in: "body", key: "bundleId" },
           ],
         },
       ],
     );
-    return (options?.client ?? client).patch<
-      SetEntitlementStatusResponses,
-      SetEntitlementStatusErrors,
+    return (options?.client ?? client).post<
+      RevokeEntitlementResponses,
+      RevokeEntitlementErrors,
       ThrowOnError,
       "data"
     >({
       responseStyle: "data",
-      url: "/api/entitlements/{id}",
+      url: "/api/entitlements/revocation",
       ...options,
       ...params,
       headers: {

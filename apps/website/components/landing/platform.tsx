@@ -24,9 +24,9 @@ const entitlementSnippet = `await Entitlements.grantEntitlement({
   expiresAt: null,
 })
 
-await Entitlements.setEntitlementStatus({
-  id: entitlement.id,
-  status: "revoked",
+await Entitlements.revokeEntitlement({
+  orgUserId: student.id,
+  contentId: course.id,
 })`;
 
 const progressSnippet = `await Progress.reportProgress({

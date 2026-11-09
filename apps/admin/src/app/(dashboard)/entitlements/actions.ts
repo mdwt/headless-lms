@@ -25,18 +25,17 @@ export async function grantEntitlementAction(
   return entitlement;
 }
 
-/**
- * Revoke/reinstate — the targeted status write behind the row actions and the
- * confirm dialog. `revoke` → `revoked`, `reinstate` → `active`, matching the
- * former `revoke/reinstate` client mutations.
- */
-export async function setEntitlementStatusAction(
-  id: string,
-  action: "revoke" | "reinstate",
+export interface RevokeEntitlementInput {
+  orgUserId: string;
+  contentId?: string | null;
+  bundleId?: string | null;
+}
+
+export async function revokeEntitlementAction(
+  input: RevokeEntitlementInput,
 ): Promise<EntitlementGrant> {
-  const status: EntitlementGrant["status"] = action === "revoke" ? "revoked" : "active";
-  const entitlement = await Entitlements.setEntitlementStatus({ id, status }, await authHeaders());
+  const entitlement = await Entitlements.revokeEntitlement(input, await authHeaders());
   revalidatePath("/entitlements");
-  revalidatePath(`/students/${entitlement.orgUserId}`);
+  revalidatePath(`/students/${input.orgUserId}`);
   return entitlement;
 }
