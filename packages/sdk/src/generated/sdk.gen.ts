@@ -751,7 +751,7 @@ export class Organizations {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/organizations/ownership",
+      url: "/api/organizations/transfer-ownership",
       ...options,
       ...params,
       headers: {
@@ -4745,7 +4745,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve",
       ...options,
       ...params,
     });
@@ -4831,7 +4831,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal",
+      url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove",
       ...options,
       ...params,
     });
@@ -4913,7 +4913,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/posts/{postId}/approval",
+      url: "/api/communities/{communityId}/posts/{postId}/approve",
       ...options,
       ...params,
     });
@@ -4949,7 +4949,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/posts/{postId}/removal",
+      url: "/api/communities/{communityId}/posts/{postId}/remove",
       ...options,
       ...params,
     });
@@ -4990,7 +4990,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/posts/{postId}/restoration",
+      url: "/api/communities/{communityId}/posts/{postId}/restore",
       ...options,
       ...params,
     });
@@ -5033,7 +5033,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/posts/{postId}/flags/resolution",
+      url: "/api/communities/{communityId}/posts/{postId}/flags/resolve",
       ...options,
       ...params,
       headers: {
@@ -5079,7 +5079,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/comments/{commentId}/removal",
+      url: "/api/communities/{communityId}/comments/{commentId}/remove",
       ...options,
       ...params,
     });
@@ -5120,7 +5120,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/comments/{commentId}/restoration",
+      url: "/api/communities/{communityId}/comments/{commentId}/restore",
       ...options,
       ...params,
     });
@@ -5163,7 +5163,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/comments/{commentId}/flags/resolution",
+      url: "/api/communities/{communityId}/comments/{commentId}/flags/resolve",
       ...options,
       ...params,
       headers: {
@@ -5211,7 +5211,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/communities/{communityId}/messages/{messageId}/flags/resolution",
+      url: "/api/communities/{communityId}/messages/{messageId}/flags/resolve",
       ...options,
       ...params,
       headers: {
@@ -5605,7 +5605,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/communities/{communityId}/spaces/{spaceId}/acceptance",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/accept",
       ...options,
       ...params,
     });
@@ -5643,7 +5643,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve",
       ...options,
       ...params,
     });
@@ -5717,7 +5717,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/communities/{communityId}/spaces/{spaceId}/refusal",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/refuse",
       ...options,
       ...params,
     });
@@ -5791,7 +5791,7 @@ export class Communities {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal",
+      url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove",
       ...options,
       ...params,
     });
@@ -7169,36 +7169,6 @@ export class Events {
   }
 
   /**
-   * Cancel your registration for an event
-   *
-   * Any active member of the organization revokes their own direct grant to the event, which frees the place. 404 when the caller has no direct active grant.
-   */
-  public static cancelEventRegistration<ThrowOnError extends boolean = false>(
-    parameters: {
-      eventId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    CancelEventRegistrationResponses,
-    CancelEventRegistrationErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
-    return (options?.client ?? client).delete<
-      CancelEventRegistrationResponses,
-      CancelEventRegistrationErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/events/{eventId}/registration",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
    * Register for an event
    *
    * Any active member of the organization registers themselves for a published `public` event that has not started, with source `self`. 403 when the event is `private`; 404 when it does not exist or is not published; 409 `already_registered`, `started` or `full`.
@@ -7217,7 +7187,37 @@ export class Events {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/events/{eventId}/registration",
+      url: "/api/member/events/{eventId}/register",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Cancel your registration for an event
+   *
+   * Any active member of the organization revokes their own direct grant to the event, which frees the place. 404 when the caller has no direct active grant.
+   */
+  public static cancelEventRegistration<ThrowOnError extends boolean = false>(
+    parameters: {
+      eventId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    CancelEventRegistrationResponses,
+    CancelEventRegistrationErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
+    return (options?.client ?? client).post<
+      CancelEventRegistrationResponses,
+      CancelEventRegistrationErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/member/events/{eventId}/unregister",
       ...options,
       ...params,
     });
@@ -7670,7 +7670,7 @@ export class Posts {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/posts/{postId}/submission",
+      url: "/api/member/posts/{postId}/submit",
       ...options,
       ...params,
     });
@@ -7761,7 +7761,7 @@ export class Posts {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/posts/{postId}/approval",
+      url: "/api/member/posts/{postId}/approve",
       ...options,
       ...params,
     });
@@ -7786,7 +7786,7 @@ export class Posts {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/posts/{postId}/removal",
+      url: "/api/member/posts/{postId}/remove",
       ...options,
       ...params,
     });
@@ -7811,7 +7811,7 @@ export class Posts {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/posts/{postId}/restoration",
+      url: "/api/member/posts/{postId}/restore",
       ...options,
       ...params,
     });
@@ -8199,7 +8199,7 @@ export class Posts {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/posts/{postId}/flags/resolution",
+      url: "/api/member/posts/{postId}/flags/resolve",
       ...options,
       ...params,
       headers: {
@@ -8679,7 +8679,7 @@ export class Chats {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/chats/{chatId}/acceptance",
+      url: "/api/member/chats/{chatId}/accept",
       ...options,
       ...params,
     });
@@ -8978,7 +8978,7 @@ export class Chats {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/messages/{messageId}/flags/resolution",
+      url: "/api/member/messages/{messageId}/flags/resolve",
       ...options,
       ...params,
       headers: {
@@ -9563,7 +9563,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/comments/{commentId}/flags/resolution",
+      url: "/api/member/comments/{commentId}/flags/resolve",
       ...options,
       ...params,
       headers: {
@@ -9598,7 +9598,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/comments/{commentId}/restoration",
+      url: "/api/member/comments/{commentId}/restore",
       ...options,
       ...params,
     });
@@ -9628,7 +9628,7 @@ export class Discussion {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/member/comments/{commentId}/approval",
+      url: "/api/member/comments/{commentId}/approve",
       ...options,
       ...params,
     });

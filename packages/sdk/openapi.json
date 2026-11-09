@@ -441,7 +441,7 @@
         }
       }
     },
-    "/api/organizations/ownership": {
+    "/api/organizations/transfer-ownership": {
       "post": {
         "operationId": "transferOwnership",
         "summary": "Transfer ownership of the organization",
@@ -17270,7 +17270,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval": {
+    "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve": {
       "post": {
         "operationId": "approveCommunitySpaceRequest",
         "summary": "Approve a person's request to join a space",
@@ -17824,7 +17824,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal": {
+    "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove": {
       "post": {
         "operationId": "removeCommunitySpaceMember",
         "summary": "Remove a person from a space",
@@ -18804,7 +18804,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/posts/{postId}/approval": {
+    "/api/communities/{communityId}/posts/{postId}/approve": {
       "post": {
         "operationId": "approveCommunityPost",
         "summary": "Publish a post that is awaiting review",
@@ -19290,7 +19290,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/posts/{postId}/removal": {
+    "/api/communities/{communityId}/posts/{postId}/remove": {
       "post": {
         "operationId": "removeCommunityPost",
         "summary": "Remove a post",
@@ -19776,7 +19776,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/posts/{postId}/restoration": {
+    "/api/communities/{communityId}/posts/{postId}/restore": {
       "post": {
         "operationId": "restoreCommunityPost",
         "summary": "Restore a removed post",
@@ -20262,7 +20262,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/posts/{postId}/flags/resolution": {
+    "/api/communities/{communityId}/posts/{postId}/flags/resolve": {
       "post": {
         "operationId": "resolveCommunityPostFlags",
         "summary": "Dismiss the open flags on a post",
@@ -20468,7 +20468,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/comments/{commentId}/removal": {
+    "/api/communities/{communityId}/comments/{commentId}/remove": {
       "post": {
         "operationId": "removeCommunityComment",
         "summary": "Remove a comment on a post",
@@ -20863,7 +20863,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/comments/{commentId}/restoration": {
+    "/api/communities/{communityId}/comments/{commentId}/restore": {
       "post": {
         "operationId": "restoreCommunityComment",
         "summary": "Restore a removed comment on a post",
@@ -21258,7 +21258,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/comments/{commentId}/flags/resolution": {
+    "/api/communities/{communityId}/comments/{commentId}/flags/resolve": {
       "post": {
         "operationId": "resolveCommunityCommentFlags",
         "summary": "Dismiss the open flags on a comment",
@@ -21464,7 +21464,7 @@
         }
       }
     },
-    "/api/communities/{communityId}/messages/{messageId}/flags/resolution": {
+    "/api/communities/{communityId}/messages/{messageId}/flags/resolve": {
       "post": {
         "operationId": "resolveCommunityMessageFlags",
         "summary": "Dismiss the open flags on a message",
@@ -34518,7 +34518,7 @@
         }
       }
     },
-    "/api/member/communities/{communityId}/spaces/{spaceId}/acceptance": {
+    "/api/member/communities/{communityId}/spaces/{spaceId}/accept": {
       "post": {
         "operationId": "acceptSpaceInvite",
         "summary": "Accept your invitation to a space",
@@ -34787,7 +34787,7 @@
         }
       }
     },
-    "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval": {
+    "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve": {
       "post": {
         "operationId": "approveSpaceRequest",
         "summary": "Approve a person's request to join a space you moderate",
@@ -35341,7 +35341,7 @@
         }
       }
     },
-    "/api/member/communities/{communityId}/spaces/{spaceId}/refusal": {
+    "/api/member/communities/{communityId}/spaces/{spaceId}/refuse": {
       "post": {
         "operationId": "refuseSpaceInvite",
         "summary": "Refuse your invitation to a space",
@@ -35879,7 +35879,7 @@
         }
       }
     },
-    "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal": {
+    "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove": {
       "post": {
         "operationId": "removeSpaceMember",
         "summary": "Remove a person from a space you moderate",
@@ -40675,7 +40675,7 @@
         }
       }
     },
-    "/api/member/posts/{postId}/submission": {
+    "/api/member/posts/{postId}/submit": {
       "post": {
         "operationId": "submitPost",
         "summary": "Submit your draft or scheduled post",
@@ -42163,7 +42163,7 @@
         }
       }
     },
-    "/api/member/posts/{postId}/approval": {
+    "/api/member/posts/{postId}/approve": {
       "post": {
         "operationId": "approvePost",
         "summary": "Publish a post that awaits review in a space you moderate",
@@ -42641,7 +42641,7 @@
         }
       }
     },
-    "/api/member/posts/{postId}/removal": {
+    "/api/member/posts/{postId}/remove": {
       "post": {
         "operationId": "removePost",
         "summary": "Remove your post, or one in a space you moderate",
@@ -43119,7 +43119,7 @@
         }
       }
     },
-    "/api/member/posts/{postId}/restoration": {
+    "/api/member/posts/{postId}/restore": {
       "post": {
         "operationId": "restorePost",
         "summary": "Restore a removed post in a space you moderate",
@@ -47268,7 +47268,7 @@
         }
       }
     },
-    "/api/member/posts/{postId}/flags/resolution": {
+    "/api/member/posts/{postId}/flags/resolve": {
       "post": {
         "operationId": "resolvePostFlags",
         "summary": "Dismiss the open flags on a post in a space you moderate",
@@ -52638,7 +52638,7 @@
         }
       }
     },
-    "/api/member/chats/{chatId}/acceptance": {
+    "/api/member/chats/{chatId}/accept": {
       "post": {
         "operationId": "acceptChat",
         "summary": "Accept a message request",
@@ -55190,7 +55190,7 @@
         }
       }
     },
-    "/api/member/messages/{messageId}/flags/resolution": {
+    "/api/member/messages/{messageId}/flags/resolve": {
       "post": {
         "operationId": "resolveMessageFlags",
         "summary": "Dismiss the open flags on a message in a community you moderate",
@@ -60344,7 +60344,7 @@
         }
       }
     },
-    "/api/member/comments/{commentId}/flags/resolution": {
+    "/api/member/comments/{commentId}/flags/resolve": {
       "post": {
         "operationId": "resolveCommentFlags",
         "summary": "Dismiss the open flags on a comment in a space you moderate",
@@ -60542,7 +60542,7 @@
         }
       }
     },
-    "/api/member/comments/{commentId}/restoration": {
+    "/api/member/comments/{commentId}/restore": {
       "post": {
         "operationId": "restoreMemberComment",
         "summary": "Restore a removed comment where you moderate",
@@ -60929,7 +60929,7 @@
         }
       }
     },
-    "/api/member/comments/{commentId}/approval": {
+    "/api/member/comments/{commentId}/approve": {
       "post": {
         "operationId": "approveMemberComment",
         "summary": "Publish a comment awaiting review where you moderate",
@@ -67533,7 +67533,7 @@
         }
       }
     },
-    "/api/member/events/{eventId}/registration": {
+    "/api/member/events/{eventId}/register": {
       "post": {
         "operationId": "registerForEvent",
         "summary": "Register for an event",
@@ -67731,8 +67731,10 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/api/member/events/{eventId}/unregister": {
+      "post": {
         "operationId": "cancelEventRegistration",
         "summary": "Cancel your registration for an event",
         "tags": [

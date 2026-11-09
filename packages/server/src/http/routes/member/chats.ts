@@ -253,7 +253,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/chats/:chatId/acceptance',
+    url: '/api/member/chats/:chatId/accept',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'acceptChat',
@@ -410,7 +410,7 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/messages/:messageId/flags/resolution',
+    url: '/api/member/messages/:messageId/flags/resolve',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'resolveMessageFlags',

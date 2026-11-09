@@ -1,5 +1,5 @@
 ---
-description: "POST /api/member/chats/{chatId}/acceptance. Accept a message request. Headless LMS Chats API reference."
+description: "POST /api/member/chats/{chatId}/accept. Accept a message request. Headless LMS Chats API reference."
 title: Accept a message request
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/chats/{chatId}/acceptance","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/chats/{chatId}/accept","method":"post"}]} showDescription />
     </>
   );
 }

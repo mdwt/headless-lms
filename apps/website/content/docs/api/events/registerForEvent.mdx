@@ -1,5 +1,5 @@
 ---
-description: "POST /api/member/events/{eventId}/registration. Register for an event. Headless LMS Events API reference."
+description: "POST /api/member/events/{eventId}/register. Register for an event. Headless LMS Events API reference."
 title: Register for an event
 full: true
 _openapi:
@@ -24,7 +24,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/events/{eventId}/registration","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/events/{eventId}/register","method":"post"}]} showDescription />
     </>
   );
 }

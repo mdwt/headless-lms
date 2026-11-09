@@ -1,5 +1,5 @@
 ---
-description: "POST /api/member/communities/{communityId}/spaces/{spaceId}/refusal. Refuse your invitation to a space. Headless LMS Communities API reference."
+description: "POST /api/member/communities/{communityId}/spaces/{spaceId}/refuse. Refuse your invitation to a space. Headless LMS Communities API reference."
 title: Refuse your invitation to a space
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/communities/{communityId}/spaces/{spaceId}/refusal","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/communities/{communityId}/spaces/{spaceId}/refuse","method":"post"}]} showDescription />
     </>
   );
 }

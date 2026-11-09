@@ -190,9 +190,9 @@ describe('community moderation routes', () => {
       expect(last(method)).toEqual(['cmy_1', 'spc_1', 'ou_sarah', EMMA]);
     }
     for (const [action, method] of [
-      ['approval', 'approveSpaceRequest'],
+      ['approve', 'approveSpaceRequest'],
       ['decline', 'decline'],
-      ['removal', 'removeSpaceMember'],
+      ['remove', 'removeSpaceMember'],
     ] as const) {
       const res = await app.inject({
         method: 'POST',
@@ -212,17 +212,17 @@ describe('community moderation routes', () => {
     expect(last('moderationQueue')).toEqual(['cmy_1', 'spc_1', EMMA]);
     const post = await app.inject({
       method: 'POST',
-      url: '/api/communities/cmy_1/posts/pst_1/flags/resolution',
+      url: '/api/communities/cmy_1/posts/pst_1/flags/resolve',
       payload: { resolution: 'dismissed' },
     });
     const comment = await app.inject({
       method: 'POST',
-      url: '/api/communities/cmy_1/comments/cmt_1/flags/resolution',
+      url: '/api/communities/cmy_1/comments/cmt_1/flags/resolve',
       payload: { resolution: 'dismissed' },
     });
     const message = await app.inject({
       method: 'POST',
-      url: '/api/communities/cmy_1/messages/msg_1/flags/resolution',
+      url: '/api/communities/cmy_1/messages/msg_1/flags/resolve',
       payload: { resolution: 'dismissed' },
     });
     expect([post.statusCode, comment.statusCode, message.statusCode]).toEqual([204, 204, 204]);
@@ -235,7 +235,7 @@ describe('community moderation routes', () => {
     actor = null;
     const res = await app.inject({
       method: 'POST',
-      url: '/api/communities/cmy_1/spaces/spc_1/members/ou_sarah/approval',
+      url: '/api/communities/cmy_1/spaces/spc_1/members/ou_sarah/approve',
     });
     expect(res.statusCode).toBe(403);
     expect(calls).toHaveLength(0);

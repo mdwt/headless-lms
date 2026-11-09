@@ -1,5 +1,5 @@
 ---
-description: "POST /api/member/posts/{postId}/restoration. Restore a removed post in a space you moderate. Headless LMS Posts API reference."
+description: "POST /api/member/posts/{postId}/restore. Restore a removed post in a space you moderate. Headless LMS Posts API reference."
 title: Restore a removed post in a space you moderate
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/posts/{postId}/restoration","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/posts/{postId}/restore","method":"post"}]} showDescription />
     </>
   );
 }

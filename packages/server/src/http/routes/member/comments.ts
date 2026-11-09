@@ -169,7 +169,7 @@ export async function memberCommentsRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/comments/:commentId/flags/resolution',
+    url: '/api/member/comments/:commentId/flags/resolve',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'resolveCommentFlags',
@@ -190,7 +190,7 @@ export async function memberCommentsRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/comments/:commentId/restoration',
+    url: '/api/member/comments/:commentId/restore',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'restoreMemberComment',
@@ -209,7 +209,7 @@ export async function memberCommentsRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/comments/:commentId/approval',
+    url: '/api/member/comments/:commentId/approve',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'approveMemberComment',

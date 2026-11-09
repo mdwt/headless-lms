@@ -1,5 +1,5 @@
 ---
-description: "POST /api/member/comments/{commentId}/flags/resolution. Dismiss the open flags on a comment in a space you moderate. Headless LMS Discussion API reference."
+description: "POST /api/member/comments/{commentId}/flags/resolve. Dismiss the open flags on a comment in a space you moderate. Headless LMS Discussion API reference."
 title: Dismiss the open flags on a comment in a space you moderate
 full: true
 _openapi:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/comments/{commentId}/flags/resolution","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/comments/{commentId}/flags/resolve","method":"post"}]} showDescription />
     </>
   );
 }

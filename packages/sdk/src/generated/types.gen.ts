@@ -169,7 +169,7 @@ export type TransferOwnershipData = {
   };
   path?: never;
   query?: never;
-  url: "/api/organizations/ownership";
+  url: "/api/organizations/transfer-ownership";
 };
 
 export type TransferOwnershipErrors = {
@@ -5871,7 +5871,7 @@ export type ApproveCommunitySpaceRequestData = {
     orgUserId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval";
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve";
 };
 
 export type ApproveCommunitySpaceRequestErrors = {
@@ -6055,7 +6055,7 @@ export type RemoveCommunitySpaceMemberData = {
     orgUserId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal";
+  url: "/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove";
 };
 
 export type RemoveCommunitySpaceMemberErrors = {
@@ -6319,7 +6319,7 @@ export type ApproveCommunityPostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/posts/{postId}/approval";
+  url: "/api/communities/{communityId}/posts/{postId}/approve";
 };
 
 export type ApproveCommunityPostErrors = {
@@ -6455,7 +6455,7 @@ export type RemoveCommunityPostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/posts/{postId}/removal";
+  url: "/api/communities/{communityId}/posts/{postId}/remove";
 };
 
 export type RemoveCommunityPostErrors = {
@@ -6590,7 +6590,7 @@ export type RestoreCommunityPostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/posts/{postId}/restoration";
+  url: "/api/communities/{communityId}/posts/{postId}/restore";
 };
 
 export type RestoreCommunityPostErrors = {
@@ -6731,7 +6731,7 @@ export type ResolveCommunityPostFlagsData = {
     postId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/posts/{postId}/flags/resolution";
+  url: "/api/communities/{communityId}/posts/{postId}/flags/resolve";
 };
 
 export type ResolveCommunityPostFlagsErrors = {
@@ -6801,7 +6801,7 @@ export type RemoveCommunityCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/comments/{commentId}/removal";
+  url: "/api/communities/{communityId}/comments/{commentId}/remove";
 };
 
 export type RemoveCommunityCommentErrors = {
@@ -6916,7 +6916,7 @@ export type RestoreCommunityCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/comments/{commentId}/restoration";
+  url: "/api/communities/{communityId}/comments/{commentId}/restore";
 };
 
 export type RestoreCommunityCommentErrors = {
@@ -7036,7 +7036,7 @@ export type ResolveCommunityCommentFlagsData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/comments/{commentId}/flags/resolution";
+  url: "/api/communities/{communityId}/comments/{commentId}/flags/resolve";
 };
 
 export type ResolveCommunityCommentFlagsErrors = {
@@ -7111,7 +7111,7 @@ export type ResolveCommunityMessageFlagsData = {
     messageId: string;
   };
   query?: never;
-  url: "/api/communities/{communityId}/messages/{messageId}/flags/resolution";
+  url: "/api/communities/{communityId}/messages/{messageId}/flags/resolve";
 };
 
 export type ResolveCommunityMessageFlagsErrors = {
@@ -11683,7 +11683,7 @@ export type AcceptSpaceInviteData = {
     spaceId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/acceptance";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/accept";
 };
 
 export type AcceptSpaceInviteErrors = {
@@ -11774,7 +11774,7 @@ export type ApproveSpaceRequestData = {
     orgUserId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve";
 };
 
 export type ApproveSpaceRequestErrors = {
@@ -11955,7 +11955,7 @@ export type RefuseSpaceInviteData = {
     spaceId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/refusal";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/refuse";
 };
 
 export type RefuseSpaceInviteErrors = {
@@ -12135,7 +12135,7 @@ export type RemoveSpaceMemberData = {
     orgUserId: string;
   };
   query?: never;
-  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal";
+  url: "/api/member/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove";
 };
 
 export type RemoveSpaceMemberErrors = {
@@ -13450,7 +13450,7 @@ export type SubmitPostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/member/posts/{postId}/submission";
+  url: "/api/member/posts/{postId}/submit";
 };
 
 export type SubmitPostErrors = {
@@ -13868,7 +13868,7 @@ export type ApprovePostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/member/posts/{postId}/approval";
+  url: "/api/member/posts/{postId}/approve";
 };
 
 export type ApprovePostErrors = {
@@ -14001,7 +14001,7 @@ export type RemovePostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/member/posts/{postId}/removal";
+  url: "/api/member/posts/{postId}/remove";
 };
 
 export type RemovePostErrors = {
@@ -14134,7 +14134,7 @@ export type RestorePostData = {
     postId: string;
   };
   query?: never;
-  url: "/api/member/posts/{postId}/restoration";
+  url: "/api/member/posts/{postId}/restore";
 };
 
 export type RestorePostErrors = {
@@ -15407,7 +15407,7 @@ export type ResolvePostFlagsData = {
     postId: string;
   };
   query?: never;
-  url: "/api/member/posts/{postId}/flags/resolution";
+  url: "/api/member/posts/{postId}/flags/resolve";
 };
 
 export type ResolvePostFlagsErrors = {
@@ -16977,7 +16977,7 @@ export type AcceptChatData = {
     chatId: string;
   };
   query?: never;
-  url: "/api/member/chats/{chatId}/acceptance";
+  url: "/api/member/chats/{chatId}/accept";
 };
 
 export type AcceptChatErrors = {
@@ -17788,7 +17788,7 @@ export type ResolveMessageFlagsData = {
     messageId: string;
   };
   query?: never;
-  url: "/api/member/messages/{messageId}/flags/resolution";
+  url: "/api/member/messages/{messageId}/flags/resolve";
 };
 
 export type ResolveMessageFlagsErrors = {
@@ -19518,7 +19518,7 @@ export type ResolveCommentFlagsData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/member/comments/{commentId}/flags/resolution";
+  url: "/api/member/comments/{commentId}/flags/resolve";
 };
 
 export type ResolveCommentFlagsErrors = {
@@ -19586,7 +19586,7 @@ export type RestoreMemberCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/member/comments/{commentId}/restoration";
+  url: "/api/member/comments/{commentId}/restore";
 };
 
 export type RestoreMemberCommentErrors = {
@@ -19700,7 +19700,7 @@ export type ApproveMemberCommentData = {
     commentId: string;
   };
   query?: never;
-  url: "/api/member/comments/{commentId}/approval";
+  url: "/api/member/comments/{commentId}/approve";
 };
 
 export type ApproveMemberCommentErrors = {
@@ -22037,82 +22037,13 @@ export type RenameMemberEventAssetResponses = {
 export type RenameMemberEventAssetResponse =
   RenameMemberEventAssetResponses[keyof RenameMemberEventAssetResponses];
 
-export type CancelEventRegistrationData = {
-  body?: never;
-  path: {
-    eventId: string;
-  };
-  query?: never;
-  url: "/api/member/events/{eventId}/registration";
-};
-
-export type CancelEventRegistrationErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type CancelEventRegistrationError =
-  CancelEventRegistrationErrors[keyof CancelEventRegistrationErrors];
-
-export type CancelEventRegistrationResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
-
 export type RegisterForEventData = {
   body?: never;
   path: {
     eventId: string;
   };
   query?: never;
-  url: "/api/member/events/{eventId}/registration";
+  url: "/api/member/events/{eventId}/register";
 };
 
 export type RegisterForEventErrors = {
@@ -22176,6 +22107,75 @@ export type RegisterForEventErrors = {
 export type RegisterForEventError = RegisterForEventErrors[keyof RegisterForEventErrors];
 
 export type RegisterForEventResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type CancelEventRegistrationData = {
+  body?: never;
+  path: {
+    eventId: string;
+  };
+  query?: never;
+  url: "/api/member/events/{eventId}/unregister";
+};
+
+export type CancelEventRegistrationErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CancelEventRegistrationError =
+  CancelEventRegistrationErrors[keyof CancelEventRegistrationErrors];
+
+export type CancelEventRegistrationResponses = {
   /**
    * Default Response
    */

@@ -137,7 +137,7 @@ describe('member post and comment routes', () => {
   it('lets a member route dismiss the flags on a comment', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/api/member/comments/cmt_1/flags/resolution',
+      url: '/api/member/comments/cmt_1/flags/resolve',
       payload: { resolution: 'dismissed' },
     });
     expect(res.statusCode).toBe(204);
@@ -157,11 +157,11 @@ describe('member post and comment routes', () => {
   it('restores and approves a comment from the member app', async () => {
     const restored = await app.inject({
       method: 'POST',
-      url: '/api/member/comments/cmt_1/restoration',
+      url: '/api/member/comments/cmt_1/restore',
     });
     const approved = await app.inject({
       method: 'POST',
-      url: '/api/member/comments/cmt_1/approval',
+      url: '/api/member/comments/cmt_1/approve',
     });
     expect([restored.statusCode, approved.statusCode]).toEqual([200, 200]);
     expect(restored.json()).toMatchObject({ id: 'cmt_1', author: { team: false, roleName: null } });
@@ -231,7 +231,7 @@ describe('member post and comment routes', () => {
   it('accepts only a dismissal when resolving post flags', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/api/member/posts/pst_1/flags/resolution',
+      url: '/api/member/posts/pst_1/flags/resolve',
       payload: { resolution: 'removed' },
     });
     expect(res.statusCode).toBe(400);

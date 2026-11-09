@@ -1,5 +1,5 @@
 ---
-description: "POST /api/communities/{communityId}/comments/{commentId}/restoration. Restore a removed comment on a post. Headless LMS Communities API reference."
+description: "POST /api/communities/{communityId}/comments/{commentId}/restore. Restore a removed comment on a post. Headless LMS Communities API reference."
 title: Restore a removed comment on a post
 full: true
 _openapi:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/comments/{commentId}/restoration","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/comments/{commentId}/restore","method":"post"}]} showDescription />
     </>
   );
 }

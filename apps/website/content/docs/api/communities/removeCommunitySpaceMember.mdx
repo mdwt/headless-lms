@@ -1,5 +1,5 @@
 ---
-description: "POST /api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal. Remove a person from a space. Headless LMS Communities API reference."
+description: "POST /api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove. Remove a person from a space. Headless LMS Communities API reference."
 title: Remove a person from a space
 full: true
 _openapi:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/removal","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/remove","method":"post"}]} showDescription />
     </>
   );
 }

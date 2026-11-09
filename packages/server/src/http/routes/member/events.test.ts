@@ -114,8 +114,8 @@ describe('member event routes', () => {
         payload: { orgUserId: 'ou_emma' },
       },
       { method: 'DELETE' as const, url: '/api/member/events/crs_1/attendees/ou_emma' },
-      { method: 'POST' as const, url: '/api/member/events/crs_1/registration' },
-      { method: 'DELETE' as const, url: '/api/member/events/crs_1/registration' },
+      { method: 'POST' as const, url: '/api/member/events/crs_1/register' },
+      { method: 'POST' as const, url: '/api/member/events/crs_1/unregister' },
     ];
     for (const call of calls) {
       const res = await app.inject(call);

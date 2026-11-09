@@ -1,5 +1,5 @@
 ---
-description: "POST /api/communities/{communityId}/posts/{postId}/approval. Publish a post that is awaiting review. Headless LMS Communities API reference."
+description: "POST /api/communities/{communityId}/posts/{postId}/approve. Publish a post that is awaiting review. Headless LMS Communities API reference."
 title: Publish a post that is awaiting review
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/posts/{postId}/approval","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/posts/{postId}/approve","method":"post"}]} showDescription />
     </>
   );
 }

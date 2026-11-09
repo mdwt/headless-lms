@@ -1,5 +1,5 @@
 ---
-description: "POST /api/communities/{communityId}/comments/{commentId}/flags/resolution. Dismiss the open flags on a comment. Headless LMS Communities API reference."
+description: "POST /api/communities/{communityId}/comments/{commentId}/flags/resolve. Dismiss the open flags on a comment. Headless LMS Communities API reference."
 title: Dismiss the open flags on a comment
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/comments/{commentId}/flags/resolution","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/comments/{commentId}/flags/resolve","method":"post"}]} showDescription />
     </>
   );
 }

@@ -190,7 +190,7 @@ export async function memberCommunityRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/acceptance',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/accept',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'acceptSpaceInvite',
@@ -209,7 +209,7 @@ export async function memberCommunityRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/approval',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/approve',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'approveSpaceRequest',
@@ -255,7 +255,7 @@ export async function memberCommunityRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/refusal',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/refuse',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'refuseSpaceInvite',
@@ -293,7 +293,7 @@ export async function memberCommunityRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/removal',
+    url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/remove',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removeSpaceMember',

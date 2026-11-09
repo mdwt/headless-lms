@@ -1,5 +1,5 @@
 ---
-description: "POST /api/member/posts/{postId}/submission. Submit your draft or scheduled post. Headless LMS Posts API reference."
+description: "POST /api/member/posts/{postId}/submit. Submit your draft or scheduled post. Headless LMS Posts API reference."
 title: Submit your draft or scheduled post
 full: true
 _openapi:
@@ -24,7 +24,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/posts/{postId}/submission","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/posts/{postId}/submit","method":"post"}]} showDescription />
     </>
   );
 }

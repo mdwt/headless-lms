@@ -125,7 +125,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/approval',
+    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/approve',
     schema: {
       operationId: 'approveCommunitySpaceRequest',
       tags,
@@ -169,7 +169,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/removal',
+    url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/remove',
     schema: {
       operationId: 'removeCommunitySpaceMember',
       tags,
@@ -208,7 +208,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/posts/:postId/approval',
+    url: '/api/communities/:communityId/posts/:postId/approve',
     schema: {
       operationId: 'approveCommunityPost',
       tags,
@@ -225,7 +225,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/posts/:postId/removal',
+    url: '/api/communities/:communityId/posts/:postId/remove',
     schema: {
       operationId: 'removeCommunityPost',
       tags,
@@ -242,7 +242,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/posts/:postId/restoration',
+    url: '/api/communities/:communityId/posts/:postId/restore',
     schema: {
       operationId: 'restoreCommunityPost',
       tags,
@@ -259,7 +259,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/posts/:postId/flags/resolution',
+    url: '/api/communities/:communityId/posts/:postId/flags/resolve',
     schema: {
       operationId: 'resolveCommunityPostFlags',
       tags,
@@ -283,7 +283,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/comments/:commentId/removal',
+    url: '/api/communities/:communityId/comments/:commentId/remove',
     schema: {
       operationId: 'removeCommunityComment',
       tags,
@@ -304,7 +304,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/comments/:commentId/restoration',
+    url: '/api/communities/:communityId/comments/:commentId/restore',
     schema: {
       operationId: 'restoreCommunityComment',
       tags,
@@ -325,7 +325,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/comments/:commentId/flags/resolution',
+    url: '/api/communities/:communityId/comments/:commentId/flags/resolve',
     schema: {
       operationId: 'resolveCommunityCommentFlags',
       tags,
@@ -348,7 +348,7 @@ export async function communityModerationRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/communities/:communityId/messages/:messageId/flags/resolution',
+    url: '/api/communities/:communityId/messages/:messageId/flags/resolve',
     schema: {
       operationId: 'resolveCommunityMessageFlags',
       tags,

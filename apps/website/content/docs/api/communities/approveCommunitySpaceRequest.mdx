@@ -1,5 +1,5 @@
 ---
-description: "POST /api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval. Approve a person's request to join a space. Headless LMS Communities API reference."
+description: "POST /api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve. Approve a person's request to join a space. Headless LMS Communities API reference."
 title: Approve a person's request to join a space
 full: true
 _openapi:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approval","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/spaces/{spaceId}/members/{orgUserId}/approve","method":"post"}]} showDescription />
     </>
   );
 }

@@ -1,5 +1,5 @@
 ---
-description: "POST /api/organizations/ownership. Transfer ownership of the organization. Headless LMS Organizations API reference."
+description: "POST /api/organizations/transfer-ownership. Transfer ownership of the organization. Headless LMS Organizations API reference."
 title: Transfer ownership of the organization
 full: true
 _openapi:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/organizations/ownership","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/organizations/transfer-ownership","method":"post"}]} showDescription />
     </>
   );
 }

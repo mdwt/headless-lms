@@ -1,11 +1,11 @@
 ---
-description: "DELETE /api/member/events/{eventId}/registration. Cancel your registration for an event. Headless LMS Events API reference."
+description: "POST /api/member/events/{eventId}/unregister. Cancel your registration for an event. Headless LMS Events API reference."
 title: Cancel your registration for an event
 full: true
 _openapi:
   preload:
     - ../../packages/sdk/openapi.json
-  method: DELETE
+  method: POST
   webhook: false
   toc: []
   structuredData:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/events/{eventId}/registration","method":"delete"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/member/events/{eventId}/unregister","method":"post"}]} showDescription />
     </>
   );
 }

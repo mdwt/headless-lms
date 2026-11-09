@@ -107,7 +107,7 @@ export async function organizationsRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/organizations/ownership',
+    url: '/api/organizations/transfer-ownership',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'transferOwnership',

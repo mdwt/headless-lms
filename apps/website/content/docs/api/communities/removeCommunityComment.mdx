@@ -1,5 +1,5 @@
 ---
-description: "POST /api/communities/{communityId}/comments/{commentId}/removal. Remove a comment on a post. Headless LMS Communities API reference."
+description: "POST /api/communities/{communityId}/comments/{commentId}/remove. Remove a comment on a post. Headless LMS Communities API reference."
 title: Remove a comment on a post
 full: true
 _openapi:
@@ -24,7 +24,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/comments/{commentId}/removal","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/communities/{communityId}/comments/{commentId}/remove","method":"post"}]} showDescription />
     </>
   );
 }

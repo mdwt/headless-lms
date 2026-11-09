@@ -289,7 +289,7 @@ export async function memberEventsRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/member/events/:eventId/registration',
+    url: '/api/member/events/:eventId/register',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'registerForEvent',
@@ -316,8 +316,8 @@ export async function memberEventsRoutes(
   });
 
   r.route({
-    method: 'DELETE',
-    url: '/api/member/events/:eventId/registration',
+    method: 'POST',
+    url: '/api/member/events/:eventId/unregister',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'cancelEventRegistration',

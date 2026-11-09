@@ -198,7 +198,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/posts/:postId/submission',
+    url: '/api/member/posts/:postId/submit',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'submitPost',
@@ -256,7 +256,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/posts/:postId/approval',
+    url: '/api/member/posts/:postId/approve',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'approvePost',
@@ -275,7 +275,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/posts/:postId/removal',
+    url: '/api/member/posts/:postId/remove',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removePost',
@@ -294,7 +294,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/posts/:postId/restoration',
+    url: '/api/member/posts/:postId/restore',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'restorePost',
@@ -524,7 +524,7 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
 
   r.route({
     method: 'POST',
-    url: '/api/member/posts/:postId/flags/resolution',
+    url: '/api/member/posts/:postId/flags/resolve',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'resolvePostFlags',
