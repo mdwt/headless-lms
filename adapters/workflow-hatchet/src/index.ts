@@ -14,6 +14,7 @@ import {
   ConcurrencyLimitStrategy,
   HatchetClient as Hatchet,
 } from "@hatchet-dev/typescript-sdk/v1/index.js";
+import type { LogConstructor } from "@hatchet-dev/typescript-sdk/clients/hatchet-client/client-config.js";
 import {
   ACTION_FAILED,
   ActionFailedError,
@@ -161,6 +162,21 @@ function jobMetadataFilter(job: string, key: string): string[] {
   return [`job:${metadata.job}`, `key:${metadata.key}`];
 }
 
+function sdkLogger(logger: Logger): LogConstructor {
+  return (context) => {
+    const log = logger.child({ hatchet: context });
+    const failure = (error?: Error, extra?: object) => ({ ...extra, ...(error && { err: error }) });
+    return {
+      debug: (message, extra) => log.debug(message, extra),
+      info: (message, extra) => log.info(message, extra),
+      green: (message, extra) => log.info(message, extra),
+      warn: (message, error, extra) => log.warn(message, failure(error, extra)),
+      error: (message, error, extra) => log.error(message, failure(error, extra)),
+      util: (key, message, extra) => log.debug(message, { ...extra, key }),
+    };
+  };
+}
+
 export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   private executor: AutomationExecutor | undefined;
   private jobs = new Map<string, ScheduledJob>();
@@ -175,11 +191,16 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   private readonly deliveryTask: HatchetTaskLike<DeliveryDispatch>;
   private readonly automationRunTask: RunnableTask<AutomationDispatch>;
 
+  private readonly client: HatchetClientLike;
+
   constructor(
-    private readonly client: HatchetClientLike = new Hatchet() as unknown as HatchetClientLike,
+    client?: HatchetClientLike,
     private readonly logger?: Logger,
     private readonly reconcileEveryMs: number = RECONCILE_EVERY_MS,
   ) {
+    this.client =
+      client ??
+      (new Hatchet(logger ? { logger: sdkLogger(logger) } : {}) as unknown as HatchetClientLike);
     this.actionTask = this.client.task<ActionTaskInput>({
       name: ACTION_TASK_NAME,
       retries: ACTION_RETRIES,

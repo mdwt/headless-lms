@@ -150,6 +150,15 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     baseURL: opts.baseUrl,
     secret: opts.secret,
     trustedOrigins: opts.trustedOrigins,
+    logger: {
+      log: (level, message, ...args) => {
+        const [first] = args;
+        opts.logger[level](
+          message,
+          first instanceof Error ? { err: first } : args.length > 0 ? { details: args } : undefined,
+        );
+      },
+    },
     session: {
       // Signed short-lived cookie cache: avoids a Postgres session lookup on
       // every request. The BFF verifies the session per request (each API call
