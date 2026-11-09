@@ -14,7 +14,6 @@ export const communityMemberTools: Tool[] = [
     title: 'List community members',
     description:
       'Page through everyone with active access to a community, granted directly or through a bundle. Search by name or email.',
-    operation: 'reporting.admin.communityMembers',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -27,8 +26,6 @@ export const communityMemberTools: Tool[] = [
     title: 'List space members',
     description:
       "Page through a space's members, its open requests to join and its open invitations.",
-    operation: 'entitlements.listSpaceMembers',
-    listedFor: ['communities:read', 'communities:moderate'],
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -41,7 +38,6 @@ export const communityMemberTools: Tool[] = [
     title: 'Add space member',
     description:
       'Place a member of the community straight into a space, with no request or invitation. Not for a space open to all members, or one that is full.',
-    operation: 'entitlements.addSpaceMember',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -54,7 +50,6 @@ export const communityMemberTools: Tool[] = [
     title: 'Invite space member',
     description:
       'Invite a member of the community into an invite-only space. They are notified and join when they accept.',
-    operation: 'entitlements.invite',
     kind: 'write',
     idempotent: false,
     openWorld: true,
@@ -66,7 +61,6 @@ export const communityMemberTools: Tool[] = [
     name: 'approve_space_request',
     title: 'Approve space request',
     description: "Approve a person's request to join a space. Not when the space is full.",
-    operation: 'entitlements.approve',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -78,7 +72,6 @@ export const communityMemberTools: Tool[] = [
     name: 'decline_space_request',
     title: 'Decline space request',
     description: "Decline a person's request to join a space.",
-    operation: 'entitlements.decline',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -91,7 +84,6 @@ export const communityMemberTools: Tool[] = [
     title: 'Remove space member',
     description:
       'Remove a person from a space, whether they are a member, asked to join or were invited. Their access to the community stays. Not for a space open to all members.',
-    operation: 'entitlements.remove',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,

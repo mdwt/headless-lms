@@ -83,18 +83,18 @@ const cases: ToolCase[] = [
 describe('community moderation tools', () => {
   it('name their operation and hints', () => {
     expect(toolSpecs(communityModerationTools)).toEqual([
-      ['get_space_moderation_queue', 'posts.moderationQueue', 'read', true, false],
-      ['get_message_moderation_queue', 'chats.messageQueue', 'read', true, false],
-      ['approve_post', 'posts.approve', 'write', true, false],
-      ['dismiss_post_flags', 'posts.resolveFlags', 'write', true, false],
-      ['remove_post', 'posts.remove', 'destructive', true, false],
-      ['restore_post', 'posts.restore', 'write', true, false],
-      ['dismiss_post_comment_flags', 'discussion.resolveReports', 'write', true, false],
-      ['remove_post_comment', 'discussion.remove', 'destructive', true, false],
-      ['restore_post_comment', 'discussion.restore', 'write', true, false],
-      ['dismiss_message_flags', 'chats.resolveMessageFlags', 'write', true, false],
-      ['lock_chat', 'chats.lock', 'destructive', true, false],
-      ['unlock_chat', 'chats.unlock', 'write', true, false],
+      ['get_space_moderation_queue', 'read', true, false],
+      ['get_message_moderation_queue', 'read', true, false],
+      ['approve_post', 'write', true, false],
+      ['dismiss_post_flags', 'write', true, false],
+      ['remove_post', 'destructive', true, false],
+      ['restore_post', 'write', true, false],
+      ['dismiss_post_comment_flags', 'write', true, false],
+      ['remove_post_comment', 'destructive', true, false],
+      ['restore_post_comment', 'write', true, false],
+      ['dismiss_message_flags', 'write', true, false],
+      ['lock_chat', 'destructive', true, false],
+      ['unlock_chat', 'write', true, false],
     ]);
   });
 

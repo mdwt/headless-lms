@@ -29,7 +29,6 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/notifications',
-    config: { operation: 'reporting.member.notifications' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberNotifications',
@@ -53,7 +52,6 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/notifications/unread-counts',
-    config: { operation: 'reporting.member.notificationUnreadCounts' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberNotificationUnreadCounts',
@@ -71,7 +69,6 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/notifications/:notificationId',
-    config: { operation: 'reporting.member.notification' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberNotification',
@@ -93,7 +90,6 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/notifications/:notificationId/read',
-    config: { operation: 'notificationList.markRead' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'markMemberNotificationRead',
@@ -113,7 +109,6 @@ export async function memberNotificationRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/notifications/read',
-    config: { operation: 'notificationList.markAllRead' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'markAllMemberNotificationsRead',

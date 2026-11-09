@@ -169,22 +169,10 @@ export async function callTool(
   };
 }
 
-export type ToolSpec = [
-  name: string,
-  operation: string,
-  kind: ToolKind,
-  idempotent: boolean,
-  openWorld: boolean,
-];
+export type ToolSpec = [name: string, kind: ToolKind, idempotent: boolean, openWorld: boolean];
 
 export function toolSpecs(tools: readonly Tool[]): ToolSpec[] {
-  return tools.map((tool) => [
-    tool.name,
-    tool.operation,
-    tool.kind,
-    tool.idempotent,
-    tool.openWorld,
-  ]);
+  return tools.map((tool) => [tool.name, tool.kind, tool.idempotent, tool.openWorld]);
 }
 
 export type ToolCase = {

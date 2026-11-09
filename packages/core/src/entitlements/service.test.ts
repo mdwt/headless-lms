@@ -14,7 +14,6 @@ import type { Event, SpaceDetail, SpaceRowLock } from '../content/index.js';
 import type { Permission } from '../types/index.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { actorWith } from '../organizations/index.js';
-import { entitlementsDeclarations } from './declarations.js';
 
 const SAMPLE: Entitlement = {
   orgId: 'org-1',
@@ -1056,7 +1055,7 @@ describe('permission checks', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
-  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+  it('refuses every method a person can call to an actor who holds nothing', async () => {
     const { svc, repo, append } = build(
       fakeRepo({ findSpaceMember: vi.fn().mockResolvedValue(MEMBER) }),
       inviteContent(),
@@ -1071,10 +1070,6 @@ describe('permission checks', () => {
       decline: () => svc.decline('cmy_1', 'spc_1', 'ou_member', nobody),
       remove: () => svc.remove('cmy_1', 'spc_1', 'ou_member', nobody),
     };
-    const declared = Object.entries(entitlementsDeclarations)
-      .filter(([, declaration]) => typeof declaration !== 'string')
-      .map(([name]) => name);
-    expect(Object.keys(calls).sort()).toEqual(declared.sort());
     for (const [name, call] of Object.entries(calls)) {
       await expect(call(), name).rejects.toBeInstanceOf(ForbiddenError);
     }

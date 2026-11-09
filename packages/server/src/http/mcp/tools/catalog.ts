@@ -24,7 +24,6 @@ export const catalogTools: Tool[] = [
     title: 'List downloads',
     description:
       'Search and page through downloads: file collections a student can be granted. Filter by status or category.',
-    operation: 'content.listDownloads',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -35,7 +34,6 @@ export const catalogTools: Tool[] = [
     name: 'list_download_files',
     title: 'List download files',
     description: 'The files of a download, in order, with their display names.',
-    operation: 'content.listDownloadAssets',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -48,7 +46,6 @@ export const catalogTools: Tool[] = [
     title: 'Create download',
     description:
       'Create a draft download. Add files with add_download_file and publish it with update_download.',
-    operation: 'content.createDownload',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -60,7 +57,6 @@ export const catalogTools: Tool[] = [
     title: 'Update download',
     description:
       'Change a download title, description, category or cover image, or publish and unpublish it with status. Fields left out stay as they are.',
-    operation: 'content.updateDownload',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -72,7 +68,6 @@ export const catalogTools: Tool[] = [
     name: 'add_download_file',
     title: 'Add file to download',
     description: 'Add an uploaded file to the end of a download. Find file ids with list_media.',
-    operation: 'content.addDownloadAsset',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -84,7 +79,6 @@ export const catalogTools: Tool[] = [
     name: 'rename_download_file',
     title: 'Rename download file',
     description: 'Set the name a file shows under in a download. null shows the file name.',
-    operation: 'content.renameDownloadAsset',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -97,7 +91,6 @@ export const catalogTools: Tool[] = [
     title: 'Reorder download files',
     description:
       'Set the file order of a download. Pass every file id of the download in the new order.',
-    operation: 'content.reorderDownloadAssets',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -109,7 +102,6 @@ export const catalogTools: Tool[] = [
     name: 'remove_download_file',
     title: 'Remove file from download',
     description: 'Take a file out of a download. The uploaded file itself is kept.',
-    operation: 'content.removeDownloadAsset',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -121,7 +113,6 @@ export const catalogTools: Tool[] = [
     name: 'delete_download',
     title: 'Delete download',
     description: 'Permanently delete a download. The uploaded files are kept.',
-    operation: 'content.removeDownload',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -134,7 +125,6 @@ export const catalogTools: Tool[] = [
     title: 'List bundles',
     description:
       'Search and page through bundles: sets of courses, downloads, communities and events granted together.',
-    operation: 'content.listBundles',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -145,7 +135,6 @@ export const catalogTools: Tool[] = [
     name: 'list_bundle_items',
     title: 'List bundle items',
     description: 'The courses, downloads, communities and events in a bundle.',
-    operation: 'content.listBundleItems',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -158,7 +147,6 @@ export const catalogTools: Tool[] = [
     title: 'Create bundle',
     description:
       'Create a bundle, optionally with the course, download, community and event ids it starts with.',
-    operation: 'content.createBundle',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -169,7 +157,6 @@ export const catalogTools: Tool[] = [
     name: 'rename_bundle',
     title: 'Rename bundle',
     description: 'Rename a bundle.',
-    operation: 'content.updateBundle',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -182,7 +169,6 @@ export const catalogTools: Tool[] = [
     title: 'Add to bundle',
     description:
       'Add a course, download, community or event to a bundle. Returns the bundle items.',
-    operation: 'content.addBundleItem',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -195,7 +181,6 @@ export const catalogTools: Tool[] = [
     title: 'Remove from bundle',
     description:
       'Take a course, download, community or event out of a bundle. Returns the remaining items.',
-    operation: 'content.removeBundleItem',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -208,7 +193,6 @@ export const catalogTools: Tool[] = [
     title: 'Delete bundle',
     description:
       'Permanently delete a bundle. Its courses, downloads, communities and events are kept.',
-    operation: 'content.deleteBundle',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -221,7 +205,6 @@ export const catalogTools: Tool[] = [
     title: 'List media',
     description:
       'Search and page through uploaded files, to use in downloads and events or as cover images of courses, downloads, communities and events. Uploading is done in the admin app.',
-    operation: 'assets.list',
     kind: 'read',
     idempotent: true,
     openWorld: false,

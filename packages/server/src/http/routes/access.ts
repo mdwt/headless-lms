@@ -14,7 +14,6 @@ import {
   refusals,
 } from '../schemas/index.js';
 import { resolveActor } from '../scope.js';
-import { describeOperation } from '../operations.js';
 
 export async function accessRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -25,12 +24,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'GET',
     url: '/api/access/permissions/list',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.permissionList' },
     schema: {
       operationId: 'listPermissions',
       tags,
       summary: 'Every permission, with its label, description and level',
-      description: `${describeOperation('organizations.permissionList')} For role screens, the key-creation screen and the consent screen.`,
+      description: `Any active member of the organization. For role screens, the key-creation screen and the consent screen.`,
       response: { 200: PermissionDefinitionList, ...refusals(403) },
     },
     handler: async (req) => {
@@ -43,12 +41,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'GET',
     url: '/api/access/permissions',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.viewerPermissions' },
     schema: {
       operationId: 'getMyPermissions',
       tags,
       summary: 'Your effective permissions in this organization',
-      description: `${describeOperation('organizations.viewerPermissions')} Your org role, whether you own the organization, the permissions you hold on the organization, and the ones you hold on each content item.`,
+      description: `Any active member of the organization. Your org role, whether you own the organization, the permissions you hold on the organization, and the ones you hold on each content item.`,
       response: { 200: ViewerPermissions, ...refusals(403) },
     },
     handler: async (req) => organizations.viewerPermissions(await resolveActor(container, req)),
@@ -58,12 +55,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'GET',
     url: '/api/access/apps',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.listConnectedApps' },
     schema: {
       operationId: 'listConnectedApps',
       tags,
       summary: 'Apps connected to this organization as you',
-      description: `${describeOperation('organizations.listConnectedApps')} The apps you connected to this organization, each with the scopes you granted and when.`,
+      description: `Any active member of the organization. The apps you connected to this organization, each with the scopes you granted and when.`,
       response: { 200: ConnectedAppList, ...refusals(403) },
     },
     handler: async (req) => organizations.listConnectedApps(await resolveActor(container, req)),
@@ -73,12 +69,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'DELETE',
     url: '/api/access/apps/:clientId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.revokeConnectedApp' },
     schema: {
       operationId: 'revokeConnectedApp',
       tags,
       summary: 'Disconnect an app',
-      description: `${describeOperation('organizations.revokeConnectedApp')} Revokes your consent and tokens for the app in this organization; its next call is refused.`,
+      description: `Any active member of the organization. Revokes your consent and tokens for the app in this organization; its next call is refused.`,
       params: ClientIdParam,
       response: { 204: z.void(), ...refusals(403) },
     },
@@ -95,12 +90,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'GET',
     url: '/api/access/api-keys',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.listApiKeys' },
     schema: {
       operationId: 'listApiKeys',
       tags,
       summary: 'Your API keys for this organization',
-      description: `${describeOperation('organizations.listApiKeys')} Your keys for this organization with their scopes. The key itself is never returned again after it is created.`,
+      description: `Requires \`api_keys:read\`. Your keys for this organization with their scopes. The key itself is never returned again after it is created.`,
       response: { 200: ApiKeyList, ...refusals(403) },
     },
     handler: async (req) => organizations.listApiKeys(await resolveActor(container, req)),
@@ -110,12 +104,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'POST',
     url: '/api/access/api-keys',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.createApiKey' },
     schema: {
       operationId: 'createApiKey',
       tags,
       summary: 'Create an API key',
-      description: `${describeOperation('organizations.createApiKey')} The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.`,
+      description: `Requires \`api_keys:write\`. The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.`,
       body: CreateApiKey,
       response: { 201: CreatedApiKey, ...refusals(400, 403) },
     },
@@ -132,12 +125,11 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
     method: 'DELETE',
     url: '/api/access/api-keys/:id',
     preHandler: app.requireOrgSession,
-    config: { operation: 'organizations.deleteApiKey' },
     schema: {
       operationId: 'deleteApiKey',
       tags,
       summary: 'Revoke an API key',
-      description: `${describeOperation('organizations.deleteApiKey')} 404 when the key is not one of yours in this organization.`,
+      description: `Requires \`api_keys:delete\`. 404 when the key is not one of yours in this organization.`,
       params: ApiKeyIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { Permission } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { classifyError } from '../errors.js';
 import { refusalSubject } from '../plugins/error-handler.js';
@@ -17,8 +16,6 @@ export interface Tool {
   name: string;
   title: string;
   description: string;
-  operation: string;
-  listedFor?: readonly Permission[];
   kind: ToolKind;
   idempotent: boolean;
   openWorld: boolean;
@@ -66,7 +63,6 @@ function describeFailure(error: unknown, tool: Tool, ctx: ToolContext): string {
   if (known) {
     ctx.container.logger.info('mcp tool refused', {
       tool: tool.name,
-      operation: tool.operation,
       status: known.status,
       error: known.error,
       message: known.message,

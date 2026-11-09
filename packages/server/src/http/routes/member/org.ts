@@ -11,7 +11,6 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
   r.route({
     method: 'GET',
     url: '/api/member/org',
-    config: { operation: 'organizations.portalIdentity' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberOrg',
@@ -33,7 +32,6 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
   r.route({
     method: 'GET',
     url: '/api/member/viewer',
-    config: { operation: 'reporting.member.viewer' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberViewer',

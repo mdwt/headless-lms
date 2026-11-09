@@ -28,7 +28,6 @@ export async function memberDeviceRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/devices',
-    config: { operation: 'devices.list' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberDevices',
@@ -46,7 +45,6 @@ export async function memberDeviceRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/devices',
-    config: { operation: 'devices.register' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'registerMemberDevice',
@@ -65,7 +63,6 @@ export async function memberDeviceRoutes(
   r.route({
     method: 'DELETE',
     url: '/api/member/devices/:deviceId',
-    config: { operation: 'devices.remove' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removeMemberDevice',
@@ -85,7 +82,6 @@ export async function memberDeviceRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/push-config',
-    config: { operation: 'devices.pushConfig' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberPushConfig',

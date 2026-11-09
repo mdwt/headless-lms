@@ -19,7 +19,6 @@ export const eventTools: Tool[] = [
     title: 'List events',
     description:
       'Search and page through events: live sessions at a set time, drafts and canceled ones included. Filter by status, or by a from and to date-time range the event overlaps.',
-    operation: 'content.listEvents',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -31,7 +30,6 @@ export const eventTools: Tool[] = [
     title: 'Get event',
     description:
       'One event with its times, time zone, location, recording and settings: event type, capacity, notifications and replay.',
-    operation: 'content.getEvent',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -43,7 +41,6 @@ export const eventTools: Tool[] = [
     title: 'Create event',
     description:
       'Create a draft event. startsAt and endsAt are date-times, timeZone an IANA name. Publish it with update_event.',
-    operation: 'content.createEvent',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -55,7 +52,6 @@ export const eventTools: Tool[] = [
     title: 'Update event',
     description:
       'Change an event title, description, times, location, cover image, recording or settings, or publish and unpublish it with status. Fields left out stay as they are. A canceled event cannot change.',
-    operation: 'content.updateEvent',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -67,7 +63,6 @@ export const eventTools: Tool[] = [
     name: 'cancel_event',
     title: 'Cancel event',
     description: 'Cancel an event and tell its attendees. Canceling is final.',
-    operation: 'content.cancelEvent',
     kind: 'destructive',
     idempotent: false,
     openWorld: false,
@@ -79,7 +74,6 @@ export const eventTools: Tool[] = [
     name: 'delete_event',
     title: 'Delete event',
     description: 'Permanently delete an event. The uploaded files are kept.',
-    operation: 'content.deleteEvent',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -92,7 +86,6 @@ export const eventTools: Tool[] = [
     title: 'List event attendees',
     description:
       'The people attending an event, directly or through a bundle, by grant date, each with how they got their place: self, manual, automation or bundle.',
-    operation: 'reporting.admin.eventAttendees',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -105,7 +98,6 @@ export const eventTools: Tool[] = [
     title: 'Get event analytics',
     description:
       'Attendance figures for one event: attendees now and by source, capacity, revoked grants, and grants over time before the start.',
-    operation: 'reporting.admin.eventAnalytics',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -118,8 +110,6 @@ export const eventTools: Tool[] = [
     title: 'Add event attendee',
     description:
       'Grant an event to a person (orgUserId) so they attend it. The event must be published, not ended and not full. Adding someone who already attends changes nothing.',
-    operation: 'entitlements.grant',
-    listedFor: ['access:write', 'events:write'],
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -135,8 +125,6 @@ export const eventTools: Tool[] = [
     title: 'Remove event attendee',
     description:
       "Revoke a person's direct grant to an event. Someone who attends only through a bundle keeps attending.",
-    operation: 'entitlements.revoke',
-    listedFor: ['access:write', 'events:write'],
     kind: 'destructive',
     idempotent: false,
     openWorld: false,
@@ -151,7 +139,6 @@ export const eventTools: Tool[] = [
     name: 'list_event_files',
     title: 'List event files',
     description: 'The files attached to an event, in order, with their display names.',
-    operation: 'content.listEventAssets',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -163,7 +150,6 @@ export const eventTools: Tool[] = [
     name: 'add_event_file',
     title: 'Add file to event',
     description: 'Attach an uploaded file to the end of an event. Find file ids with list_media.',
-    operation: 'content.addEventAsset',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -175,7 +161,6 @@ export const eventTools: Tool[] = [
     name: 'rename_event_file',
     title: 'Rename event file',
     description: 'Set the name a file shows under in an event. null shows the file name.',
-    operation: 'content.renameEventAsset',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -188,7 +173,6 @@ export const eventTools: Tool[] = [
     title: 'Reorder event files',
     description:
       'Set the file order of an event. Pass every file id attached to the event in the new order.',
-    operation: 'content.reorderEventAssets',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -200,7 +184,6 @@ export const eventTools: Tool[] = [
     name: 'remove_event_file',
     title: 'Remove file from event',
     description: 'Take a file off an event. The uploaded file itself is kept.',
-    operation: 'content.removeEventAsset',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,

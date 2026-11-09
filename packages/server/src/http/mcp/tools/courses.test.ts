@@ -74,16 +74,16 @@ const cases: ToolCase[] = [
 describe('course tools', () => {
   it('declare their operation and hints', () => {
     expect(toolSpecs(courseTools)).toEqual([
-      ['list_courses', 'content.listCourses', 'read', true, false],
-      ['list_modules', 'content.listCourseModules', 'read', true, false],
-      ['create_course', 'content.createCourse', 'write', false, false],
-      ['update_course', 'content.updateCourse', 'write', true, false],
-      ['update_course_settings', 'content.patchCourseSettings', 'write', true, false],
-      ['create_module', 'content.createModule', 'write', false, false],
-      ['rename_module', 'content.updateModule', 'write', true, false],
-      ['reorder_modules', 'content.reorderModules', 'write', true, false],
-      ['delete_course', 'content.deleteCourse', 'destructive', true, false],
-      ['delete_module', 'content.deleteModule', 'destructive', true, false],
+      ['list_courses', 'read', true, false],
+      ['list_modules', 'read', true, false],
+      ['create_course', 'write', false, false],
+      ['update_course', 'write', true, false],
+      ['update_course_settings', 'write', true, false],
+      ['create_module', 'write', false, false],
+      ['rename_module', 'write', true, false],
+      ['reorder_modules', 'write', true, false],
+      ['delete_course', 'destructive', true, false],
+      ['delete_module', 'destructive', true, false],
     ]);
   });
 

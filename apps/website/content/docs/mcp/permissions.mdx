@@ -9,13 +9,13 @@ A permission is one resource and one action, such as `courses:read` or `communit
 
 - **A key or app token carries permissions as scopes.** You choose them on the consent page, or when you create an API key, from the permissions you hold.
 - **Each request is limited to your current permissions.** On every call, the connection holds its scopes and only those you hold at that moment. If your roles change, the connection changes with them on the next call. No connection can transfer ownership, even the owner's.
-- **Tools are listed by permission.** Every tool calls one service method, and the method declares the permissions it needs. The connection sees a tool when it holds any of them, on the organization or on any one item. The method then checks the item on each call.
+- **Each tool call is checked by the method it calls.** Every tool calls one service method, which checks the connection's permissions on the item it acts on and refuses the call otherwise.
 
-A permission is about the organization or about one content type. A role given on the whole organization covers every item, and a role given on one course or community covers that item only. An Instructor of one course sees `update_course`, and the call succeeds only for that course.
+A permission is about the organization or about one content type. A role given on the whole organization covers every item, and a role given on one course or community covers that item only. An Instructor of one course can call `update_course`, and the call succeeds only for that course.
 
 <PermissionMatrix />
 
-The table shows the product's default roles. Member holds no permissions, so a member's connection has no tools. Your organization may have renamed its roles or changed what they hold.
+The table shows the product's default roles. Member holds no permissions, so a member's connection is refused every tool call except the ones any member may make, such as removing their own post. Your organization may have renamed its roles or changed what they hold.
 
 ## What is ticked for you
 

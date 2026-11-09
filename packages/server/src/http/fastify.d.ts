@@ -8,7 +8,6 @@ export type AuthUser = User;
 
 declare module 'fastify' {
   interface FastifyContextConfig {
-    operation?: string;
     /** A server-sent event stream; shutdown waits for it to finish. */
     eventStream?: boolean;
   }

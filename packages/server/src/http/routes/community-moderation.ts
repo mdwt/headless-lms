@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
-import { describeOperation } from '../operations.js';
 import {
   Chat,
   CommentView,
@@ -38,12 +37,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/members',
-    config: { operation: 'reporting.admin.communityMembers' },
     schema: {
       operationId: 'listCommunityMembers',
       tags,
       summary: 'List the people who hold a community',
-      description: `${describeOperation('reporting.admin.communityMembers')} Everyone with active access to the community, granted directly or through a bundle, paged and searched by name or email.`,
+      description: `Requires \`access:read\`. Everyone with active access to the community, granted directly or through a bundle, paged and searched by name or email.`,
       params: CommunityIdParam,
       querystring: CommunityMembersQuery,
       response: { 200: CommunityMembersPage, ...refusals(403, 404) },
@@ -57,12 +55,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/spaces/:spaceId/members',
-    config: { operation: 'entitlements.listSpaceMembers' },
     schema: {
       operationId: 'listCommunitySpaceMembers',
       tags,
       summary: 'List the members, requests and invitations of a space',
-      description: `${describeOperation('entitlements.listSpaceMembers')} The space's members, its open requests to join and its open invitations.`,
+      description: `Any active member of the organization. The space's members, its open requests to join and its open invitations.`,
       params: CommunitySpaceParam,
       querystring: PageQuery,
       response: { 200: SpaceMembersPage, ...refusals(403, 404) },
@@ -81,12 +78,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/members',
-    config: { operation: 'entitlements.addSpaceMember' },
     schema: {
       operationId: 'addCommunitySpaceMember',
       tags,
       summary: 'Add a person to a space',
-      description: `${describeOperation('entitlements.addSpaceMember')} Places a member of the community straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.`,
+      description: `Requires \`communities:moderate\`. Places a member of the community straight into the space, with no request or invitation. 409 when the space is open to all members, the person is already placed, or the space is full.`,
       params: CommunitySpaceParam,
       body: OrgUserBody,
       response: { 201: SpaceMember, ...refusals(403, 404, 409) },
@@ -106,12 +102,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/invites',
-    config: { operation: 'entitlements.invite' },
     schema: {
       operationId: 'inviteCommunitySpaceMember',
       tags,
       summary: 'Invite a person into a space',
-      description: `${describeOperation('entitlements.invite')} Invites a member of the community into a \`by_invite\` space; they join when they accept. 403 when the person opens every space or is not a member of the community; 409 when the space is not invite-only or the person is already placed.`,
+      description: `Requires \`communities:moderate\`. Invites a member of the community into a \`by_invite\` space; they join when they accept. 403 when the person opens every space or is not a member of the community; 409 when the space is not invite-only or the person is already placed.`,
       params: CommunitySpaceParam,
       body: OrgUserBody,
       response: { 201: SpaceMember, ...refusals(403, 404, 409) },
@@ -131,12 +126,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/approval',
-    config: { operation: 'entitlements.approve' },
     schema: {
       operationId: 'approveCommunitySpaceRequest',
       tags,
       summary: "Approve a person's request to join a space",
-      description: `${describeOperation('entitlements.approve')} Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.`,
+      description: `Requires \`communities:moderate\`. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.`,
       params: SpaceMemberParam,
       response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
@@ -154,12 +148,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/decline',
-    config: { operation: 'entitlements.decline' },
     schema: {
       operationId: 'declineCommunitySpaceRequest',
       tags,
       summary: "Decline a person's request to join a space",
-      description: `${describeOperation('entitlements.decline')} Closes the open request. 404 when the person has no open request; 409 when they are already a member.`,
+      description: `Requires \`communities:moderate\`. Closes the open request. 404 when the person has no open request; 409 when they are already a member.`,
       params: SpaceMemberParam,
       response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
@@ -177,12 +170,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/members/:orgUserId/removal',
-    config: { operation: 'entitlements.remove' },
     schema: {
       operationId: 'removeCommunitySpaceMember',
       tags,
       summary: 'Remove a person from a space',
-      description: `${describeOperation('entitlements.remove')} Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.`,
+      description: `Requires \`communities:moderate\`. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.`,
       params: SpaceMemberParam,
       response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
@@ -200,12 +192,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/spaces/:spaceId/queue',
-    config: { operation: 'posts.moderationQueue' },
     schema: {
       operationId: 'getCommunitySpaceQueue',
       tags,
       summary: 'The moderation queue of a space',
-      description: `${describeOperation('posts.moderationQueue')} Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.`,
+      description: `Requires \`communities:moderate\`. Posts awaiting review, and the open flags on posts and on comments in the space. Each list holds at most the 100 oldest entries: pending posts by creation, flags by when they were raised; working the queue brings in the next ones.`,
       params: CommunitySpaceParam,
       response: { 200: SpaceQueue, ...refusals(403, 404) },
     },
@@ -218,12 +209,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/posts/:postId/approval',
-    config: { operation: 'posts.approve' },
     schema: {
       operationId: 'approveCommunityPost',
       tags,
       summary: 'Publish a post that is awaiting review',
-      description: `${describeOperation('posts.approve')} 409 when the post is not awaiting review.`,
+      description: `Requires \`communities:moderate\`. 409 when the post is not awaiting review.`,
       params: CommunityPostParam,
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
@@ -236,7 +226,6 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/posts/:postId/removal',
-    config: { operation: 'posts.remove' },
     schema: {
       operationId: 'removeCommunityPost',
       tags,
@@ -254,12 +243,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/posts/:postId/restoration',
-    config: { operation: 'posts.restore' },
     schema: {
       operationId: 'restoreCommunityPost',
       tags,
       summary: 'Restore a removed post',
-      description: `${describeOperation('posts.restore')} 409 when the post is not removed.`,
+      description: `Requires \`communities:moderate\`. 409 when the post is not removed.`,
       params: CommunityPostParam,
       response: { 200: PostView, ...refusals(403, 404, 409) },
     },
@@ -272,12 +260,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/posts/:postId/flags/resolution',
-    config: { operation: 'posts.resolveFlags' },
     schema: {
       operationId: 'resolveCommunityPostFlags',
       tags,
       summary: 'Dismiss the open flags on a post',
-      description: `${describeOperation('posts.resolveFlags')} Closes every open flag on the post and leaves it up.`,
+      description: `Requires \`communities:moderate\`. Closes every open flag on the post and leaves it up.`,
       params: CommunityPostParam,
       body: ResolvePostFlags,
       response: { 204: z.void(), ...refusals(403, 404) },
@@ -297,7 +284,6 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/comments/:commentId/removal',
-    config: { operation: 'discussion.remove' },
     schema: {
       operationId: 'removeCommunityComment',
       tags,
@@ -319,12 +305,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/comments/:commentId/restoration',
-    config: { operation: 'discussion.restore' },
     schema: {
       operationId: 'restoreCommunityComment',
       tags,
       summary: 'Restore a removed comment on a post',
-      description: `${describeOperation('discussion.restore')} Publishes the comment again. Restoring a comment that is not removed returns it unchanged.`,
+      description: `Requires one of \`courses:moderate\`, \`communities:moderate\`. Publishes the comment again. Restoring a comment that is not removed returns it unchanged.`,
       params: CommunityCommentParam,
       response: { 200: CommentView, ...refusals(403, 404) },
     },
@@ -341,12 +326,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/comments/:commentId/flags/resolution',
-    config: { operation: 'discussion.resolveReports' },
     schema: {
       operationId: 'resolveCommunityCommentFlags',
       tags,
       summary: 'Dismiss the open flags on a comment',
-      description: `${describeOperation('discussion.resolveReports')} Closes every open flag on the comment and leaves it up.`,
+      description: `Requires one of \`courses:moderate\`, \`communities:moderate\`. Closes every open flag on the comment and leaves it up.`,
       params: CommunityCommentParam,
       body: ResolveCommentFlags,
       response: { 204: z.void(), ...refusals(403, 404) },
@@ -365,12 +349,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/messages/:messageId/flags/resolution',
-    config: { operation: 'chats.resolveMessageFlags' },
     schema: {
       operationId: 'resolveCommunityMessageFlags',
       tags,
       summary: 'Dismiss the open flags on a message',
-      description: `${describeOperation('chats.resolveMessageFlags')} Closes every open flag on the message and leaves it up.`,
+      description: `Requires \`communities:moderate\`. Closes every open flag on the message and leaves it up.`,
       params: CommunityMessageParam,
       body: ResolveMessageFlags,
       response: { 204: z.void(), ...refusals(403, 404) },
@@ -390,12 +373,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/chats/:chatId/lock',
-    config: { operation: 'chats.lock' },
     schema: {
       operationId: 'lockCommunityChat',
       tags,
       summary: 'Lock a chat',
-      description: `${describeOperation('chats.lock')} Nobody can send or edit messages until it is unlocked; its open message flags are resolved as \`locked\`. Locking a locked chat returns it unchanged.`,
+      description: `Requires \`communities:moderate\`. Nobody can send or edit messages until it is unlocked; its open message flags are resolved as \`locked\`. Locking a locked chat returns it unchanged.`,
       params: CommunityChatParam,
       response: { 200: Chat, ...refusals(403, 404) },
     },
@@ -408,12 +390,11 @@ export async function communityModerationRoutes(
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/chats/:chatId/unlock',
-    config: { operation: 'chats.unlock' },
     schema: {
       operationId: 'unlockCommunityChat',
       tags,
       summary: 'Unlock a chat',
-      description: `${describeOperation('chats.unlock')} Lets participants send messages again. Unlocking an unlocked chat returns it unchanged.`,
+      description: `Requires \`communities:moderate\`. Lets participants send messages again. Unlocking an unlocked chat returns it unchanged.`,
       params: CommunityChatParam,
       response: { 200: Chat, ...refusals(403, 404) },
     },

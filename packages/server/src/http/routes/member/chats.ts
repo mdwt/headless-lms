@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
 import { resolveActor } from '../../scope.js';
-import { describeOperation } from '../../operations.js';
 import { sse } from '../../sse.js';
 import {
   BlockParam,
@@ -45,7 +44,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/chats',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.listChats' },
     schema: {
       operationId: 'listMemberChats',
       tags,
@@ -66,12 +64,12 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/chats/events',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.watch', eventStream: true },
+    config: { eventStream: true },
     schema: {
       operationId: 'streamMemberChatEvents',
       tags,
       summary: 'Stream your chat events in a community',
-      description: `${describeOperation('chats.watch')} For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with \`ready\` and your \`unread\`; load your chats on \`ready\` and on \`resync\`. A \`: ping\` comment every 25 s keeps it open. It ends with \`closed\` when the server shuts down. 503 when this server has no live delivery.`,
+      description: `Any active member of the organization. For a member of the community. A server-sent event stream of the changes to the chats you are in. It starts with \`ready\` and your \`unread\`; load your chats on \`ready\` and on \`resync\`. A \`: ping\` comment every 25 s keeps it open. It ends with \`closed\` when the server shuts down. 503 when this server has no live delivery.`,
       params: CommunityParam,
       response: {
         200: { content: { 'text/event-stream': { schema: ChatLiveEvent } } },
@@ -89,12 +87,11 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/chats/unread',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.unreadSummary' },
     schema: {
       operationId: 'getMemberChatUnread',
       tags,
       summary: 'Your unread chat total in a community',
-      description: `${describeOperation('chats.unreadSummary')} For a member of the community. \`unread\` counts the unread messages in your chats that are neither muted nor requests to you, plus your pending requests; \`requests\` is the number of pending requests to you.`,
+      description: `Any active member of the organization. For a member of the community. \`unread\` counts the unread messages in your chats that are neither muted nor requests to you, plus your pending requests; \`requests\` is the number of pending requests to you.`,
       params: CommunityParam,
       response: { 200: ChatUnreadSummary, ...refusals(403, 404) },
     },
@@ -108,12 +105,11 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/chats/direct/:orgUserId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.directChat' },
     schema: {
       operationId: 'getMemberDirectChat',
       tags,
       summary: 'Your direct chat with a person',
-      description: `${describeOperation('chats.directChat')} For a member of the community. Your direct chat with the person while you are in it; 404 when there is none.`,
+      description: `Any active member of the organization. For a member of the community. Your direct chat with the person while you are in it; 404 when there is none.`,
       params: DirectChatParam,
       response: { 200: ChatListItem, ...refusals(403, 404) },
     },
@@ -127,12 +123,11 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/chats/:chatId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.chat' },
     schema: {
       operationId: 'getMemberChat',
       tags,
       summary: 'Read one of your chats',
-      description: `${describeOperation('chats.chat')} For a participant of the chat. The chat as it appears in your chat list.`,
+      description: `Any active member of the organization. For a participant of the chat. The chat as it appears in your chat list.`,
       params: ChatIdParam,
       response: { 200: ChatListItem, ...refusals(403, 404) },
     },
@@ -146,12 +141,11 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/typing',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.typing' },
     schema: {
       operationId: 'sendChatTyping',
       tags,
       summary: 'Tell the chat you are typing',
-      description: `${describeOperation('chats.typing')} For a participant while the chat is open and not locked (403 otherwise). The others see you typing for 5 s; a repeat within 2 s is dropped.`,
+      description: `Any active member of the organization. For a participant while the chat is open and not locked (403 otherwise). The others see you typing for 5 s; a repeat within 2 s is dropped.`,
       params: ChatIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
@@ -166,12 +160,11 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/message-queue',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.messageQueue' },
     schema: {
       operationId: 'getMemberMessageQueue',
       tags,
       summary: 'Open message flags in a community you moderate',
-      description: `${describeOperation('chats.messageQueue')} Needed on the community, as a member of it. The messages in its chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.`,
+      description: `Requires \`communities:moderate\`. Needed on the community, as a member of it. The messages in its chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.`,
       params: CommunityParam,
       response: { 200: MessageQueue, ...refusals(403, 404) },
     },
@@ -185,7 +178,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/direct',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.startDirect' },
     schema: {
       operationId: 'startDirectChat',
       tags,
@@ -205,7 +197,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/group',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.startGroup' },
     schema: {
       operationId: 'startGroupChat',
       tags,
@@ -226,7 +217,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/participants',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.addParticipant' },
     schema: {
       operationId: 'addChatParticipant',
       tags,
@@ -247,7 +237,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/leave',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.leave' },
     schema: {
       operationId: 'leaveChat',
       tags,
@@ -266,7 +255,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/acceptance',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.accept' },
     schema: {
       operationId: 'acceptChat',
       tags,
@@ -286,7 +274,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/chats/:chatId/messages',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.messages' },
     schema: {
       operationId: 'listChatMessages',
       tags,
@@ -306,7 +293,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/messages',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.send' },
     schema: {
       operationId: 'sendChatMessage',
       tags,
@@ -328,7 +314,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PATCH',
     url: '/api/member/messages/:messageId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.editMessage' },
     schema: {
       operationId: 'editChatMessage',
       tags,
@@ -349,7 +334,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/messages/:messageId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.deleteMessage' },
     schema: {
       operationId: 'deleteChatMessage',
       tags,
@@ -369,7 +353,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/messages/:messageId/reaction',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.setReaction' },
     schema: {
       operationId: 'setMessageReaction',
       tags,
@@ -390,7 +373,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/messages/:messageId/reaction',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.setReaction' },
     schema: {
       operationId: 'clearMessageReaction',
       tags,
@@ -409,7 +391,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/messages/:messageId/flags',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.flagMessage' },
     schema: {
       operationId: 'flagMessage',
       tags,
@@ -431,7 +412,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/messages/:messageId/flags/resolution',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.resolveMessageFlags' },
     schema: {
       operationId: 'resolveMessageFlags',
       tags,
@@ -453,7 +433,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/read',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.markRead' },
     schema: {
       operationId: 'markChatRead',
       tags,
@@ -474,7 +453,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/chats/:chatId/subscription',
     preHandler: app.requireOrgSession,
-    config: { operation: 'subscriptions.setChat' },
     schema: {
       operationId: 'setChatSubscription',
       tags,
@@ -496,7 +474,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/lock',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.lock' },
     schema: {
       operationId: 'lockChat',
       tags,
@@ -516,7 +493,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/chats/:chatId/unlock',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.unlock' },
     schema: {
       operationId: 'unlockChat',
       tags,
@@ -536,7 +512,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/communities/:communityId/blocks/:orgUserId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.block' },
     schema: {
       operationId: 'blockMember',
       tags,
@@ -557,7 +532,6 @@ export async function memberChatRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/communities/:communityId/blocks/:orgUserId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'chats.unblock' },
     schema: {
       operationId: 'unblockMember',
       tags,

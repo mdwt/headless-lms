@@ -21,7 +21,6 @@ import { hashInviteToken } from '../shared/invite-token.js';
 import { createCapturingLogger } from '../shared/logger.js';
 import type { Logger } from '../shared/ports.js';
 import { DEFAULT_ROLES, RoleSetError, type RoleDefinition } from './default-roles.js';
-import { organizationsDeclarations } from './declarations.js';
 
 const ORG = 'org_1';
 const OWNER_KEY = 'owner';
@@ -1260,7 +1259,7 @@ describe('levels when giving and saving', () => {
 });
 
 describe('deny by default', () => {
-  it('refuses every permission-declared method to a person who holds nothing', async () => {
+  it('refuses every method a person can call to a person who holds nothing', async () => {
     const nobody = await w.actor(s.oliver.orgUser.id);
     await w.service.createInvite(
       { email: 'ivy@example.com', sendEmail: false },
@@ -1292,10 +1291,6 @@ describe('deny by default', () => {
       createApiKey: () => w.service.createApiKey({ name: 'x', scopes: ['courses:read'] }, nobody),
       deleteApiKey: () => w.service.deleteApiKey('key_1', nobody),
     };
-    const declared = Object.entries(organizationsDeclarations)
-      .filter(([, declaration]) => typeof declaration !== 'string')
-      .map(([name]) => name);
-    expect(Object.keys(calls).sort()).toEqual(declared.sort());
     for (const [name, call] of Object.entries(calls)) {
       await expect(call(), name).rejects.toBeInstanceOf(ForbiddenError);
     }

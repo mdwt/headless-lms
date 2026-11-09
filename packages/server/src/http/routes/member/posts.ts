@@ -37,7 +37,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/feed',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.memberFeed' },
     schema: {
       operationId: 'getMemberFeed',
       tags,
@@ -58,7 +57,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/own-posts',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.listOwn' },
     schema: {
       operationId: 'listOwnPosts',
       tags,
@@ -79,7 +77,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/bookmarks',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.listBookmarked' },
     schema: {
       operationId: 'listBookmarkedPosts',
       tags,
@@ -100,7 +97,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/spaces/:spaceId/feed',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.spaceFeed' },
     schema: {
       operationId: 'getSpaceFeed',
       tags,
@@ -121,7 +117,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/communities/:communityId/spaces/:spaceId/queue',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.moderationQueue' },
     schema: {
       operationId: 'getSpaceQueue',
       tags,
@@ -141,7 +136,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/posts',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.create' },
     schema: {
       operationId: 'createPost',
       tags,
@@ -167,7 +161,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/posts/:postId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.getPost' },
     schema: {
       operationId: 'getPost',
       tags,
@@ -187,7 +180,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PATCH',
     url: '/api/member/posts/:postId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.update' },
     schema: {
       operationId: 'updatePost',
       tags,
@@ -208,7 +200,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/submission',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.submit' },
     schema: {
       operationId: 'submitPost',
       tags,
@@ -228,7 +219,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/schedule',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.schedule' },
     schema: {
       operationId: 'schedulePost',
       tags,
@@ -249,7 +239,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/unschedule',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.unschedule' },
     schema: {
       operationId: 'unschedulePost',
       tags,
@@ -269,7 +258,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/approval',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.approve' },
     schema: {
       operationId: 'approvePost',
       tags,
@@ -289,7 +277,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/removal',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.remove' },
     schema: {
       operationId: 'removePost',
       tags,
@@ -309,7 +296,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/restoration',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.restore' },
     schema: {
       operationId: 'restorePost',
       tags,
@@ -328,7 +314,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/pin',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.pin' },
     schema: {
       operationId: 'pinPost',
       tags,
@@ -347,7 +332,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/unpin',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.unpin' },
     schema: {
       operationId: 'unpinPost',
       tags,
@@ -366,7 +350,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/comments/close',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.closeComments' },
     schema: {
       operationId: 'closePostComments',
       tags,
@@ -386,7 +369,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/comments/open',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.openComments' },
     schema: {
       operationId: 'openPostComments',
       tags,
@@ -405,7 +387,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/posts/:postId/reactions',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.setReactions' },
     schema: {
       operationId: 'setPostReactionPolicy',
       tags,
@@ -426,7 +407,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/posts/:postId/reaction',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.setReaction' },
     schema: {
       operationId: 'setPostReaction',
       tags,
@@ -447,7 +427,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/posts/:postId/reaction',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.setReaction' },
     schema: {
       operationId: 'clearPostReaction',
       tags,
@@ -467,7 +446,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'PUT',
     url: '/api/member/posts/:postId/subscription',
     preHandler: app.requireOrgSession,
-    config: { operation: 'subscriptions.setPost' },
     schema: {
       operationId: 'setPostSubscription',
       tags,
@@ -489,7 +467,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/bookmark',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.bookmark' },
     schema: {
       operationId: 'bookmarkPost',
       tags,
@@ -509,7 +486,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'DELETE',
     url: '/api/member/posts/:postId/bookmark',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.unbookmark' },
     schema: {
       operationId: 'unbookmarkPost',
       tags,
@@ -529,7 +505,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/flags',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.flag' },
     schema: {
       operationId: 'flagPost',
       tags,
@@ -551,7 +526,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/flags/resolution',
     preHandler: app.requireOrgSession,
-    config: { operation: 'posts.resolveFlags' },
     schema: {
       operationId: 'resolvePostFlags',
       tags,
@@ -573,7 +547,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'GET',
     url: '/api/member/posts/:postId/comments',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.postComments' },
     schema: {
       operationId: 'listPostComments',
       tags,
@@ -594,7 +567,6 @@ export async function memberPostRoutes(app: FastifyInstance, container: Containe
     method: 'POST',
     url: '/api/member/posts/:postId/comments',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.postComment' },
     schema: {
       operationId: 'createPostComment',
       tags,

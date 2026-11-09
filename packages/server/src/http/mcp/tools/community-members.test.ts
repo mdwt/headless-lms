@@ -52,13 +52,13 @@ const cases: ToolCase[] = [
 describe('community member tools', () => {
   it('name the core method they call and their hints', () => {
     expect(toolSpecs(communityMemberTools)).toEqual([
-      ['list_community_members', 'reporting.admin.communityMembers', 'read', true, false],
-      ['list_space_members', 'entitlements.listSpaceMembers', 'read', true, false],
-      ['add_space_member', 'entitlements.addSpaceMember', 'write', false, false],
-      ['invite_space_member', 'entitlements.invite', 'write', false, true],
-      ['approve_space_request', 'entitlements.approve', 'write', true, false],
-      ['decline_space_request', 'entitlements.decline', 'write', true, false],
-      ['remove_space_member', 'entitlements.remove', 'destructive', true, false],
+      ['list_community_members', 'read', true, false],
+      ['list_space_members', 'read', true, false],
+      ['add_space_member', 'write', false, false],
+      ['invite_space_member', 'write', false, true],
+      ['approve_space_request', 'write', true, false],
+      ['decline_space_request', 'write', true, false],
+      ['remove_space_member', 'destructive', true, false],
     ]);
   });
 

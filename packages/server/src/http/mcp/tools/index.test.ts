@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { declarationOf } from '../../operations.js';
 import { fakeContainer, listTools, toolContext } from '../test-support.js';
 import { TOOLS } from './index.js';
 
@@ -128,34 +127,6 @@ const NAMES = [
 describe('tool registry', () => {
   it('is exactly the designed tools, in order', () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual(NAMES);
-  });
-
-  it('names a declared operation a token can reach for every tool', () => {
-    for (const tool of TOOLS) {
-      const declaration = declarationOf(tool.operation);
-      expect(
-        declaration === 'member' || (declaration !== null && typeof declaration === 'object'),
-        tool.name,
-      ).toBe(true);
-    }
-  });
-
-  it('keeps read tools on read permissions and delete permissions on destructive tools', () => {
-    for (const tool of TOOLS) {
-      const declaration = declarationOf(tool.operation);
-      const permissions =
-        declaration && typeof declaration === 'object' ? declaration.permissions : [];
-      if (tool.kind === 'read') {
-        expect(
-          permissions.length === 0 ||
-            permissions.some((p) => p.endsWith(':read') || p.endsWith(':moderate')),
-          tool.name,
-        ).toBe(true);
-      }
-      if (permissions.some((p) => p.endsWith(':delete'))) {
-        expect(tool.kind, tool.name).toBe('destructive');
-      }
-    }
   });
 
   it('lists every tool with an object input schema and explicit hints', async () => {

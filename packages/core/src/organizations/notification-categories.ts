@@ -6,7 +6,6 @@ import type {
   NotificationTypeRegistry,
 } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
-import { requires, type Declarations } from '../shared/declarations.js';
 import { NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { SettingsNamespace, type SettingsService } from '../shared/settings.js';
@@ -97,10 +96,3 @@ export class OrgNotificationCategories implements NotificationCategoryService {
     }
   }
 }
-
-export const orgNotificationCategoriesDeclarations = {
-  get: requires('notification_categories:read'),
-  replace: requires('notification_categories:write'),
-  reset: requires('notification_categories:write'),
-  defaults: requires('notification_categories:read'),
-} as const satisfies Declarations<NotificationCategoryService>;

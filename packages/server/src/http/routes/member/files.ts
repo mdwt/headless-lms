@@ -39,7 +39,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/thumbnail',
-    config: { operation: 'reporting.member.thumbnailFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getCourseThumbnail',
@@ -60,7 +59,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/events/:eventId/thumbnail',
-    config: { operation: 'reporting.member.thumbnailFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getEventThumbnail',
@@ -81,7 +79,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/events/:eventId/assets/:assetId',
-    config: { operation: 'reporting.member.eventFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getEventFile',
@@ -102,7 +99,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/downloads/:downloadId/thumbnail',
-    config: { operation: 'reporting.member.thumbnailFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getDownloadThumbnail',
@@ -123,7 +119,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/thumbnail',
-    config: { operation: 'reporting.member.thumbnailFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getCommunityThumbnail',
@@ -144,7 +139,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/activities/:activityId/assets/:assetId',
-    config: { operation: 'reporting.member.activityFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getActivityFile',
@@ -165,7 +159,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/downloads/:downloadId/assets/:assetId',
-    config: { operation: 'reporting.member.downloadFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getDownloadFile',
@@ -186,7 +179,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/posts/:postId/cover',
-    config: { operation: 'posts.coverFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getPostCover',
@@ -207,7 +199,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/posts/:postId/assets/:assetId',
-    config: { operation: 'posts.assetFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getPostAsset',
@@ -228,7 +219,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/chats/:chatId/messages/:messageId/attachments/:assetId',
-    config: { operation: 'chats.attachmentFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMessageAttachment',
@@ -254,7 +244,6 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/member/uploads/:id/file',
-    config: { operation: 'assets.ownUploadFile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberUploadFile',

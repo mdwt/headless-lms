@@ -20,7 +20,6 @@ export const communityTools: Tool[] = [
     title: 'List communities',
     description:
       'Search and page through the communities, drafts included, each with its status and direct-message settings. Filter by status, search by title.',
-    operation: 'content.listCommunities',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -32,7 +31,6 @@ export const communityTools: Tool[] = [
     title: 'List spaces',
     description:
       'The spaces of a community, in order, each with its access rule, topics and links.',
-    operation: 'content.listSpaces',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -45,7 +43,6 @@ export const communityTools: Tool[] = [
     title: 'Create community',
     description:
       'Create a draft community with the default direct-message settings and no spaces. Add spaces with create_space and publish it with update_community.',
-    operation: 'content.createCommunity',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -57,7 +54,6 @@ export const communityTools: Tool[] = [
     title: 'Update community',
     description:
       'Change a community title, description or cover image, or publish and unpublish it with status. The cover must be a ready image from list_media; null clears it. Fields left out stay as they are.',
-    operation: 'content.updateCommunity',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -70,7 +66,6 @@ export const communityTools: Tool[] = [
     title: 'Update community messaging',
     description:
       'Change the direct-message settings of a community: who may message whom from now on. Settings left out stay as they are.',
-    operation: 'content.patchCommunitySettings',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -83,7 +78,6 @@ export const communityTools: Tool[] = [
     title: 'Create space',
     description:
       'Add a space at the end of a community. Its access rule decides who can open it: all members, by request or by invite. A space open to all members cannot have a capacity.',
-    operation: 'content.createSpace',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -96,7 +90,6 @@ export const communityTools: Tool[] = [
     title: 'Update space',
     description:
       'Change a space name, description, access rule, capacity or settings. settings merges into the current settings. Fields left out stay as they are.',
-    operation: 'content.updateSpace',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -109,7 +102,6 @@ export const communityTools: Tool[] = [
     title: 'Reorder spaces',
     description:
       'Set the space order of a community. Pass every space id of the community in the new order.',
-    operation: 'content.reorderSpaces',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -122,7 +114,6 @@ export const communityTools: Tool[] = [
     title: 'Set space topics',
     description:
       'Replace the topics of a space. An entry with an id keeps and renames that topic, one without adds a topic, and a topic left out is deleted. A topic that posts use cannot be deleted.',
-    operation: 'content.setSpaceTopics',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -135,7 +126,6 @@ export const communityTools: Tool[] = [
     title: 'Add space link',
     description:
       'Link a course, download or community into a space, after its other links. Returns the space.',
-    operation: 'content.addSpaceLink',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -147,7 +137,6 @@ export const communityTools: Tool[] = [
     name: 'reorder_space_links',
     title: 'Reorder space links',
     description: 'Set the link order of a space. Pass every link id of the space in the new order.',
-    operation: 'content.reorderSpaceLinks',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -160,7 +149,6 @@ export const communityTools: Tool[] = [
     title: 'Remove space link',
     description:
       'Take a link out of a space. The linked content itself is kept. Returns the space.',
-    operation: 'content.removeSpaceLink',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -172,7 +160,6 @@ export const communityTools: Tool[] = [
     name: 'delete_space',
     title: 'Delete space',
     description: 'Permanently delete a space with its posts, comments and members.',
-    operation: 'content.deleteSpace',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -185,7 +172,6 @@ export const communityTools: Tool[] = [
     title: 'Delete community',
     description:
       'Permanently delete a community with its spaces. Links to it from other spaces are removed.',
-    operation: 'content.deleteCommunity',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -197,7 +183,6 @@ export const communityTools: Tool[] = [
     name: 'get_community_analytics',
     title: 'Get community analytics',
     description: 'Membership, activity and moderation counts for one community.',
-    operation: 'reporting.admin.communityAnalytics',
     kind: 'read',
     idempotent: true,
     openWorld: false,

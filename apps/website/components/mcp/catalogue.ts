@@ -8,9 +8,7 @@ export type Tool = {
   name: string;
   title: string;
   description: string;
-  resource: string;
-  operation: string;
-  permissions: string[];
+  group: string;
   kind: Kind;
   idempotent: boolean;
   openWorld: boolean;
@@ -44,27 +42,6 @@ export const FULL_ROLES: string[] = ROLES.filter((role) =>
 
 export const PARTIAL_ROLES: string[] = ROLES.filter((role) => !FULL_ROLES.includes(role));
 
-export const RESOURCE_LABELS: Record<string, string> = {
-  organizations: "Organization",
-  api_keys: "API keys",
-  notification_categories: "Notification categories",
-  integrations: "Integrations",
-  analytics: "Analytics",
-  people: "People",
-  roles: "Roles",
-  access: "Access",
-  bundles: "Bundles",
-  media: "Media",
-  courses: "Courses",
-  progress: "Learners and progress",
-  downloads: "Downloads",
-  communities: "Communities",
-  automations: "Workflows and webhooks",
-  discussion: "Comments",
-  posts: "Posts",
-  entitlements: "Space members",
-};
-
 export const ABOUT_LABELS: Record<string, string> = {
   org: "About the organization",
   course: "About a course",
@@ -72,31 +49,11 @@ export const ABOUT_LABELS: Record<string, string> = {
   community: "About a community",
 };
 
-export const ACTION_LABELS: Record<string, string> = {
-  read: "View",
-  write: "Change",
-  delete: "Delete",
-  moderate: "Moderate",
-};
-
 export const KIND_LABELS: Record<Kind, string> = {
   read: "Reads",
   write: "Changes",
   destructive: "Removes",
 };
-
-export function resources(): string[] {
-  return [...new Set(catalogue.permissions.map((permission) => permission.resource))];
-}
-
-export function toolResources(): string[] {
-  const order = resources();
-  const own = [...new Set(catalogue.tools.map((tool) => tool.resource))];
-  return [
-    ...order.filter((resource) => own.includes(resource)),
-    ...own.filter((resource) => !order.includes(resource)),
-  ];
-}
 
 export function abouts(): string[] {
   return [...new Set(catalogue.permissions.map((permission) => permission.about))];

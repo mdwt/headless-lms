@@ -28,7 +28,6 @@ export { DEFAULT_COMMUNITY_CATEGORIES, DEFAULT_ORG_CATEGORIES } from './notifica
 export { applicableCategories } from './notifications/applicable.js';
 export type { CommunityMailReads, GrantWriter } from './community-mail.js';
 export { automationEvents } from './events.js';
-export { automationsDeclarations, notificationListDeclarations } from './declarations.js';
 export {
   ACTION_FAILED,
   ActionFailedError,

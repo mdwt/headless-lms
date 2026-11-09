@@ -23,12 +23,11 @@ afterEach(async () => {
 
 const ran: string[] = [];
 
-function probe(name: string, operation: string, kind: Tool['kind']) {
+function probe(name: string, kind: Tool['kind']) {
   return defineTool({
     name,
     title: name,
     description: name,
-    operation,
     kind,
     idempotent: kind !== 'write',
     openWorld: false,
@@ -37,15 +36,10 @@ function probe(name: string, operation: string, kind: Tool['kind']) {
   });
 }
 
-const MEMBER_PROBE = {
-  ...probe('member_x', 'organizations.listConnectedApps', 'read'),
-  listedFor: ['roles:write'] as const,
-};
-
 const PROBES = [
-  probe('read_x', 'organizations.listRoles', 'read'),
-  probe('write_x', 'organizations.updateRole', 'write'),
-  probe('delete_x', 'organizations.deleteRole', 'destructive'),
+  probe('read_x', 'read'),
+  probe('write_x', 'write'),
+  probe('delete_x', 'destructive'),
 ];
 
 async function build(container: Container, tools: Tool[] = PROBES) {
@@ -179,52 +173,11 @@ describe('POST /mcp credentials', () => {
 });
 
 describe('POST /mcp tool list', () => {
-  it('lists only the tools whose scope was granted', async () => {
-    expect(await listed(granted(['roles:read', 'roles:write']))).toEqual(['read_x', 'write_x']);
+  it('lists every tool to every member', async () => {
+    expect(await listed(granted([], 'member'))).toEqual(['read_x', 'write_x', 'delete_x']);
   });
 
-  it('hides delete tools unless their scope was granted', async () => {
-    expect(await listed(granted(['roles:read']))).toEqual(['read_x']);
-    expect(await listed(granted(['roles:read', 'roles:delete']))).toEqual(['read_x', 'delete_x']);
-  });
-
-  it('never lists a tool the role cannot hold, whatever was granted', async () => {
-    expect(
-      await listed(granted(['roles:read', 'roles:write', 'roles:delete'], 'instructor')),
-    ).toEqual([]);
-  });
-
-  it('lists no tools when the filter leaves none', async () => {
-    expect(await listed(granted(['roles:write'], 'instructor'))).toEqual([]);
-  });
-
-  it('lists a tool any member may call only to holders of its listing permission', async () => {
-    expect(await listed(granted(['roles:read', 'roles:write']), [MEMBER_PROBE])).toEqual([
-      'member_x',
-    ]);
-    expect(await listed(granted(['roles:read']), [MEMBER_PROBE])).toEqual([]);
-  });
-
-  it('does not run a tool outside the list', async () => {
-    ran.length = 0;
-    const server = await build(granted(['roles:read']));
-    const res = await server.inject({
-      method: 'POST',
-      url: '/mcp',
-      headers: legacyHeaders,
-      payload: {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'write_x', arguments: {} },
-      },
-    });
-    const body = parseSse(res.body);
-    expect(body.error ?? body.result?.isError).toBeTruthy();
-    expect(ran).toEqual([]);
-  });
-
-  it('runs a granted tool', async () => {
+  it('runs a tool', async () => {
     ran.length = 0;
     const server = await build(granted(['roles:read']));
     const res = await server.inject({
@@ -266,34 +219,11 @@ describe('POST /mcp tool list', () => {
       },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().result.tools.map((tool: { name: string }) => tool.name)).toEqual(['read_x']);
-  });
-
-  it('lists no tools to a 2026-07-28 client when the filter leaves none', async () => {
-    const server = await build(granted(['roles:write'], 'instructor'));
-    const res = await server.inject({
-      method: 'POST',
-      url: '/mcp',
-      headers: {
-        'content-type': 'application/json',
-        'mcp-protocol-version': '2026-07-28',
-        'mcp-method': 'tools/list',
-        authorization: 'Bearer token',
-      },
-      payload: {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/list',
-        params: {
-          _meta: {
-            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
-            'io.modelcontextprotocol/clientCapabilities': {},
-          },
-        },
-      },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(res.json().result.tools).toEqual([]);
+    expect(res.json().result.tools.map((tool: { name: string }) => tool.name)).toEqual([
+      'read_x',
+      'write_x',
+      'delete_x',
+    ]);
   });
 });
 

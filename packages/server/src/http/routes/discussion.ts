@@ -15,7 +15,6 @@ import {
 } from '../schemas/index.js';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
-import { describeOperation } from '../operations.js';
 
 export async function discussionRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -24,12 +23,11 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'GET',
     url: '/api/comments',
-    config: { operation: 'discussion.listComments' },
     schema: {
       operationId: 'listComments',
       tags: ['Discussion'],
       summary: 'List course comments for moderation',
-      description: `${describeOperation('discussion.listComments')} Comments on the activities of the courses you moderate, filtered by course, activity, author, status or open reports; each row carries the author's email and the open reports.`,
+      description: `Requires \`courses:moderate\`. Comments on the activities of the courses you moderate, filtered by course, activity, author, status or open reports; each row carries the author's email and the open reports.`,
       querystring: CommentsQuery,
       response: { 200: CommentsPage, ...refusals(403) },
     },
@@ -42,7 +40,6 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'DELETE',
     url: '/api/comments/:commentId',
-    config: { operation: 'discussion.remove' },
     schema: {
       operationId: 'moderateRemoveComment',
       tags: ['Discussion'],
@@ -61,7 +58,6 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'PATCH',
     url: '/api/comments/:commentId',
-    config: { operation: 'discussion.publish' },
     schema: {
       operationId: 'publishComment',
       tags: ['Discussion'],
@@ -81,7 +77,6 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'DELETE',
     url: '/api/comments/:commentId/reports',
-    config: { operation: 'discussion.resolveReports' },
     schema: {
       operationId: 'dismissCommentReports',
       tags: ['Discussion'],
@@ -100,12 +95,11 @@ export async function discussionRoutes(app: FastifyInstance, container: Containe
   r.route({
     method: 'POST',
     url: '/api/comments/:commentId/replies',
-    config: { operation: 'discussion.replyToComment' },
     schema: {
       operationId: 'replyToComment',
       tags: ['Discussion'],
       summary: 'Reply to a course comment from the moderation queue',
-      description: `${describeOperation('discussion.replyToComment')} Needed on the comment's course. Replies nest one level: answering a reply attaches to its root comment.`,
+      description: `Requires \`courses:moderate\`. Needed on the comment's course. Replies nest one level: answering a reply attaches to its root comment.`,
       params: CommentIdParam,
       body: ReplyToComment,
       response: { 200: CommentView, ...refusals(403, 404) },

@@ -1,17 +1,13 @@
 // organizations context — public surface.
 export { OrganizationServiceImpl } from './service.js';
 export type { OrganizationServiceParams, InviteUrls } from './service.js';
-export {
-  OrgNotificationCategories,
-  orgNotificationCategoriesDeclarations,
-} from './notification-categories.js';
-export { NotificationCatalog, notificationCatalogDeclarations } from './notification-catalog.js';
+export { OrgNotificationCategories } from './notification-categories.js';
+export { NotificationCatalog } from './notification-catalog.js';
 export type {
   NotificationCatalogParams,
   NotificationCatalogService,
 } from './notification-catalog.js';
 export { organizationEvents } from './events.js';
-export { organizationsDeclarations } from './declarations.js';
 export { actorWith } from './testing.js';
 export type { ActorShape } from './testing.js';
 

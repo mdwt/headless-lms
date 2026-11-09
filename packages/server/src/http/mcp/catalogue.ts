@@ -5,11 +5,10 @@ import {
   withImplied,
 } from '@headless-lms/core/organizations';
 import type { Level, Permission } from '@headless-lms/core/types';
-import { permissionFor } from '../operations.js';
 import { toolInputSchema } from './input-schema.js';
 import { MCP_INSTRUCTIONS } from './server.js';
-import type { ToolKind } from './tool.js';
-import { TOOLS } from './tools/index.js';
+import type { Tool, ToolKind } from './tool.js';
+import { TOOL_GROUPS } from './tools/index.js';
 
 export interface CatalogueField {
   name: string;
@@ -22,9 +21,7 @@ export interface CatalogueTool {
   name: string;
   title: string;
   description: string;
-  resource: string;
-  operation: string;
-  permissions: Permission[];
+  group: string;
   kind: ToolKind;
   idempotent: boolean;
   openWorld: boolean;
@@ -93,7 +90,7 @@ function descriptionOf(schema: JsonSchema): string | null {
   );
 }
 
-function fieldsOf(tool: (typeof TOOLS)[number]): CatalogueField[] {
+function fieldsOf(tool: Tool): CatalogueField[] {
   const json = toolInputSchema(tool.input)['~standard'].jsonSchema.input({
     target: 'draft-2020-12',
   }) as JsonSchema;
@@ -128,21 +125,17 @@ export function mcpCatalogue(): McpCatalogue {
         removes: action === 'delete',
       };
     }),
-    tools: TOOLS.map((tool) => {
-      const declared = [...permissionFor(tool.operation)];
-      const permissions = declared.length > 0 ? declared : [...(tool.listedFor ?? [])];
-      return {
+    tools: TOOL_GROUPS.flatMap(({ title: group, tools }) =>
+      tools.map((tool) => ({
         name: tool.name,
         title: tool.title,
         description: tool.description,
-        resource: permissions[0]?.split(':')[0] ?? tool.operation.split('.')[0] ?? tool.operation,
-        operation: tool.operation,
-        permissions,
+        group,
         kind: tool.kind,
         idempotent: tool.idempotent,
         openWorld: tool.openWorld,
         fields: fieldsOf(tool),
-      };
-    }),
+      })),
+    ),
   };
 }

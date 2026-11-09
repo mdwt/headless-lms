@@ -14,7 +14,6 @@ export async function memberDownloadsRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/downloads',
-    config: { operation: 'reporting.member.listDownloads' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberDownloads',
@@ -33,7 +32,6 @@ export async function memberDownloadsRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/downloads/:downloadId',
-    config: { operation: 'reporting.member.getDownload' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberDownload',

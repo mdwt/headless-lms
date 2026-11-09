@@ -31,7 +31,7 @@ Every tool is one call to the same domain services the SDK and the admin app use
 </Step>
 <Step>
 
-**Start asking.** The assistant sees only the [tools](/docs/mcp/tools) for the permissions you granted.
+**Start asking.** The assistant sees every [tool](/docs/mcp/tools), and each call is checked against the permissions you granted.
 
 </Step>
 </Steps>
@@ -123,11 +123,11 @@ curl https://<your-api-host>/mcp \
 
 - **Go beyond your permissions.** A permission is offered only if you hold it, and every call is limited to what you hold at that moment. If your roles change, the connection changes on the next call. See [how a connection is checked](/docs/mcp/permissions#how-a-connection-is-checked).
 - **Transfer ownership.** That needs the owner's own session; no token can, the owner's included.
-- **Delete without asking.** Delete permissions are never ticked for you, and without them the delete tools don't exist for the connection.
+- **Delete without asking.** Delete permissions are never ticked for you, and without them every delete is refused.
 - **Outlive your access.** Access tokens last 15 minutes and every call reads your membership from the database. Removing someone from the organization, or disconnecting the app, cuts it off on the next call.
 - **Handle secrets or files.** There are no tools for uploads, integration credentials or webhook secrets. Lesson content can't be written. Those stay in the admin app.
 
-Any active member of the organization can connect, and sees only the tools for the permissions they hold. A connection belongs to one organization; to work in another, connect again.
+Any active member of the organization can connect, and each call is checked against the permissions they hold. A connection belongs to one organization; to work in another, connect again.
 
 ## Run it yourself
 

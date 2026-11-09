@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { runCase, OWNER, toolSpecs, type ToolCase } from '../test-support.js';
 import { organizationTools } from './organization.js';
-import { TOOLS } from './index.js';
 
 const cases: ToolCase[] = [
   {
@@ -78,30 +77,24 @@ const cases: ToolCase[] = [
 describe('organization tools', () => {
   it('name their operation and hints', () => {
     expect(toolSpecs(organizationTools)).toEqual([
-      ['update_organization', 'organizations.updateOrganization', 'write', true, false],
-      ['list_roles', 'organizations.listRoles', 'read', true, false],
-      ['get_role', 'organizations.getRole', 'read', true, false],
-      ['update_role', 'organizations.updateRole', 'write', true, false],
-      ['create_role', 'organizations.createRole', 'write', false, false],
-      ['reset_role', 'organizations.resetRole', 'destructive', true, false],
-      ['delete_role', 'organizations.deleteRole', 'destructive', false, false],
-      ['list_team', 'organizations.listTeam', 'read', true, false],
-      ['list_person_roles', 'organizations.listAssignments', 'read', true, false],
-      ['list_roles_on_content', 'organizations.listAssignmentsOn', 'read', true, false],
-      ['set_org_role', 'organizations.setOrgRole', 'write', true, false],
-      ['assign_role', 'organizations.assignRole', 'write', true, false],
-      ['unassign_role', 'organizations.unassignRole', 'destructive', true, false],
-      ['invite_person', 'organizations.createInvite', 'write', false, true],
-      ['cancel_invite', 'organizations.cancelInvite', 'destructive', false, false],
-      ['remove_person', 'organizations.removePerson', 'destructive', false, false],
+      ['update_organization', 'write', true, false],
+      ['list_roles', 'read', true, false],
+      ['get_role', 'read', true, false],
+      ['update_role', 'write', true, false],
+      ['create_role', 'write', false, false],
+      ['reset_role', 'destructive', true, false],
+      ['delete_role', 'destructive', false, false],
+      ['list_team', 'read', true, false],
+      ['list_person_roles', 'read', true, false],
+      ['list_roles_on_content', 'read', true, false],
+      ['set_org_role', 'write', true, false],
+      ['assign_role', 'write', true, false],
+      ['unassign_role', 'destructive', true, false],
+      ['invite_person', 'write', false, true],
+      ['cancel_invite', 'destructive', false, false],
+      ['remove_person', 'destructive', false, false],
     ]);
   });
 
   it.each(cases)('$tool calls $service once', (c) => runCase(organizationTools, c));
-
-  it('offers no tool that transfers ownership', () => {
-    expect(TOOLS.filter((tool) => tool.operation === 'organizations.transferOwnership')).toEqual(
-      [],
-    );
-  });
 });

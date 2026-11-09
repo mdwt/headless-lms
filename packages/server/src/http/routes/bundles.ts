@@ -19,7 +19,6 @@ import {
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
-import { describeOperation } from '../operations.js';
 
 export async function bundlesRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -28,13 +27,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'GET',
     url: '/api/bundles',
-    config: { operation: 'content.listBundles' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listBundles',
       tags: ['Content'],
       summary: 'List bundles',
-      description: describeOperation('content.listBundles'),
+      description: 'Requires `bundles:read`.',
       querystring: BundlesQuery,
       response: { 200: BundlesPage, ...refusals(403) },
     },
@@ -47,13 +45,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'GET',
     url: '/api/bundles/:bundleId',
-    config: { operation: 'content.getBundle' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getBundle',
       tags: ['Content'],
       summary: 'Get a bundle',
-      description: describeOperation('content.getBundle'),
+      description: 'Requires `bundles:read`.',
       params: BundleIdParam,
       response: { 200: Bundle, ...refusals(403, 404) },
     },
@@ -66,13 +63,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'POST',
     url: '/api/bundles',
-    config: { operation: 'content.createBundle' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'createBundle',
       tags: ['Content'],
       summary: 'Create a bundle, optionally with initial content',
-      description: `${describeOperation('content.createBundle')} 404 when an initial content id is unknown.`,
+      description: `Requires \`bundles:write\`. 404 when an initial content id is unknown.`,
       body: CreateBundle,
       response: { 201: Bundle, ...refusals(403, 404) },
     },
@@ -86,13 +82,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'PATCH',
     url: '/api/bundles/:bundleId',
-    config: { operation: 'content.updateBundle' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateBundle',
       tags: ['Content'],
       summary: 'Rename a bundle',
-      description: describeOperation('content.updateBundle'),
+      description: 'Requires `bundles:write`.',
       params: BundleIdParam,
       body: UpdateBundle,
       response: { 200: Bundle, ...refusals(403, 404) },
@@ -106,13 +101,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'DELETE',
     url: '/api/bundles/:bundleId',
-    config: { operation: 'content.deleteBundle' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteBundle',
       tags: ['Content'],
       summary: 'Delete a bundle',
-      description: `${describeOperation('content.deleteBundle')} Its content survives; access granted through the bundle ends.`,
+      description: `Requires \`bundles:delete\`. Its content survives; access granted through the bundle ends.`,
       params: BundleIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
@@ -126,13 +120,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'GET',
     url: '/api/bundles/:bundleId/items',
-    config: { operation: 'content.listBundleItems' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listBundleItems',
       tags: ['Content'],
       summary: "List a bundle's content",
-      description: describeOperation('content.listBundleItems'),
+      description: 'Requires `bundles:read`.',
       params: BundleIdParam,
       response: { 200: z.array(BundleItem), ...refusals(403) },
     },
@@ -145,13 +138,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'POST',
     url: '/api/bundles/:bundleId/items',
-    config: { operation: 'content.addBundleItem' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'addBundleItem',
       tags: ['Content'],
       summary: 'Add content to a bundle',
-      description: `${describeOperation('content.addBundleItem')} Everyone who holds the bundle can open the content from then on. Returns the bundle's content.`,
+      description: `Requires \`bundles:write\`. Everyone who holds the bundle can open the content from then on. Returns the bundle's content.`,
       params: BundleIdParam,
       body: AddBundleItem,
       response: { 200: z.array(BundleItem), ...refusals(403, 404) },
@@ -165,13 +157,12 @@ export async function bundlesRoutes(app: FastifyInstance, container: Container):
   r.route({
     method: 'DELETE',
     url: '/api/bundles/:bundleId/items/:contentId',
-    config: { operation: 'content.removeBundleItem' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removeBundleItem',
       tags: ['Content'],
       summary: 'Remove content from a bundle',
-      description: `${describeOperation('content.removeBundleItem')} The content survives; access to it through the bundle ends. Returns the bundle's content.`,
+      description: `Requires \`bundles:write\`. The content survives; access to it through the bundle ends. Returns the bundle's content.`,
       params: BundleItemParams,
       response: { 200: z.array(BundleItem), ...refusals(403, 404) },
     },

@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../../app/container.js';
 import { resolveActor } from '../../scope.js';
-import { describeOperation } from '../../operations.js';
 import {
   CommunityHome,
   CommunityHomeSpace,
@@ -31,7 +30,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/home',
-    config: { operation: 'reporting.member.communityHome' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCommunityHome',
@@ -51,7 +49,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/spaces/:spaceId',
-    config: { operation: 'reporting.member.communitySpace' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberSpace',
@@ -75,7 +72,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/directory',
-    config: { operation: 'reporting.member.directory' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCommunityDirectory',
@@ -96,7 +92,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/spaces/:spaceId/members',
-    config: { operation: 'entitlements.listSpaceMembers' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listSpaceMembers',
@@ -122,7 +117,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/requests',
-    config: { operation: 'entitlements.requestJoin' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'requestSpaceMembership',
@@ -147,13 +141,12 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/invites',
-    config: { operation: 'entitlements.invite' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'inviteSpaceMember',
       tags,
       summary: 'Invite a person into a space you moderate',
-      description: `${describeOperation('entitlements.invite')} On the community, as its member. Invites another member into a \`by_invite\` space; they join when they accept. 403 when the person opens every space or is not a member of the community; 409 when the space is not invite-only or the person is already placed.`,
+      description: `Requires \`communities:moderate\`. On the community, as its member. Invites another member into a \`by_invite\` space; they join when they accept. 403 when the person opens every space or is not a member of the community; 409 when the space is not invite-only or the person is already placed.`,
       params: CommunitySpaceParam,
       body: OrgUserBody,
       response: { 201: SpaceMember, ...refusals(403, 404, 409) },
@@ -173,13 +166,12 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/members',
-    config: { operation: 'entitlements.addSpaceMember' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'addSpaceMember',
       tags,
       summary: 'Add a person to a space you moderate',
-      description: `${describeOperation('entitlements.addSpaceMember')} On the community, as its member. Places another member straight into the space, with no request or invitation. 403 when the person opens every space; 409 when the space is open to all members, the person is already placed, or the space is full.`,
+      description: `Requires \`communities:moderate\`. On the community, as its member. Places another member straight into the space, with no request or invitation. 403 when the person opens every space; 409 when the space is open to all members, the person is already placed, or the space is full.`,
       params: CommunitySpaceParam,
       body: OrgUserBody,
       response: { 201: SpaceMember, ...refusals(403, 404, 409) },
@@ -199,7 +191,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/acceptance',
-    config: { operation: 'entitlements.accept' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'acceptSpaceInvite',
@@ -219,13 +210,12 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/approval',
-    config: { operation: 'entitlements.approve' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'approveSpaceRequest',
       tags,
       summary: "Approve a person's request to join a space you moderate",
-      description: `${describeOperation('entitlements.approve')} On the community, as its member. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.`,
+      description: `Requires \`communities:moderate\`. On the community, as its member. Makes the requester an active member. 404 when the person has no open request; 409 when the space is full or they are already a member.`,
       params: SpaceMemberParam,
       response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
@@ -243,13 +233,12 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/decline',
-    config: { operation: 'entitlements.decline' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'declineSpaceRequest',
       tags,
       summary: "Decline a person's request to join a space you moderate",
-      description: `${describeOperation('entitlements.decline')} On the community, as its member. Closes the open request. 404 when the person has no open request; 409 when they are already a member.`,
+      description: `Requires \`communities:moderate\`. On the community, as its member. Closes the open request. 404 when the person has no open request; 409 when they are already a member.`,
       params: SpaceMemberParam,
       response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
@@ -267,7 +256,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/refusal',
-    config: { operation: 'entitlements.refuse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'refuseSpaceInvite',
@@ -287,7 +275,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/departure',
-    config: { operation: 'entitlements.leave' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'leaveSpace',
@@ -307,13 +294,12 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/communities/:communityId/spaces/:spaceId/members/:orgUserId/removal',
-    config: { operation: 'entitlements.remove' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'removeSpaceMember',
       tags,
       summary: 'Remove a person from a space you moderate',
-      description: `${describeOperation('entitlements.remove')} On the community, as its member. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.`,
+      description: `Requires \`communities:moderate\`. On the community, as its member. Revokes the placement, whether it is a membership, a request or an invitation. 409 when the space is open to all members or the placement is already revoked.`,
       params: SpaceMemberParam,
       response: { 200: SpaceMember, ...refusals(403, 404, 409) },
     },
@@ -331,7 +317,6 @@ export async function memberCommunityRoutes(
   r.route({
     method: 'PUT',
     url: '/api/member/spaces/:spaceId/subscription',
-    config: { operation: 'subscriptions.setSpace' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'setSpaceSubscription',

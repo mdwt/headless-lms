@@ -10,15 +10,17 @@ import { eventTools } from './events.js';
 import { peopleTools } from './people.js';
 import { organizationTools } from './organization.js';
 
-export const TOOLS: Tool[] = [
-  ...courseTools,
-  ...catalogTools,
-  ...eventTools,
-  ...peopleTools,
-  ...organizationTools,
-  ...automationTools,
-  ...commentTools,
-  ...communityTools,
-  ...communityMemberTools,
-  ...communityModerationTools,
+export const TOOL_GROUPS: { title: string; tools: Tool[] }[] = [
+  { title: 'Courses', tools: courseTools },
+  { title: 'Downloads, bundles and media', tools: catalogTools },
+  { title: 'Events', tools: eventTools },
+  { title: 'Students, access and analytics', tools: peopleTools },
+  { title: 'Organization, roles and team', tools: organizationTools },
+  { title: 'Workflows and webhooks', tools: automationTools },
+  { title: 'Comments', tools: commentTools },
+  { title: 'Communities', tools: communityTools },
+  { title: 'Community members', tools: communityMemberTools },
+  { title: 'Community moderation', tools: communityModerationTools },
 ];
+
+export const TOOLS: Tool[] = TOOL_GROUPS.flatMap((group) => group.tools);

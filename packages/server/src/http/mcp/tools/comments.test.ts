@@ -39,11 +39,11 @@ const cases: ToolCase[] = [
 describe('comment tools', () => {
   it('name their operation and hints', () => {
     expect(toolSpecs(commentTools)).toEqual([
-      ['list_comments', 'discussion.listComments', 'read', true, false],
-      ['publish_comment', 'discussion.publish', 'write', true, false],
-      ['dismiss_comment_reports', 'discussion.resolveReports', 'write', true, false],
-      ['reply_to_comment', 'discussion.replyToComment', 'write', false, false],
-      ['remove_comment', 'discussion.remove', 'destructive', true, false],
+      ['list_comments', 'read', true, false],
+      ['publish_comment', 'write', true, false],
+      ['dismiss_comment_reports', 'write', true, false],
+      ['reply_to_comment', 'write', false, false],
+      ['remove_comment', 'destructive', true, false],
     ]);
   });
 

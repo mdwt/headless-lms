@@ -21,7 +21,6 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses',
-    config: { operation: 'reporting.member.listCourses' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberCourses',
@@ -40,7 +39,6 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId',
-    config: { operation: 'reporting.member.getCourse' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCourse',
@@ -60,7 +58,6 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/modules',
-    config: { operation: 'reporting.member.listModules' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberModules',
@@ -80,7 +77,6 @@ export async function memberCoursesRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/activities',
-    config: { operation: 'reporting.member.listActivities' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listMemberActivities',

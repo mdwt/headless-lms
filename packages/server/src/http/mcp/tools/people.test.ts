@@ -113,18 +113,18 @@ const cases: ToolCase[] = [
 describe('student, access and analytics tools', () => {
   it('declare their operation and hints', () => {
     expect(toolSpecs(peopleTools)).toEqual([
-      ['list_students', 'reporting.admin.listStudents', 'read', true, false],
-      ['invite_student', 'organizations.createInvite', 'write', false, true],
-      ['resend_student_invite', 'organizations.resendInvite', 'write', false, true],
-      ['list_access', 'entitlements.list', 'read', true, false],
-      ['grant_access', 'entitlements.grant', 'write', false, false],
-      ['set_access_status', 'entitlements.setStatus', 'destructive', true, false],
-      ['get_dashboard', 'reporting.admin.overview', 'read', true, false],
-      ['get_enrollment_trend', 'reporting.admin.enrollments', 'read', true, false],
-      ['get_course_analytics', 'reporting.admin.courseAnalytics', 'read', true, false],
-      ['list_course_learners', 'reporting.admin.courseLearners', 'read', true, false],
-      ['get_course_enrollment_trend', 'reporting.admin.courseEnrollments', 'read', true, false],
-      ['get_student_analytics', 'reporting.admin.studentAnalytics', 'read', true, false],
+      ['list_students', 'read', true, false],
+      ['invite_student', 'write', false, true],
+      ['resend_student_invite', 'write', false, true],
+      ['list_access', 'read', true, false],
+      ['grant_access', 'write', false, false],
+      ['set_access_status', 'destructive', true, false],
+      ['get_dashboard', 'read', true, false],
+      ['get_enrollment_trend', 'read', true, false],
+      ['get_course_analytics', 'read', true, false],
+      ['list_course_learners', 'read', true, false],
+      ['get_course_enrollment_trend', 'read', true, false],
+      ['get_student_analytics', 'read', true, false],
     ]);
   });
 

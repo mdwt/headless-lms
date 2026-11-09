@@ -31,7 +31,6 @@ export async function memberCommentsRoutes(
     method: 'GET',
     url: '/api/member/activities/:activityId/comments',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.activityComments' },
     schema: {
       operationId: 'listActivityComments',
       tags,
@@ -51,7 +50,6 @@ export async function memberCommentsRoutes(
     method: 'POST',
     url: '/api/member/activities/:activityId/comments',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.postComment' },
     schema: {
       operationId: 'postComment',
       tags,
@@ -76,7 +74,6 @@ export async function memberCommentsRoutes(
     method: 'PATCH',
     url: '/api/member/comments/:commentId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.edit' },
     schema: {
       operationId: 'editComment',
       tags,
@@ -97,7 +94,6 @@ export async function memberCommentsRoutes(
     method: 'DELETE',
     url: '/api/member/comments/:commentId',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.remove' },
     schema: {
       operationId: 'deleteComment',
       tags,
@@ -117,7 +113,6 @@ export async function memberCommentsRoutes(
     method: 'PUT',
     url: '/api/member/comments/:commentId/reaction',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.setReaction' },
     schema: {
       operationId: 'setCommentReaction',
       tags,
@@ -138,7 +133,6 @@ export async function memberCommentsRoutes(
     method: 'DELETE',
     url: '/api/member/comments/:commentId/reaction',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.setReaction' },
     schema: {
       operationId: 'clearCommentReaction',
       tags,
@@ -157,7 +151,6 @@ export async function memberCommentsRoutes(
     method: 'POST',
     url: '/api/member/comments/:commentId/reports',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.reportComment' },
     schema: {
       operationId: 'reportComment',
       tags,
@@ -178,7 +171,6 @@ export async function memberCommentsRoutes(
     method: 'POST',
     url: '/api/member/comments/:commentId/flags/resolution',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.resolveReports' },
     schema: {
       operationId: 'resolveCommentFlags',
       tags,
@@ -200,7 +192,6 @@ export async function memberCommentsRoutes(
     method: 'POST',
     url: '/api/member/comments/:commentId/restoration',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.restore' },
     schema: {
       operationId: 'restoreMemberComment',
       tags,
@@ -220,7 +211,6 @@ export async function memberCommentsRoutes(
     method: 'POST',
     url: '/api/member/comments/:commentId/approval',
     preHandler: app.requireOrgSession,
-    config: { operation: 'discussion.approve' },
     schema: {
       operationId: 'approveMemberComment',
       tags,

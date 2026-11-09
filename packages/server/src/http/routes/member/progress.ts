@@ -20,7 +20,6 @@ export async function memberProgressRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/progress',
-    config: { operation: 'progress.report' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'reportProgress',
@@ -44,7 +43,6 @@ export async function memberProgressRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/courses/:courseId/progress',
-    config: { operation: 'reporting.member.courseProgress' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCourseProgress',

@@ -8,7 +8,6 @@ import {
 import type { Actor } from '../shared/actor.js';
 import type { Community, SpaceDetail } from './model.js';
 import { ContentService } from './service.js';
-import { contentDeclarations } from './declarations.js';
 import { contentEvents } from './events.js';
 import type { ContentAssetReader, ContentRepository, ContentUnitOfWork } from './ports.js';
 import type {
@@ -1725,18 +1724,92 @@ const JAMES = actorWith({
 });
 
 describe('permissions', () => {
-  it('refuses every permission-declared method to an actor who holds nothing', async () => {
+  it('refuses every method a person can call to an actor who holds nothing', async () => {
     const repo = makeRepo();
     vi.mocked(repo.findActivity).mockResolvedValue(makeActivity({ courseId: 'crs_x' }));
     vi.mocked(repo.findModule).mockResolvedValue(makeModule({ courseId: 'crs_x' }));
     vi.mocked(repo.findSpace).mockResolvedValue({ communityId: 'cmy_x' } as SpaceDetail);
     const { svc, append } = build(repo);
     const nobody = actorWith({ orgId: 'org1' });
-    const methods = Object.entries(contentDeclarations).filter(
-      ([, declaration]) => typeof declaration !== 'string',
-    );
-    expect(methods.length).toBeGreaterThan(0);
-    for (const [name] of methods) {
+    const methods = [
+      'listCourses',
+      'getCourse',
+      'findCourse',
+      'createCourse',
+      'updateCourse',
+      'patchCourseSettings',
+      'deleteCourse',
+      'listCourseModules',
+      'listCourseActivities',
+      'listCourseActivityViews',
+      'listCourseActivityAssets',
+      'getActivity',
+      'getModule',
+      'reorderModules',
+      'createModule',
+      'updateModule',
+      'deleteModule',
+      'reorderActivities',
+      'saveActivity',
+      'deleteActivity',
+      'listDownloads',
+      'getDownload',
+      'findDownload',
+      'createDownload',
+      'updateDownload',
+      'removeDownload',
+      'listDownloadAssets',
+      'addDownloadAsset',
+      'removeDownloadAsset',
+      'renameDownloadAsset',
+      'reorderDownloadAssets',
+      'listEvents',
+      'getEvent',
+      'findEvent',
+      'findEvents',
+      'createEvent',
+      'updateEvent',
+      'cancelEvent',
+      'deleteEvent',
+      'listEventAssets',
+      'eventFilesFor',
+      'addEventAsset',
+      'removeEventAsset',
+      'renameEventAsset',
+      'reorderEventAssets',
+      'listBundles',
+      'getBundle',
+      'findBundle',
+      'createBundle',
+      'updateBundle',
+      'deleteBundle',
+      'listBundleItems',
+      'addBundleItem',
+      'removeBundleItem',
+      'listCommunities',
+      'getCommunity',
+      'findCommunity',
+      'listCommunitiesById',
+      'getCommunitySpace',
+      'getSpace',
+      'listSpaces',
+      'getDmSettings',
+      'createCommunity',
+      'updateCommunity',
+      'publishCommunity',
+      'unpublishCommunity',
+      'deleteCommunity',
+      'patchCommunitySettings',
+      'createSpace',
+      'updateSpace',
+      'deleteSpace',
+      'reorderSpaces',
+      'setSpaceTopics',
+      'addSpaceLink',
+      'removeSpaceLink',
+      'reorderSpaceLinks',
+    ];
+    for (const name of methods) {
       const method = (svc as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[
         name
       ]!;

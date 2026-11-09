@@ -22,7 +22,6 @@ export async function memberAssetsRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/uploads',
-    config: { operation: 'assets.requestMemberUpload' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'requestMemberUpload',
@@ -43,7 +42,6 @@ export async function memberAssetsRoutes(
   r.route({
     method: 'POST',
     url: '/api/member/uploads/:id/finalize',
-    config: { operation: 'assets.confirmOwn' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'finalizeMemberUpload',
@@ -63,7 +61,6 @@ export async function memberAssetsRoutes(
   r.route({
     method: 'DELETE',
     url: '/api/member/uploads/:id',
-    config: { operation: 'assets.removeOwn' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteMemberUpload',

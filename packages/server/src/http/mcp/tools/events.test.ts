@@ -134,21 +134,21 @@ const cases: ToolCase[] = [
 describe('event tools', () => {
   it('declare their operation and hints', () => {
     expect(toolSpecs(eventTools)).toEqual([
-      ['list_events', 'content.listEvents', 'read', true, false],
-      ['get_event', 'content.getEvent', 'read', true, false],
-      ['create_event', 'content.createEvent', 'write', false, false],
-      ['update_event', 'content.updateEvent', 'write', true, false],
-      ['cancel_event', 'content.cancelEvent', 'destructive', false, false],
-      ['delete_event', 'content.deleteEvent', 'destructive', true, false],
-      ['list_event_attendees', 'reporting.admin.eventAttendees', 'read', true, false],
-      ['get_event_analytics', 'reporting.admin.eventAnalytics', 'read', true, false],
-      ['add_event_attendee', 'entitlements.grant', 'write', true, false],
-      ['remove_event_attendee', 'entitlements.revoke', 'destructive', false, false],
-      ['list_event_files', 'content.listEventAssets', 'read', true, false],
-      ['add_event_file', 'content.addEventAsset', 'write', false, false],
-      ['rename_event_file', 'content.renameEventAsset', 'write', true, false],
-      ['reorder_event_files', 'content.reorderEventAssets', 'write', true, false],
-      ['remove_event_file', 'content.removeEventAsset', 'destructive', true, false],
+      ['list_events', 'read', true, false],
+      ['get_event', 'read', true, false],
+      ['create_event', 'write', false, false],
+      ['update_event', 'write', true, false],
+      ['cancel_event', 'destructive', false, false],
+      ['delete_event', 'destructive', true, false],
+      ['list_event_attendees', 'read', true, false],
+      ['get_event_analytics', 'read', true, false],
+      ['add_event_attendee', 'write', true, false],
+      ['remove_event_attendee', 'destructive', false, false],
+      ['list_event_files', 'read', true, false],
+      ['add_event_file', 'write', false, false],
+      ['rename_event_file', 'write', true, false],
+      ['reorder_event_files', 'write', true, false],
+      ['remove_event_file', 'destructive', true, false],
     ]);
   });
 

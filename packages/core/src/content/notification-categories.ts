@@ -7,7 +7,6 @@ import type {
 } from '../shared/ports.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor } from '../shared/actor.js';
-import { requires, type Declarations } from '../shared/declarations.js';
 import { noopLogger } from '../shared/logger.js';
 import { SettingsNamespace, type SettingsService } from '../shared/settings.js';
 import {
@@ -112,10 +111,3 @@ export class CommunityNotificationCategories implements NotificationCategoryServ
     }
   }
 }
-
-export const communityNotificationCategoriesDeclarations = {
-  get: requires('communities:read'),
-  replace: requires('communities:write'),
-  reset: requires('communities:write'),
-  defaults: requires('notification_categories:read', 'communities:read'),
-} as const satisfies Declarations<NotificationCategoryService>;

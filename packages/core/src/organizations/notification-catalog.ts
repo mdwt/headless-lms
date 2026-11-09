@@ -2,7 +2,6 @@ import type { NotificationCategory, NotificationTypeDeclaration } from '../types
 import type { ChannelRegistry, NotificationTypeRegistry } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import { ForbiddenError } from '../shared/errors.js';
-import { requires, type Declarations } from '../shared/declarations.js';
 import { typesForList, type CategoryListScope } from '../shared/notification-categories.js';
 
 export interface NotificationCatalogService {
@@ -60,9 +59,3 @@ export class NotificationCatalog implements NotificationCatalogService {
     );
   }
 }
-
-export const notificationCatalogDeclarations = {
-  types: requires('notification_categories:read', 'communities:read'),
-  channels: requires('notification_categories:read', 'communities:read'),
-  defaults: requires('notification_categories:read', 'communities:read'),
-} as const satisfies Declarations<NotificationCatalogService>;

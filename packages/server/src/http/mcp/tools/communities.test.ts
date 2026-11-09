@@ -102,21 +102,21 @@ const cases: ToolCase[] = [
 describe('community tools', () => {
   it('declare their operation and hints', () => {
     expect(toolSpecs(communityTools)).toEqual([
-      ['list_communities', 'content.listCommunities', 'read', true, false],
-      ['list_spaces', 'content.listSpaces', 'read', true, false],
-      ['create_community', 'content.createCommunity', 'write', false, false],
-      ['update_community', 'content.updateCommunity', 'write', true, false],
-      ['update_community_messaging', 'content.patchCommunitySettings', 'write', true, false],
-      ['create_space', 'content.createSpace', 'write', false, false],
-      ['update_space', 'content.updateSpace', 'write', true, false],
-      ['reorder_spaces', 'content.reorderSpaces', 'write', true, false],
-      ['set_space_topics', 'content.setSpaceTopics', 'write', true, false],
-      ['add_space_link', 'content.addSpaceLink', 'write', false, false],
-      ['reorder_space_links', 'content.reorderSpaceLinks', 'write', true, false],
-      ['remove_space_link', 'content.removeSpaceLink', 'destructive', true, false],
-      ['delete_space', 'content.deleteSpace', 'destructive', true, false],
-      ['delete_community', 'content.deleteCommunity', 'destructive', true, false],
-      ['get_community_analytics', 'reporting.admin.communityAnalytics', 'read', true, false],
+      ['list_communities', 'read', true, false],
+      ['list_spaces', 'read', true, false],
+      ['create_community', 'write', false, false],
+      ['update_community', 'write', true, false],
+      ['update_community_messaging', 'write', true, false],
+      ['create_space', 'write', false, false],
+      ['update_space', 'write', true, false],
+      ['reorder_spaces', 'write', true, false],
+      ['set_space_topics', 'write', true, false],
+      ['add_space_link', 'write', false, false],
+      ['reorder_space_links', 'write', true, false],
+      ['remove_space_link', 'destructive', true, false],
+      ['delete_space', 'destructive', true, false],
+      ['delete_community', 'destructive', true, false],
+      ['get_community_analytics', 'read', true, false],
     ]);
   });
 

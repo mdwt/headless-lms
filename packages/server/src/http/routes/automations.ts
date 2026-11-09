@@ -20,7 +20,6 @@ import {
 } from '../schemas/index.js';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
-import { describeOperation } from '../operations.js';
 
 export async function automationsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -30,13 +29,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations',
-    config: { operation: 'automations.list' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomations',
       tags,
       summary: 'List automations',
-      description: `${describeOperation('automations.list')} Optionally only workflows or only webhooks.`,
+      description: `Requires \`automations:read\`. Optionally only workflows or only webhooks.`,
       querystring: AutomationsQuery,
       response: { 200: z.array(Automation), ...refusals(403) },
     },
@@ -50,13 +48,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/actions',
-    config: { operation: 'automations.availableActions' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomationActions',
       tags,
       summary: 'List the actions automations can use',
-      description: describeOperation('automations.availableActions'),
+      description: 'Requires `automations:read`.',
       response: { 200: z.array(AvailableAction), ...refusals(403) },
     },
     handler: async (req) => {
@@ -68,13 +65,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/triggers',
-    config: { operation: 'automations.availableTriggers' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomationTriggers',
       tags,
       summary: 'List the domain events automations can react to',
-      description: describeOperation('automations.availableTriggers'),
+      description: 'Requires `automations:read`.',
       response: { 200: AvailableTriggers, ...refusals(403) },
     },
     handler: async (req) => {
@@ -86,13 +82,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/automations',
-    config: { operation: 'automations.create' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'createAutomation',
       tags,
       summary: 'Create a workflow automation',
-      description: `${describeOperation('automations.create')} 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.`,
+      description: `Requires \`automations:write\`. 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.`,
       body: CreateAutomationBody,
       response: { 201: Automation, ...refusals(400, 403) },
     },
@@ -106,13 +101,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/:id',
-    config: { operation: 'automations.get' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getAutomation',
       tags,
       summary: 'Get an automation',
-      description: `${describeOperation('automations.get')} Workflows and webhooks alike.`,
+      description: `Requires \`automations:read\`. Workflows and webhooks alike.`,
       params: AutomationIdParam,
       response: { 200: Automation, ...refusals(403, 404) },
     },
@@ -125,13 +119,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/automations/:id',
-    config: { operation: 'automations.update' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateAutomation',
       tags,
       summary: 'Update a workflow automation',
-      description: `${describeOperation('automations.update')} Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.`,
+      description: `Requires \`automations:write\`. Webhooks change through the webhook endpoints (409). 400 when a trigger is reserved, not an event the system emits or an unsupported schedule, or an action is reserved for webhooks or no longer available.`,
       params: AutomationIdParam,
       body: UpdateAutomationBody,
       response: { 200: Automation, ...refusals(400, 403, 404, 409) },
@@ -145,13 +138,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/automations/:id',
-    config: { operation: 'automations.delete' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'deleteAutomation',
       tags,
       summary: 'Delete a workflow automation',
-      description: `${describeOperation('automations.delete')} Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.`,
+      description: `Requires \`automations:delete\`. Webhooks are deleted through the webhook endpoints (409). Its runs stay readable.`,
       params: AutomationIdParam,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
@@ -165,13 +157,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/automations/:id/runs',
-    config: { operation: 'automations.listRuns' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listAutomationRuns',
       tags,
       summary: "List an automation's runs",
-      description: `${describeOperation('automations.listRuns')} A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.`,
+      description: `Requires \`automations:read\`. A deleted automation's runs remain reachable as an audit trail, so an unknown id answers an empty page rather than 404. A run's event carries the fields a webhook delivery of that event would.`,
       params: AutomationIdParam,
       querystring: AutomationRunsQuery,
       response: { 200: AutomationRunsPage, ...refusals(403) },
@@ -186,13 +177,12 @@ export async function automationsRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/automations/:id/runs/:runId/rerun',
-    config: { operation: 'automations.rerun' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'rerunAutomationRun',
       tags,
       summary: 'Run a finished run again',
-      description: `${describeOperation('automations.rerun')} Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).`,
+      description: `Requires \`automations:write\`. Dispatches the same run again with the automation's current steps; the new outcome replaces the run's previous one. For a webhook this resends the delivery to its current URL. A run that is still running can't be rerun (409).`,
       params: AutomationRunParams,
       response: { 200: AutomationRun, ...refusals(403, 404, 409) },
     },

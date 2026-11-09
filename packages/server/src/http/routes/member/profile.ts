@@ -19,7 +19,6 @@ export async function memberProfileRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/profile',
-    config: { operation: 'identity.profileOf' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberProfile',
@@ -37,7 +36,6 @@ export async function memberProfileRoutes(
   r.route({
     method: 'PATCH',
     url: '/api/member/profile',
-    config: { operation: 'identity.updateProfile' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'updateMemberProfile',

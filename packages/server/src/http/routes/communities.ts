@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { Container } from '../../app/container.js';
 import { resolveActor } from '../scope.js';
-import { describeOperation } from '../operations.js';
 import {
   Community,
   CommunityAnalytics,
@@ -35,12 +34,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities',
-    config: { operation: 'content.listCommunities' },
     schema: {
       operationId: 'listCommunities',
       tags,
       summary: 'List communities',
-      description: `${describeOperation('content.listCommunities')} Pages every community in the organization, drafts included, filtered by \`status\` and searched by title.`,
+      description: `Requires one of \`communities:read\`, \`communities:moderate\`. Pages every community in the organization, drafts included, filtered by \`status\` and searched by title.`,
       querystring: CommunitiesQuery,
       response: { 200: CommunitiesPage, ...refusals(403) },
     },
@@ -53,12 +51,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/communities',
-    config: { operation: 'content.createCommunity' },
     schema: {
       operationId: 'createCommunity',
       tags,
       summary: 'Create a community',
-      description: `${describeOperation('content.createCommunity')} The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.`,
+      description: `Requires \`communities:write\`. The community starts as a draft with the default direct-message settings and no spaces. Members see it once it is published and they hold it.`,
       body: CreateCommunity,
       response: { 201: Community, ...refusals(403, 409) },
     },
@@ -73,12 +70,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId',
-    config: { operation: 'content.getCommunity' },
     schema: {
       operationId: 'getCommunity',
       tags,
       summary: 'Get a community',
-      description: `${describeOperation('content.getCommunity')} Any community of the organization, drafts included.`,
+      description: `Requires one of \`communities:read\`, \`communities:moderate\`. Any community of the organization, drafts included.`,
       params: CommunityIdParam,
       response: { 200: Community, ...refusals(403, 404) },
     },
@@ -91,12 +87,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/communities/:communityId',
-    config: { operation: 'content.updateCommunity' },
     schema: {
       operationId: 'updateCommunity',
       tags,
       summary: 'Update a community',
-      description: `${describeOperation('content.updateCommunity')} Changes only the fields sent. \`thumbnailAssetId\` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs \`media:read\` (403 otherwise).`,
+      description: `Requires \`communities:write\`. Changes only the fields sent. \`thumbnailAssetId\` must be a ready library image (409 otherwise); null clears it. A file it does not already use must be uploaded for it, or the caller needs \`media:read\` (403 otherwise).`,
       params: CommunityIdParam,
       body: UpdateCommunity,
       response: { 200: Community, ...refusals(403, 404, 409) },
@@ -110,12 +105,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId',
-    config: { operation: 'content.deleteCommunity' },
     schema: {
       operationId: 'deleteCommunity',
       tags,
       summary: 'Delete a community',
-      description: `${describeOperation('content.deleteCommunity')} Links to the community from other spaces are removed with it.`,
+      description: `Requires \`communities:delete\`. Links to the community from other spaces are removed with it.`,
       params: CommunityIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
@@ -129,12 +123,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/communities/:communityId/settings',
-    config: { operation: 'content.patchCommunitySettings' },
     schema: {
       operationId: 'patchCommunitySettings',
       tags,
       summary: 'Change the direct-message and digest settings of a community',
-      description: `${describeOperation('content.patchCommunitySettings')} Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. \`digest\` sets when the community digest goes out, or \`null\` stops it; the first digest after a change goes out at the next slot.`,
+      description: `Requires \`communities:write\`. Changes only the settings sent; the rest keep their values. The direct-message settings decide who may message whom from then on. \`digest\` sets when the community digest goes out, or \`null\` stops it; the first digest after a change goes out at the next slot.`,
       params: CommunityIdParam,
       body: PatchCommunitySettings,
       response: { 200: Community, ...refusals(403, 404) },
@@ -148,12 +141,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/notification-categories',
-    config: { operation: 'communityNotificationCategories.get' },
     schema: {
       operationId: 'getCommunityNotificationCategories',
       tags: ['Notifications'],
       summary: "Get a community's notification categories",
-      description: `${describeOperation('communityNotificationCategories.get')} On the community. The list in use for the community, with \`source\` saying whether it is the default or a stored list.`,
+      description: `Requires \`communities:read\`. On the community. The list in use for the community, with \`source\` saying whether it is the default or a stored list.`,
       params: CommunityIdParam,
       response: { 200: NotificationCategoryList, ...refusals(403, 404) },
     },
@@ -166,12 +158,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/notification-categories',
-    config: { operation: 'communityNotificationCategories.replace' },
     schema: {
       operationId: 'replaceCommunityNotificationCategories',
       tags: ['Notifications'],
       summary: "Replace a community's notification categories",
-      description: `${describeOperation('communityNotificationCategories.replace')} On the community. Stores the whole list for this community; other communities keep theirs. 422 when a key repeats, a type cannot be in a community list, a reason is not allowed for its type, a channel is not configured, \`perSpace\` is set on a type that cannot occur in a space, \`spaceDefaults\` appears without \`perSpace\` or names a channel the category does not offer, or earlier categories already cover everything a category covers.`,
+      description: `Requires \`communities:write\`. On the community. Stores the whole list for this community; other communities keep theirs. 422 when a key repeats, a type cannot be in a community list, a reason is not allowed for its type, a channel is not configured, \`perSpace\` is set on a type that cannot occur in a space, \`spaceDefaults\` appears without \`perSpace\` or names a channel the category does not offer, or earlier categories already cover everything a category covers.`,
       params: CommunityIdParam,
       body: ReplaceNotificationCategories,
       response: { 200: NotificationCategoryList, ...refusals(400, 403, 404, 422) },
@@ -189,12 +180,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId/notification-categories',
-    config: { operation: 'communityNotificationCategories.reset' },
     schema: {
       operationId: 'resetCommunityNotificationCategories',
       tags: ['Notifications'],
       summary: 'Go back to the default notification categories for a community',
-      description: `${describeOperation('communityNotificationCategories.reset')} On the community. Removes the stored list; the default applies again.`,
+      description: `Requires \`communities:write\`. On the community. Removes the stored list; the default applies again.`,
       params: CommunityIdParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
@@ -208,12 +198,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/publish',
-    config: { operation: 'content.publishCommunity' },
     schema: {
       operationId: 'publishCommunity',
       tags,
       summary: 'Publish a community',
-      description: `${describeOperation('content.publishCommunity')} Makes the community visible to the people who hold it.`,
+      description: `Requires \`communities:write\`. Makes the community visible to the people who hold it.`,
       params: CommunityIdParam,
       response: { 200: Community, ...refusals(403, 404, 409) },
     },
@@ -226,12 +215,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/unpublish',
-    config: { operation: 'content.unpublishCommunity' },
     schema: {
       operationId: 'unpublishCommunity',
       tags,
       summary: 'Unpublish a community',
-      description: `${describeOperation('content.unpublishCommunity')} Hides the community from members again; nothing in it is deleted.`,
+      description: `Requires \`communities:write\`. Hides the community from members again; nothing in it is deleted.`,
       params: CommunityIdParam,
       response: { 200: Community, ...refusals(403, 404, 409) },
     },
@@ -244,12 +232,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/analytics',
-    config: { operation: 'reporting.admin.communityAnalytics' },
     schema: {
       operationId: 'getCommunityAnalytics',
       tags,
       summary: 'Analytics for a community',
-      description: `${describeOperation('reporting.admin.communityAnalytics')} Membership, activity and moderation counts for one community.`,
+      description: `Requires \`communities:read\`. Membership, activity and moderation counts for one community.`,
       params: CommunityIdParam,
       response: { 200: CommunityAnalytics, ...refusals(403, 404) },
     },
@@ -262,12 +249,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/message-queue',
-    config: { operation: 'chats.messageQueue' },
     schema: {
       operationId: 'getCommunityMessageQueue',
       tags,
       summary: 'Open message flags in a community',
-      description: `${describeOperation('chats.messageQueue')} The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.`,
+      description: `Requires \`communities:moderate\`. The messages in the community's chats with open flags, with the flags and the chat each is in. Holds at most the 100 oldest open flags; working the queue brings in the next ones.`,
       params: CommunityIdParam,
       response: { 200: MessageQueue, ...refusals(403, 404) },
     },
@@ -280,12 +266,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/spaces',
-    config: { operation: 'content.listSpaces' },
     schema: {
       operationId: 'listCommunitySpaces',
       tags,
       summary: 'List the spaces in a community',
-      description: `${describeOperation('content.listSpaces')} Every space in order, with its topics and links.`,
+      description: `Requires one of \`communities:read\`, \`communities:moderate\`. Every space in order, with its topics and links.`,
       params: CommunityIdParam,
       response: { 200: z.array(SpaceDetail), ...refusals(403, 404) },
     },
@@ -298,12 +283,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces',
-    config: { operation: 'content.createSpace' },
     schema: {
       operationId: 'createSpace',
       tags,
       summary: 'Create a space',
-      description: `${describeOperation('content.createSpace')} The space is added last. An \`all_members\` space cannot have a capacity (409).`,
+      description: `Requires \`communities:write\`. The space is added last. An \`all_members\` space cannot have a capacity (409).`,
       params: CommunityIdParam,
       body: CreateSpace,
       response: { 201: SpaceDetail, ...refusals(403, 404, 409) },
@@ -318,12 +302,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/spaces/order',
-    config: { operation: 'content.reorderSpaces' },
     schema: {
       operationId: 'reorderSpaces',
       tags,
       summary: 'Reorder the spaces in a community',
-      description: `${describeOperation('content.reorderSpaces')} Send every space id of the community exactly once (409 otherwise).`,
+      description: `Requires \`communities:write\`. Send every space id of the community exactly once (409 otherwise).`,
       params: CommunityIdParam,
       body: OrderedIds,
       response: { 200: z.array(SpaceDetail), ...refusals(403, 404, 409) },
@@ -337,12 +320,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'GET',
     url: '/api/communities/:communityId/spaces/:spaceId',
-    config: { operation: 'content.getCommunitySpace' },
     schema: {
       operationId: 'getSpace',
       tags,
       summary: 'Get a space',
-      description: `${describeOperation('content.getCommunitySpace')} The space with its topics and links.`,
+      description: `Requires \`communities:read\`. The space with its topics and links.`,
       params: CommunitySpaceParam,
       response: { 200: SpaceDetail, ...refusals(403, 404) },
     },
@@ -355,12 +337,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PATCH',
     url: '/api/communities/:communityId/spaces/:spaceId',
-    config: { operation: 'content.updateSpace' },
     schema: {
       operationId: 'updateSpace',
       tags,
       summary: 'Update a space',
-      description: `${describeOperation('content.updateSpace')} Changes only the fields sent; \`settings\` merges into the current settings. An \`all_members\` space cannot have a capacity (409).`,
+      description: `Requires \`communities:write\`. Changes only the fields sent; \`settings\` merges into the current settings. An \`all_members\` space cannot have a capacity (409).`,
       params: CommunitySpaceParam,
       body: UpdateSpace,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },
@@ -374,12 +355,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId/spaces/:spaceId',
-    config: { operation: 'content.deleteSpace' },
     schema: {
       operationId: 'deleteSpace',
       tags,
       summary: 'Delete a space',
-      description: `${describeOperation('content.deleteSpace')} The space and everything in it go.`,
+      description: `Requires \`communities:write\`. The space and everything in it go.`,
       params: CommunitySpaceParam,
       response: { 204: z.void(), ...refusals(403, 404) },
     },
@@ -393,12 +373,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/spaces/:spaceId/topics',
-    config: { operation: 'content.setSpaceTopics' },
     schema: {
       operationId: 'setSpaceTopics',
       tags,
       summary: 'Replace the topics on a space',
-      description: `${describeOperation('content.setSpaceTopics')} The list replaces the current topics: an entry with an \`id\` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).`,
+      description: `Requires \`communities:write\`. The list replaces the current topics: an entry with an \`id\` keeps and renames that topic, one without adds a topic, and a topic left out is deleted. Names must be unique (409), and a topic that posts use cannot be deleted (409).`,
       params: CommunitySpaceParam,
       body: SetSpaceTopics,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },
@@ -412,12 +391,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'POST',
     url: '/api/communities/:communityId/spaces/:spaceId/links',
-    config: { operation: 'content.addSpaceLink' },
     schema: {
       operationId: 'addSpaceLink',
       tags,
       summary: 'Link a course, download, or community into a space',
-      description: `${describeOperation('content.addSpaceLink')} The link is added last. Linking the same content twice is a 409.`,
+      description: `Requires \`communities:write\`. The link is added last. Linking the same content twice is a 409.`,
       params: CommunitySpaceParam,
       body: SpaceLinkBody,
       response: { 201: SpaceDetail, ...refusals(403, 404, 409) },
@@ -437,12 +415,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'DELETE',
     url: '/api/communities/:communityId/spaces/:spaceId/links/:linkId',
-    config: { operation: 'content.removeSpaceLink' },
     schema: {
       operationId: 'removeSpaceLink',
       tags,
       summary: 'Remove a link from a space',
-      description: `${describeOperation('content.removeSpaceLink')} The linked content itself is untouched.`,
+      description: `Requires \`communities:write\`. The linked content itself is untouched.`,
       params: SpaceLinkParam,
       response: { 200: SpaceDetail, ...refusals(403, 404) },
     },
@@ -460,12 +437,11 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
   r.route({
     method: 'PUT',
     url: '/api/communities/:communityId/spaces/:spaceId/links/order',
-    config: { operation: 'content.reorderSpaceLinks' },
     schema: {
       operationId: 'reorderSpaceLinks',
       tags,
       summary: 'Reorder the links in a space',
-      description: `${describeOperation('content.reorderSpaceLinks')} Send every link id of the space exactly once (409 otherwise).`,
+      description: `Requires \`communities:write\`. Send every link id of the space exactly once (409 otherwise).`,
       params: CommunitySpaceParam,
       body: OrderedIds,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },

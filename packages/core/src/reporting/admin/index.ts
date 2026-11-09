@@ -1,7 +1,6 @@
 // reporting/admin — public surface.
 export { AdminReportServiceImpl } from './service.js';
 export type { AdminReportServiceParams } from './service.js';
-export { adminReportDeclarations } from './declarations.js';
 export type {
   AdminReportService,
   AdminReportRepository,

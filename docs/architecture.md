@@ -54,9 +54,6 @@ MCP tool or a repository. The organizations context owns the permission list, th
 - The check runs against the item acted on, loaded by the method, never an id the client sent. Lists return
   everything to a holder on the org and filter to `where(...).content` otherwise. Creating an item needs the type's
   write permission on the org.
-- Each service declares what each public method requires: permissions, `member`, `owner`, `system` or `public`
-  (`declarations.ts`). Every route and MCP tool names the method it calls (`operation`); the OpenAPI descriptions and
-  the MCP tool list are derived from the declaration.
 - Routes and tools resolve the credential, ask organizations for the actor and call one method. They decide nothing.
   An API key or app token holds its scopes intersected with its creator's current permissions.
 - Work the system does itself, and one context's reads of another's data to serve a person, run as

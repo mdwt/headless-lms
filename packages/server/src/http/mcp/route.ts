@@ -8,9 +8,8 @@ import { forbidden, unauthorized } from './challenge.js';
 import { createToolServer } from './server.js';
 import type { Tool, ToolContext } from './tool.js';
 import { TOOLS } from './tools/index.js';
-import { declarationOf } from '../operations.js';
 
-type Connection = { context: ToolContext; tools: Tool[] };
+type Connection = { context: ToolContext; tools: readonly Tool[] };
 
 export function registerMcp(
   app: FastifyInstance,
@@ -66,7 +65,7 @@ export function registerMcp(
     }
     const connection: Connection = {
       context: { container, caller, requestId: request.id },
-      tools: tools.filter((tool) => toolAvailable(tool, caller)),
+      tools,
     };
     const response = await handler.fetch(await webRequest(request, reply), {
       authInfo: {
@@ -95,25 +94,4 @@ export function registerMcp(
           id: null,
         }),
   });
-}
-
-export function toolAvailable(tool: Tool, caller: Caller): boolean {
-  const declaration = declarationOf(tool.operation);
-  if (
-    declaration === null ||
-    declaration === 'system' ||
-    declaration === 'public' ||
-    declaration === 'owner'
-  ) {
-    return false;
-  }
-  if (declaration === 'member') {
-    return (
-      tool.listedFor === undefined ||
-      tool.listedFor.some((permission) => caller.actor.permissions.anywhere(permission))
-    );
-  }
-  return declaration.permissions.some((permission) =>
-    caller.actor.permissions.anywhere(permission),
-  );
 }

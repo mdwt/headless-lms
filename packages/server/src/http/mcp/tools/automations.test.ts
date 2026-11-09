@@ -77,16 +77,16 @@ const cases: ToolCase[] = [
 describe('workflow and webhook tools', () => {
   it('declare their operation and hints', () => {
     expect(toolSpecs(automationTools)).toEqual([
-      ['list_automation_triggers', 'automations.availableTriggers', 'read', true, false],
-      ['list_automation_actions', 'automations.availableActions', 'read', true, false],
-      ['list_automations', 'automations.list', 'read', true, false],
-      ['list_automation_runs', 'automations.listRuns', 'read', true, false],
-      ['create_automation', 'automations.create', 'write', false, false],
-      ['update_automation', 'automations.update', 'write', true, false],
-      ['rerun_automation_run', 'automations.rerun', 'write', false, true],
-      ['delete_automation', 'automations.delete', 'destructive', true, false],
-      ['update_webhook', 'automations.updateWebhook', 'write', true, false],
-      ['delete_webhook', 'automations.deleteWebhook', 'destructive', true, false],
+      ['list_automation_triggers', 'read', true, false],
+      ['list_automation_actions', 'read', true, false],
+      ['list_automations', 'read', true, false],
+      ['list_automation_runs', 'read', true, false],
+      ['create_automation', 'write', false, false],
+      ['update_automation', 'write', true, false],
+      ['rerun_automation_run', 'write', false, true],
+      ['delete_automation', 'destructive', true, false],
+      ['update_webhook', 'write', true, false],
+      ['delete_webhook', 'destructive', true, false],
     ]);
   });
 

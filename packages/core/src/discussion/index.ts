@@ -15,13 +15,6 @@ export { SubscriptionServiceImpl, activeSubscription } from './subscriptions.js'
 export { authorName, authorView } from './authors.js';
 export { isTeam, skipsReview, teamBadge, NO_BADGE } from './rules.js';
 export type { ReviewedItem, TeamBadge } from './rules.js';
-export {
-  chatsDeclarations,
-  digestsDeclarations,
-  discussionDeclarations,
-  postsDeclarations,
-  subscriptionsDeclarations,
-} from './declarations.js';
 export { mentionTokens, nameMentions } from './mentions.js';
 export { DiscussionItemTitles } from './titles.js';
 export { discussionEvents } from './events.js';

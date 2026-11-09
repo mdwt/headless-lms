@@ -14,7 +14,6 @@ export const automationTools: Tool[] = [
     name: 'list_automation_triggers',
     title: 'List workflow triggers',
     description: 'The events that can start a workflow.',
-    operation: 'automations.availableTriggers',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -25,7 +24,6 @@ export const automationTools: Tool[] = [
     name: 'list_automation_actions',
     title: 'List workflow actions',
     description: 'The actions a workflow can run, with the settings each one takes.',
-    operation: 'automations.availableActions',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -37,7 +35,6 @@ export const automationTools: Tool[] = [
     title: 'List workflows and webhooks',
     description:
       'Workflows and webhooks with their triggers, ordered actions and enabled state. Filter by kind (workflow or webhook).',
-    operation: 'automations.list',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -49,7 +46,6 @@ export const automationTools: Tool[] = [
     title: 'List workflow and webhook runs',
     description:
       'Runs of one workflow or webhook, newest first, with the trigger event as a webhook would receive it and each action result.',
-    operation: 'automations.listRuns',
     kind: 'read',
     idempotent: true,
     openWorld: false,
@@ -62,7 +58,6 @@ export const automationTools: Tool[] = [
     title: 'Create workflow',
     description:
       'Create a workflow from triggers and ordered actions. Use list_automation_triggers and list_automation_actions for valid values.',
-    operation: 'automations.create',
     kind: 'write',
     idempotent: false,
     openWorld: false,
@@ -74,7 +69,6 @@ export const automationTools: Tool[] = [
     title: 'Update workflow',
     description:
       'Change a workflow name, description, triggers or actions, or turn it on and off with enabled. Fields left out stay as they are.',
-    operation: 'automations.update',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -87,7 +81,6 @@ export const automationTools: Tool[] = [
     title: 'Re-run workflow or webhook run',
     description:
       "Run a finished workflow or webhook run again with its original trigger event, using the automation's current actions. Emails and webhook deliveries are sent again. The new outcome replaces the run's previous one. A run still in progress can't be re-run.",
-    operation: 'automations.rerun',
     kind: 'write',
     idempotent: false,
     openWorld: true,
@@ -99,7 +92,6 @@ export const automationTools: Tool[] = [
     name: 'delete_automation',
     title: 'Delete workflow',
     description: 'Permanently delete a workflow.',
-    operation: 'automations.delete',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,
@@ -111,7 +103,6 @@ export const automationTools: Tool[] = [
     title: 'Update webhook',
     description:
       'Change a webhook URL, events or description, or turn it on and off with enabled. Fields left out stay as they are.',
-    operation: 'automations.updateWebhook',
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -124,7 +115,6 @@ export const automationTools: Tool[] = [
     title: 'Delete webhook',
     description:
       'Permanently delete a webhook and its signing secret. Its delivery history is kept.',
-    operation: 'automations.deleteWebhook',
     kind: 'destructive',
     idempotent: true,
     openWorld: false,

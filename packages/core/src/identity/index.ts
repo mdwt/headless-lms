@@ -3,11 +3,6 @@ export { IdentityServiceImpl, UNNAMED_MEMBER } from './service.js';
 export { NotificationSettingsServiceImpl } from './notification-settings.js';
 export { DevicesServiceImpl } from './devices.js';
 export { identityEvents } from './events.js';
-export {
-  devicesDeclarations,
-  identityDeclarations,
-  notificationSettingsDeclarations,
-} from './declarations.js';
 export type {
   IdentityService,
   IdentityRepository,

@@ -26,7 +26,6 @@ export async function memberNotificationSettingsRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/communities/:communityId/settings/notifications',
-    config: { operation: 'reporting.member.communityNotificationSettings' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberCommunityNotificationSettings',
@@ -48,7 +47,6 @@ export async function memberNotificationSettingsRoutes(
   r.route({
     method: 'PATCH',
     url: '/api/member/communities/:communityId/settings/notifications',
-    config: { operation: 'notificationSettings.set' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'setMemberCommunityNotificationSettings',
@@ -73,7 +71,6 @@ export async function memberNotificationSettingsRoutes(
   r.route({
     method: 'GET',
     url: '/api/member/settings/notifications',
-    config: { operation: 'reporting.member.orgNotificationSettings' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'getMemberNotificationSettings',
@@ -91,7 +88,6 @@ export async function memberNotificationSettingsRoutes(
   r.route({
     method: 'PATCH',
     url: '/api/member/settings/notifications',
-    config: { operation: 'notificationSettings.set' },
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'setMemberNotificationSettings',
