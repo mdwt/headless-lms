@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { loadPushConfig, parseMemberImageMaxBytes } from "./config.js";
+import { loadPlatformConfig, loadPushConfig, parseMemberImageMaxBytes } from "./config.js";
 
 const original = process.env.MEMBER_IMAGE_MAX_BYTES;
 const PUSH_VARS = [
@@ -12,6 +12,9 @@ const PUSH_VARS = [
   "VAPID_PUBLIC_KEY",
   "VAPID_PRIVATE_KEY",
   "VAPID_SUBJECT",
+  "PLATFORM_KEY",
+  "PLATFORM_ACCOUNT_EMAIL",
+  "PLATFORM_ACCOUNT_NAME",
 ];
 const originalPush = Object.fromEntries(PUSH_VARS.map((name) => [name, process.env[name]]));
 
@@ -92,5 +95,30 @@ describe("loadPushConfig", () => {
     expect(() => loadPushConfig()).toThrow("invalid FCM_SERVICE_ACCOUNT");
     process.env.FCM_SERVICE_ACCOUNT = '{"project_id":"p"}';
     expect(loadPushConfig()).toEqual({ fcm: { serviceAccount: { project_id: "p" } } });
+  });
+});
+
+describe("loadPlatformConfig", () => {
+  it("is off without PLATFORM_KEY", () => {
+    delete process.env.PLATFORM_KEY;
+    process.env.PLATFORM_ACCOUNT_EMAIL = "platform@example.test";
+    expect(loadPlatformConfig()).toBeUndefined();
+  });
+
+  it("reads the key and the account", () => {
+    process.env.PLATFORM_KEY = "k".repeat(40);
+    process.env.PLATFORM_ACCOUNT_EMAIL = "platform@example.test";
+    process.env.PLATFORM_ACCOUNT_NAME = "Shop";
+    expect(loadPlatformConfig()).toEqual({
+      key: "k".repeat(40),
+      accountEmail: "platform@example.test",
+      accountName: "Shop",
+    });
+  });
+
+  it("refuses a key without an account email", () => {
+    process.env.PLATFORM_KEY = "k".repeat(40);
+    delete process.env.PLATFORM_ACCOUNT_EMAIL;
+    expect(() => loadPlatformConfig()).toThrow(/PLATFORM_ACCOUNT_EMAIL/);
   });
 });

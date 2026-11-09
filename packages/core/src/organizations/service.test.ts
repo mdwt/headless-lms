@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrganizationServiceImpl } from './service.js';
 import type {
+  Accounts,
   ApiKeys,
   MembersRepository,
   OrgAdmin,
   OrganizationsRepository,
   OrganizationsUnitOfWork,
+  PlatformAccount,
   RolesRepository,
+  StoredApiKey,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
 import type { StoredOrgRole } from './org-roles.js';
@@ -15,7 +18,7 @@ import type { IdentityService } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { ContentType, Permission, RoleAssignment } from '../types/index.js';
-import { ConflictError, ForbiddenError } from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
 import { createCapturingLogger } from '../shared/logger.js';
@@ -33,7 +36,13 @@ interface Person {
   lastName: string | null;
 }
 
-function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger } = {}) {
+function store(
+  opts: {
+    defaultRoles?: readonly RoleDefinition[];
+    logger?: Logger;
+    platform?: PlatformAccount;
+  } = {},
+) {
   const orgs = new Map<string, Organization>();
   const orgUsers = new Map<string, OrgUser>();
   const people = new Map<string, Person>();
@@ -280,7 +289,10 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
         assignments.splice(i, 1);
       }
       if (roleKey) {
-        if (roleKey === OWNER_KEY && assignments.some((a) => a.roleKey === OWNER_KEY)) {
+        if (
+          roleKey === OWNER_KEY &&
+          assignments.some((a) => a.orgId === orgId && a.roleKey === OWNER_KEY)
+        ) {
           throw new ConflictError('an owner row already exists');
         }
         assignments.push({
@@ -378,6 +390,16 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
 
   const orgAdmin = {
     createOrganization: vi.fn(),
+    createOrganizationFor: vi.fn(
+      async (ownerExternalId: string, input: { name: string; slug: string }) => {
+        const owner = [...people.values()].find((p) => p.externalId === ownerExternalId)!;
+        const org: Organization = await service.provisionOrganization({
+          ownerId: owner.id,
+          ...input,
+        });
+        return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt };
+      },
+    ),
     setActiveOrganization: vi.fn(),
     deleteOrganization: vi.fn(),
     updateOrganization: vi.fn(async () => {}),
@@ -385,22 +407,56 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     setMembershipOwner: vi.fn(async () => {}),
     removeMembership: vi.fn(async () => {}),
   } satisfies OrgAdmin;
+  const keys: (StoredApiKey & { orgId: string; userExternalId: string })[] = [];
   const apiKeys = {
-    list: vi.fn(async () => []),
-    create: vi.fn(async (_o: string, _u: string, name: string, scopes: Permission[]) => ({
-      id: 'key_1',
-      name,
-      start: 'abc',
-      scopes,
-      createdAt: now,
-      lastUsedAt: null,
-      key: 'secret',
-    })),
+    list: vi.fn(async (orgId: string, userExternalId: string) =>
+      keys.filter((k) => k.orgId === orgId && k.userExternalId === userExternalId),
+    ),
+    create: vi.fn(
+      async (
+        orgId: string,
+        userExternalId: string,
+        input: { name: string; roleKey: string; expiresInDays?: number | undefined },
+      ) => {
+        const key: StoredApiKey = {
+          id: `key_${keys.length + 1}`,
+          name: input.name,
+          start: 'hlms_a',
+          roleKey: input.roleKey,
+          createdAt: now,
+          lastUsedAt: null,
+          expiresAt:
+            input.expiresInDays === undefined
+              ? null
+              : new Date(now.getTime() + input.expiresInDays * 86_400_000),
+        };
+        keys.push({ ...key, orgId, userExternalId });
+        return { ...key, key: 'secret' };
+      },
+    ),
+    countWithRole: vi.fn(
+      async (orgId: string, roleKey: string) =>
+        keys.filter((k) => k.orgId === orgId && k.roleKey === roleKey).length,
+    ),
     revoke: vi.fn(async () => {}),
     listApps: vi.fn(async () => []),
     revokeApp: vi.fn(async () => {}),
     revokeAllFor: vi.fn(async () => {}),
   } satisfies ApiKeys;
+  const accounts = {
+    createAccount: vi.fn(async (input: PlatformAccount) => {
+      const p: Person = {
+        id: next('usr'),
+        email: input.email,
+        externalId: '',
+        firstName: input.name,
+        lastName: null,
+      };
+      p.externalId = p.id;
+      people.set(p.id, p);
+      return { externalId: p.id };
+    }),
+  } satisfies Accounts;
   const membersRepo: MembersRepository = { teamRows: async () => [] };
   const tx = { open: false };
   const escapes: string[] = [];
@@ -439,7 +495,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
   const send = vi.fn(async () => {});
   const images = { syncPublicImage: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
-  const service = new OrganizationServiceImpl({
+  const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
     roles,
     membersRepo,
@@ -449,6 +505,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     orgAdmin: () => orgAdmin,
     sessions: () => sessions,
     apiKeys: () => apiKeys,
+    accounts: () => accounts,
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
     inviteUrls: { studentPortalUrl: 'https://learn.test', adminAppUrl: 'https://admin.test' },
@@ -502,6 +559,8 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     events,
     orgAdmin,
     apiKeys,
+    keys,
+    accounts,
     send,
     blocked,
     holdsGrant,
@@ -598,9 +657,9 @@ describe('resolveCaller', () => {
   });
 
   it('applies token scopes to the actor', async () => {
-    const caller = await w.service.resolveCaller(externalOf(), authIdOf(s.sarah.orgUser.userId), [
-      'people:read',
-    ]);
+    const caller = await w.service.resolveCaller(externalOf(), authIdOf(s.sarah.orgUser.userId), {
+      scopes: ['people:read'],
+    });
     expect(caller?.actor?.permissions.has('people:read')).toBe(true);
     expect(caller?.actor?.permissions.has('people:write')).toBe(false);
   });
@@ -873,7 +932,7 @@ describe('transferOwnership', () => {
         await w.actor(s.liam.orgUser.id),
       ),
     ).rejects.toBeInstanceOf(ForbiddenError);
-    const key = await w.service.actorFor(ORG, s.sarah.orgUser.id, ['people:write']);
+    const key = await w.service.actorFor(ORG, s.sarah.orgUser.id, { roleKey: 'owner' });
     await expect(
       w.service.transferOwnership({ newOwnerOrgUserId: s.james.orgUser.id }, key!),
     ).rejects.toBeInstanceOf(ForbiddenError);
@@ -1152,16 +1211,82 @@ describe('role key audit', () => {
 });
 
 describe('api keys and the organization', () => {
-  it('refuses a key scope you hold nowhere', async () => {
+  it('refuses a key role holding a permission you hold nowhere, and unknown roles', async () => {
     const owner = await w.actor(s.sarah.orgUser.id);
     await w.service.setOrgRole(s.james.orgUser.id, 'instructor', owner);
     const james = await w.actor(s.james.orgUser.id);
     await expect(
-      w.service.createApiKey({ name: 'CI', scopes: ['people:write'] }, james),
+      w.service.createApiKey({ name: 'CI', role: 'admin' }, james),
     ).rejects.toBeInstanceOf(ForbiddenError);
     await expect(
-      w.service.createApiKey({ name: 'CI', scopes: ['courses:write'] }, james),
-    ).resolves.toMatchObject({ key: 'secret' });
+      w.service.createApiKey({ name: 'CI', role: 'ghost' }, james),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(w.apiKeys.create).not.toHaveBeenCalled();
+    await expect(
+      w.service.createApiKey({ name: 'CI', role: 'instructor', expiresInDays: 30 }, james),
+    ).resolves.toMatchObject({
+      key: 'secret',
+      role: { key: 'instructor', name: 'Instructor' },
+      expiresAt: new Date('2026-01-31T00:00:00Z'),
+    });
+    expect(w.apiKeys.create).toHaveBeenCalledWith(ORG, 'ba_james', {
+      name: 'CI',
+      roleKey: 'instructor',
+      expiresInDays: 30,
+    });
+  });
+
+  it('offers only the roles whose every permission you hold somewhere', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await w.service.setOrgRole(s.james.orgUser.id, 'instructor', owner);
+    const james = await w.actor(s.james.orgUser.id);
+    const keys = (await w.service.listApiKeyRoles(james)).map((role) => role.key);
+    expect(keys).toContain('instructor');
+    expect(keys).toContain('member');
+    expect(keys).not.toContain('admin');
+    expect(keys).not.toContain('owner');
+    expect((await w.service.listApiKeyRoles(owner)).map((role) => role.key)).toContain('owner');
+    await expect(
+      w.service.listApiKeyRoles(await w.actor(s.oliver.orgUser.id)),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("lists your keys with their role's current name", async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    await w.service.createApiKey({ name: 'CI', role: 'instructor' }, owner);
+    await w.service.updateRole('instructor', { name: 'Tutor' }, owner);
+    expect(await w.service.listApiKeys(owner)).toEqual([
+      expect.objectContaining({ name: 'CI', role: { key: 'instructor', name: 'Tutor' } }),
+    ]);
+  });
+
+  it("gives a key its role's current permissions, never beyond its creator", async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const key = await w.service.actorFor(ORG, s.sarah.orgUser.id, { roleKey: 'instructor' });
+    expect(key?.permissions.has('courses:write')).toBe(true);
+    expect(key?.permissions.has('people:read')).toBe(false);
+    expect(key?.permissions.isOwner()).toBe(false);
+
+    await w.service.updateRole('instructor', { permissions: { 'people:read': true } }, owner);
+    const changed = await w.service.actorFor(ORG, s.sarah.orgUser.id, { roleKey: 'instructor' });
+    expect(changed?.permissions.has('people:read')).toBe(true);
+
+    const member = await w.service.actorFor(ORG, s.james.orgUser.id, { roleKey: 'admin' });
+    expect(member?.permissions.has('courses:write')).toBe(false);
+
+    const gone = await w.service.actorFor(ORG, s.sarah.orgUser.id, { roleKey: 'ghost' });
+    expect(gone?.permissions.has('courses:read')).toBe(false);
+  });
+
+  it('refuses deleting a role an API key carries', async () => {
+    const owner = await w.actor(s.sarah.orgUser.id);
+    const host = await roleWith(w, owner, 'Host', ['courses:read']);
+    await w.service.createApiKey({ name: 'CI', role: host.key }, owner);
+    await expect(w.service.deleteRole(host.key, owner)).rejects.toBeInstanceOf(
+      OrganizationRuleError,
+    );
+    w.keys.length = 0;
+    await expect(w.service.deleteRole(host.key, owner)).resolves.toBeUndefined();
   });
 
   it('refuses a taken slug before writing anything', async () => {
@@ -1309,7 +1434,7 @@ describe('deny by default', () => {
       resendInvite: () => w.service.resendInvite(ivy, nobody, s.oliver.person.id),
       cancelInvite: () => w.service.cancelInvite(ivy, nobody),
       listApiKeys: () => w.service.listApiKeys(nobody),
-      createApiKey: () => w.service.createApiKey({ name: 'x', scopes: ['courses:read'] }, nobody),
+      createApiKey: () => w.service.createApiKey({ name: 'x', role: 'member' }, nobody),
       deleteApiKey: () => w.service.deleteApiKey('key_1', nobody),
     };
     for (const [name, call] of Object.entries(calls)) {
@@ -1424,5 +1549,68 @@ describe('Better Auth on role changes', () => {
     expect(w.orgAdmin.grantMembership).not.toHaveBeenCalled();
     expect(w.orgAdmin.setMembershipOwner).not.toHaveBeenCalled();
     expect(w.orgAdmin.removeMembership).not.toHaveBeenCalled();
+  });
+});
+
+describe('platform', () => {
+  const PLATFORM = { email: 'Platform@Example.test', name: 'Shop' };
+
+  it('creates the platform account once, an org it owns, and an Owner key for it', async () => {
+    const p = store({ platform: PLATFORM });
+    const first = await p.service.createPlatformOrganization({
+      name: "Sarah's Yoga",
+      slug: 'sarahs-yoga',
+      keyName: 'Shop',
+    });
+    expect(p.accounts.createAccount).toHaveBeenCalledWith({
+      email: 'platform@example.test',
+      name: 'Shop',
+    });
+    const account = [...p.people.values()].find((x) => x.email === 'platform@example.test')!;
+    expect(first.organization).toMatchObject({ name: "Sarah's Yoga", slug: 'sarahs-yoga' });
+    expect(first.apiKey).toMatchObject({
+      key: 'secret',
+      name: 'Shop',
+      role: { key: 'owner', name: 'Owner' },
+      expiresAt: null,
+    });
+    expect(p.apiKeys.create).toHaveBeenCalledWith(first.organization.id, account.externalId, {
+      name: 'Shop',
+      roleKey: 'owner',
+    });
+    const owner = await p.service.actorFor(
+      first.organization.id,
+      [...p.orgUsers.values()].find((u) => u.orgId === first.organization.id)!.id,
+    );
+    expect(owner?.permissions.isOwner()).toBe(true);
+
+    const second = await p.service.createPlatformOrganization({ name: 'Emma Art', slug: 'emma' });
+    expect(p.accounts.createAccount).toHaveBeenCalledTimes(1);
+    expect(second.apiKey.name).toBe('Platform');
+  });
+
+  it('creates another key only in an org the platform account belongs to', async () => {
+    const p = store({ platform: PLATFORM });
+    const { organization } = await p.service.createPlatformOrganization({
+      name: 'Yoga',
+      slug: 'yoga',
+    });
+    await expect(p.service.createPlatformApiKey(organization.id, 'Rotated')).resolves.toMatchObject(
+      { name: 'Rotated', role: { key: 'owner' } },
+    );
+    await p.repo.create({ id: 'org_other', name: 'Other', slug: 'other', ownerId: 'usr_x' });
+    await expect(p.service.createPlatformApiKey('org_other', 'x')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    await expect(p.service.createPlatformApiKey('org_missing', 'x')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it('knows the platform account by email, whatever its case', () => {
+    const p = store({ platform: PLATFORM });
+    expect(p.service.isPlatformAccount('PLATFORM@example.test')).toBe(true);
+    expect(p.service.isPlatformAccount('sarah@example.com')).toBe(false);
+    expect(store().service.isPlatformAccount('platform@example.test')).toBe(false);
   });
 });

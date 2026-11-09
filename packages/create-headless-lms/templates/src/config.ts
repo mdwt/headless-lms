@@ -56,6 +56,22 @@ export function parseClientOrigins(): string[] {
     .filter(Boolean);
 }
 
+function loadPlatformConfig(): ContainerConfig["platform"] {
+  const key = process.env.PLATFORM_KEY;
+  if (!key) {
+    return undefined;
+  }
+  const accountEmail = process.env.PLATFORM_ACCOUNT_EMAIL;
+  if (!accountEmail) {
+    throw new Error("PLATFORM_KEY is set: set PLATFORM_ACCOUNT_EMAIL too");
+  }
+  return {
+    key,
+    accountEmail,
+    ...(process.env.PLATFORM_ACCOUNT_NAME && { accountName: process.env.PLATFORM_ACCOUNT_NAME }),
+  };
+}
+
 function loadContainerConfig(): ContainerConfig {
   const clientOrigins = parseClientOrigins();
   const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:8000";
@@ -70,6 +86,7 @@ function loadContainerConfig(): ContainerConfig {
     secureCookies: process.env.NODE_ENV === "production",
     studentPortalUrl: process.env.STUDENT_PORTAL_URL ?? "http://localhost:8002",
     adminAppUrl: process.env.ADMIN_APP_URL ?? "http://localhost:8001",
+    platform: loadPlatformConfig(),
   };
 }
 

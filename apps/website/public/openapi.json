@@ -3,7 +3,7 @@
   "info": {
     "title": "Headless LMS API",
     "version": "0.4.0",
-    "description": "API documentation for the Headless LMS platform",
+    "description": "API documentation for the Headless LMS platform. Every route under /api takes a signed-in session or an API key, sent in the `x-api-key` header or as `Authorization: Bearer <key>`. The platform routes take the platform key as `Authorization: Bearer <platform key>`.",
     "license": {
       "name": "MIT",
       "url": "https://opensource.org/licenses/MIT"
@@ -88046,7 +88046,7 @@
         "tags": [
           "Access"
         ],
-        "description": "Requires `api_keys:read`. Your keys for this organization with their scopes. The key itself is never returned again after it is created.",
+        "description": "Requires `api_keys:read`. Your keys for this organization with their role and expiry. The key itself is never returned again after it is created.",
         "responses": {
           "200": {
             "description": "Default Response",
@@ -88066,13 +88066,28 @@
                       },
                       "start": {
                         "nullable": true,
+                        "description": "The first characters of the key, for telling keys apart",
                         "type": "string"
                       },
-                      "scopes": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
+                      "role": {
+                        "nullable": true,
+                        "description": "The role whose permissions the key holds, limited to its creator's",
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "nullable": true,
+                            "description": "Null when the organization no longer has the role",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "additionalProperties": false
                       },
                       "createdAt": {
                         "type": "string",
@@ -88082,15 +88097,22 @@
                         "nullable": true,
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "expiresAt": {
+                        "nullable": true,
+                        "description": "Null for a key that does not expire",
+                        "type": "string",
+                        "format": "date-time"
                       }
                     },
                     "required": [
                       "id",
                       "name",
                       "start",
-                      "scopes",
+                      "role",
                       "createdAt",
-                      "lastUsedAt"
+                      "lastUsedAt",
+                      "expiresAt"
                     ],
                     "additionalProperties": false
                   }
@@ -88181,7 +88203,7 @@
         "tags": [
           "Access"
         ],
-        "description": "Requires `api_keys:write`. The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.",
+        "description": "Requires `api_keys:write`. The key acts as you in this organization with the permissions of the role given, never beyond what you hold at the time of each request. Send it in the `x-api-key` header or as `Authorization: Bearer <key>`; every route under /api and /mcp accepts it. 403 when the role holds a permission you hold nowhere; 404 when the organization has no such role. The key is returned once.",
         "requestBody": {
           "required": true,
           "content": {
@@ -88194,62 +88216,21 @@
                     "minLength": 1,
                     "maxLength": 80
                   },
-                  "scopes": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "enum": [
-                        "organizations:read",
-                        "organizations:write",
-                        "api_keys:read",
-                        "api_keys:write",
-                        "api_keys:delete",
-                        "notification_categories:read",
-                        "notification_categories:write",
-                        "integrations:read",
-                        "integrations:write",
-                        "integrations:delete",
-                        "analytics:read",
-                        "people:read",
-                        "people:write",
-                        "people:delete",
-                        "roles:read",
-                        "roles:write",
-                        "roles:delete",
-                        "access:read",
-                        "access:write",
-                        "bundles:read",
-                        "bundles:write",
-                        "bundles:delete",
-                        "media:read",
-                        "media:write",
-                        "media:delete",
-                        "courses:read",
-                        "courses:write",
-                        "courses:delete",
-                        "courses:moderate",
-                        "progress:read",
-                        "downloads:read",
-                        "downloads:write",
-                        "downloads:delete",
-                        "communities:read",
-                        "communities:write",
-                        "communities:delete",
-                        "communities:moderate",
-                        "events:read",
-                        "events:write",
-                        "events:delete",
-                        "automations:read",
-                        "automations:write",
-                        "automations:delete"
-                      ]
-                    }
+                  "role": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The key of one of the organization's roles"
+                  },
+                  "expiresInDays": {
+                    "description": "Days until the key stops working. Leave out for a key that does not expire",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
                   }
                 },
                 "required": [
                   "name",
-                  "scopes"
+                  "role"
                 ]
               }
             }
@@ -88272,13 +88253,28 @@
                     },
                     "start": {
                       "nullable": true,
+                      "description": "The first characters of the key, for telling keys apart",
                       "type": "string"
                     },
-                    "scopes": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
+                    "role": {
+                      "nullable": true,
+                      "description": "The role whose permissions the key holds, limited to its creator's",
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "nullable": true,
+                          "description": "Null when the organization no longer has the role",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name"
+                      ],
+                      "additionalProperties": false
                     },
                     "createdAt": {
                       "type": "string",
@@ -88289,17 +88285,25 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "expiresAt": {
+                      "nullable": true,
+                      "description": "Null for a key that does not expire",
+                      "type": "string",
+                      "format": "date-time"
+                    },
                     "key": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The key itself. Returned once, never again"
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "start",
-                    "scopes",
+                    "role",
                     "createdAt",
                     "lastUsedAt",
+                    "expiresAt",
                     "key"
                   ],
                   "additionalProperties": false
@@ -88348,6 +88352,148 @@
                     "error"
                   ],
                   "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/api-keys/roles": {
+      "get": {
+        "operationId": "listApiKeyRoles",
+        "summary": "The roles you can put on an API key",
+        "tags": [
+          "Access"
+        ],
+        "description": "Requires `api_keys:write`. The organization's roles whose every permission you hold somewhere.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "name",
+                      "description"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               }
             }
@@ -88604,6 +88750,515 @@
           }
         }
       }
+    },
+    "/api/platform/organizations": {
+      "post": {
+        "operationId": "createPlatformOrganization",
+        "summary": "Create an organization and its first API key",
+        "tags": [
+          "Platform"
+        ],
+        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "keyName": {
+                    "description": "The name of the API key created with it. Default `Platform`",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "apiKey": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "start": {
+                          "nullable": true,
+                          "description": "The first characters of the key, for telling keys apart",
+                          "type": "string"
+                        },
+                        "role": {
+                          "nullable": true,
+                          "description": "The role whose permissions the key holds, limited to its creator's",
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "nullable": true,
+                              "description": "Null when the organization no longer has the role",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "lastUsedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "expiresAt": {
+                          "nullable": true,
+                          "description": "Null for a key that does not expire",
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "key": {
+                          "type": "string",
+                          "description": "The key itself. Returned once, never again"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "start",
+                        "role",
+                        "createdAt",
+                        "lastUsedAt",
+                        "expiresAt",
+                        "key"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "apiKey"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/platform/organizations/{orgId}/api-keys": {
+      "post": {
+        "operationId": "createPlatformApiKey",
+        "summary": "Create another API key for an organization",
+        "tags": [
+          "Platform"
+        ],
+        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates an API key for the platform account in the organization, with the Owner role and no expiry, to replace a lost or leaked one; revoke the old key with the new one. The key is returned once. 404 when the platform account is not an active member of the organization.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "orgId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "start": {
+                      "nullable": true,
+                      "description": "The first characters of the key, for telling keys apart",
+                      "type": "string"
+                    },
+                    "role": {
+                      "nullable": true,
+                      "description": "The role whose permissions the key holds, limited to its creator's",
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "nullable": true,
+                          "description": "Null when the organization no longer has the role",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lastUsedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "expiresAt": {
+                      "nullable": true,
+                      "description": "Null for a key that does not expire",
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "The key itself. Returned once, never again"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "start",
+                    "role",
+                    "createdAt",
+                    "lastUsedAt",
+                    "expiresAt",
+                    "key"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "servers": [
@@ -88687,6 +89342,10 @@
     {
       "name": "Access",
       "description": "Your permissions, connected apps and API keys"
+    },
+    {
+      "name": "Platform",
+      "description": "Organizations and their API keys, created with the platform key"
     }
   ]
 }

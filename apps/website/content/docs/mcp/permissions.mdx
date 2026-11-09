@@ -3,12 +3,12 @@ title: Permissions
 description: The permissions a connection can carry, which default roles hold them, and how each call is checked.
 ---
 
-A permission is one resource and one action, such as `courses:read` or `communities:moderate`. Roles are made of permissions, and a connection or API key carries permissions too, as its scopes. It's one list.
+A permission is one resource and one action, such as `courses:read` or `communities:moderate`. Roles are made of permissions, an API key carries a role, and an app connection carries permissions as its scopes. It's one list.
 
 ## How a connection is checked
 
-- **A key or app token carries permissions as scopes.** You choose them on the consent page, or when you create an API key, from the permissions you hold.
-- **Each request is limited to your current permissions.** On every call, the connection holds its scopes and only those you hold at that moment. If your roles change, the connection changes with them on the next call. No connection can transfer ownership, even the owner's.
+- **An app token carries permissions as scopes, and an API key carries a role.** You choose the scopes on the consent page from the permissions you hold, and a key's role from the roles whose permissions you hold.
+- **Each request is limited to your current permissions.** On every call, the connection holds its scopes, or its role's current permissions, and only those you hold at that moment. If your roles change, the connection changes with them on the next call. No connection can transfer ownership, even the owner's.
 - **Each tool call is checked by the method it calls.** Every tool calls one service method, which checks the connection's permissions on the item it acts on and refuses the call otherwise.
 
 A permission is about the organization or about one content type. A role given on the whole organization covers every item, and a role given on one course or community covers that item only. An Instructor of one course can call `update_course`, and the call succeeds only for that course.
@@ -19,7 +19,7 @@ The table shows the product's default roles. Member holds no permissions, so a m
 
 ## What is ticked for you
 
-The consent page and the API key form start with every view permission ticked and every other permission cleared. Change permissions are opt-in. Delete permissions sit apart under a warning and are never ticked for you.
+The consent page starts with every view permission ticked and every other permission cleared. Change permissions are opt-in. Delete permissions sit apart under a warning and are never ticked for you.
 
 Some change and moderate permissions can also remove things: taking a file out of a download or an item out of a bundle, revoking someone's access, deleting a space or a space link, removing someone from a space, or taking down a post or a comment. The consent page says so next to each of them.
 

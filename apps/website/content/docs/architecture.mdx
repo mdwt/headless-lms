@@ -53,7 +53,7 @@ Everyone in an organization is an **org user**, learners and team alike. What a 
 
 A **role** is a named set of permissions. It is given on the whole organization, where it covers everything, or on one course, download or community, where it covers that item. A person's permissions on an item are their organization role's plus the role given to them there. The product ships Owner, Admin, Instructor, Moderator and Member; an organization can rename them, and change them or add its own through the API. A deployment can replace the set.
 
-Every check is a permission check at the top of the core service method that owns the action. Routes and MCP tools carry none, so the REST API, an MCP tool and a background job that reach the same method get the same answer. API keys and connected apps carry permissions as scopes, and each call is limited to what their creator holds at that moment. See [Permissions](/docs/mcp/permissions) for the list.
+Every check is a permission check at the top of the core service method that owns the action. Routes and MCP tools carry none, so the REST API, an MCP tool and a background job that reach the same method get the same answer. An API key carries a role and a connected app carries permissions as scopes, and each call is limited to what their creator holds at that moment. See [Permissions](/docs/mcp/permissions) for the list.
 
 ## Reporting
 

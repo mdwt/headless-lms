@@ -6,8 +6,7 @@ import {
   isCompactJws,
   needsOrgChoice,
   orgIdFromMetadata,
-  permissionsToScopes,
-  scopesToPermissions,
+  roleFromMetadata,
 } from "./access-grant.js";
 
 describe("needsOrgChoice", () => {
@@ -85,14 +84,14 @@ describe("grantFromClaims", () => {
       userId: "usr_1",
       clientId: "client_1",
       orgId: "org_1",
-      scopes: ["courses:read", "courses:write"],
+      limit: { scopes: ["courses:read", "courses:write"] },
     });
   });
   it("keeps only catalogue scopes from the scope claim", () => {
     expect(
       grantFromClaims({ ...claims, scope: "openid offline_access courses:publish  media:read" })
-        ?.scopes,
-    ).toEqual(["media:read"]);
+        ?.limit,
+    ).toEqual({ scopes: ["media:read"] });
   });
   it("falls back to azp for the client id", () => {
     expect(grantFromClaims({ ...claims, client_id: undefined, azp: "client_2" })?.clientId).toBe(
@@ -105,7 +104,7 @@ describe("grantFromClaims", () => {
     expect(grantFromClaims({ ...claims, client_id: undefined })).toBeNull();
   });
   it("treats a missing scope claim as no scopes", () => {
-    expect(grantFromClaims({ ...claims, scope: undefined })?.scopes).toEqual([]);
+    expect(grantFromClaims({ ...claims, scope: undefined })?.limit).toEqual({ scopes: [] });
   });
 });
 
@@ -121,37 +120,14 @@ describe("orgIdFromMetadata", () => {
   });
 });
 
-describe("scopesToPermissions", () => {
-  it("groups scopes into api key permissions by resource", () => {
-    expect(scopesToPermissions(["courses:read", "courses:write", "media:read"])).toEqual({
-      courses: ["read", "write"],
-      media: ["read"],
-    });
+describe("roleFromMetadata", () => {
+  it("reads the key's role from parsed or serialized metadata", () => {
+    expect(roleFromMetadata({ organizationId: "org_1", role: "instructor" })).toBe("instructor");
+    expect(roleFromMetadata(JSON.stringify({ role: "owner" }))).toBe("owner");
   });
-  it("drops duplicates and anything outside the catalogue", () => {
-    expect(
-      scopesToPermissions(["courses:read", "courses:read", "offline_access", "courses:publish"]),
-    ).toEqual({ courses: ["read"] });
-  });
-});
-
-describe("permissionsToScopes", () => {
-  it("reads api key permissions back as scopes in catalogue order", () => {
-    expect(permissionsToScopes({ media: ["read"], courses: ["write", "read"] })).toEqual([
-      "media:read",
-      "courses:read",
-      "courses:write",
-    ]);
-  });
-  it("ignores permissions that are not catalogue scopes", () => {
-    expect(
-      permissionsToScopes({ courses: ["read", "publish"], profile: ["read"], media: "read" }),
-    ).toEqual(["courses:read"]);
-    expect(permissionsToScopes(null)).toEqual([]);
-    expect(permissionsToScopes(undefined)).toEqual([]);
-  });
-  it("round-trips the scopes an api key was created with", () => {
-    const scopes = ["people:read", "people:write", "automations:delete"];
-    expect(permissionsToScopes(scopesToPermissions(scopes))).toEqual(scopes);
+  it("returns null for a key without a role", () => {
+    expect(roleFromMetadata({ organizationId: "org_1" })).toBeNull();
+    expect(roleFromMetadata({ role: "" })).toBeNull();
+    expect(roleFromMetadata(null)).toBeNull();
   });
 });

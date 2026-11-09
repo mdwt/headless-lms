@@ -22,6 +22,7 @@ export * from './integrations.js';
 export * from './settings.js';
 export * from './discussion.js';
 export * from './access.js';
+export * from './platform.js';
 export * from './community.js';
 export * from './posts.js';
 export * from './chats.js';

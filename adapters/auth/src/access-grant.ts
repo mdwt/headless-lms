@@ -1,7 +1,6 @@
 import type { AccessGrant } from "@headless-lms/core/types";
 import { ORG_CLAIM } from "@headless-lms/core/identity";
-import { ALL_PERMISSIONS, isPermission } from "@headless-lms/core/organizations";
-import type { Permission } from "@headless-lms/core/types";
+import { isPermission } from "@headless-lms/core/organizations";
 import { type AccessTokenAuthorization, parseAccessTokenAuthorization } from "better-auth/oauth2";
 
 export function accessTokenAuthorization(
@@ -31,7 +30,7 @@ export function grantFromClaims(claims: Record<string, unknown>): AccessGrant | 
   }
   const scopes =
     typeof claims.scope === "string" ? claims.scope.split(" ").filter(isPermission) : [];
-  return { userId, clientId, orgId, scopes };
+  return { userId, clientId, orgId, limit: { scopes } };
 }
 
 export async function needsOrgChoice(
@@ -53,7 +52,7 @@ export async function consentOrgId(
     : null;
 }
 
-export function orgIdFromMetadata(metadata: unknown): string | null {
+function metadataField(metadata: unknown, field: string): string | null {
   let value = metadata;
   if (typeof value === "string") {
     try {
@@ -62,31 +61,14 @@ export function orgIdFromMetadata(metadata: unknown): string | null {
       return null;
     }
   }
-  const orgId = (value as { organizationId?: unknown } | null)?.organizationId;
-  return typeof orgId === "string" ? orgId : null;
+  const found = (value as Record<string, unknown> | null)?.[field];
+  return typeof found === "string" && found.length > 0 ? found : null;
 }
 
-export function scopesToPermissions(scopes: string[]): Record<string, string[]> {
-  const permissions: Record<string, string[]> = {};
-  for (const scope of new Set(scopes.filter(isPermission))) {
-    const separator = scope.indexOf(":");
-    const resource = scope.slice(0, separator);
-    permissions[resource] = [...(permissions[resource] ?? []), scope.slice(separator + 1)];
-  }
-  return permissions;
+export function orgIdFromMetadata(metadata: unknown): string | null {
+  return metadataField(metadata, "organizationId");
 }
 
-export function permissionsToScopes(permissions: unknown): Permission[] {
-  if (permissions === null || typeof permissions !== "object") {
-    return [];
-  }
-  const granted = new Set<string>();
-  for (const [resource, actions] of Object.entries(permissions)) {
-    if (Array.isArray(actions)) {
-      for (const action of actions) {
-        granted.add(`${resource}:${String(action)}`);
-      }
-    }
-  }
-  return ALL_PERMISSIONS.filter((scope) => granted.has(scope));
+export function roleFromMetadata(metadata: unknown): string | null {
+  return metadataField(metadata, "role");
 }

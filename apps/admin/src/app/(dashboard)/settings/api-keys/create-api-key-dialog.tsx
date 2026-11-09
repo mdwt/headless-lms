@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Copy } from "lucide-react";
@@ -10,20 +10,34 @@ import { toast } from "sonner";
 
 import { Field } from "@/components/forms/field";
 import { FormDialog } from "@/components/forms/form-dialog";
-import { ScopePicker } from "@/components/forms/scope-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { AccessScope } from "@/lib/api/types";
-import type { PermissionDefinition } from "@/lib/permissions";
-import { defaultSelected } from "@/lib/auth/oauth-flow";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { ApiKeyRole } from "@/lib/api/types";
 
 import { createApiKeyAction } from "./actions";
 
 const FORM_ID = "create-api-key-form";
 
+const NEVER = "never";
+const EXPIRY_OPTIONS = [
+  { value: NEVER, label: "Never" },
+  { value: "30", label: "30 days" },
+  { value: "90", label: "90 days" },
+  { value: "180", label: "180 days" },
+  { value: "365", label: "1 year" },
+];
+
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
-  scopes: z.array(z.string()).min(1, "Choose at least one permission"),
+  role: z.string().min(1, "Select a role"),
+  expiry: z.string(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -31,13 +45,12 @@ type FormValues = z.infer<typeof schema>;
 export function CreateApiKeyDialog({
   open,
   onOpenChange,
-  permissions,
+  roles,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  permissions: PermissionDefinition[];
+  roles: ApiKeyRole[];
 }) {
-  const scopes: AccessScope[] = permissions.map((p) => p.key);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -50,9 +63,8 @@ export function CreateApiKeyDialog({
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", scopes: scopes.filter(defaultSelected) },
+    defaultValues: { name: "", role: "", expiry: NEVER },
   });
-  const chosen = useWatch({ control, name: "scopes" });
 
   useEffect(() => {
     if (open) reset();
@@ -63,7 +75,8 @@ export function CreateApiKeyDialog({
       try {
         const { key } = await createApiKeyAction({
           name: values.name,
-          scopes: scopes.filter((scope) => values.scopes.includes(scope)),
+          role: values.role,
+          ...(values.expiry !== NEVER && { expiresInDays: Number(values.expiry) }),
         });
         setCreatedKey(key);
         router.refresh();
@@ -131,7 +144,6 @@ export function CreateApiKeyDialog({
       formId={FORM_ID}
       submitLabel="Create key"
       pending={pending}
-      submitDisabled={chosen.length === 0}
     >
       <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5">
         <Field id="name" label="Name" required error={errors.name?.message}>
@@ -139,14 +151,50 @@ export function CreateApiKeyDialog({
         </Field>
         <Controller
           control={control}
-          name="scopes"
+          name="role"
           render={({ field }) => (
-            <Field id="scopes" label="Permissions" required error={errors.scopes?.message}>
-              <ScopePicker
-                permissions={permissions}
-                value={field.value}
-                onChange={field.onChange}
-              />
+            <Field
+              id="api-key-role"
+              label="Role"
+              required
+              error={errors.role?.message}
+              hint={
+                roles.find((r) => r.key === field.value)?.description ||
+                "The key holds this role's permissions, never more than you hold."
+              }
+            >
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="api-key-role" aria-invalid={!!errors.role}>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r.key} value={r.key}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+        />
+        <Controller
+          control={control}
+          name="expiry"
+          render={({ field }) => (
+            <Field id="api-key-expiry" label="Expires">
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="api-key-expiry">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPIRY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
           )}
         />

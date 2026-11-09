@@ -45,7 +45,32 @@ export interface TransferOwnershipInput {
 
 export interface CreateApiKeyInput {
   name: string;
-  scopes: Permission[];
+  role: string;
+  expiresInDays?: number | undefined;
+}
+
+export interface ApiKeyRole {
+  key: string;
+  name: string;
+  description: string;
+}
+
+export type CallerLimit = { scopes: readonly Permission[] } | { roleKey: string };
+
+export interface PlatformOrganizationInput {
+  name: string;
+  slug: string;
+  keyName?: string | undefined;
+}
+
+export interface PlatformOrganization {
+  organization: AuthOrganization;
+  apiKey: CreatedApiKey;
+}
+
+export interface PlatformAccount {
+  email: string;
+  name: string;
 }
 
 export interface OrganizationService {
@@ -65,15 +90,11 @@ export interface OrganizationService {
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   orgIds(): Promise<string[]>;
 
-  actorFor(
-    orgId: string,
-    orgUserId: string,
-    tokenScopes?: readonly Permission[],
-  ): Promise<Actor | null>;
+  actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null>;
   resolveCaller(
     authOrgId: string,
     authUserId: string,
-    tokenScopes?: readonly Permission[],
+    limit?: CallerLimit,
   ): Promise<ResolvedCaller | null>;
   systemActor(orgId: string): Actor;
   permissionsOfMany(
@@ -114,10 +135,15 @@ export interface OrganizationService {
   acceptInvite(input: AcceptInviteInput, headers: AuthHeaders): Promise<OrgUser>;
 
   listApiKeys(actor: Actor): Promise<ApiKeySummary[]>;
+  listApiKeyRoles(actor: Actor): Promise<ApiKeyRole[]>;
   createApiKey(input: CreateApiKeyInput, actor: Actor): Promise<CreatedApiKey>;
   deleteApiKey(keyId: string, actor: Actor): Promise<void>;
   listConnectedApps(actor: Actor): Promise<ConnectedApp[]>;
   revokeConnectedApp(clientId: string, actor: Actor): Promise<void>;
+
+  createPlatformOrganization(input: PlatformOrganizationInput): Promise<PlatformOrganization>;
+  createPlatformApiKey(orgId: string, name: string): Promise<CreatedApiKey>;
+  isPlatformAccount(email: string): boolean;
 }
 
 export interface ActorFacts {
@@ -257,6 +283,10 @@ export type AuthOrganization = Pick<Organization, 'id' | 'name' | 'slug' | 'crea
 
 export interface OrgAdmin {
   createOrganization(headers: AuthHeaders, input: NewOrganizationInput): Promise<AuthOrganization>;
+  createOrganizationFor(
+    ownerExternalId: string,
+    input: NewOrganizationInput,
+  ): Promise<AuthOrganization>;
   setActiveOrganization(headers: AuthHeaders, externalId: string): Promise<void>;
   deleteOrganization(headers: AuthHeaders, externalId: string): Promise<void>;
   updateOrganization(externalId: string, input: UpdateOrganizationInput): Promise<void>;
@@ -265,14 +295,34 @@ export interface OrgAdmin {
   removeMembership(orgExternalId: string, userExternalId: string): Promise<void>;
 }
 
+export interface Accounts {
+  createAccount(input: PlatformAccount): Promise<{ externalId: string }>;
+}
+
+export interface StoredApiKey {
+  id: string;
+  name: string | null;
+  start: string | null;
+  roleKey: string | null;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  expiresAt: Date | null;
+}
+
+export interface NewApiKey {
+  name: string;
+  roleKey: string;
+  expiresInDays?: number | undefined;
+}
+
 export interface ApiKeys {
-  list(orgId: string, userExternalId: string): Promise<ApiKeySummary[]>;
+  list(orgId: string, userExternalId: string): Promise<StoredApiKey[]>;
   create(
     orgId: string,
     userExternalId: string,
-    name: string,
-    scopes: Permission[],
-  ): Promise<CreatedApiKey>;
+    input: NewApiKey,
+  ): Promise<StoredApiKey & { key: string }>;
+  countWithRole(orgId: string, roleKey: string): Promise<number>;
   revoke(orgId: string, userExternalId: string, keyId: string): Promise<void>;
   listApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]>;
   revokeApp(orgId: string, userExternalId: string, clientId: string): Promise<void>;

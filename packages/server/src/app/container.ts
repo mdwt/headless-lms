@@ -119,6 +119,7 @@ import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
 import { SettingsService } from '@headless-lms/core/shared/settings';
+import { platformKeyCheck, type PlatformConfig, type PlatformKeyCheck } from './platform.js';
 
 import type {
   BodyParser,
@@ -198,6 +199,7 @@ export interface Config {
   memberFileMaxBytes: number;
   /** Let the default webhook sender reach loopback and private network addresses. Local development only. */
   webhookAllowPrivateNetwork?: boolean;
+  platform?: PlatformConfig;
 }
 
 /** Tuning for the transactional-outbox relay. Every field is optional; the
@@ -241,6 +243,7 @@ export function resolveLoggingConfig(config: LoggingConfig = {}): Required<Loggi
 export interface Container {
   auth: BetterAuth;
   mcp: McpEndpoints;
+  platform: PlatformKeyCheck | null;
   // Org Provider
   orgProvider: OrgAdmin;
 
@@ -389,6 +392,7 @@ export async function buildContainer(
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
+  const platform = config.platform ? platformKeyCheck(config.platform) : null;
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
@@ -399,6 +403,18 @@ export async function buildContainer(
       }
       return orgAdminRef.current;
     },
+    accounts: () => {
+      if (!orgAdminRef.current) {
+        throw new Error('accounts not initialised');
+      }
+      return orgAdminRef.current;
+    },
+    ...(config.platform && {
+      platform: {
+        email: config.platform.accountEmail,
+        name: config.platform.accountName ?? 'Platform',
+      },
+    }),
     membersRepo: new DrizzleMembersRepository(db, logger.child({ name: 'org' })),
     people: identity,
     images: assets,
@@ -884,6 +900,10 @@ export async function buildContainer(
         if (!person) {
           return;
         }
+        if (organizations.isPlatformAccount(person.email)) {
+          authLogger.warn('sign-in refused for the platform account', { userId: person.id });
+          return false;
+        }
         const orgs = await organizations.getOrgUsersForUser(person.id);
         if (orgs.length !== 1) {
           return;
@@ -932,6 +952,7 @@ export async function buildContainer(
   return {
     auth,
     mcp,
+    platform,
     identity,
     organizations,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.

@@ -55,7 +55,9 @@ export function registerMcp(
         container,
         grant.userId,
         grant.orgId,
-        grant.scopes.filter(isPermission),
+        'roleKey' in grant.limit
+          ? grant.limit
+          : { scopes: grant.limit.scopes.filter(isPermission) },
       );
     } catch (error) {
       if (error instanceof NoActiveOrgError) {
@@ -71,7 +73,7 @@ export function registerMcp(
       authInfo: {
         token: '',
         clientId: grant.clientId,
-        scopes: grant.scopes,
+        scopes: 'scopes' in grant.limit ? grant.limit.scopes : [],
         extra: { connection },
       },
       parsedBody: request.body,

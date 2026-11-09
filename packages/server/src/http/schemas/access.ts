@@ -34,15 +34,34 @@ export const ClientIdParam = z.object({ clientId: z.string() });
 export const ApiKey = z.object({
   id: z.string(),
   name: z.string().nullable(),
-  start: z.string().nullable(),
-  scopes: z.array(z.string()),
+  start: z.string().nullable().describe('The first characters of the key, for telling keys apart'),
+  role: z
+    .object({
+      key: z.string(),
+      name: z.string().nullable().describe('Null when the organization no longer has the role'),
+    })
+    .nullable()
+    .describe("The role whose permissions the key holds, limited to its creator's"),
   createdAt: z.coerce.date(),
   lastUsedAt: z.coerce.date().nullable(),
+  expiresAt: z.coerce.date().nullable().describe('Null for a key that does not expire'),
 });
 export const ApiKeyList = z.array(ApiKey);
-export const CreatedApiKey = ApiKey.extend({ key: z.string() });
+export const CreatedApiKey = ApiKey.extend({
+  key: z.string().describe('The key itself. Returned once, never again'),
+});
+export const ApiKeyName = z.string().trim().min(1).max(80);
 export const CreateApiKey = z.object({
-  name: z.string().trim().min(1).max(80),
-  scopes: z.array(permissionSchema).min(1),
+  name: ApiKeyName,
+  role: z.string().min(1).describe("The key of one of the organization's roles"),
+  expiresInDays: z
+    .number()
+    .int()
+    .min(1)
+    .max(365)
+    .optional()
+    .describe('Days until the key stops working. Leave out for a key that does not expire'),
 });
 export const ApiKeyIdParam = z.object({ id: z.string() });
+export const ApiKeyRole = z.object({ key: z.string(), name: z.string(), description: z.string() });
+export const ApiKeyRoleList = z.array(ApiKeyRole);

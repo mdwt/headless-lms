@@ -1,0 +1,59 @@
+---
+title: API keys and the platform
+description: Call the API from a server with an API key, and create organizations for your own customers with the platform key.
+---
+
+## API keys
+
+A server, script or agent calls the API with an API key instead of a session. Create one in **Settings → API keys**, or with [`POST /api/access/api-keys`](/docs/api/access/createApiKey).
+
+- A key acts as the person who created it, in the organization it was created in.
+- A key carries one of the organization's roles. On every request it holds that role's current permissions, limited to what its creator holds at that moment. A change to the role, or to the creator's roles, applies from the next request.
+- A request made with a key passes the same permission checks as the same person signed in. Access to content is still decided by grants.
+- A key can expire after 1 to 365 days, or never. It is shown once; afterwards only its first characters are shown. It is stored hashed, and every key starts with `hlms_`.
+- You can choose only a role whose permissions you hold. A role can't be deleted while a key carries it, and removing a person from the organization revokes their keys there.
+
+Send the key in the `x-api-key` header or as a bearer token. Every route under `/api`, and `/mcp`, accepts it:
+
+```bash
+curl https://<your-api-host>/api/courses \
+  -H "x-api-key: $LMS_API_KEY"
+```
+
+A request that carries a key is judged on the key alone: an unknown, revoked or expired key gets `401`, and the request never falls back to a session cookie. Signing in, creating an organization as a signed-in person and accepting an invite need a session.
+
+## The platform key
+
+A platform that runs Headless LMS for its own customers, with its own dashboard and no Headless LMS sign-in for those customers, creates one organization per customer with the platform key.
+
+| Variable                 | Meaning                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| `PLATFORM_KEY`           | The platform key, at least 32 characters. Unset: the platform routes don't exist.              |
+| `PLATFORM_ACCOUNT_EMAIL` | The platform account's email address. Required with `PLATFORM_KEY`.                            |
+| `PLATFORM_ACCOUNT_NAME`  | The platform account's display name, shown wherever its actions are shown. Default `Platform`. |
+
+The platform account owns every organization the platform creates. It has no password and can't sign in by any method; it acts only through its API keys. It appears in each organization's people list as the owner.
+
+Send the platform key as `Authorization: Bearer <platform key>`. It works only on the platform routes, and an API key never works on them.
+
+[`POST /api/platform/organizations`](/docs/api/platform/createPlatformOrganization) creates an organization and an API key for the platform account with the Owner role and no expiry:
+
+```bash
+curl https://<your-api-host>/api/platform/organizations \
+  -H "Authorization: Bearer $PLATFORM_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Sarah'\''s Yoga","slug":"sarahs-yoga","keyName":"Storefront"}'
+```
+
+The response carries the organization and the key. Store both against your customer; every later call for that customer uses the key. A slug in use gets `409`.
+
+[`POST /api/platform/organizations/:orgId/api-keys`](/docs/api/platform/createPlatformApiKey) creates another key for an organization, to replace a lost or leaked one. Revoke the old key with the new one through [`DELETE /api/access/api-keys/:id`](/docs/api/access/deleteApiKey).
+
+### Example
+
+A store builder runs Headless LMS for the sellers on its platform. Its servers hold the platform key, and its own dashboard is where sellers build their courses.
+
+1. Sarah, a seller, turns on courses. The platform's backend creates her organization and stores the organization id and key against her account.
+2. Sarah builds a course in the platform's dashboard. Its backend calls `POST /api/courses` with Sarah's key, and the course is created in her organization.
+3. James buys the course. The platform's backend grants it to him with Sarah's key.
+4. James signs in to the student app with his own account and opens the course. His session decides what he sees.

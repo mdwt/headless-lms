@@ -5,6 +5,7 @@ import type { Container } from '../../app/container.js';
 import {
   ApiKeyIdParam,
   ApiKeyList,
+  ApiKeyRoleList,
   ClientIdParam,
   ConnectedAppList,
   CreateApiKey,
@@ -94,10 +95,24 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'listApiKeys',
       tags,
       summary: 'Your API keys for this organization',
-      description: `Requires \`api_keys:read\`. Your keys for this organization with their scopes. The key itself is never returned again after it is created.`,
+      description: `Requires \`api_keys:read\`. Your keys for this organization with their role and expiry. The key itself is never returned again after it is created.`,
       response: { 200: ApiKeyList, ...refusals(403) },
     },
     handler: async (req) => organizations.listApiKeys(await resolveActor(container, req)),
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/access/api-keys/roles',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listApiKeyRoles',
+      tags,
+      summary: 'The roles you can put on an API key',
+      description: `Requires \`api_keys:write\`. The organization's roles whose every permission you hold somewhere.`,
+      response: { 200: ApiKeyRoleList, ...refusals(403) },
+    },
+    handler: async (req) => organizations.listApiKeyRoles(await resolveActor(container, req)),
   });
 
   r.route({
@@ -108,9 +123,9 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'createApiKey',
       tags,
       summary: 'Create an API key',
-      description: `Requires \`api_keys:write\`. The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.`,
+      description: `Requires \`api_keys:write\`. The key acts as you in this organization with the permissions of the role given, never beyond what you hold at the time of each request. Send it in the \`x-api-key\` header or as \`Authorization: Bearer <key>\`; every route under /api and /mcp accepts it. 403 when the role holds a permission you hold nowhere; 404 when the organization has no such role. The key is returned once.`,
       body: CreateApiKey,
-      response: { 201: CreatedApiKey, ...refusals(400, 403) },
+      response: { 201: CreatedApiKey, ...refusals(400, 403, 404) },
     },
     handler: async (req, reply) => {
       const created = await organizations.createApiKey(

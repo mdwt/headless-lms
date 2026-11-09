@@ -55,7 +55,10 @@ MCP tool or a repository. The organizations context owns the permission list, th
   everything to a holder on the org and filter to `where(...).content` otherwise. Creating an item needs the type's
   write permission on the org.
 - Routes and tools resolve the credential, ask organizations for the actor and call one method. They decide nothing.
-  An API key or app token holds its scopes intersected with its creator's current permissions.
+  A request carries a session cookie or an API key, never both: a request with a key is judged on the key
+  alone. An API key holds its role's current permissions and an app token its scopes, each intersected with its
+  creator's current permissions. The platform key, set in the deployment's configuration, only creates orgs and their
+  API keys.
 - Work the system does itself, and one context's reads of another's data to serve a person, run as
   `organizations.systemActor(orgId)`, which holds every permission and is never built from a request.
 - No code compares a role's name or key. A lint rule refuses it.

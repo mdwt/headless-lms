@@ -8,7 +8,7 @@ import {
   resolveOrgRoles,
   resolvePermissions,
 } from '@headless-lms/core/organizations';
-import type { Permission } from '@headless-lms/core/types';
+import type { CallerLimit } from '@headless-lms/core/organizations';
 import type { AccessRequest } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { registerMcp } from './route.js';
@@ -54,16 +54,21 @@ const roles = new Map(resolveOrgRoles(catalogOf(DEFAULT_ROLES), []).map((r) => [
 const granted = (scopes: string[], roleKey = 'owner') =>
   fakeContainer({
     auth: {
-      verifyAccess: async () => ({ userId: 'usr_1', orgId: 'org_1', scopes, clientId: 'client_1' }),
+      verifyAccess: async () => ({
+        userId: 'usr_1',
+        orgId: 'org_1',
+        clientId: 'client_1',
+        limit: { scopes },
+      }),
     },
     organizations: {
-      actorFor: async (orgId: string, orgUserId: string, tokenScopes?: Permission[]) => ({
+      actorFor: async (orgId: string, orgUserId: string, limit?: CallerLimit) => ({
         id: orgUserId,
         orgId,
         permissions: resolvePermissions({
           assignments: [{ roleKey, contentId: null, contentType: null }],
           roles,
-          ...(tokenScopes && { tokenScopes }),
+          ...(limit && 'scopes' in limit && { tokenScopes: limit.scopes }),
         }),
       }),
     },

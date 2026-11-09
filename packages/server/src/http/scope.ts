@@ -1,8 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
 import type { Actor } from '@headless-lms/core/shared/actor';
-import type { Permission } from '@headless-lms/core/types';
-import type { ResolvedCaller } from '@headless-lms/core/organizations';
+import type { CallerLimit, ResolvedCaller } from '@headless-lms/core/organizations';
 
 export interface Caller {
   actor: Actor;
@@ -45,18 +44,18 @@ function callerFrom(
 }
 
 export async function resolveCaller(container: Container, req: FastifyRequest): Promise<Caller> {
-  const authUser = req.authUser;
+  const authUserId = req.authUserId;
   const authOrgId = req.authOrgId ?? null;
-  if (!authUser) {
+  if (!authUserId) {
     throw new NoActiveOrgError('Sign in to continue');
   }
   if (!authOrgId || !req.orgId) {
     throw new NoActiveOrgError('Choose an organization to continue');
   }
   const resolved =
-    req.resolvedCaller ?? (await container.organizations.resolveCaller(authOrgId, authUser.id));
+    req.resolvedCaller ?? (await container.organizations.resolveCaller(authOrgId, authUserId));
   req.resolvedCaller = resolved ?? undefined;
-  return callerFrom(container, resolved, authUser.id, authOrgId);
+  return callerFrom(container, resolved, authUserId, authOrgId);
 }
 
 export async function resolveActor(container: Container, req: FastifyRequest): Promise<Actor> {
@@ -67,11 +66,11 @@ export async function resolveCallerFor(
   container: Container,
   authUserId: string,
   authOrgId: string,
-  tokenScopes: readonly Permission[],
+  limit: CallerLimit,
 ): Promise<Caller> {
   return callerFrom(
     container,
-    await container.organizations.resolveCaller(authOrgId, authUserId, tokenScopes),
+    await container.organizations.resolveCaller(authOrgId, authUserId, limit),
     authUserId,
     authOrgId,
   );

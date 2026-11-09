@@ -8,6 +8,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
 const outPath = join(repoRoot, "packages", "sdk", "openapi.json");
 
 const config = loadServerConfig();
+config.container.platform ??= { key: "x".repeat(32), accountEmail: "platform@example.com" };
 const app = await buildServer(config, await createContainer(config));
 await app.ready();
 const document = app.swagger();

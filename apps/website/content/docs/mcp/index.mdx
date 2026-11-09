@@ -79,7 +79,7 @@ Clients without client ID metadata documents register themselves dynamically, in
 
 ## Connect with an API key
 
-Use an API key where nobody is present to sign in: scripts, CI, or the Claude API's MCP connector. Create one in **Settings → API keys**. A key belongs to you, works in the organization you created it in, and carries the permissions you ticked, as its scopes. You can tick only permissions you hold. It is shown once.
+Use an API key where nobody is present to sign in: scripts, CI, or the Claude API's MCP connector. Create one in **Settings → API keys**. A key belongs to you, works in the organization you created it in, and carries one of its roles: it holds that role's permissions, never more than you hold. You can choose only a role whose permissions you hold. It is shown once. See [API keys](/docs/api-keys).
 
 Send it as a bearer token, or in the `x-api-key` header:
 

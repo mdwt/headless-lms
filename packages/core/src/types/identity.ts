@@ -49,11 +49,13 @@ export type UserId = string;
 
 export type HeaderBag = Record<string, string | string[] | undefined>;
 
+export type CredentialLimit = { scopes: string[] } | { roleKey: string };
+
 export type AccessGrant = {
   userId: string;
   orgId: string;
-  scopes: string[];
   clientId: string;
+  limit: CredentialLimit;
 };
 
 export type AccessRequest = {
@@ -64,6 +66,7 @@ export type AccessRequest = {
 
 export interface AccessTokenVerifier {
   verifyAccess(request: AccessRequest): Promise<AccessGrant | null>;
+  verifyApiKey(headers: HeaderBag): Promise<AccessGrant | null>;
 }
 
 export type ConnectedApp = {
@@ -78,9 +81,10 @@ export type ApiKeySummary = {
   id: string;
   name: string | null;
   start: string | null;
-  scopes: string[];
+  role: { key: string; name: string | null } | null;
   createdAt: Date;
   lastUsedAt: Date | null;
+  expiresAt: Date | null;
 };
 
 export type CreatedApiKey = ApiKeySummary & { key: string };

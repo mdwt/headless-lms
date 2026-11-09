@@ -164,6 +164,22 @@ function parseLogLevel(): LogLevel | undefined {
   return raw as LogLevel;
 }
 
+export function loadPlatformConfig(): ContainerConfig["platform"] {
+  const key = process.env.PLATFORM_KEY;
+  if (!key) {
+    return undefined;
+  }
+  const accountEmail = process.env.PLATFORM_ACCOUNT_EMAIL;
+  if (!accountEmail) {
+    throw new Error("PLATFORM_KEY is set: set PLATFORM_ACCOUNT_EMAIL too");
+  }
+  return {
+    key,
+    accountEmail,
+    ...(process.env.PLATFORM_ACCOUNT_NAME && { accountName: process.env.PLATFORM_ACCOUNT_NAME }),
+  };
+}
+
 function loadContainerConfig(): ContainerConfig {
   const clientOrigins = parseClientOrigins();
   const apiOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:8000";
@@ -200,6 +216,7 @@ function loadContainerConfig(): ContainerConfig {
       level: parseLogLevel(),
     },
     webhookAllowPrivateNetwork: process.env.WEBHOOK_ALLOW_PRIVATE_NETWORK === "true",
+    platform: loadPlatformConfig(),
   };
 }
 

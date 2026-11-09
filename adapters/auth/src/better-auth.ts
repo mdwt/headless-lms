@@ -3,12 +3,10 @@ import type {
   AccessRequest,
   AccessTokenVerifier,
   ActiveSession,
-  ApiKeySummary,
   ConnectedApp,
-  CreatedApiKey,
+  HeaderBag,
   Logger,
   NewOrganizationInput,
-  Permission,
   SessionVerifier,
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
@@ -19,7 +17,7 @@ import type { CreateAuthOptions } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
-import { NotFoundError } from "@headless-lms/core/shared/errors";
+import { ConflictError, NotFoundError } from "@headless-lms/core/shared/errors";
 import { jwt, magicLink, organization } from "better-auth/plugins";
 import { getOrgAdapter } from "better-auth/plugins/organization";
 import {
@@ -34,7 +32,7 @@ import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { apiKey } from "@better-auth/api-key";
-import { eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { ac, OWNER_MEMBERSHIP, PARTICIPANT_MEMBERSHIP, roles } from "./access.js";
 import {
   accessTokenAuthorization,
@@ -43,17 +41,20 @@ import {
   isCompactJws,
   needsOrgChoice,
   orgIdFromMetadata,
-  permissionsToScopes,
-  scopesToPermissions,
+  roleFromMetadata,
 } from "./access-grant.js";
 import { withLoopbackNativeDefault } from "./client-registration.js";
 import {
   ALL_PERMISSIONS,
+  type Accounts,
   type ApiKeys,
   type AuthHeaders,
   type AuthOrganization,
+  type NewApiKey,
   type OrgAdmin,
   OrganizationRuleError,
+  type PlatformAccount,
+  type StoredApiKey,
   type UpdateOrganizationInput,
 } from "@headless-lms/core/organizations";
 import {
@@ -63,6 +64,10 @@ import {
 } from "@headless-lms/core/identity";
 
 const JWT_ALG = "EdDSA";
+
+export const API_KEY_PREFIX = "hlms_";
+const API_KEY_NAME_MAX = 80;
+const DAY_SECONDS = 24 * 60 * 60;
 
 const OPEN_ORG_ENDPOINTS = new Set([
   "/organization/set-active",
@@ -219,7 +224,12 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         jwks: { keyPairConfig: { alg: JWT_ALG } },
       }) as BetterAuthPlugin,
       ...(opts.mcp.oauthEnabled ? mcpOAuthPlugins(opts) : []),
-      apiKey({ enableMetadata: true, rateLimit: { enabled: false } }) as BetterAuthPlugin,
+      apiKey({
+        enableMetadata: true,
+        defaultPrefix: API_KEY_PREFIX,
+        maximumNameLength: API_KEY_NAME_MAX,
+        rateLimit: { enabled: false },
+      }) as BetterAuthPlugin,
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
@@ -276,69 +286,61 @@ export type Auth = ReturnType<typeof createAuth>;
 
 type JSONWebKeySet = { keys: Array<Record<string, unknown>> };
 
-type PluginApiKey = {
+type ApiKeyRow = {
   id: string;
   name: string | null;
   start: string | null;
   referenceId: string;
   metadata: unknown;
-  permissions: Record<string, string[]> | null;
-  createdAt: Date;
-  lastRequest: Date | null;
+  createdAt: Date | string;
+  lastRequest: Date | string | null;
+  expiresAt: Date | string | null;
 };
 
 type PluginApi = {
   getJwks(): Promise<JSONWebKeySet>;
   verifyApiKey(input: {
     body: { key: string };
-  }): Promise<{ valid: boolean; key: PluginApiKey | null }>;
+  }): Promise<{ valid: boolean; key: ApiKeyRow | null }>;
   createApiKey(input: {
     body: {
       name: string;
       userId: string;
       metadata: Record<string, unknown>;
-      permissions: Record<string, string[]>;
+      expiresIn?: number;
     };
-  }): Promise<PluginApiKey & { key: string }>;
+  }): Promise<ApiKeyRow & { key: string }>;
 };
 
-type StoredApiKey = {
-  id: string;
-  name: string | null;
-  start: string | null;
-  referenceId: string;
-  metadata: unknown;
-  permissions: unknown;
-  createdAt: Date | string;
-  lastRequest: Date | string | null;
-};
-
-function parsedPermissions(value: unknown): unknown {
-  if (typeof value !== "string") {
-    return value;
-  }
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-function toSummary(key: StoredApiKey): ApiKeySummary {
+function toStored(key: ApiKeyRow): StoredApiKey {
   return {
     id: key.id,
     name: key.name ?? null,
     start: key.start ?? null,
-    scopes: permissionsToScopes(parsedPermissions(key.permissions)),
+    roleKey: roleFromMetadata(key.metadata),
     createdAt: new Date(key.createdAt),
     lastUsedAt: key.lastRequest ? new Date(key.lastRequest) : null,
+    expiresAt: key.expiresAt ? new Date(key.expiresAt) : null,
   };
 }
 
+function apiKeyHeader(headers: HeaderBag): string | null {
+  const header = headers["x-api-key"];
+  if (typeof header === "string" && header.length > 0) {
+    return header;
+  }
+  const authorization = accessTokenAuthorization(headers.authorization);
+  if (authorization?.scheme === "Bearer" && !isCompactJws(authorization.token)) {
+    return authorization.token;
+  }
+  return null;
+}
+
 export class BetterAuth
-  implements SessionVerifier, OrgAdmin, SessionAdmin, AccessTokenVerifier, ApiKeys
+  implements SessionVerifier, OrgAdmin, SessionAdmin, AccessTokenVerifier, ApiKeys, Accounts
 {
   protected auth: Auth;
+  protected db: CreateAuthOptions["db"];
   protected logger: Logger;
   protected mcp: CreateAuthOptions["mcp"];
   protected issuer: string;
@@ -346,6 +348,7 @@ export class BetterAuth
 
   constructor(opts: CreateAuthOptions, auth?: Auth) {
     this.auth = auth ?? createAuth(opts);
+    this.db = opts.db;
     this.logger = opts.logger;
     this.mcp = opts.mcp;
     this.issuer = `${opts.baseUrl.replace(/\/+$/, "")}/api/auth`;
@@ -366,18 +369,20 @@ export class BetterAuth
   }
 
   async verifyAccess(request: AccessRequest): Promise<AccessGrant | null> {
-    const apiKeyHeader = request.headers["x-api-key"];
-    if (typeof apiKeyHeader === "string" && apiKeyHeader.length > 0) {
-      return this.verifyApiKey(apiKeyHeader);
+    const key = apiKeyHeader(request.headers);
+    if (key) {
+      return this.grantForKey(key);
     }
     const authorization = accessTokenAuthorization(request.headers.authorization);
     if (!authorization) {
       return null;
     }
-    if (authorization.scheme === "Bearer" && !isCompactJws(authorization.token)) {
-      return this.verifyApiKey(authorization.token);
-    }
     return this.mcp.oauthEnabled ? this.verifyAccessToken(authorization, request) : null;
+  }
+
+  async verifyApiKey(headers: HeaderBag): Promise<AccessGrant | null> {
+    const key = apiKeyHeader(headers);
+    return key ? this.grantForKey(key) : null;
   }
 
   protected async verifyAccessToken(
@@ -427,64 +432,85 @@ export class BetterAuth
         { field: "referenceId", value: grant.orgId },
       ],
     });
-    return consent
-      ? { ...grant, scopes: grant.scopes.filter((scope) => consent.scopes.includes(scope)) }
-      : null;
+    if (!consent || !("scopes" in grant.limit)) {
+      return null;
+    }
+    return {
+      ...grant,
+      limit: { scopes: grant.limit.scopes.filter((scope) => consent.scopes.includes(scope)) },
+    };
   }
 
-  protected async verifyApiKey(key: string): Promise<AccessGrant | null> {
+  protected async grantForKey(key: string): Promise<AccessGrant | null> {
     const result = await this.pluginApi.verifyApiKey({ body: { key } });
     if (!result.valid || !result.key) {
       return null;
     }
     const orgId = orgIdFromMetadata(result.key.metadata);
-    if (!orgId) {
+    const roleKey = roleFromMetadata(result.key.metadata);
+    if (!orgId || !roleKey) {
       return null;
     }
     return {
       userId: result.key.referenceId,
       orgId,
-      scopes: permissionsToScopes(result.key.permissions),
       clientId: `api-key:${result.key.id}`,
+      limit: { roleKey },
     };
   }
 
-  protected async ownKeys(orgId: string, userExternalId: string): Promise<StoredApiKey[]> {
+  protected async ownKeys(orgId: string, userExternalId: string): Promise<ApiKeyRow[]> {
     const ctx = await this.auth.$context;
-    const keys = await ctx.adapter.findMany<StoredApiKey>({
+    const keys = await ctx.adapter.findMany<ApiKeyRow>({
       model: "apikey",
       where: [{ field: "referenceId", value: userExternalId }],
     });
     return keys.filter((key) => orgIdFromMetadata(key.metadata) === orgId);
   }
 
-  async list(orgId: string, userExternalId: string): Promise<ApiKeySummary[]> {
-    return (await this.ownKeys(orgId, userExternalId)).map(toSummary);
+  async list(orgId: string, userExternalId: string): Promise<StoredApiKey[]> {
+    return (await this.ownKeys(orgId, userExternalId)).map(toStored);
   }
 
   async create(
     orgId: string,
     userExternalId: string,
-    name: string,
-    scopes: Permission[],
-  ): Promise<CreatedApiKey> {
+    input: NewApiKey,
+  ): Promise<StoredApiKey & { key: string }> {
     const created = await this.pluginApi.createApiKey({
       body: {
-        name,
+        name: input.name,
         userId: userExternalId,
-        metadata: { organizationId: orgId },
-        permissions: scopesToPermissions(scopes),
+        metadata: { organizationId: orgId, role: input.roleKey },
+        ...(input.expiresInDays !== undefined && {
+          expiresIn: input.expiresInDays * DAY_SECONDS,
+        }),
       },
     });
-    return {
-      id: created.id,
-      name: created.name ?? null,
-      start: created.start ?? null,
-      scopes: permissionsToScopes(created.permissions),
-      createdAt: new Date(created.createdAt),
-      lastUsedAt: null,
-      key: created.key,
-    };
+    return { ...toStored(created), key: created.key };
+  }
+
+  async countWithRole(orgId: string, roleKey: string): Promise<number> {
+    const metadata = sql`${authSchema.apikey.metadata}::jsonb`;
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(authSchema.apikey)
+      .where(
+        and(
+          sql`${metadata} ->> 'organizationId' = ${orgId}`,
+          sql`${metadata} ->> 'role' = ${roleKey}`,
+        ),
+      );
+    return row?.value ?? 0;
+  }
+
+  async createAccount(input: PlatformAccount): Promise<{ externalId: string }> {
+    const ctx = await this.auth.$context;
+    const user = await ctx.internalAdapter.createUser(
+      { email: input.email, name: input.name, emailVerified: true },
+      { method: "admin" },
+    );
+    return { externalId: user.id };
   }
 
   async revoke(orgId: string, userExternalId: string, keyId: string): Promise<void> {
@@ -609,6 +635,27 @@ export class BetterAuth
       body: { name: input.name, slug: input.slug },
       headers: fromNodeHeaders(headers),
     });
+    if (!org) {
+      throw new Error(`Couldn't create organization`);
+    }
+    return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt };
+  }
+
+  async createOrganizationFor(
+    ownerExternalId: string,
+    input: NewOrganizationInput,
+  ): Promise<AuthOrganization> {
+    let org: Awaited<ReturnType<Auth["api"]["createOrganization"]>>;
+    try {
+      org = await this.auth.api.createOrganization({
+        body: { name: input.name, slug: input.slug, userId: ownerExternalId },
+      });
+    } catch (err) {
+      if (err instanceof APIError && err.body?.code === "ORGANIZATION_ALREADY_EXISTS") {
+        throw new ConflictError("That slug is already in use");
+      }
+      throw err;
+    }
     if (!org) {
       throw new Error(`Couldn't create organization`);
     }

@@ -34,6 +34,7 @@ import type {
   ListAutomationActionsResponse,
   ListAutomationRunsResponse,
   ListAutomationTriggersResponse,
+  ListApiKeyRolesResponse,
   ListApiKeysResponse,
   ListAvailableIntegrationsResponse,
   ListConnectedAppsResponse,
@@ -60,13 +61,12 @@ import type {
   RequestUploadResponse,
   UpdateCourseSettingsResponse,
 } from "@headless-lms/sdk";
-import type { Permission } from "../permissions";
 
 // --- entities (straight from the SDK responses) ----------------------------
 
-export type AccessScope = Permission;
 export type ConnectedApp = ListConnectedAppsResponse[number];
 export type ApiKeySummary = ListApiKeysResponse[number];
+export type ApiKeyRole = ListApiKeyRolesResponse[number];
 
 export type Course = GetCourseResponse;
 export type CourseStatus = Course["status"];

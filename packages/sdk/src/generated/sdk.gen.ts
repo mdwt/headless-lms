@@ -99,6 +99,10 @@ import type {
   CreateModuleResponses,
   CreateOrganizationErrors,
   CreateOrganizationResponses,
+  CreatePlatformApiKeyErrors,
+  CreatePlatformApiKeyResponses,
+  CreatePlatformOrganizationErrors,
+  CreatePlatformOrganizationResponses,
   CreatePostCommentErrors,
   CreatePostCommentResponses,
   CreatePostErrors,
@@ -295,6 +299,8 @@ import type {
   ListActivityAssetsResponses,
   ListActivityCommentsErrors,
   ListActivityCommentsResponses,
+  ListApiKeyRolesErrors,
+  ListApiKeyRolesResponses,
   ListApiKeysErrors,
   ListApiKeysResponses,
   ListAssetsErrors,
@@ -11660,7 +11666,7 @@ export class Access {
   /**
    * Your API keys for this organization
    *
-   * Requires `api_keys:read`. Your keys for this organization with their scopes. The key itself is never returned again after it is created.
+   * Requires `api_keys:read`. Your keys for this organization with their role and expiry. The key itself is never returned again after it is created.
    */
   public static listApiKeys<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -11680,56 +11686,13 @@ export class Access {
   /**
    * Create an API key
    *
-   * Requires `api_keys:write`. The key acts as you in this organization with the scopes given, never beyond what you hold at the time of each request. 403 when you hold one of the scopes nowhere. The key is returned once.
+   * Requires `api_keys:write`. The key acts as you in this organization with the permissions of the role given, never beyond what you hold at the time of each request. Send it in the `x-api-key` header or as `Authorization: Bearer <key>`; every route under /api and /mcp accepts it. 403 when the role holds a permission you hold nowhere; 404 when the organization has no such role. The key is returned once.
    */
   public static createApiKey<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
-      scopes: Array<
-        | "organizations:read"
-        | "organizations:write"
-        | "api_keys:read"
-        | "api_keys:write"
-        | "api_keys:delete"
-        | "notification_categories:read"
-        | "notification_categories:write"
-        | "integrations:read"
-        | "integrations:write"
-        | "integrations:delete"
-        | "analytics:read"
-        | "people:read"
-        | "people:write"
-        | "people:delete"
-        | "roles:read"
-        | "roles:write"
-        | "roles:delete"
-        | "access:read"
-        | "access:write"
-        | "bundles:read"
-        | "bundles:write"
-        | "bundles:delete"
-        | "media:read"
-        | "media:write"
-        | "media:delete"
-        | "courses:read"
-        | "courses:write"
-        | "courses:delete"
-        | "courses:moderate"
-        | "progress:read"
-        | "downloads:read"
-        | "downloads:write"
-        | "downloads:delete"
-        | "communities:read"
-        | "communities:write"
-        | "communities:delete"
-        | "communities:moderate"
-        | "events:read"
-        | "events:write"
-        | "events:delete"
-        | "automations:read"
-        | "automations:write"
-        | "automations:delete"
-      >;
+      role: string;
+      expiresInDays?: number;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError, "data"> {
@@ -11739,7 +11702,8 @@ export class Access {
         {
           args: [
             { in: "body", key: "name" },
-            { in: "body", key: "scopes" },
+            { in: "body", key: "role" },
+            { in: "body", key: "expiresInDays" },
           ],
         },
       ],
@@ -11759,6 +11723,26 @@ export class Access {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+
+  /**
+   * The roles you can put on an API key
+   *
+   * Requires `api_keys:write`. The organization's roles whose every permission you hold somewhere.
+   */
+  public static listApiKeyRoles<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListApiKeyRolesResponses, ListApiKeyRolesErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<
+      ListApiKeyRolesResponses,
+      ListApiKeyRolesErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/access/api-keys/roles",
+      ...options,
     });
   }
 
@@ -11784,6 +11768,102 @@ export class Access {
       url: "/api/access/api-keys/{id}",
       ...options,
       ...params,
+    });
+  }
+}
+
+export class Platform {
+  /**
+   * Create an organization and its first API key
+   *
+   * Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.
+   */
+  public static createPlatformOrganization<ThrowOnError extends boolean = false>(
+    parameters: {
+      name: string;
+      slug: string;
+      keyName?: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    CreatePlatformOrganizationResponses,
+    CreatePlatformOrganizationErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "name" },
+            { in: "body", key: "slug" },
+            { in: "body", key: "keyName" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreatePlatformOrganizationResponses,
+      CreatePlatformOrganizationErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/platform/organizations",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Create another API key for an organization
+   *
+   * Requires the platform key as `Authorization: Bearer <platform key>`. Creates an API key for the platform account in the organization, with the Owner role and no expiry, to replace a lost or leaked one; revoke the old key with the new one. The key is returned once. 404 when the platform account is not an active member of the organization.
+   */
+  public static createPlatformApiKey<ThrowOnError extends boolean = false>(
+    parameters: {
+      orgId: string;
+      name: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    CreatePlatformApiKeyResponses,
+    CreatePlatformApiKeyErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "orgId" },
+            { in: "body", key: "name" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreatePlatformApiKeyResponses,
+      CreatePlatformApiKeyErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/platform/organizations/{orgId}/api-keys",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     });
   }
 }

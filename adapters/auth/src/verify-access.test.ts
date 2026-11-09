@@ -36,7 +36,9 @@ const options: CreateAuthOptions = {
 };
 
 type ServerApiKeys = {
-  createApiKey(input: { body: { name: string; userId: string } }): Promise<{ key: string }>;
+  createApiKey(input: {
+    body: { name: string; userId: string; metadata?: Record<string, unknown> };
+  }): Promise<{ key: string }>;
 };
 
 const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -127,7 +129,7 @@ const grant = {
   userId: "usr_1",
   orgId: "org_1",
   clientId: "client_1",
-  scopes: ["courses:read", "courses:write"],
+  limit: { scopes: ["courses:read", "courses:write"] },
 };
 
 describe("verifyAccess", () => {
@@ -158,7 +160,10 @@ describe("verifyAccess", () => {
       where: [{ field: "clientId", value: "client_1" }],
       update: { scopes: ["courses:read"] },
     });
-    expect(await verify(`Bearer ${await token()}`)).toEqual({ ...grant, scopes: ["courses:read"] });
+    expect(await verify(`Bearer ${await token()}`)).toEqual({
+      ...grant,
+      limit: { scopes: ["courses:read"] },
+    });
   });
 
   it("refuses to move an api key to another organization", async () => {
@@ -183,7 +188,7 @@ describe("verifyAccess", () => {
   it("keeps only catalogue scopes from the token's scope claim", async () => {
     const { token, verify } = await setup();
     expect(await verify(`Bearer ${await token({ scope: "courses:read offline_access" })}`)).toEqual(
-      { ...grant, scopes: ["courses:read"] },
+      { ...grant, limit: { scopes: ["courses:read"] } },
     );
   });
 
@@ -402,27 +407,71 @@ describe("organization endpoints", () => {
 });
 
 describe("api keys", () => {
-  it("verifies a key to a grant holding exactly the scopes it was created with", async () => {
+  it("creates a prefixed key carrying its role and verifies it to that role", async () => {
     const { verifier, verifyKey } = await setup();
-    const created = await verifier.create("org_1", "usr_1", "CI", ["courses:read"]);
-    expect(created.scopes).toEqual(["courses:read"]);
+    const created = await verifier.create("org_1", "usr_1", { name: "CI", roleKey: "instructor" });
+    expect(created.key.startsWith("hlms_")).toBe(true);
+    expect(created).toMatchObject({ name: "CI", roleKey: "instructor", expiresAt: null });
     expect(await verifyKey(created.key)).toEqual({
       userId: "usr_1",
       orgId: "org_1",
-      scopes: ["courses:read"],
       clientId: `api-key:${created.id}`,
+      limit: { roleKey: "instructor" },
     });
+    expect(await verifier.list("org_1", "usr_1")).toEqual([
+      expect.objectContaining({
+        id: created.id,
+        roleKey: "instructor",
+        start: expect.stringMatching(/^hlms_/),
+      }),
+    ]);
+    expect(await verifier.list("org_2", "usr_1")).toEqual([]);
   });
 
-  it("verifies a key sent as a bearer token to the key's grant", async () => {
+  it("sets an expiry in days", async () => {
+    const { verifier } = await setup();
+    const created = await verifier.create("org_1", "usr_1", {
+      name: "CI",
+      roleKey: "member",
+      expiresInDays: 30,
+    });
+    const days = (created.expiresAt!.getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThanOrEqual(30);
+  });
+
+  it("refuses an expired key", async () => {
+    const { auth, verifier, verifyKey } = await setup();
+    const created = await verifier.create("org_1", "usr_1", { name: "CI", roleKey: "member" });
+    const ctx = await auth.$context;
+    await ctx.adapter.update({
+      model: "apikey",
+      where: [{ field: "id", value: created.id }],
+      update: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    expect(await verifyKey(created.key)).toBeNull();
+  });
+
+  it("verifies a key sent as a bearer token, on its own and on the API key check", async () => {
     const { verifier, verify } = await setup();
-    const created = await verifier.create("org_1", "usr_1", "Connector", ["analytics:read"]);
-    expect(await verify(`Bearer ${created.key}`)).toEqual({
+    const created = await verifier.create("org_1", "usr_1", { name: "CI", roleKey: "admin" });
+    const expected = {
       userId: "usr_1",
       orgId: "org_1",
-      scopes: ["analytics:read"],
       clientId: `api-key:${created.id}`,
-    });
+      limit: { roleKey: "admin" },
+    };
+    expect(await verify(`Bearer ${created.key}`)).toEqual(expected);
+    expect(await verifier.verifyApiKey({ authorization: `Bearer ${created.key}` })).toEqual(
+      expected,
+    );
+    expect(await verifier.verifyApiKey({ "x-api-key": created.key })).toEqual(expected);
+  });
+
+  it("never takes an app token on the API key check", async () => {
+    const { verifier, token } = await setup();
+    expect(await verifier.verifyApiKey({ authorization: `Bearer ${await token()}` })).toBeNull();
+    expect(await verifier.verifyApiKey({})).toBeNull();
   });
 
   it("refuses a bearer value that is neither a token nor a valid key", async () => {
@@ -435,20 +484,19 @@ describe("api keys", () => {
       ...options,
       mcp: { ...options.mcp, oauthEnabled: false },
     });
-    const created = await verifier.create("org_1", "usr_1", "Connector", ["courses:read"]);
-    expect(await verify(`Bearer ${created.key}`)).toEqual({
-      userId: "usr_1",
-      orgId: "org_1",
-      scopes: ["courses:read"],
-      clientId: `api-key:${created.id}`,
-    });
+    const created = await verifier.create("org_1", "usr_1", { name: "CI", roleKey: "member" });
+    expect(await verify(`Bearer ${created.key}`)).toMatchObject({ limit: { roleKey: "member" } });
   });
 
-  it("refuses a key created without an organization", async () => {
+  it("refuses a key created without an organization or a role", async () => {
     const { auth, verifyKey } = await setup();
-    const created = await (auth.api as unknown as ServerApiKeys).createApiKey({
+    const bare = await (auth.api as unknown as ServerApiKeys).createApiKey({
       body: { name: "bare", userId: "usr_1" },
     });
-    expect(await verifyKey(created.key)).toBeNull();
+    expect(await verifyKey(bare.key)).toBeNull();
+    const roleless = await (auth.api as unknown as ServerApiKeys).createApiKey({
+      body: { name: "roleless", userId: "usr_1", metadata: { organizationId: "org_1" } },
+    });
+    expect(await verifyKey(roleless.key)).toBeNull();
   });
 });

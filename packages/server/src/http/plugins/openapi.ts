@@ -46,7 +46,8 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
       info: {
         title: 'Headless LMS API',
         version: pkg.version,
-        description: 'API documentation for the Headless LMS platform',
+        description:
+          'API documentation for the Headless LMS platform. Every route under /api takes a signed-in session or an API key, sent in the `x-api-key` header or as `Authorization: Bearer <key>`. The platform routes take the platform key as `Authorization: Bearer <platform key>`.',
         license: {
           name: 'MIT',
           url: 'https://opensource.org/licenses/MIT',
@@ -97,6 +98,10 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
         },
         { name: 'Roles', description: "The organization's roles and their permissions" },
         { name: 'Access', description: 'Your permissions, connected apps and API keys' },
+        {
+          name: 'Platform',
+          description: 'Organizations and their API keys, created with the platform key',
+        },
       ],
     },
     transform: (input) => {

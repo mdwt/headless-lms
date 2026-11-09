@@ -46,6 +46,7 @@ import { fullName } from "@/lib/format";
 import { authHeaders } from "./server-call";
 import { ApiError } from "./http";
 import type {
+  ApiKeyRole,
   ApiKeySummary,
   Asset,
   ConnectedApp,
@@ -737,5 +738,8 @@ export const serverApi = {
   },
   async listApiKeys(): Promise<ApiKeySummary[]> {
     return await Access.listApiKeys(await authHeaders());
+  },
+  async listApiKeyRoles(): Promise<ApiKeyRole[]> {
+    return await Access.listApiKeyRoles(await authHeaders());
   },
 };

@@ -19,6 +19,8 @@ import { courseAnalyticsRoutes } from './routes/course-analytics.js';
 import { assetsRoutes } from './routes/assets.js';
 import { integrationsRoutes } from './routes/integrations.js';
 import { accessRoutes } from './routes/access.js';
+import { platformRoutes } from './routes/platform.js';
+import { registerPlatformAuth } from './plugins/platform.js';
 
 export function registerRoutes(app: FastifyInstance, container: Container): void {
   app.get('/health', async () => ({ status: 'ok' }));
@@ -49,4 +51,12 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
     await integrationsRoutes(instance, container);
     await accessRoutes(instance, container);
   });
+
+  const platform = container.platform;
+  if (platform) {
+    app.register(async (instance) => {
+      registerPlatformAuth(instance, platform);
+      await platformRoutes(instance, container);
+    });
+  }
 }

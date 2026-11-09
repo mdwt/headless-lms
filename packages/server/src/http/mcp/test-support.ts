@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { ALL_PERMISSIONS, actorWith } from '@headless-lms/core/organizations';
 import type { Actor } from '@headless-lms/core/shared/actor';
-import type { Permission } from '@headless-lms/core/types';
+import type { CallerLimit } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { createToolServer } from './server.js';
@@ -24,7 +24,7 @@ type Lookups = {
   getByExternalId: (id: string) => Promise<{ id: string } | null>;
   getUserByExternalId: (id: string) => Promise<{ id: string } | null>;
   getOrgUser: (orgId: string, userId: string) => Promise<{ id: string } | null>;
-  actorFor: (orgId: string, orgUserId: string, tokenScopes?: Permission[]) => Promise<Actor | null>;
+  actorFor: (orgId: string, orgUserId: string, limit?: CallerLimit) => Promise<Actor | null>;
 };
 
 export function fakeContainer(overrides: Record<string, unknown> = {}): Container {
@@ -46,8 +46,8 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
       verifyAccess: async () => ({
         userId: USER.id,
         orgId: ORG.id,
-        scopes: [...ALL_PERMISSIONS],
         clientId: 'client_1',
+        limit: { scopes: [...ALL_PERMISSIONS] },
       }),
     },
     organizations: {
@@ -57,7 +57,7 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
         orgId === ORG.id && userId === USER.id ? ORG_USER : null,
       actorFor: async (orgId: string, orgUserId: string) =>
         orgId === ORG.id && orgUserId === ORG_USER.id ? OWNER : null,
-      resolveCaller: async (authOrgId: string, authUserId: string, tokenScopes?: Permission[]) => {
+      resolveCaller: async (authOrgId: string, authUserId: string, limit?: CallerLimit) => {
         const orgs = base.organizations as Lookups;
         const people = base.identity as Pick<Lookups, 'getUserByExternalId'>;
         const org = await orgs.getByExternalId(authOrgId);
@@ -66,7 +66,7 @@ export function fakeContainer(overrides: Record<string, unknown> = {}): Containe
         }
         const user = await people.getUserByExternalId(authUserId);
         const orgUser = user ? await orgs.getOrgUser(org.id, user.id) : null;
-        const actor = orgUser ? await orgs.actorFor(org.id, orgUser.id, tokenScopes) : null;
+        const actor = orgUser ? await orgs.actorFor(org.id, orgUser.id, limit) : null;
         return { orgId: org.id, userId: user?.id ?? null, orgUserId: orgUser?.id ?? null, actor };
       },
     },

@@ -18,9 +18,11 @@ declare module 'fastify' {
     requireSession(request: FastifyRequest): Promise<void>;
     /** As `requireSession`, but also requires an active org on the session. */
     requireOrgSession(request: FastifyRequest): Promise<void>;
+    requirePlatform(request: FastifyRequest): Promise<void>;
   }
   interface FastifyRequest {
     authUser: User;
+    authUserId: string;
     /** Domain `organizations.id` for the session's active org — what every
      *  domain read keys off. Guaranteed set by `requireOrgSession`; absent under
      *  `requireSession` when the session has no active org. */

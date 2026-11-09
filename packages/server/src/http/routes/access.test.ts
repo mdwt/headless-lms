@@ -20,10 +20,11 @@ const NOW = new Date('2026-01-01T00:00:00.000Z');
 const KEY = {
   id: 'key_1',
   name: 'CI',
-  start: 'abc',
-  scopes: ['courses:read'],
+  start: 'hlms_a',
+  role: { key: 'instructor', name: 'Instructor' },
   createdAt: NOW,
   lastUsedAt: null,
+  expiresAt: null,
 };
 
 let calls: Array<[string, ...unknown[]]> = [];
@@ -75,6 +76,9 @@ const container = {
     ]),
     revokeConnectedApp: record('revokeConnectedApp', undefined),
     listApiKeys: record('listApiKeys', [KEY]),
+    listApiKeyRoles: record('listApiKeyRoles', [
+      { key: 'instructor', name: 'Instructor', description: 'Teaches courses' },
+    ]),
     createApiKey: record('createApiKey', { ...KEY, key: 'secret' }),
     deleteApiKey: record('deleteApiKey', undefined),
   },
@@ -149,28 +153,37 @@ describe('access routes', () => {
 
   it('lists, creates and revokes api keys through organizations', async () => {
     expect((await app.inject({ method: 'GET', url: '/api/access/api-keys' })).statusCode).toBe(200);
+    const roles = await app.inject({ method: 'GET', url: '/api/access/api-keys/roles' });
+    expect(roles.json()).toEqual([
+      { key: 'instructor', name: 'Instructor', description: 'Teaches courses' },
+    ]);
     const created = await app.inject({
       method: 'POST',
       url: '/api/access/api-keys',
-      payload: { name: 'CI', scopes: ['courses:read'] },
+      payload: { name: 'CI', role: 'instructor', expiresInDays: 90 },
     });
     expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ role: { key: 'instructor' }, expiresAt: null });
     expect(created.json().key).toBe('secret');
     expect(
       (await app.inject({ method: 'DELETE', url: '/api/access/api-keys/key_1' })).statusCode,
     ).toBe(204);
     expect(calls).toEqual([
       ['listApiKeys', actor],
-      ['createApiKey', { name: 'CI', scopes: ['courses:read'] }, actor],
+      ['listApiKeyRoles', actor],
+      ['createApiKey', { name: 'CI', role: 'instructor', expiresInDays: 90 }, actor],
       ['deleteApiKey', 'key_1', actor],
     ]);
   });
 
-  it('rejects an empty name, an empty scope list and an unknown scope', async () => {
+  it('rejects an empty name, a missing role and an expiry outside 1 to 365 days', async () => {
     for (const payload of [
-      { name: '', scopes: ['courses:read'] },
-      { name: 'CI', scopes: [] },
-      { name: 'CI', scopes: ['students:read'] },
+      { name: '', role: 'instructor' },
+      { name: 'CI' },
+      { name: 'CI', role: '' },
+      { name: 'CI', role: 'instructor', expiresInDays: 0 },
+      { name: 'CI', role: 'instructor', expiresInDays: 366 },
+      { name: 'CI', role: 'instructor', expiresInDays: 1.5 },
     ]) {
       const res = await app.inject({ method: 'POST', url: '/api/access/api-keys', payload });
       expect(res.statusCode).toBe(400);
@@ -183,7 +196,7 @@ describe('access routes', () => {
     const refused = await app.inject({
       method: 'POST',
       url: '/api/access/api-keys',
-      payload: { name: 'CI', scopes: ['courses:read'] },
+      payload: { name: 'CI', role: 'admin' },
     });
     expect(refused.statusCode).toBe(403);
     failure = new NotFoundError('API key', 'key_2');

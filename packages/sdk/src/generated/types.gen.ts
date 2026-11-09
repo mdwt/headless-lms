@@ -29356,10 +29356,26 @@ export type ListApiKeysResponses = {
   200: Array<{
     id: string;
     name: string | null;
+    /**
+     * The first characters of the key, for telling keys apart
+     */
     start: string | null;
-    scopes: Array<string>;
+    /**
+     * The role whose permissions the key holds, limited to its creator's
+     */
+    role: {
+      key: string;
+      /**
+       * Null when the organization no longer has the role
+       */
+      name: string | null;
+    } | null;
     createdAt: string;
     lastUsedAt: string | null;
+    /**
+     * Null for a key that does not expire
+     */
+    expiresAt: string | null;
   }>;
 };
 
@@ -29368,51 +29384,14 @@ export type ListApiKeysResponse = ListApiKeysResponses[keyof ListApiKeysResponse
 export type CreateApiKeyData = {
   body: {
     name: string;
-    scopes: Array<
-      | "organizations:read"
-      | "organizations:write"
-      | "api_keys:read"
-      | "api_keys:write"
-      | "api_keys:delete"
-      | "notification_categories:read"
-      | "notification_categories:write"
-      | "integrations:read"
-      | "integrations:write"
-      | "integrations:delete"
-      | "analytics:read"
-      | "people:read"
-      | "people:write"
-      | "people:delete"
-      | "roles:read"
-      | "roles:write"
-      | "roles:delete"
-      | "access:read"
-      | "access:write"
-      | "bundles:read"
-      | "bundles:write"
-      | "bundles:delete"
-      | "media:read"
-      | "media:write"
-      | "media:delete"
-      | "courses:read"
-      | "courses:write"
-      | "courses:delete"
-      | "courses:moderate"
-      | "progress:read"
-      | "downloads:read"
-      | "downloads:write"
-      | "downloads:delete"
-      | "communities:read"
-      | "communities:write"
-      | "communities:delete"
-      | "communities:moderate"
-      | "events:read"
-      | "events:write"
-      | "events:delete"
-      | "automations:read"
-      | "automations:write"
-      | "automations:delete"
-    >;
+    /**
+     * The key of one of the organization's roles
+     */
+    role: string;
+    /**
+     * Days until the key stops working. Leave out for a key that does not expire
+     */
+    expiresInDays?: number;
   };
   path?: never;
   query?: never;
@@ -29454,6 +29433,14 @@ export type CreateApiKeyErrors = {
   /**
    * Default Response
    */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -29470,15 +29457,83 @@ export type CreateApiKeyResponses = {
   201: {
     id: string;
     name: string | null;
+    /**
+     * The first characters of the key, for telling keys apart
+     */
     start: string | null;
-    scopes: Array<string>;
+    /**
+     * The role whose permissions the key holds, limited to its creator's
+     */
+    role: {
+      key: string;
+      /**
+       * Null when the organization no longer has the role
+       */
+      name: string | null;
+    } | null;
     createdAt: string;
     lastUsedAt: string | null;
+    /**
+     * Null for a key that does not expire
+     */
+    expiresAt: string | null;
+    /**
+     * The key itself. Returned once, never again
+     */
     key: string;
   };
 };
 
 export type CreateApiKeyResponse = CreateApiKeyResponses[keyof CreateApiKeyResponses];
+
+export type ListApiKeyRolesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/access/api-keys/roles";
+};
+
+export type ListApiKeyRolesErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListApiKeyRolesError = ListApiKeyRolesErrors[keyof ListApiKeyRolesErrors];
+
+export type ListApiKeyRolesResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    key: string;
+    name: string;
+    description: string;
+  }>;
+};
+
+export type ListApiKeyRolesResponse = ListApiKeyRolesResponses[keyof ListApiKeyRolesResponses];
 
 export type DeleteApiKeyData = {
   body?: never;
@@ -29547,3 +29602,200 @@ export type DeleteApiKeyResponses = {
    */
   204: unknown;
 };
+
+export type CreatePlatformOrganizationData = {
+  body: {
+    name: string;
+    slug: string;
+    /**
+     * The name of the API key created with it. Default `Platform`
+     */
+    keyName?: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/platform/organizations";
+};
+
+export type CreatePlatformOrganizationErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreatePlatformOrganizationError =
+  CreatePlatformOrganizationErrors[keyof CreatePlatformOrganizationErrors];
+
+export type CreatePlatformOrganizationResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    organization: {
+      id: string;
+      name: string;
+      slug: string;
+      createdAt: string;
+    };
+    apiKey: {
+      id: string;
+      name: string | null;
+      /**
+       * The first characters of the key, for telling keys apart
+       */
+      start: string | null;
+      /**
+       * The role whose permissions the key holds, limited to its creator's
+       */
+      role: {
+        key: string;
+        /**
+         * Null when the organization no longer has the role
+         */
+        name: string | null;
+      } | null;
+      createdAt: string;
+      lastUsedAt: string | null;
+      /**
+       * Null for a key that does not expire
+       */
+      expiresAt: string | null;
+      /**
+       * The key itself. Returned once, never again
+       */
+      key: string;
+    };
+  };
+};
+
+export type CreatePlatformOrganizationResponse =
+  CreatePlatformOrganizationResponses[keyof CreatePlatformOrganizationResponses];
+
+export type CreatePlatformApiKeyData = {
+  body: {
+    name: string;
+  };
+  path: {
+    orgId: string;
+  };
+  query?: never;
+  url: "/api/platform/organizations/{orgId}/api-keys";
+};
+
+export type CreatePlatformApiKeyErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreatePlatformApiKeyError =
+  CreatePlatformApiKeyErrors[keyof CreatePlatformApiKeyErrors];
+
+export type CreatePlatformApiKeyResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string | null;
+    /**
+     * The first characters of the key, for telling keys apart
+     */
+    start: string | null;
+    /**
+     * The role whose permissions the key holds, limited to its creator's
+     */
+    role: {
+      key: string;
+      /**
+       * Null when the organization no longer has the role
+       */
+      name: string | null;
+    } | null;
+    createdAt: string;
+    lastUsedAt: string | null;
+    /**
+     * Null for a key that does not expire
+     */
+    expiresAt: string | null;
+    /**
+     * The key itself. Returned once, never again
+     */
+    key: string;
+  };
+};
+
+export type CreatePlatformApiKeyResponse =
+  CreatePlatformApiKeyResponses[keyof CreatePlatformApiKeyResponses];

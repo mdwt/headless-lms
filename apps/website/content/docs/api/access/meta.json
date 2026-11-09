@@ -8,6 +8,7 @@
     "revokeConnectedApp",
     "listApiKeys",
     "createApiKey",
+    "listApiKeyRoles",
     "deleteApiKey"
   ]
 }

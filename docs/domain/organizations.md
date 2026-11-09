@@ -121,7 +121,7 @@ The permission list is part of the product. A deployment or an org can't add a p
 | `automations:write`             | Create and edit workflows and webhooks, and reveal a webhook's signing secret.                                             | org       |
 | `automations:delete`            | Delete workflows and webhooks.                                                                                             | org       |
 
-Two actions are not permissions, because no role can hold them: transferring ownership is the owner's alone, and creating an org needs only a signed-in person, who becomes its owner. Connected apps are a person's own consents: every active org user lists and disconnects their own.
+Two actions are not permissions, because no role can hold them: transferring ownership is the owner's alone, and creating an org needs only a signed-in person, who becomes its owner, or the platform key. Connected apps are a person's own consents: every active org user lists and disconnects their own.
 
 ## Roles
 
@@ -159,8 +159,18 @@ Removing a level from a role is refused while the role is given at that level. A
 - A role given on an item contributes its permissions about that item's type for that item. Instructor on Spanish Basics gives course permissions on Spanish Basics and nothing else, never `api_keys:write`.
 - On an item, a person holds their org role's permissions plus those of the role given to them there. Nothing is subtracted; there are no deny rules and no wildcards.
 - Permissions are resolved on every request, so a change to a role or an assignment applies from the next request.
-- **API keys and connected apps** carry permissions as their scopes. Creating a key needs `api_keys:write` and every scope it carries, held somewhere. On every request a key or app token holds its scopes intersected with its creator's current permissions, so it never does more than its creator could at that moment. A token is never the owner, so no token can transfer ownership.
+- **API keys** carry one of the org's roles. Creating a key needs `api_keys:write` and every permission the role holds, held somewhere. On every request a key holds its role's current permissions intersected with its creator's current permissions, so a change to the role applies from the next request and the key never does more than its creator could at that moment. A role can't be deleted while a key carries it.
+- **Connected apps** carry permissions as their scopes, chosen on consent from the permissions the person holds. On every request an app token holds its scopes intersected with its creator's current permissions.
+- A key or app token is never the owner, so no token can transfer ownership.
 - **The system** acts with every permission for work it does itself: automations, scheduled jobs, grant expiry and the upload sweep. Work done for a person, such as publishing their scheduled post, runs as that person with their current permissions.
+
+## Platform
+
+A platform that runs the LMS for its own customers creates an org for each of them with the platform key, a secret in the deployment's configuration. The platform key creates orgs and API keys for them, and does nothing else.
+
+- The **platform account** is one person, owner of every org the platform creates. It has no password, and no sign-in method can start a session for it; it acts only through its API keys.
+- Creating an org with the platform key creates the org, its roles, the platform account as owner, and an API key for the platform account carrying Owner, without expiry. The platform calls every other route with that key.
+- The platform key also creates another key for an org whose owner, or an active member, is the platform account, to replace a lost or leaked one.
 
 ## Team
 
@@ -236,4 +246,4 @@ The organization is the tenant root. Every org-scoped record across the system b
 
 ## Build state
 
-The permission list, the default set, org roles, assignments on the org and on content items, effective permissions, the no-escalation rules, ownership transfer, invites and removal are built and **persisted**. Every method a person can reach checks a permission, and API keys and app tokens are limited to their creator's current permissions. `organization.user.updated` is declared, and nothing emits it.
+The permission list, the default set, org roles, assignments on the org and on content items, effective permissions, the no-escalation rules, ownership transfer, invites and removal are built and **persisted**. Every method a person can reach checks a permission. API keys carry a role and app tokens carry scopes, and both are limited to their creator's current permissions. The platform key and the platform account are built. `organization.user.updated` is declared, and nothing emits it.

@@ -1,6 +1,9 @@
 import type {
+  Accounts,
+  ApiKeyRole,
   ApiKeys,
   AuthOrganization,
+  CallerLimit,
   CreateApiKeyInput,
   GrantReader,
   MembersRepository,
@@ -9,8 +12,12 @@ import type {
   OrganizationsRepository,
   OrganizationsUnitOfWork,
   OrganizationsWriteScope,
+  PlatformAccount,
+  PlatformOrganization,
+  PlatformOrganizationInput,
   ResolvedCaller,
   RolesRepository,
+  StoredApiKey,
   TeamRow,
   TransferOwnershipInput,
 } from './ports.js';
@@ -105,6 +112,8 @@ export type OrganizationServiceParams = {
   orgAdmin: () => OrgAdmin;
   sessions: () => SessionAdmin;
   apiKeys?: () => ApiKeys;
+  accounts?: () => Accounts;
+  platform?: PlatformAccount;
   grants?: () => GrantReader;
   defaultRoles?: readonly RoleDefinition[];
   logger?: Logger;
@@ -135,6 +144,31 @@ function roleView(role: OrgRole, holders: number): RoleView {
   return { ...role, holders, givable: role.key !== OWNER_ROLE_KEY };
 }
 
+function keySummary(key: StoredApiKey, roles: ReadonlyMap<string, OrgRole>): ApiKeySummary {
+  return {
+    id: key.id,
+    name: key.name,
+    start: key.start,
+    role: key.roleKey ? { key: key.roleKey, name: roles.get(key.roleKey)?.name ?? null } : null,
+    createdAt: key.createdAt,
+    lastUsedAt: key.lastUsedAt,
+    expiresAt: key.expiresAt,
+  };
+}
+
+function limitScopes(
+  limit: CallerLimit | undefined,
+  roles: ReadonlyMap<string, OrgRole>,
+): readonly Permission[] | undefined {
+  if (!limit) {
+    return undefined;
+  }
+  if ('scopes' in limit) {
+    return limit.scopes;
+  }
+  return roles.get(limit.roleKey)?.permissions ?? [];
+}
+
 export class OrganizationServiceImpl implements OrganizationService {
   private readonly repo: OrganizationsRepository;
   private readonly roles: RolesRepository;
@@ -145,6 +179,8 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly orgAdmin: () => OrgAdmin;
   private readonly sessions: () => SessionAdmin;
   private readonly apiKeysPort?: () => ApiKeys;
+  private readonly accountsPort?: () => Accounts;
+  private readonly platform?: PlatformAccount;
   private readonly grants?: () => GrantReader;
   private readonly catalog: RoleCatalog;
   private readonly logger: Logger;
@@ -161,6 +197,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.orgAdmin = params.orgAdmin;
     this.sessions = params.sessions;
     this.apiKeysPort = params.apiKeys;
+    this.accountsPort = params.accounts;
+    this.platform = params.platform && {
+      ...params.platform,
+      email: params.platform.email.toLowerCase(),
+    };
     this.grants = params.grants;
     const defaults = params.defaultRoles ?? DEFAULT_ROLES;
     validateRoleSet(defaults);
@@ -316,16 +357,13 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.listIds();
   }
 
-  async actorFor(
-    orgId: string,
-    orgUserId: string,
-    tokenScopes?: readonly Permission[],
-  ): Promise<Actor | null> {
+  async actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null> {
     const facts = await this.roles.actorFacts(orgId, orgUserId);
     if (!facts || facts.status !== 'active') {
       return null;
     }
     const roles = this.roleMap(facts.storedRoles);
+    const tokenScopes = limitScopes(limit, roles);
     return {
       id: orgUserId,
       orgId,
@@ -340,29 +378,36 @@ export class OrganizationServiceImpl implements OrganizationService {
   async resolveCaller(
     authOrgId: string,
     authUserId: string,
-    tokenScopes?: readonly Permission[],
+    limit?: CallerLimit,
   ): Promise<ResolvedCaller | null> {
     const facts = await this.roles.callerFacts(authOrgId, authUserId);
     if (!facts) {
       return null;
     }
     const orgUser = facts.orgUser;
+    if (orgUser?.status !== 'active') {
+      return {
+        orgId: facts.orgId,
+        userId: facts.userId,
+        orgUserId: orgUser?.orgUserId ?? null,
+        actor: null,
+      };
+    }
+    const roles = this.roleMap(orgUser.storedRoles);
+    const tokenScopes = limitScopes(limit, roles);
     return {
       orgId: facts.orgId,
       userId: facts.userId,
-      orgUserId: orgUser?.orgUserId ?? null,
-      actor:
-        orgUser?.status === 'active'
-          ? {
-              id: orgUser.orgUserId,
-              orgId: facts.orgId,
-              permissions: resolvePermissions({
-                assignments: orgUser.assignments,
-                roles: this.roleMap(orgUser.storedRoles),
-                ...(tokenScopes !== undefined && { tokenScopes }),
-              }),
-            }
-          : null,
+      orgUserId: orgUser.orgUserId,
+      actor: {
+        id: orgUser.orgUserId,
+        orgId: facts.orgId,
+        permissions: resolvePermissions({
+          assignments: orgUser.assignments,
+          roles,
+          ...(tokenScopes !== undefined && { tokenScopes }),
+        }),
+      },
     };
   }
 
@@ -613,6 +658,13 @@ export class OrganizationServiceImpl implements OrganizationService {
     const orgId = actor.orgId;
     if (this.catalog.has(key)) {
       throw new OrganizationRuleError('A deployment role can be renamed and reset, not deleted');
+    }
+    const keys = await this.keysWithRole(orgId, key);
+    if (keys > 0) {
+      this.logger.warn('role deletion refused: role is on api keys', { orgId, roleKey: key, keys });
+      throw new OrganizationRuleError(
+        `This role is on ${keys} API ${keys === 1 ? 'key' : 'keys'}; revoke ${keys === 1 ? 'it' : 'them'} first`,
+      );
     }
     await this.uow.run(async (scope) => {
       const { roles, outbox } = scope;
@@ -1375,33 +1427,56 @@ export class OrganizationServiceImpl implements OrganizationService {
   async listApiKeys(actor: Actor): Promise<ApiKeySummary[]> {
     actor.permissions.require('api_keys:read');
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
-    return this.apiKeys().list(orgExternalId, userExternalId);
+    const [keys, stored] = await Promise.all([
+      this.apiKeys().list(orgExternalId, userExternalId),
+      this.roles.storedRoles(actor.orgId),
+    ]);
+    const roles = this.roleMap(stored);
+    return keys.map((key) => keySummary(key, roles));
+  }
+
+  async listApiKeyRoles(actor: Actor): Promise<ApiKeyRole[]> {
+    actor.permissions.require('api_keys:write');
+    const stored = await this.roles.storedRoles(actor.orgId);
+    return resolveOrgRoles(this.catalog, stored)
+      .filter((role) =>
+        role.permissions.every((permission) => actor.permissions.anywhere(permission)),
+      )
+      .map((role) => ({ key: role.key, name: role.name, description: role.description }));
   }
 
   async createApiKey(input: CreateApiKeyInput, actor: Actor): Promise<CreatedApiKey> {
     actor.permissions.require('api_keys:write');
-    const missing = input.scopes.filter((scope) => !actor.permissions.anywhere(scope));
+    const roles = this.roleMap(await this.roles.storedRoles(actor.orgId));
+    const role = roles.get(input.role);
+    if (!role) {
+      throw new NotFoundError('Role', input.role);
+    }
+    const missing = role.permissions.filter(
+      (permission) => !actor.permissions.anywhere(permission),
+    );
     if (missing.length > 0) {
-      this.logger.warn('api key refused: scopes not held', {
+      this.logger.warn('api key refused: role permissions not held', {
         orgId: actor.orgId,
         actorId: actor.id,
+        roleKey: role.key,
         missing,
       });
       throw new ForbiddenError(`You don't hold ${missing.join(', ')}`);
     }
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
-    const created = await this.apiKeys().create(
-      orgExternalId,
-      userExternalId,
-      input.name,
-      input.scopes,
-    );
+    const created = await this.apiKeys().create(orgExternalId, userExternalId, {
+      name: input.name,
+      roleKey: role.key,
+      expiresInDays: input.expiresInDays,
+    });
     this.logger.info('api key created', {
       orgId: actor.orgId,
       actorId: actor.id,
       keyId: created.id,
+      roleKey: role.key,
     });
-    return created;
+    return { ...keySummary(created, roles), key: created.key };
   }
 
   async deleteApiKey(keyId: string, actor: Actor): Promise<void> {
@@ -1424,6 +1499,93 @@ export class OrganizationServiceImpl implements OrganizationService {
       actorId: actor.id,
       clientId,
     });
+  }
+
+  async createPlatformOrganization(
+    input: PlatformOrganizationInput,
+  ): Promise<PlatformOrganization> {
+    const ownerExternalId = await this.platformAccountId();
+    const created = await this.orgAdmin().createOrganizationFor(ownerExternalId, {
+      name: input.name,
+      slug: input.slug,
+    });
+    const org = await this.repo.findByExternalId(created.id);
+    if (!org) {
+      throw new NotFoundError('Organization', created.id);
+    }
+    const apiKey = await this.platformKey(org, ownerExternalId, input.keyName ?? 'Platform');
+    this.logger.info('platform organization created', { orgId: org.id, slug: org.slug });
+    return {
+      organization: { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt },
+      apiKey,
+    };
+  }
+
+  async createPlatformApiKey(orgId: string, name: string): Promise<CreatedApiKey> {
+    const account = this.platformAccount();
+    const [org, person] = await Promise.all([
+      this.repo.findById(orgId),
+      this.people.getUserByEmail(account.email),
+    ]);
+    const orgUser = org && person ? await this.repo.findOrgUser(org.id, person.id) : null;
+    if (!org || !person?.externalId || orgUser?.status !== 'active') {
+      throw new NotFoundError('Organization', orgId);
+    }
+    const apiKey = await this.platformKey(org, person.externalId, name);
+    this.logger.info('platform api key created', { orgId: org.id, keyId: apiKey.id });
+    return apiKey;
+  }
+
+  isPlatformAccount(email: string): boolean {
+    return this.platform !== undefined && email.toLowerCase() === this.platform.email;
+  }
+
+  private async platformKey(
+    org: Organization,
+    ownerExternalId: string,
+    name: string,
+  ): Promise<CreatedApiKey> {
+    const [created, stored] = await Promise.all([
+      this.apiKeys().create(org.externalId ?? org.id, ownerExternalId, {
+        name,
+        roleKey: OWNER_ROLE_KEY,
+      }),
+      this.roles.storedRoles(org.id),
+    ]);
+    return { ...keySummary(created, this.roleMap(stored)), key: created.key };
+  }
+
+  private async platformAccountId(): Promise<string> {
+    const account = this.platformAccount();
+    const person = await this.people.getUserByEmail(account.email);
+    if (person?.externalId) {
+      return person.externalId;
+    }
+    const { externalId } = await this.accounts().createAccount(account);
+    this.logger.info('platform account created', { userId: externalId });
+    return externalId;
+  }
+
+  private platformAccount(): PlatformAccount {
+    if (!this.platform) {
+      throw new Error('the platform account is not configured');
+    }
+    return this.platform;
+  }
+
+  private accounts(): Accounts {
+    if (!this.accountsPort) {
+      throw new Error('accounts are not configured');
+    }
+    return this.accountsPort();
+  }
+
+  private async keysWithRole(orgId: string, roleKey: string): Promise<number> {
+    if (!this.apiKeysPort) {
+      return 0;
+    }
+    const org = await this.repo.findById(orgId);
+    return org ? this.apiKeysPort().countWithRole(org.externalId ?? org.id, roleKey) : 0;
   }
 
   private async cleanUpAfterRemoval(
