@@ -29,56 +29,39 @@ adapters as reference when creating new ones.
 
 ### Access checks
 
-Whether a member can open content is decided by the entitlements context. The one exception is the read permission
-of each content type: `courses:read` and `downloads:read` open the item without a grant, unpublished included,
-`communities:read` makes the person a member of the community and opens every space in it, and `events:read` opens
-the event, its location, files and recording in any status.
+Whether a member can open content is decided by the entitlements context, from the person's grants. A grant to a
+bundle covers whatever the bundle holds at the time. Nothing else decides access.
 
-- Services and the member surface call `EntitlementsService.hasAccess` / `listAccessibleContent`. A context that needs
-  it declares a narrow `ContentAccessReader` port, wired to entitlements in composition.
-- SQL reads the `content_access` view (`adapters/db/src/schema/entitlements.ts`) for cohorts, counts and community
-  membership; `activeGrantCovers` in `grant-covers.ts` reads it too. It is the single definition of access: active
-  grants, with bundle grants expanded to the bundle's current items.
-- Nothing else filters `entitlements` on status, expiry or `content_id` to decide access, and HTTP handlers never gate
-  access themselves.
+The one exception is the read permission of each content type. It opens every item of that type without a grant,
+unpublished ones included, and for communities it makes the person a member of every space.
+
+For example, Sarah buys a bundle that holds a course and a community. Entitlements records one grant to the bundle,
+and she opens both. A course added to the bundle later opens for her too. James holds the read permission for
+communities, so he sees every community and every space in it without a grant.
 
 ### Permission checks
 
-What a person may do is a permission check in the core service method that owns the action, never in a route, an
-MCP tool or a repository. The organizations context owns the permission list, the roles and the assignments
-(`docs/domain/organizations.md`).
+What a person may do is decided by the context that owns the action, against the item acted on, before anything
+changes. The organizations context owns the permissions, the roles and who holds them
+([organizations](domain/organizations.md)). The HTTP API and the MCP tools only identify the caller and hand the
+request to the owning context; they decide nothing.
 
-- Every method a person can reach takes the caller as `actor`. `actor.permissions` answers
-  `has(permission, contentId?)`, `require`, `anywhere`, `where` (for filtering lists), `roleOn` and `isOwner`.
-  `Actor` and `EffectivePermissions` are in `core/shared`; organizations builds them with `actorFor`.
-- The check runs against the item acted on, loaded by the method, never an id the client sent. Lists return
-  everything to a holder on the org and filter to `where(...).content` otherwise. Creating an item needs the type's
-  write permission on the org.
-- Routes and tools resolve the credential, ask organizations for the actor and call one method. They decide nothing.
-  A request carries a session cookie or an API key, never both: a request with a key is judged on the key
-  alone. An API key holds its role's current permissions and an app token its scopes, each intersected with its
-  creator's current permissions. The platform key, set in the deployment's configuration, only creates orgs and their
-  API keys.
-- Work the system does itself, and one context's reads of another's data to serve a person, run as
-  `organizations.systemActor(orgId)`, which holds every permission and is never built from a request.
-- No code compares a role's name or key. A lint rule refuses it.
+A caller is a signed-in person or an API key. A key holds its role's permissions, limited to what the person who
+created it may still do. Work the system does on its own runs with every permission. Nothing is decided by a role's
+name.
+
+For example, Emma moderates one community. When she removes a post there, discussion, which owns posts, checks that
+she may moderate that post's community. The same request for a post in another community is refused.
 
 ### Serving files
 
-Images that anyone who sees the thing may see are public: a person's profile photo, and the thumbnail or cover of a
-published course, download, community, event (published or canceled) or post. Each one is a copy in storage under
-`public/<org>/<owner>/<asset>`, served without the API from `STORAGE_PUBLIC_URL` (the CDN or bucket origin) with
-`Cache-Control: public, max-age=31536000, immutable`; a new image is a new URL. The context that owns the image calls
-`AssetFiles.syncPublicImage(orgId, ownerId, assetId | null)` after every write that can change it, and responses carry
-the public URL in `imageUrl`, `avatarUrl`, `thumbnailUrl` and `coverUrl`.
+The assets context stores the files. Who may see a file is decided by the context that owns what the file belongs
+to. An image that anyone who sees the thing may see, such as a profile photo or the cover of a published course, is
+public and served directly. Every other file is reached through a link that asks the owning context, on every
+request, whether the caller may see it.
 
-Every other file, and the image of an item that is not published, is fetched from a stable API URL that checks access
-on every request and redirects to a signed storage URL. `FileUrls` (`@headless-lms/core/assets`) builds both kinds of
-URL, and responses carry them in their file fields (`thumbnailUrl`, `assetUrls`, `url`, `coverUrl`, `imageUrl`). The
-context that owns the file decides who may fetch it, then calls `AssetFiles.signFile`. No response carries a signed
-storage URL, and no route serves a file by asset id alone. A lesson's files are recorded on save from the editor's
-`assetIds(config)`; a file the lesson doesn't list is not served. Download files use `DELIVERY_URL_EXPIRY`; every other
-file uses `STORAGE_DOWNLOAD_EXPIRY`.
+For example, Sarah's course has a thumbnail and a lesson video. While the course is published, the thumbnail is
+public. The video's link checks each time that a grant covers the course.
 
 ### Adapters, Plugins, Integrations
 
@@ -86,26 +69,20 @@ There are 3 ways to change or extend the core service.
 
 | Type             | Description                                                                                                                                  | Examples                                                                                                                                                                                                                                                                        |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Push (APNs, FCM and Web Push, `@headless-lms/adapter-push`), Workflows and scheduler (Hatchet), PubSub (Postgres `LISTEN/NOTIFY`), Video, Event Bus, Cache (Redis/in-memory) |
+| **Adapters**     | Infrastructure implementations that the core service requires. Swappable implementations of ports that handle external systems and services. | Authentication (Better Auth), Database (Drizzle/Postgres), Storage (MinIO/S3), Email (Resend/SES), Push (APNs, FCM and Web Push), Workflows and scheduler (Hatchet), PubSub (Postgres), Video, Event Bus, Cache (Redis/in-memory) |
 | **Plugins**      | Functionality that extends the core service by adding new actions and triggers, schema changes, own workflows.                               | Slack. Community is a content type in the core, not a plugin.                                                                                                                                                                                                                   |
 | **Integrations** | Third-party service connections that is triggered by events happening in the system. Automations triggered by system events.                 | CRM, Slack, Zapier/Make/Pabbly                                                                                                                                                                                                                                                  |
 
-The scheduler is a deployment port in `shared/ports`, beside `AutomationEngine`, and the workflow adapter implements
-both: it runs automations, notification deliveries and the scheduled jobs the contexts define, such as publishing a
-scheduled post or expiring grants.
+The workflow adapter runs automations, notification deliveries and the scheduled work the contexts define, such as
+publishing a scheduled post or expiring grants.
 
 ### Events and PubSub
 
-A write and its domain events commit together: the service appends the events to the outbox inside the write's
-`UnitOfWork`. Every API process runs an outbox relay that publishes committed events on its in-process `EventBus`,
-where automations handle them. An event is handled on whichever instance dispatched it.
+A change and the events it raises are saved together, so no event is lost and none is sent for a change that did not
+happen. Automations react to those events.
 
-`PubSub` is the deployment port, in `shared/ports`, for what every instance must hear: a message published on any
-instance reaches every subscriber on every instance, best effort and unordered, with `onReset` after a reconnect.
-Live chat is its one user. `ChatLiveForwarder` subscribes on the `EventBus` and publishes each chat change, ids only,
-on `discussion.chats`; the `ChatHub` on each instance reads the current state and pushes it to the chat streams
-connected there. The adapter is `@headless-lms/adapter-pubsub-postgres` (`LISTEN/NOTIFY`); a container built without
-one has no hub, and the chat stream answers 503.
+Some things every running server must hear. When James sends a message in a chat, everyone connected to that chat
+sees it, whichever server they are connected to. Live chat is the only thing that uses this today.
 
 ## Composition
 
@@ -114,16 +91,14 @@ the `create-headless-lms` cli which bootstraps a project.
 
 ### Core Server
 
-The backend is two libraries: `@headless-lms/core` (`packages/core`) is the domain — the bounded contexts,
-their ports and service implementations, plus the wire types (`@headless-lms/core/types`), zod schemas
-(`@headless-lms/core/schemas`) and cross-context reporting (`@headless-lms/core/reporting/*`).
-`@headless-lms/server` (`packages/server`) is composition (`app/`) and the web server (`http/`) — nothing else.
+The backend has two parts. The core is the domain: the contexts, what each one needs from the outside, and what
+each one does. The server wires the adapters into the core and exposes it to the outside world. It holds no logic of
+its own.
 
 **Everything** in this project are replacable and is built like that from the start. The core service defines the
 interfaces that adapters implement.
 
-The core is organized by context (or domain), and each domain defines its ports and service implementations.
-A context is imported only through its `index.ts` (`@headless-lms/core/<context>`).
+The core is organized by context (or domain). A context uses another only through what that context makes public.
 There is no orchastration layer at this point - and that's a decision that ensures that each use case has a domain
 owner as we build out the system.
 
@@ -139,32 +114,20 @@ only by another context, is in the wrong place.
 
 ### Reporting
 
-Reporting is the read domain. It lives in `packages/core` as `@headless-lms/core/reporting/*`. It reads every
-context, owns no data, and writes nothing. The other contexts do not import it. The HTTP layer and the composition
-root do.
+Reporting is the read domain. It reads every context, owns no data and writes nothing. No other context depends on
+it.
 
-There are two services, one per product. A person calls the service for the product they are logged into. Each
-method checks the caller's permissions itself; there is no service per role.
+There is one reporting service per product, and a person uses the one for the product they are signed into. Each
+read checks the caller's permissions itself; there is no service per role.
 
-`reporting/member` is the person in the member product: a learner in a course, a member in a community, a moderator.
-It answers the courses, progress, and downloads they can open, the community directory, the community home, the
-events they can see with their calendar file and attendees, the notification list, the unread counts, and the
-notification settings view. The `/api/member` prefix is the member HTTP API. Its course, download, progress,
-directory, community-home, event read, event list, event calendar, event attendee list, notification list, unread
-count and notification settings view routes call `reporting/member`. The other routes under that prefix call the
-context that owns the operation.
+- **Member** is the person in the member product: a learner in a course, a member in a community, a moderator. It
+  answers what they can open and where they are: their courses, progress and downloads, the community directory and
+  home, events, and notifications.
+- **Admin** is the person in the admin app, whatever their role. It answers the org overview, course analytics, the
+  roster, community members and analytics, and event attendees and analytics.
 
-`reporting/admin` is the person in the admin app, whatever their role. It answers the org overview
-(`analytics:read`), course analytics (`progress:read` on the course), the roster and a learner's record
-(`people:read`), a community's members (`access:read`), the community analytics (`communities:read` on the
-community), and an event's attendees and analytics (`events:read` on the event).
-
-`reporting/member` and `reporting/admin` are the services in the code.
-
-| Type        | Description                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------ |
-| **Fastify** | It's fast, easy to learn, automatic validation, spec generation is easy, plugin architecture, DX |
-| **Drizzle** | It's easy to understand, popular, no extra runtime                                               |
+For example, Sarah opens her community's home. Member reporting reads the spaces from content, her access from
+entitlements and the latest posts from discussion, and returns one view.
 
 ### Project Layout
 
@@ -190,8 +153,8 @@ with that data.
 It defines the content structure - e.g. a **Course**
 
 I like Slate.js, and I've done other work using Plate.js, so the default course content builder is an engine built
-on Plate.js. Some people love TipTap, some people has existing SCORM frontends. The [editor contract](../packages/editor/src/index.ts)
-(`@headless-lms/editor`) is what you'll use to implement your frontend.
+on Plate.js. Some people love TipTap, some people has existing SCORM frontends. The editor contract is what you'll
+use to implement your frontend.
 
 ### Defaults
 
