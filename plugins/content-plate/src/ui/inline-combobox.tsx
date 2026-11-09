@@ -355,8 +355,6 @@ function InlineComboboxGroupLabel({
   );
 }
 
-const InlineComboboxRow = Ariakit.ComboboxRow;
-
 export {
   InlineCombobox,
   InlineComboboxContent,
@@ -365,5 +363,4 @@ export {
   InlineComboboxGroupLabel,
   InlineComboboxInput,
   InlineComboboxItem,
-  InlineComboboxRow,
 };

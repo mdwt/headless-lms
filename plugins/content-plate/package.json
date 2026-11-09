@@ -42,7 +42,6 @@
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "4.1.0",
-    "jotai-x": "2.3.3",
     "lowlight": "3.3.0",
     "lucide-react": "0.555.0",
     "platejs": "52.0.17",
@@ -56,8 +55,7 @@
     "react-tweet": "3.2.2",
     "sonner": "^2.0.1",
     "tailwind-merge": "3.4.0",
-    "use-file-picker": "2.1.4",
-    "vaul": "1.1.2"
+    "use-file-picker": "2.1.4"
   },
   "peerDependencies": {
     "react": ">=19.0.0",

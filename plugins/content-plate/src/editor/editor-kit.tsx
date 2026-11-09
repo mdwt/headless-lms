@@ -3,8 +3,7 @@
 // The assembled Plate plugin kit for the interactive editor — the full
 // EditorKit minus the app-bound features (AI/copilot, comments/suggestions/
 // discussions, mentions, TOC, math, docx/markdown import, collaboration).
-import { TrailingBlockPlugin, type Value } from "platejs";
-import { type TPlateEditor, useEditorRef } from "platejs/react";
+import { TrailingBlockPlugin } from "platejs";
 
 import { AutoformatKit } from "./plugins/autoformat-kit";
 import { BasicBlocksKit } from "./plugins/basic-blocks-kit";
@@ -64,7 +63,3 @@ export const EditorKit = [
   ...FloatingToolbarKit,
   ...HostSlotsKit,
 ];
-
-export type MyEditor = TPlateEditor<Value, (typeof EditorKit)[number]>;
-
-export const useEditor = () => useEditorRef<MyEditor>();

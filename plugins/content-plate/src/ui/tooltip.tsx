@@ -45,47 +45,6 @@ export function TooltipContent({
   );
 }
 
-export function TooltipTC({
-  children,
-  className,
-  content,
-  defaultOpen,
-  delayDuration,
-  disableHoverableContent,
-  open,
-  onOpenChange,
-  ...props
-}: {
-  content: ReactNode;
-} & ComponentProps<typeof TooltipPrimitive.Content> &
-  ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>) {
-  const mounted = useMounted();
-
-  if (!mounted) {
-    return children;
-  }
-
-  return (
-    <TooltipProvider>
-      <Tooltip
-        defaultOpen={defaultOpen}
-        delayDuration={delayDuration}
-        disableHoverableContent={disableHoverableContent}
-        onOpenChange={onOpenChange}
-        open={open}
-      >
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
-
-        <TooltipPortal>
-          <TooltipContent className={className} {...props}>
-            {content}
-          </TooltipContent>
-        </TooltipPortal>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
 type TooltipProps<T extends ElementType> = {
   shortcut?: ReactNode;
   tooltip?: ReactNode;

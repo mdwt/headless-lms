@@ -45,27 +45,6 @@ export function ToolbarToggleGroup({
   );
 }
 
-export function ToolbarLink({ className, ...props }: ComponentProps<typeof ToolbarPrimitive.Link>) {
-  return (
-    <ToolbarPrimitive.Link
-      className={cn("font-medium underline underline-offset-4", className)}
-      {...props}
-    />
-  );
-}
-
-export function ToolbarSeparator({
-  className,
-  ...props
-}: ComponentProps<typeof ToolbarPrimitive.Separator>) {
-  return (
-    <ToolbarPrimitive.Separator
-      className={cn("mx-2 my-1 w-px shrink-0 bg-border", className)}
-      {...props}
-    />
-  );
-}
-
 export const toolbarButtonVariants = cva(
   "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md font-medium text-foreground/80 text-sm ring-offset-background transition-bg-ease focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg:not([data-icon])]:size-4",
   {

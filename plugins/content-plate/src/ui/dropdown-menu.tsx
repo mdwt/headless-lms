@@ -1,35 +1,11 @@
 "use client";
 
-import { cva, type VariantProps } from "class-variance-authority";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import { cva } from "class-variance-authority";
+import { CheckIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import { useCallback, useState, type ComponentProps } from "react";
 
 import { cn } from "../lib/utils";
-
-export const dropdownMenuItemVariants = cva(
-  cn(
-    "no-focus-ring relative flex cursor-pointer select-none items-center gap-2 rounded-md align-middle text-sm transition-bg-ease data-disabled:pointer-events-none data-disabled:opacity-50",
-    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-subtle-foreground",
-    "text-accent-foreground hover:bg-accent focus:bg-accent focus:text-accent-foreground",
-  ),
-  {
-    defaultVariants: {
-      size: "default",
-      variant: "default",
-    },
-    variants: {
-      size: {
-        default: "mx-1 h-[28px] w-[calc(100%-8px)] px-2.5",
-        none: "",
-      },
-      variant: {
-        default: "focus:bg-accent focus:text-accent-foreground",
-        none: "",
-      },
-    },
-  },
-);
 
 const dropdownMenuLabelVariants = cva(
   cn("mt-1.5 mb-2 cursor-default select-none px-[14px] font-medium text-muted-foreground text-xs"),
@@ -60,52 +36,8 @@ export function DropdownMenuPortal(props: DropdownMenuPrimitive.DropdownMenuPort
   return <DropdownMenuPrimitive.Portal {...props} />;
 }
 
-export function DropdownMenuSub(props: DropdownMenuPrimitive.DropdownMenuSubProps) {
-  return <DropdownMenuPrimitive.Sub {...props} />;
-}
-
 export function DropdownMenuRadioGroup(props: DropdownMenuPrimitive.DropdownMenuRadioGroupProps) {
   return <DropdownMenuPrimitive.RadioGroup {...props} />;
-}
-
-export function DropdownMenuSubTrigger({
-  children,
-  className,
-  inset,
-  ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
-  inset?: boolean;
-}) {
-  return (
-    <DropdownMenuPrimitive.SubTrigger
-      className={cn(
-        "mx-1 flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden focus:bg-accent data-[state=open]:bg-accent",
-        "no-focus-ring",
-        "data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-        inset && "pl-8",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      <ChevronRightIcon className="ml-auto" />
-    </DropdownMenuPrimitive.SubTrigger>
-  );
-}
-
-export function DropdownMenuSubContent({
-  className,
-  ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
-  return (
-    <DropdownMenuPrimitive.SubContent
-      className={cn(
-        "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 z-50 min-w-32 overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-floating data-[state=closed]:animate-out data-[state=open]:animate-in",
-        className,
-      )}
-      {...props}
-    />
-  );
 }
 
 export function DropdownMenuContent({
@@ -132,40 +64,6 @@ export function DropdownMenuContent({
   }
 
   return content;
-}
-
-export function DropdownMenuItem({
-  className,
-  ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.Item> &
-  VariantProps<typeof dropdownMenuItemVariants>) {
-  return (
-    <DropdownMenuPrimitive.Item className={cn(dropdownMenuItemVariants(), className)} {...props} />
-  );
-}
-
-export function DropdownMenuCheckboxItem({
-  children,
-  className,
-  ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
-  return (
-    <DropdownMenuPrimitive.CheckboxItem
-      className={cn(
-        "no-focus-ring relative flex select-none items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 transition-bg-ease focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:size-4",
-        "mx-1 h-[28px] cursor-pointer px-2.5 data-[state=highlighted]:bg-accent data-[state=highlighted]:text-accent-foreground",
-        className,
-      )}
-      {...props}
-    >
-      <span className="absolute right-2 flex size-3.5 items-center justify-center">
-        <DropdownMenuPrimitive.ItemIndicator>
-          <CheckIcon />
-        </DropdownMenuPrimitive.ItemIndicator>
-      </span>
-      {children}
-    </DropdownMenuPrimitive.CheckboxItem>
-  );
 }
 
 export function DropdownMenuRadioItem({
@@ -209,24 +107,6 @@ export function DropdownMenuLabel({
       className={cn(dropdownMenuLabelVariants({ inset }), className)}
       {...props}
     />
-  );
-}
-
-export function DropdownMenuSeparator({
-  className,
-  ...props
-}: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
-  return (
-    <DropdownMenuPrimitive.Separator
-      className={cn("-mx-1 my-1 h-px bg-muted", className)}
-      {...props}
-    />
-  );
-}
-
-export function DropdownMenuShortcut({ className, ...props }: ComponentProps<"span">) {
-  return (
-    <span className={cn("ml-auto text-xs tracking-widest opacity-60", className)} {...props} />
   );
 }
 

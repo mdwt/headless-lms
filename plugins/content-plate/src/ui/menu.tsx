@@ -30,11 +30,6 @@ export type Action = {
   value?: string;
 };
 
-export type ActionGroup = {
-  group?: string;
-  value?: string;
-};
-
 const SearchableContext = createContext(false);
 
 const MenuContext = createContext<{
@@ -494,19 +489,6 @@ export function useContextMenu(anchorRect: { x: number; y: number }) {
     store: menu,
     getAnchorRect: () => anchorRect,
     show: () => {
-      menu.show();
-      menu.setAutoFocusOnShow(true);
-    },
-  };
-}
-
-export function useMenuStore() {
-  const menu = Ariakit.useMenuStore();
-
-  return {
-    store: menu,
-    show: (anchorElement: HTMLElement) => {
-      menu.setAnchorElement(anchorElement);
       menu.show();
       menu.setAutoFocusOnShow(true);
     },
