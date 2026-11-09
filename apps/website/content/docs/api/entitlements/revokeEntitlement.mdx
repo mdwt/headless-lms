@@ -1,5 +1,5 @@
 ---
-description: "POST /api/entitlements/revocation. Revoke a person's grant to content or a bundle. Headless LMS Entitlements API reference."
+description: "POST /api/entitlements/revoke. Revoke a person's grant to content or a bundle. Headless LMS Entitlements API reference."
 title: Revoke a person's grant to content or a bundle
 full: true
 _openapi:
@@ -25,7 +25,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/entitlements/revocation","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/entitlements/revoke","method":"post"}]} showDescription />
     </>
   );
 }

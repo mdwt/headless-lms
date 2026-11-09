@@ -25949,7 +25949,7 @@ export type RevokeEntitlementData = {
   };
   path?: never;
   query?: never;
-  url: "/api/entitlements/revocation";
+  url: "/api/entitlements/revoke";
 };
 
 export type RevokeEntitlementErrors = {

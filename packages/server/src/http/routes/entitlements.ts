@@ -58,7 +58,7 @@ export async function entitlementsRoutes(
 
   r.route({
     method: 'POST',
-    url: '/api/entitlements/revocation',
+    url: '/api/entitlements/revoke',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'revokeEntitlement',

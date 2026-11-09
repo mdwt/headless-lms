@@ -10741,7 +10741,7 @@ export class Entitlements {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/entitlements/revocation",
+      url: "/api/entitlements/revoke",
       ...options,
       ...params,
       headers: {

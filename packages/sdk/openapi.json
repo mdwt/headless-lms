@@ -78837,7 +78837,7 @@
         }
       }
     },
-    "/api/entitlements/revocation": {
+    "/api/entitlements/revoke": {
       "post": {
         "operationId": "revokeEntitlement",
         "summary": "Revoke a person's grant to content or a bundle",
