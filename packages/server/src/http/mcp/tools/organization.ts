@@ -205,6 +205,17 @@ export const organizationTools: Tool[] = [
     },
   }),
   defineTool({
+    name: 'resend_invite',
+    title: 'Resend invite',
+    description: "Send a person's pending invite email again, with a new link.",
+    kind: 'write',
+    idempotent: false,
+    openWorld: true,
+    input: OrgUserIdParam,
+    call: ({ orgUserId }, { container, caller }) =>
+      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId),
+  }),
+  defineTool({
     name: 'cancel_invite',
     title: 'Cancel invite',
     description: "Cancel a person's pending invite.",

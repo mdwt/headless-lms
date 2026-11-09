@@ -1946,23 +1946,6 @@
       ]
     },
     {
-      "name": "resend_student_invite",
-      "title": "Resend student invite",
-      "description": "Send a pending student's invite email again.",
-      "group": "Students, access and analytics",
-      "kind": "write",
-      "idempotent": false,
-      "openWorld": true,
-      "fields": [
-        {
-          "name": "id",
-          "type": "string",
-          "required": true,
-          "description": null
-        }
-      ]
-    },
-    {
       "name": "list_access",
       "title": "List access",
       "description": "Who has access to what. Filter by student (orgUserId), content, type or status.",
@@ -2575,6 +2558,23 @@
           "name": "sendEmail",
           "type": "boolean",
           "required": false,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "resend_invite",
+      "title": "Resend invite",
+      "description": "Send a person's pending invite email again, with a new link.",
+      "group": "Organization, roles and team",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": true,
+      "fields": [
+        {
+          "name": "orgUserId",
+          "type": "string",
+          "required": true,
           "description": null
         }
       ]
@@ -3543,7 +3543,7 @@
     {
       "name": "list_space_members",
       "title": "List space members",
-      "description": "Page through a space's members, its open requests to join and its open invitations.",
+      "description": "Page through the members of a space you can open. Community moderators also see its open requests to join and open invitations. People who open every space through their role are not listed.",
       "group": "Community members",
       "kind": "read",
       "idempotent": true,

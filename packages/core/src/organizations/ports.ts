@@ -49,7 +49,8 @@ export interface CreateApiKeyInput {
 }
 
 export interface OrganizationService {
-  createOrganization(input: CreateOrganizationInput): Promise<Organization>;
+  createOrganization(input: NewOrganizationInput, headers: AuthHeaders): Promise<AuthOrganization>;
+  provisionOrganization(input: CreateOrganizationInput): Promise<Organization>;
   updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization>;
   deleteOrganization(id: string): Promise<Organization>;
   addOrgUser(input: AddOrgUserInput): Promise<OrgUser>;
@@ -57,7 +58,7 @@ export interface OrganizationService {
   getByExternalId(externalId: string): Promise<Organization | null>;
   getBySlug(slug: string): Promise<Organization | null>;
   getById(id: string): Promise<Organization | null>;
-  portalIdentity(id: string): Promise<Pick<Organization, 'id' | 'name' | 'slug'> | null>;
+  portalIdentity(id: string): Promise<Pick<Organization, 'id' | 'name' | 'slug'>>;
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
@@ -110,7 +111,7 @@ export interface OrganizationService {
   cancelInvite(orgUserId: string, actor: Actor): Promise<void>;
   peekInvite(token: string): Promise<Invite | null>;
   describeInvite(token: string): Promise<InviteDetails>;
-  acceptInvite(input: AcceptInviteInput): Promise<OrgUser>;
+  acceptInvite(input: AcceptInviteInput, headers: AuthHeaders): Promise<OrgUser>;
 
   listApiKeys(actor: Actor): Promise<ApiKeySummary[]>;
   createApiKey(input: CreateApiKeyInput, actor: Actor): Promise<CreatedApiKey>;

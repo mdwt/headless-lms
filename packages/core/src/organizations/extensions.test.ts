@@ -123,6 +123,9 @@ function service(storedRoles: StoredOrgRole[] = []) {
     orgAdmin: () => {
       throw new Error('not used');
     },
+    sessions: () => {
+      throw new Error('not used');
+    },
     defaultRoles: [...DEFAULT_ROLES, HOST],
   });
   const actor = async (id: string) => (await svc.actorFor(ORG, id))!;

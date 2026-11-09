@@ -409,6 +409,12 @@ export async function buildContainer(
       }
       return orgAdminRef.current;
     },
+    sessions: () => {
+      if (!orgAdminRef.current) {
+        throw new Error('sessions not initialised');
+      }
+      return orgAdminRef.current;
+    },
     logger: logger.child({ name: 'org' }),
     mailer,
     inviteUrls: { studentPortalUrl: config.studentPortalUrl, adminAppUrl: config.adminAppUrl },
@@ -896,7 +902,7 @@ export async function buildContainer(
       beforeCreateOrganization: authHook(
         'beforeCreateOrganization',
         async ({ organization: org, user: baUser }) => {
-          const domainOrg = await organizations.createOrganization({
+          const domainOrg = await organizations.provisionOrganization({
             ownerId: baUser.id,
             ...org,
             logo: org.logo ?? undefined,

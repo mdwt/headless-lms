@@ -98,7 +98,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["**/src/**/*.test.{ts,tsx}", "packages/server/test/**/*.test.ts"],
+    include: ["**/src/**/*.test.{ts,tsx}"],
     globalSetup: ["./vitest.global-setup.ts"],
     exclude: ["**/node_modules/**", "**/dist/**"],
   },

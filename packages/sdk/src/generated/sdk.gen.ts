@@ -4564,7 +4564,7 @@ export class Communities {
   /**
    * List the members, requests and invitations of a space
    *
-   * Any active member of the organization. The space's members, its open requests to join and its open invitations.
+   * For a person who can open the space. Its members; a holder of `communities:moderate` on the community also sees its open requests to join and open invitations. People who open every space of the community through their role are not listed. 404 when you cannot open the space.
    */
   public static listCommunitySpaceMembers<ThrowOnError extends boolean = false>(
     parameters: {

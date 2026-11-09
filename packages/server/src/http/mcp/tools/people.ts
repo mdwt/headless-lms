@@ -37,22 +37,7 @@ export const peopleTools: Tool[] = [
     input: CreateInvite.omit({ roleKey: true }),
     output: Invite,
     call: (input, { container, caller }) =>
-      container.organizations.createInvite(
-        { ...input, roleKey: 'member' },
-        caller.actor,
-        caller.userId,
-      ),
-  }),
-  defineTool({
-    name: 'resend_student_invite',
-    title: 'Resend student invite',
-    description: "Send a pending student's invite email again.",
-    kind: 'write',
-    idempotent: false,
-    openWorld: true,
-    input: StudentIdParam,
-    call: ({ id }, { container, caller }) =>
-      container.organizations.resendInvite(id, caller.actor, caller.userId),
+      container.organizations.createInvite(input, caller.actor, caller.userId),
   }),
   defineTool({
     name: 'list_access',

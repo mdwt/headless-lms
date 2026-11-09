@@ -59,6 +59,13 @@ const cases: ToolCase[] = [
     shown: { roles: [] },
   },
   {
+    tool: 'resend_invite',
+    args: { orgUserId: 'ou_9' },
+    service: 'organizations.resendInvite',
+    expected: ['ou_9', OWNER, 'usr_1'],
+    returns: undefined,
+  },
+  {
     tool: 'cancel_invite',
     args: { orgUserId: 'ou_9' },
     service: 'organizations.cancelInvite',
@@ -91,6 +98,7 @@ describe('organization tools', () => {
       ['assign_role', 'write', true, false],
       ['unassign_role', 'destructive', true, false],
       ['invite_person', 'write', false, true],
+      ['resend_invite', 'write', false, true],
       ['cancel_invite', 'destructive', false, false],
       ['remove_person', 'destructive', false, false],
     ]);

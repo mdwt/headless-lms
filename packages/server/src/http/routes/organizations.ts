@@ -71,7 +71,7 @@ export async function organizationsRoutes(
       response: { 201: Organization },
     },
     handler: async (req, reply) => {
-      const org = await container.orgProvider.createOrganization(req.headers, req.body);
+      const org = await organizations.createOrganization(req.body, req.headers);
       return reply.code(201).send({
         name: org.name,
         slug: org.slug,
@@ -437,12 +437,10 @@ export async function organizationsRoutes(
       response: { 200: AcceptInviteResult, ...refusals(400, 404) },
     },
     handler: async (req) => {
-      const accepted = await organizations.acceptInvite({
-        token: req.body.token,
-        authUserId: req.authUser.id,
-        email: req.authUser.email,
-      });
-      await container.sessions.stampActiveOrganization(req.headers, accepted.orgId);
+      await organizations.acceptInvite(
+        { token: req.body.token, authUserId: req.authUser.id, email: req.authUser.email },
+        req.headers,
+      );
       return {};
     },
   });

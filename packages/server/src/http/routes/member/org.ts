@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { MemberOrg, MemberViewer, refusals } from '../../schemas/index.js';
 import type { Container } from '../../../app/container.js';
-import { UnauthorizedError } from '../../plugins/auth.js';
 import { resolveActor } from '../../scope.js';
 
 export async function memberOrgRoutes(app: FastifyInstance, container: Container): Promise<void> {
@@ -21,11 +20,7 @@ export async function memberOrgRoutes(app: FastifyInstance, container: Container
       response: { 200: MemberOrg },
     },
     handler: async (req) => {
-      const org = await container.organizations.portalIdentity(req.orgId);
-      if (!org) {
-        throw new UnauthorizedError('Your session points to an organization that no longer exists');
-      }
-      return org;
+      return container.organizations.portalIdentity(req.orgId);
     },
   });
 

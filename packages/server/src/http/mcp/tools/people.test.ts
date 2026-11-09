@@ -21,11 +21,7 @@ const cases: ToolCase[] = [
     tool: 'invite_student',
     args: { email: 'sam@acme.test', firstName: 'Sam' },
     service: 'organizations.createInvite',
-    expected: [
-      { email: 'sam@acme.test', firstName: 'Sam', sendEmail: true, roleKey: 'member' },
-      OWNER,
-      'usr_1',
-    ],
+    expected: [{ email: 'sam@acme.test', firstName: 'Sam', sendEmail: true }, OWNER, 'usr_1'],
     returns: {
       id: 'inv_1',
       orgId: 'org_1',
@@ -46,13 +42,6 @@ const cases: ToolCase[] = [
       expiresAt: '2026-11-06T00:00:00.000Z',
       createdAt: '2026-10-30T00:00:00.000Z',
     },
-  },
-  {
-    tool: 'resend_student_invite',
-    args: { id: 'ou_9' },
-    service: 'organizations.resendInvite',
-    expected: ['ou_9', OWNER, 'usr_1'],
-    returns: undefined,
   },
   {
     tool: 'list_access',
@@ -115,7 +104,6 @@ describe('student, access and analytics tools', () => {
     expect(toolSpecs(peopleTools)).toEqual([
       ['list_students', 'read', true, false],
       ['invite_student', 'write', false, true],
-      ['resend_student_invite', 'write', false, true],
       ['list_access', 'read', true, false],
       ['grant_access', 'write', false, false],
       ['set_access_status', 'destructive', true, false],

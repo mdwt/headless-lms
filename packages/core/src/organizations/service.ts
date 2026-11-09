@@ -1,5 +1,6 @@
 import type {
   ApiKeys,
+  AuthOrganization,
   CreateApiKeyInput,
   GrantReader,
   MembersRepository,
@@ -32,6 +33,7 @@ import type {
   AddOrgUserInput,
   CreateInviteInput,
   CreateOrganizationInput,
+  NewOrganizationInput,
   UpdateOrganizationInput,
 } from './types.js';
 import { organizationEvents, type OrganizationEvent } from './events.js';
@@ -41,7 +43,7 @@ import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
-import type { IdentityService } from '../identity/index.js';
+import type { AuthHeaders, IdentityService, SessionAdmin } from '../identity/index.js';
 import type { AssetFiles } from '../assets/index.js';
 import { genId, prefixId } from '../shared/id.js';
 import { levelSchema } from '../types/schemas/organizations.js';
@@ -101,6 +103,7 @@ export type OrganizationServiceParams = {
   images: Pick<AssetFiles, 'syncPublicImage'>;
   uow: OrganizationsUnitOfWork;
   orgAdmin: () => OrgAdmin;
+  sessions: () => SessionAdmin;
   apiKeys?: () => ApiKeys;
   grants?: () => GrantReader;
   defaultRoles?: readonly RoleDefinition[];
@@ -140,6 +143,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly images: Pick<AssetFiles, 'syncPublicImage'>;
   private readonly uow: OrganizationsUnitOfWork;
   private readonly orgAdmin: () => OrgAdmin;
+  private readonly sessions: () => SessionAdmin;
   private readonly apiKeysPort?: () => ApiKeys;
   private readonly grants?: () => GrantReader;
   private readonly catalog: RoleCatalog;
@@ -155,6 +159,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.images = params.images;
     this.uow = params.uow;
     this.orgAdmin = params.orgAdmin;
+    this.sessions = params.sessions;
     this.apiKeysPort = params.apiKeys;
     this.grants = params.grants;
     const defaults = params.defaultRoles ?? DEFAULT_ROLES;
@@ -165,7 +170,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.inviteUrls = params.inviteUrls;
   }
 
-  async createOrganization(input: CreateOrganizationInput): Promise<Organization> {
+  createOrganization(input: NewOrganizationInput, headers: AuthHeaders): Promise<AuthOrganization> {
+    return this.orgAdmin().createOrganization(headers, input);
+  }
+
+  async provisionOrganization(input: CreateOrganizationInput): Promise<Organization> {
     const created = await this.uow.run(async ({ organizations, roles, outbox }) => {
       const id = genId('organization');
       const org = await organizations.create({
@@ -278,9 +287,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.findById(id);
   }
 
-  async portalIdentity(id: string): Promise<Pick<Organization, 'id' | 'name' | 'slug'> | null> {
+  async portalIdentity(id: string): Promise<Pick<Organization, 'id' | 'name' | 'slug'>> {
     const org = await this.repo.findById(id);
-    return org ? { id: org.id, name: org.name, slug: org.slug } : null;
+    if (!org) {
+      throw new NotFoundError('Organization', id);
+    }
+    return { id: org.id, name: org.name, slug: org.slug };
   }
 
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null> {
@@ -1215,7 +1227,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     };
   }
 
-  async acceptInvite(input: AcceptInviteInput): Promise<OrgUser> {
+  async acceptInvite(input: AcceptInviteInput, headers: AuthHeaders): Promise<OrgUser> {
     const invite = await this.peekInvite(input.token);
     if (!invite) {
       this.logger.warn('invite accept refused: token invalid or expired');
@@ -1310,6 +1322,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       await outbox.append(events);
       return activated;
     });
+    await this.sessions().stampActiveOrganization(headers, orgId);
     this.logger.info('invite accepted', { orgId, inviteId: invite.id, orgUserId: orgUser.id });
     return accepted;
   }

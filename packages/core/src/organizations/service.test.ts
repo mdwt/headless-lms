@@ -438,6 +438,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
   });
   const send = vi.fn(async () => {});
   const images = { syncPublicImage: vi.fn(async () => {}) };
+  const sessions = { stampActiveOrganization: vi.fn(async () => true) };
   const service = new OrganizationServiceImpl({
     repo,
     roles,
@@ -446,6 +447,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     images,
     uow,
     orgAdmin: () => orgAdmin,
+    sessions: () => sessions,
     apiKeys: () => apiKeys,
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
@@ -496,6 +498,7 @@ function store(opts: { defaultRoles?: readonly RoleDefinition[]; logger?: Logger
     orgUsers,
     people,
     images,
+    sessions,
     events,
     orgAdmin,
     apiKeys,
@@ -543,10 +546,12 @@ beforeEach(async () => {
   w = s.w;
 });
 
-describe('createOrganization', () => {
+const HEADERS = { cookie: 'session=1' };
+
+describe('provisionOrganization', () => {
   it('makes the creator an active org user holding the owner row', async () => {
     const fresh = store();
-    const org = await fresh.service.createOrganization({
+    const org = await fresh.service.provisionOrganization({
       ownerId: 'usr_x',
       name: 'New',
       slug: 'new',
@@ -943,12 +948,16 @@ describe('invites', () => {
       tokenHash: hashInviteToken('tok'),
       expiresAt: new Date(Date.now() + 60_000),
     });
-    await w.service.acceptInvite({
-      token: 'tok',
-      authUserId: ivy.person.externalId!,
-      email: ivy.person.email,
-    });
+    await w.service.acceptInvite(
+      {
+        token: 'tok',
+        authUserId: ivy.person.externalId!,
+        email: ivy.person.email,
+      },
+      HEADERS,
+    );
     expect(w.orgUsers.get(ivy.orgUser.id)!.status).toBe('active');
+    expect(w.sessions.stampActiveOrganization).toHaveBeenCalledWith(HEADERS, ORG);
     expect(
       w.assignments.filter((a) => a.orgUserId === ivy.orgUser.id).map((a) => a.roleKey),
     ).toEqual(['instructor']);
@@ -965,11 +974,14 @@ describe('invites', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
     await expect(
-      w.service.acceptInvite({
-        token: 'tok',
-        authUserId: ivy.person.externalId!,
-        email: ivy.person.email,
-      }),
+      w.service.acceptInvite(
+        {
+          token: 'tok',
+          authUserId: ivy.person.externalId!,
+          email: ivy.person.email,
+        },
+        HEADERS,
+      ),
     ).rejects.toBeInstanceOf(InviteError);
     await w.service.resendInvite(
       ivy.orgUser.id,
@@ -985,11 +997,14 @@ describe('invites', () => {
       new Date(Date.now() + 60_000),
       s.liam.person.id,
     );
-    await w.service.acceptInvite({
-      token: 'tok2',
-      authUserId: ivy.person.externalId!,
-      email: ivy.person.email,
-    });
+    await w.service.acceptInvite(
+      {
+        token: 'tok2',
+        authUserId: ivy.person.externalId!,
+        email: ivy.person.email,
+      },
+      HEADERS,
+    );
     expect(w.orgUsers.get(ivy.orgUser.id)!.status).toBe('active');
   });
 
@@ -1093,11 +1108,14 @@ describe('review fixes', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
     await expect(
-      w.service.acceptInvite({
-        token: 'tok',
-        authUserId: ivy.person.externalId!,
-        email: ivy.person.email,
-      }),
+      w.service.acceptInvite(
+        {
+          token: 'tok',
+          authUserId: ivy.person.externalId!,
+          email: ivy.person.email,
+        },
+        HEADERS,
+      ),
     ).rejects.toBeInstanceOf(InviteError);
   });
 
@@ -1110,11 +1128,14 @@ describe('review fixes', () => {
       tokenHash: hashInviteToken('tok'),
       expiresAt: new Date(Date.now() + 60_000),
     });
-    await w.service.acceptInvite({
-      token: 'tok',
-      authUserId: ivy.person.externalId!,
-      email: ivy.person.email,
-    });
+    await w.service.acceptInvite(
+      {
+        token: 'tok',
+        authUserId: ivy.person.externalId!,
+        email: ivy.person.email,
+      },
+      HEADERS,
+    );
     expect(w.events.map((e) => e.type)).toContain('organization.user.updated');
   });
 });

@@ -59,7 +59,7 @@ export async function communityModerationRoutes(
       operationId: 'listCommunitySpaceMembers',
       tags,
       summary: 'List the members, requests and invitations of a space',
-      description: `Any active member of the organization. The space's members, its open requests to join and its open invitations.`,
+      description: `For a person who can open the space. Its members; a holder of \`communities:moderate\` on the community also sees its open requests to join and open invitations. People who open every space of the community through their role are not listed. 404 when you cannot open the space.`,
       params: CommunitySpaceParam,
       querystring: PageQuery,
       response: { 200: SpaceMembersPage, ...refusals(403, 404) },

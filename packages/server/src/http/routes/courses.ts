@@ -111,7 +111,6 @@ export async function coursesRoutes(app: FastifyInstance, container: Container):
     },
     handler: async (req) => {
       const actor = await resolveActor(container, req);
-      req.log.info({ body: req.body }, 'update course settings');
       return courses.patchCourseSettings(req.params.id, req.body, actor);
     },
   });

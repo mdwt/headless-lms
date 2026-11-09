@@ -25,7 +25,7 @@ export const communityMemberTools: Tool[] = [
     name: 'list_space_members',
     title: 'List space members',
     description:
-      "Page through a space's members, its open requests to join and its open invitations.",
+      'Page through the members of a space you can open. Community moderators also see its open requests to join and open invitations. People who open every space through their role are not listed.',
     kind: 'read',
     idempotent: true,
     openWorld: false,
