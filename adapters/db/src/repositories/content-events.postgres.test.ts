@@ -5,6 +5,7 @@ import { ConflictError, NotFoundError } from "@headless-lms/core/shared/errors";
 import { genId } from "@headless-lms/core/shared/id";
 import { runMigrations } from "../migrate.js";
 import { DrizzleContentRepository } from "./content.js";
+import { DrizzleAssetsRepository } from "./assets.js";
 
 const url = process.env.TEST_DATABASE_URL;
 
@@ -167,5 +168,29 @@ describe.skipIf(!url)("DrizzleContentRepository events on Postgres", () => {
     ]);
     expect(rows).toHaveLength(1);
     expect(await repo.deleteEvent(org, event.id)).toBe(false);
+  });
+
+  it("stores a space's cover, background and icon, and keeps an image in use from deletion", async () => {
+    const community = await repo.createCommunity(org, { title: "Makers" }, genId("community"));
+    const space = await repo.createSpace(org, community.id, { name: "General" });
+    expect(space).toMatchObject({ coverAssetId: null, backgroundAssetId: null, iconAssetId: null });
+
+    const updated = await repo.updateSpace(org, community.id, space.id, {
+      coverAssetId: slides,
+      iconAssetId: handout,
+    });
+    expect(updated).toMatchObject({
+      coverAssetId: slides,
+      backgroundAssetId: null,
+      iconAssetId: handout,
+    });
+    const assets = new DrizzleAssetsRepository(drizzle(pool));
+    await expect(assets.delete(org, handout)).rejects.toThrow(ConflictError);
+
+    await repo.updateSpace(org, community.id, space.id, { coverAssetId: null, iconAssetId: null });
+    expect(await repo.findSpace(org, space.id)).toMatchObject({
+      coverAssetId: null,
+      iconAssetId: null,
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { PUBLIC_PREFIX } from '../types/index.js';
+import { PUBLIC_PREFIX, type SpaceImage } from '../types/index.js';
 
 export type ThumbnailOwner = 'course' | 'download' | 'community' | 'event';
 
@@ -8,6 +8,7 @@ export type ThumbnailOwner = 'course' | 'download' | 'community' | 'event';
 export interface FileUrls {
   publicImage(orgId: string, ownerId: string, assetId: string): string;
   thumbnail(owner: ThumbnailOwner, ownerId: string): string;
+  spaceImage(spaceId: string, image: SpaceImage): string;
   activityAsset(activityId: string, assetId: string): string;
   downloadFile(downloadId: string, assetId: string): string;
   eventFile(eventId: string, assetId: string): string;
@@ -41,6 +42,7 @@ export function createFileUrls(apiUrl: string, publicUrl: (key: string) => strin
   return {
     publicImage: (orgId, ownerId, assetId) => publicUrl(publicImageKey(orgId, ownerId, assetId)),
     thumbnail: (owner, ownerId) => at('member', THUMBNAIL_PATHS[owner], ownerId, 'thumbnail'),
+    spaceImage: (spaceId, image) => at('member', 'spaces', spaceId, 'images', image),
     activityAsset: (activityId, assetId) =>
       at('member', 'activities', activityId, 'assets', assetId),
     downloadFile: (downloadId, assetId) => at('member', 'downloads', downloadId, 'assets', assetId),

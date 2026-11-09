@@ -3265,7 +3265,7 @@
     {
       "name": "update_space",
       "title": "Update space",
-      "description": "Change a space name, description, access rule, capacity or settings. settings merges into the current settings. Fields left out stay as they are.",
+      "description": "Change a space name, description, access rule, capacity, settings, cover, background or icon. settings merges into the current settings. Each image must be a ready image from list_media; null clears it. Fields left out stay as they are.",
       "group": "Communities",
       "kind": "write",
       "idempotent": true,
@@ -3310,6 +3310,24 @@
         {
           "name": "settings",
           "type": "object",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "coverAssetId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "backgroundAssetId",
+          "type": "string | null",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "iconAssetId",
+          "type": "string | null",
           "required": false,
           "description": null
         }

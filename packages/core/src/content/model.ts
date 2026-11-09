@@ -38,6 +38,8 @@ export type {
   Space,
   SpaceAccessRule,
   SpaceDetail,
+  SpaceImage,
+  SpaceView,
   SpaceLink,
   SpaceSettings,
   SpaceTopic,

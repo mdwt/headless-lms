@@ -9,6 +9,7 @@ import type {
   DownloadFile,
   Module,
   SpaceDetail,
+  SpaceView,
 } from '../../content/index.js';
 import type { SpaceMember } from '../../entitlements/index.js';
 import type { ProgressRecord, ProgressService } from '../../progress/index.js';
@@ -875,6 +876,7 @@ describe('community home', () => {
     actor.permissions.has('communities:read', 'cmy_1') ||
     actor.permissions.has('communities:moderate', 'cmy_1');
   const settings = { comments: true, reactions: true, requireReview: false };
+  let communityStatus: 'draft' | 'published' = 'published';
   const topic = (spaceId: string) => ({
     orgId: 'o1',
     id: `top_${spaceId}`,
@@ -887,8 +889,8 @@ describe('community home', () => {
   const space = (
     id: string,
     accessRule: SpaceDetail['accessRule'],
-    over: Partial<SpaceDetail> = {},
-  ): SpaceDetail => ({
+    over: Partial<SpaceView> = {},
+  ): SpaceView => ({
     orgId: 'o1',
     id,
     communityId: 'cmy_1',
@@ -898,6 +900,12 @@ describe('community home', () => {
     accessRule,
     capacity: null,
     settings,
+    coverAssetId: null,
+    backgroundAssetId: null,
+    iconAssetId: null,
+    coverUrl: null,
+    backgroundUrl: null,
+    iconUrl: null,
     topics: [topic(id)],
     links: [],
     createdAt: AT,
@@ -917,7 +925,10 @@ describe('community home', () => {
     space('spc_all', 'all_members', {
       links: [link('spc_all', 'c1'), link('spc_all', 'c_draft'), link('spc_all', 'd_draft')],
     }),
-    space('spc_request', 'by_request'),
+    space('spc_request', 'by_request', {
+      iconAssetId: 'ast_icon',
+      iconUrl: 'https://cdn.test/public/o1/spc_request/ast_icon',
+    }),
     space('spc_secret', 'by_invite'),
     space('spc_invited', 'by_invite'),
     space('spc_joined', 'by_invite'),
@@ -936,7 +947,7 @@ describe('community home', () => {
                 title: 'Founders',
                 description: '',
                 thumbnailUrl: null,
-                status: 'published',
+                status: communityStatus,
                 settings: { dm: {} },
               } as never)
             : null,
@@ -971,6 +982,28 @@ describe('community home', () => {
       },
     });
 
+  it("serves a space's image to anyone in a published community, and in a draft one only with communities:read", async () => {
+    const svc = build();
+    expect(await svc.spaceImageFile('spc_request', 'icon', student)).toBe(
+      'https://signed/ast_icon',
+    );
+    await expect(svc.spaceImageFile('spc_request', 'cover', student)).rejects.toThrow(
+      NotFoundError,
+    );
+    await expect(svc.spaceImageFile('spc_missing', 'icon', student)).rejects.toThrow(NotFoundError);
+    communityStatus = 'draft';
+    try {
+      await expect(svc.spaceImageFile('spc_request', 'icon', student)).rejects.toThrow(
+        NotFoundError,
+      );
+      expect(await svc.spaceImageFile('spc_request', 'icon', owner)).toBe(
+        'https://signed/ast_icon',
+      );
+    } finally {
+      communityStatus = 'published';
+    }
+  });
+
   it('hides an uninvited by-invite space and locks a space the member cannot open', async () => {
     const svc = build({ spc_invited: 'invited', spc_joined: 'active' });
     const home = await svc.communityHome('cmy_1', student);
@@ -987,6 +1020,9 @@ describe('community home', () => {
       memberCount: 4,
       accessRule: 'by_request',
       standing: 'none',
+      coverUrl: null,
+      backgroundUrl: null,
+      iconUrl: 'https://cdn.test/public/o1/spc_request/ast_icon',
       locked: true,
     });
     expect(byId.get('spc_invited')).toEqual({
@@ -995,6 +1031,9 @@ describe('community home', () => {
       memberCount: 0,
       accessRule: 'by_invite',
       standing: 'invited',
+      coverUrl: null,
+      backgroundUrl: null,
+      iconUrl: null,
       locked: true,
     });
     expect(byId.get('spc_joined')).toMatchObject({

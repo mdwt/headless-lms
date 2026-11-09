@@ -57,6 +57,8 @@ export type {
   Space,
   SpaceAccessRule,
   SpaceDetail,
+  SpaceImage,
+  SpaceView,
   SpaceLink,
   SpaceTopic,
 } from './model.js';

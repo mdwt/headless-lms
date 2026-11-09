@@ -382,31 +382,47 @@ export class AssetsServiceImpl implements AssetsService {
         });
   }
 
-  async syncPublicImage(orgId: string, ownerId: string, assetId: string | null): Promise<void> {
+  async syncPublicImages(
+    orgId: string,
+    ownerId: string,
+    assetIds: readonly string[],
+  ): Promise<void> {
     try {
-      const wanted = assetId === null ? null : publicImageKey(orgId, ownerId, assetId);
+      const wanted = new Map(assetIds.map((id) => [publicImageKey(orgId, ownerId, id), id]));
       const held = await this.storage.list(publicImagePrefix(orgId, ownerId));
       for (const object of held) {
-        if (object.key !== wanted) {
+        if (!wanted.has(object.key)) {
           await this.storage.remove(object.key);
         }
       }
-      if (wanted === null || held.some((object) => object.key === wanted)) {
+      const heldKeys = new Set(held.map((object) => object.key));
+      const missing = [...wanted].filter(([key]) => !heldKeys.has(key));
+      if (missing.length === 0) {
         return;
       }
-      const [asset] = await this.readyAmong(orgId, [assetId!]);
-      if (!asset || asset.kind !== 'image') {
-        this.logger.warn('public image not published — no ready image', {
-          orgId,
-          ownerId,
-          assetId,
-        });
-        return;
+      const ready = new Map(
+        (
+          await this.readyAmong(
+            orgId,
+            missing.map(([, id]) => id),
+          )
+        ).map((asset) => [asset.id, asset]),
+      );
+      for (const [key, assetId] of missing) {
+        const asset = ready.get(assetId);
+        if (!asset || asset.kind !== 'image') {
+          this.logger.warn('public image not published — no ready image', {
+            orgId,
+            ownerId,
+            assetId,
+          });
+          continue;
+        }
+        await this.storage.publish({ from: asset.key, to: key });
+        this.logger.info('public image published', { orgId, ownerId, assetId });
       }
-      await this.storage.publish({ from: asset.key, to: wanted });
-      this.logger.info('public image published', { orgId, ownerId, assetId });
     } catch (err) {
-      this.logger.error('public image not synced', { orgId, ownerId, assetId, err });
+      this.logger.error('public images not synced', { orgId, ownerId, assetIds, err });
     }
   }
 

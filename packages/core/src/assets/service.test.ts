@@ -1043,7 +1043,7 @@ describe('public images', () => {
   it('publishes the wanted image under its owner and removes any other copy there', async () => {
     const { svc, storage } = withImage();
     vi.mocked(storage.list).mockResolvedValue([{ key: 'public/org-1/crs_1/ast_old', size: 5 }]);
-    await svc.syncPublicImage('org-1', 'crs_1', 'ast_cover');
+    await svc.syncPublicImages('org-1', 'crs_1', ['ast_cover']);
     expect(storage.list).toHaveBeenCalledWith('public/org-1/crs_1/');
     expect(storage.remove).toHaveBeenCalledWith('public/org-1/crs_1/ast_old');
     expect(storage.publish).toHaveBeenCalledWith({
@@ -1055,15 +1055,29 @@ describe('public images', () => {
   it('changes nothing when the wanted copy is already there', async () => {
     const { svc, storage } = withImage();
     vi.mocked(storage.list).mockResolvedValue([{ key: 'public/org-1/crs_1/ast_cover', size: 10 }]);
-    await svc.syncPublicImage('org-1', 'crs_1', 'ast_cover');
+    await svc.syncPublicImages('org-1', 'crs_1', ['ast_cover']);
     expect(storage.remove).not.toHaveBeenCalled();
     expect(storage.publish).not.toHaveBeenCalled();
+  });
+
+  it('keeps several images under one owner and publishes the ones missing', async () => {
+    const { svc, storage, assets } = withImage();
+    assets.push({ ...image, id: 'ast_icon', key: 'org/org-1/image/ast_icon/icon.png' });
+    vi.mocked(storage.list).mockResolvedValue([
+      { key: 'public/org-1/spc_1/ast_cover', size: 10 },
+      { key: 'public/org-1/spc_1/ast_old', size: 10 },
+    ]);
+    await svc.syncPublicImages('org-1', 'spc_1', ['ast_cover', 'ast_icon']);
+    expect(vi.mocked(storage.remove).mock.calls).toEqual([['public/org-1/spc_1/ast_old']]);
+    expect(vi.mocked(storage.publish).mock.calls).toEqual([
+      [{ from: 'org/org-1/image/ast_icon/icon.png', to: 'public/org-1/spc_1/ast_icon' }],
+    ]);
   });
 
   it('removes every copy when nothing should be public', async () => {
     const { svc, storage } = withImage();
     vi.mocked(storage.list).mockResolvedValue([{ key: 'public/org-1/crs_1/ast_cover', size: 10 }]);
-    await svc.syncPublicImage('org-1', 'crs_1', null);
+    await svc.syncPublicImages('org-1', 'crs_1', []);
     expect(storage.remove).toHaveBeenCalledWith('public/org-1/crs_1/ast_cover');
     expect(storage.publish).not.toHaveBeenCalled();
   });
@@ -1071,11 +1085,11 @@ describe('public images', () => {
   it('publishes only a ready image of the org, and never throws on a storage failure', async () => {
     const { svc, storage, assets } = withImage();
     assets.push({ ...image, id: 'ast_pdf', kind: 'document', contentType: 'application/pdf' });
-    await svc.syncPublicImage('org-1', 'crs_1', 'ast_pdf');
-    await svc.syncPublicImage('org-1', 'crs_1', 'ast_missing');
+    await svc.syncPublicImages('org-1', 'crs_1', ['ast_pdf']);
+    await svc.syncPublicImages('org-1', 'crs_1', ['ast_missing']);
     expect(storage.publish).not.toHaveBeenCalled();
     vi.mocked(storage.list).mockRejectedValue(new Error('storage down'));
-    await expect(svc.syncPublicImage('org-1', 'crs_1', 'ast_cover')).resolves.toBeUndefined();
+    await expect(svc.syncPublicImages('org-1', 'crs_1', ['ast_cover'])).resolves.toBeUndefined();
   });
 
   it('removes the public copies of an asset when the asset is removed', async () => {

@@ -4458,6 +4458,9 @@ export type ListCommunitySpacesResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -4478,6 +4481,9 @@ export type ListCommunitySpacesResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   }>;
 };
 
@@ -4581,6 +4587,9 @@ export type CreateSpaceResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -4601,6 +4610,9 @@ export type CreateSpaceResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -4698,6 +4710,9 @@ export type ReorderSpacesResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -4718,6 +4733,9 @@ export type ReorderSpacesResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   }>;
 };
 
@@ -4872,6 +4890,9 @@ export type GetSpaceResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -4892,6 +4913,9 @@ export type GetSpaceResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -4908,6 +4932,9 @@ export type UpdateSpaceData = {
       reactions?: boolean;
       requireReview?: boolean;
     };
+    coverAssetId?: string | null;
+    backgroundAssetId?: string | null;
+    iconAssetId?: string | null;
   };
   path: {
     communityId: string;
@@ -4995,6 +5022,9 @@ export type UpdateSpaceResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -5015,6 +5045,9 @@ export type UpdateSpaceResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -5119,6 +5152,9 @@ export type SetSpaceTopicsResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -5139,6 +5175,9 @@ export type SetSpaceTopicsResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -5237,6 +5276,9 @@ export type AddSpaceLinkResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -5257,6 +5299,9 @@ export type AddSpaceLinkResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -5343,6 +5388,9 @@ export type RemoveSpaceLinkResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -5363,6 +5411,9 @@ export type RemoveSpaceLinkResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -5461,6 +5512,9 @@ export type ReorderSpaceLinksResponses = {
       reactions: boolean;
       requireReview: boolean;
     };
+    coverAssetId: string | null;
+    backgroundAssetId: string | null;
+    iconAssetId: string | null;
     createdAt: string;
     updatedAt: string;
     topics: Array<{
@@ -5481,6 +5535,9 @@ export type ReorderSpaceLinksResponses = {
       createdAt: string;
       updatedAt: string;
     }>;
+    coverUrl: string | null;
+    backgroundUrl: string | null;
+    iconUrl: string | null;
   };
 };
 
@@ -10953,6 +11010,9 @@ export type GetMemberCommunityHomeResponses = {
            * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or the viewer opens every space). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
            */
           standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+          coverUrl: string | null;
+          backgroundUrl: string | null;
+          iconUrl: string | null;
           /**
            * The viewer cannot open this space. Only enough to request a place, accept an invite or contact the team is served; never its description, topics, links or settings
            */
@@ -10970,6 +11030,9 @@ export type GetMemberCommunityHomeResponses = {
            * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or the viewer opens every space). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
            */
           standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+          coverUrl: string | null;
+          backgroundUrl: string | null;
+          iconUrl: string | null;
           /**
            * The viewer can open this space and read its feed
            */
@@ -11157,6 +11220,9 @@ export type GetMemberSpaceResponses = {
          * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or the viewer opens every space). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
          */
         standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+        coverUrl: string | null;
+        backgroundUrl: string | null;
+        iconUrl: string | null;
         /**
          * The viewer cannot open this space. Only enough to request a place, accept an invite or contact the team is served; never its description, topics, links or settings
          */
@@ -11174,6 +11240,9 @@ export type GetMemberSpaceResponses = {
          * Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or the viewer opens every space). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.
          */
         standing: "open" | "member" | "requested" | "invited" | "full" | "none";
+        coverUrl: string | null;
+        backgroundUrl: string | null;
+        iconUrl: string | null;
         /**
          * The viewer can open this space and read its feed
          */
@@ -22497,6 +22566,68 @@ export type GetCommunityThumbnailErrors = {
 
 export type GetCommunityThumbnailError =
   GetCommunityThumbnailErrors[keyof GetCommunityThumbnailErrors];
+
+export type GetSpaceImageData = {
+  body?: never;
+  path: {
+    spaceId: string;
+    image: "cover" | "background" | "icon";
+  };
+  query?: never;
+  url: "/api/member/spaces/{spaceId}/images/{image}";
+};
+
+export type GetSpaceImageErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetSpaceImageError = GetSpaceImageErrors[keyof GetSpaceImageErrors];
 
 export type GetActivityFileData = {
   body?: never;

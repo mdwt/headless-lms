@@ -1,6 +1,7 @@
 // File proxy schemas. Every file is fetched from a stable URL that checks access
 // on each request and answers 302 with a signed storage URL.
 import { z } from 'zod';
+import { spaceImageSchema } from '@headless-lms/core/schemas';
 
 export const CourseThumbnailParams = z.object({ courseId: z.string() });
 export type CourseThumbnailParams = z.infer<typeof CourseThumbnailParams>;
@@ -10,6 +11,9 @@ export type DownloadThumbnailParams = z.infer<typeof DownloadThumbnailParams>;
 
 export const CommunityThumbnailParams = z.object({ communityId: z.string() });
 export type CommunityThumbnailParams = z.infer<typeof CommunityThumbnailParams>;
+
+export const SpaceImageParams = z.object({ spaceId: z.string(), image: spaceImageSchema });
+export type SpaceImageParams = z.infer<typeof SpaceImageParams>;
 
 export const ActivityFileParams = z.object({ activityId: z.string(), assetId: z.string() });
 export type ActivityFileParams = z.infer<typeof ActivityFileParams>;

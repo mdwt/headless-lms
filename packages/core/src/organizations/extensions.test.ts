@@ -118,7 +118,7 @@ function service(storedRoles: StoredOrgRole[] = []) {
     roles,
     membersRepo: { teamRows: async () => [] },
     people: {} as IdentityService,
-    images: { syncPublicImage: async () => {} },
+    images: { syncPublicImages: async () => {} },
     uow,
     orgAdmin: () => {
       throw new Error('not used');

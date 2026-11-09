@@ -4,6 +4,8 @@ import {
   type EventSight,
   type EventView,
   type SpaceDetail,
+  type SpaceImage,
+  type SpaceView,
 } from '../../content/index.js';
 import { NotFoundError } from '../../shared/errors.js';
 import { seesSpace, type EntitlementsService, type SpaceMember } from '../../entitlements/index.js';
@@ -131,6 +133,12 @@ const THUMBNAIL_OF = {
   community: 'Community thumbnail',
   event: 'Event thumbnail',
 } as const satisfies Record<Owner, string>;
+
+const SPACE_IMAGE_ASSET = {
+  cover: (space) => space.coverAssetId,
+  background: (space) => space.backgroundAssetId,
+  icon: (space) => space.iconAssetId,
+} as const satisfies Record<SpaceImage, (space: SpaceView) => string | null>;
 
 const EVENT_FACES = 10;
 
@@ -503,6 +511,23 @@ export class MemberReportServiceImpl implements MemberReportService {
     );
   }
 
+  async spaceImageFile(spaceId: string, image: SpaceImage, actor: Actor): Promise<string> {
+    const system = this.system(actor);
+    const space = await this.content.getSpace(spaceId, system);
+    const assetId = space ? SPACE_IMAGE_ASSET[image](space) : null;
+    const community = space ? await this.content.findCommunity(space.communityId, system) : null;
+    if (
+      !space ||
+      !assetId ||
+      !community ||
+      (community.status !== 'published' &&
+        !actor.permissions.has('communities:read', space.communityId))
+    ) {
+      throw new NotFoundError('Space image', spaceId);
+    }
+    return signed(await this.files.signFile(actor.orgId, assetId), 'Space image', spaceId);
+  }
+
   async activityFile(activityId: string, assetId: string, actor: Actor): Promise<string> {
     const system = this.system(actor);
     const activity = await this.content.getActivity(activityId, system);
@@ -828,7 +853,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private async homeSpaces(
     actor: Actor,
     communityId: string,
-    spaces: SpaceDetail[],
+    spaces: SpaceView[],
     everySpace: boolean,
   ): Promise<CommunityHomeSpace[]> {
     const orgId = actor.orgId;
@@ -858,6 +883,9 @@ export class MemberReportServiceImpl implements MemberReportService {
           memberCount,
           accessRule: space.accessRule,
           standing: standingOf(space, open.has(space.id), memberCount, standings[space.id]),
+          coverUrl: space.coverUrl,
+          backgroundUrl: space.backgroundUrl,
+          iconUrl: space.iconUrl,
         };
         if (!open.has(space.id)) {
           return { ...base, locked: true };

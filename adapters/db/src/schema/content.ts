@@ -498,6 +498,9 @@ export const spaces = pgTable(
       .$type<Space["settings"]>()
       .notNull()
       .default({ comments: true, reactions: true, requireReview: false }),
+    coverAssetId: text("cover_asset_id"),
+    backgroundAssetId: text("background_asset_id"),
+    iconAssetId: text("icon_asset_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -516,6 +519,21 @@ export const spaces = pgTable(
       sql`${t.capacity} is null or ${t.accessRule} <> 'all_members'`,
     ),
     orderIdx: index("spaces_order_idx").on(t.orgId, t.communityId, t.seq),
+    coverAssetFk: foreignKey({
+      columns: [t.orgId, t.coverAssetId],
+      foreignColumns: [assets.orgId, assets.id],
+    }),
+    backgroundAssetFk: foreignKey({
+      columns: [t.orgId, t.backgroundAssetId],
+      foreignColumns: [assets.orgId, assets.id],
+    }),
+    iconAssetFk: foreignKey({
+      columns: [t.orgId, t.iconAssetId],
+      foreignColumns: [assets.orgId, assets.id],
+    }),
+    coverIdx: index("spaces_cover_idx").on(t.orgId, t.coverAssetId),
+    backgroundIdx: index("spaces_background_idx").on(t.orgId, t.backgroundAssetId),
+    iconIdx: index("spaces_icon_idx").on(t.orgId, t.iconAssetId),
   }),
 );
 

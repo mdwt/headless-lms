@@ -26,6 +26,7 @@ import type {
   SaveActivityInput,
   Space,
   SpaceDetail,
+  SpaceView,
 } from './model.js';
 import type {
   AddDownloadAssetInput,
@@ -88,8 +89,8 @@ export interface ContentAssetReader {
 }
 
 export interface CommunityReader {
-  getSpace(spaceId: string, actor: Actor): Promise<SpaceDetail | null>;
-  listSpaces(communityId: string, actor: Actor): Promise<SpaceDetail[]>;
+  getSpace(spaceId: string, actor: Actor): Promise<SpaceView | null>;
+  listSpaces(communityId: string, actor: Actor): Promise<SpaceView[]>;
   getDmSettings(communityId: string, actor: Actor): Promise<DmSettings | null>;
 }
 
@@ -109,7 +110,7 @@ export interface CommunitiesService extends CommunityReader {
   findCommunity(id: string, actor: Actor): Promise<CommunityView | null>;
   communitiesWithDigest(): Promise<CommunityDigest[]>;
   listCommunitiesById(ids: string[], actor: Actor): Promise<Community[]>;
-  getCommunitySpace(communityId: string, spaceId: string, actor: Actor): Promise<SpaceDetail>;
+  getCommunitySpace(communityId: string, spaceId: string, actor: Actor): Promise<SpaceView>;
   createCommunity(input: CreateCommunityInput, actor: Actor): Promise<CommunityView>;
   updateCommunity(id: string, patch: UpdateCommunityInput, actor: Actor): Promise<CommunityView>;
   publishCommunity(id: string, actor: Actor): Promise<CommunityView>;
@@ -121,39 +122,39 @@ export interface CommunitiesService extends CommunityReader {
     actor: Actor,
   ): Promise<CommunityView>;
 
-  createSpace(communityId: string, input: CreateSpaceInput, actor: Actor): Promise<SpaceDetail>;
+  createSpace(communityId: string, input: CreateSpaceInput, actor: Actor): Promise<SpaceView>;
   updateSpace(
     communityId: string,
     spaceId: string,
     patch: UpdateSpaceInput,
     actor: Actor,
-  ): Promise<SpaceDetail>;
+  ): Promise<SpaceView>;
   deleteSpace(communityId: string, spaceId: string, actor: Actor): Promise<void>;
-  reorderSpaces(communityId: string, orderedIds: string[], actor: Actor): Promise<SpaceDetail[]>;
+  reorderSpaces(communityId: string, orderedIds: string[], actor: Actor): Promise<SpaceView[]>;
   setSpaceTopics(
     communityId: string,
     spaceId: string,
     input: SetSpaceTopicsInput,
     actor: Actor,
-  ): Promise<SpaceDetail>;
+  ): Promise<SpaceView>;
   addSpaceLink(
     communityId: string,
     spaceId: string,
     contentId: string,
     actor: Actor,
-  ): Promise<SpaceDetail>;
+  ): Promise<SpaceView>;
   removeSpaceLink(
     communityId: string,
     spaceId: string,
     linkId: string,
     actor: Actor,
-  ): Promise<SpaceDetail>;
+  ): Promise<SpaceView>;
   reorderSpaceLinks(
     communityId: string,
     spaceId: string,
     orderedIds: string[],
     actor: Actor,
-  ): Promise<SpaceDetail>;
+  ): Promise<SpaceView>;
 }
 
 export interface CourseManagementService {

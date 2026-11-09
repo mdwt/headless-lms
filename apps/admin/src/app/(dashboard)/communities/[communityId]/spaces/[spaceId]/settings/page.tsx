@@ -4,6 +4,7 @@ import { SettingsSurface } from "@/components/forms/settings-section";
 
 import { SpaceBasicsForm } from "./_components/space-basics-form";
 import { SpaceAccessForm } from "./_components/space-access-form";
+import { SpaceImages } from "./_components/space-images";
 import { PostRules } from "./_components/post-rules";
 import { TopicsEditor } from "./_components/topics-editor";
 import { LinksEditor } from "./_components/links-editor";
@@ -24,6 +25,7 @@ export default async function SpaceSettingsTab({
   return (
     <SettingsSurface>
       <SpaceBasicsForm communityId={communityId} space={space} />
+      <SpaceImages communityId={communityId} space={space} />
       <SpaceAccessForm communityId={communityId} space={space} />
       <PostRules communityId={communityId} spaceId={space.id} settings={space.settings} />
       <TopicsEditor communityId={communityId} spaceId={space.id} topics={space.topics} />

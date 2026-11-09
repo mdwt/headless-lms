@@ -1,5 +1,5 @@
 import type { Actor } from '../../shared/actor.js';
-import type { Page } from '../../types/index.js';
+import type { Page, SpaceImage } from '../../types/index.js';
 import type {
   ActivityView,
   CommunityHome,
@@ -49,6 +49,7 @@ export interface MemberReportService {
     id: string,
     actor: Actor,
   ): Promise<string>;
+  spaceImageFile(spaceId: string, image: SpaceImage, actor: Actor): Promise<string>;
   getEvent(eventId: string, actor: Actor): Promise<MemberEvent>;
   listEvents(query: MemberEventsQuery, actor: Actor): Promise<Page<MemberEventSummary>>;
   eventCalendar(eventId: string, actor: Actor): Promise<string>;

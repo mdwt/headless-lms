@@ -107,7 +107,7 @@ export type OrganizationServiceParams = {
   roles: RolesRepository;
   membersRepo: MembersRepository;
   people: IdentityService;
-  images: Pick<AssetFiles, 'syncPublicImage'>;
+  images: Pick<AssetFiles, 'syncPublicImages'>;
   uow: OrganizationsUnitOfWork;
   orgAdmin: () => OrgAdmin;
   sessions: () => SessionAdmin;
@@ -174,7 +174,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly roles: RolesRepository;
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
-  private readonly images: Pick<AssetFiles, 'syncPublicImage'>;
+  private readonly images: Pick<AssetFiles, 'syncPublicImages'>;
   private readonly uow: OrganizationsUnitOfWork;
   private readonly orgAdmin: () => OrgAdmin;
   private readonly sessions: () => SessionAdmin;
@@ -1614,7 +1614,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         () => this.apiKeys().revokeAllFor(orgExternalId, userExternalId),
       ]);
     }
-    steps.push(['profile photo', () => this.images.syncPublicImage(orgId, orgUserId, null)]);
+    steps.push(['profile photo', () => this.images.syncPublicImages(orgId, orgUserId, [])]);
     if (person) {
       steps.push([
         'pending invite',

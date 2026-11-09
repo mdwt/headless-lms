@@ -81,6 +81,9 @@ interface CommunityHomeSpaceBase {
   memberCount: number;
   accessRule: 'all_members' | 'by_request' | 'by_invite';
   standing: 'open' | 'member' | 'requested' | 'invited' | 'full' | 'none';
+  coverUrl: string | null;
+  backgroundUrl: string | null;
+  iconUrl: string | null;
 }
 
 /** A space the viewer can see but not open: enough to request, accept or ask. */

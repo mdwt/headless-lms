@@ -17,7 +17,7 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly logger: Logger;
   private readonly uow: IdentityUnitOfWork;
   private readonly mailer: Pick<Mailer, 'send'>;
-  private readonly images: MemberImageReader & Pick<AssetFiles, 'syncPublicImage'>;
+  private readonly images: MemberImageReader & Pick<AssetFiles, 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
 
   constructor(input: {
@@ -25,7 +25,7 @@ export class IdentityServiceImpl implements IdentityService {
     logger?: Logger;
     mailer: Mailer;
     uow: IdentityUnitOfWork;
-    images: MemberImageReader & Pick<AssetFiles, 'syncPublicImage'>;
+    images: MemberImageReader & Pick<AssetFiles, 'syncPublicImages'>;
     fileUrls: FileUrls;
   }) {
     this.repo = input.repo;
@@ -178,10 +178,10 @@ export class IdentityServiceImpl implements IdentityService {
     const profile = await this.repo.upsertProfile(userId, { ...patch, imageAssetOrgId });
     this.logger.info('profile updated', { userId });
     if (patch.imageAssetId !== undefined) {
-      await this.images.syncPublicImage(
+      await this.images.syncPublicImages(
         orgId,
         orgUserId,
-        profile.imageAssetOrgId === orgId ? profile.imageAssetId : null,
+        profile.imageAssetOrgId === orgId && profile.imageAssetId ? [profile.imageAssetId] : [],
       );
     }
     return this.view(orgId, orgUserId, profile);

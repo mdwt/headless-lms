@@ -16,6 +16,7 @@ import {
   MessageAttachmentParams,
   PostCoverParams,
   PostAssetParams,
+  SpaceImageParams,
   UploadFileParams,
   refusals,
 } from '../../schemas/index.js';
@@ -132,6 +133,26 @@ export async function memberFileRoutes(app: FastifyInstance, container: Containe
     handler: async (req, reply) => {
       const actor = await resolveActor(container, req);
       const url = await member.thumbnailFile('community', req.params.communityId, actor);
+      return redirect(reply, url);
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/member/spaces/:spaceId/images/:image',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'getSpaceImage',
+      tags,
+      summary: "Redirect to a space's cover, background or icon",
+      description:
+        'For a space in an unpublished community, which only a holder of `communities:read` on the community may fetch: a space in a published community carries public `coverUrl`, `backgroundUrl` and `iconUrl` instead. 404 when the space has no such image.',
+      params: SpaceImageParams,
+      response: responses,
+    },
+    handler: async (req, reply) => {
+      const actor = await resolveActor(container, req);
+      const url = await member.spaceImageFile(req.params.spaceId, req.params.image, actor);
       return redirect(reply, url);
     },
   });

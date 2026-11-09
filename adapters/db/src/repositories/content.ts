@@ -1710,6 +1710,15 @@ export class DrizzleContentRepository implements ContentRepository {
     if (patch.settings !== undefined) {
       set.settings = { ...spaceSettingsDefaults, ...patch.settings };
     }
+    if (patch.coverAssetId !== undefined) {
+      set.coverAssetId = patch.coverAssetId;
+    }
+    if (patch.backgroundAssetId !== undefined) {
+      set.backgroundAssetId = patch.backgroundAssetId;
+    }
+    if (patch.iconAssetId !== undefined) {
+      set.iconAssetId = patch.iconAssetId;
+    }
     const [updated] = await this.db
       .update(spaces)
       .set(set)

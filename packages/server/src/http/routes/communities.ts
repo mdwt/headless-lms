@@ -341,7 +341,7 @@ export async function communitiesRoutes(app: FastifyInstance, container: Contain
       operationId: 'updateSpace',
       tags,
       summary: 'Update a space',
-      description: `Requires \`communities:write\`. Changes only the fields sent; \`settings\` merges into the current settings. An \`all_members\` space cannot have a capacity (409).`,
+      description: `Requires \`communities:write\`. Changes only the fields sent; \`settings\` merges into the current settings. An \`all_members\` space cannot have a capacity (409). \`coverAssetId\`, \`backgroundAssetId\` and \`iconAssetId\` take ready images from the media library, or null to clear one; without \`media:read\`, only images uploaded for the community (409 or 403 otherwise). In a published community the images are public.`,
       params: CommunitySpaceParam,
       body: UpdateSpace,
       response: { 200: SpaceDetail, ...refusals(403, 404, 409) },

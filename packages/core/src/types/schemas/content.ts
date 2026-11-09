@@ -416,11 +416,18 @@ export const spaceSchema = z
     accessRule: spaceAccessRuleSchema,
     capacity: z.number().int().nullable(),
     settings: spaceSettingsSchema,
+    coverAssetId: idSchema.nullable(),
+    backgroundAssetId: idSchema.nullable(),
+    iconAssetId: idSchema.nullable(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })
   .strict();
 export type Space = z.output<typeof spaceSchema>;
+
+export const SPACE_IMAGES = ['cover', 'background', 'icon'] as const;
+export const spaceImageSchema = z.enum(SPACE_IMAGES);
+export type SpaceImage = z.infer<typeof spaceImageSchema>;
 
 export const spaceTopicSchema = z
   .object({
@@ -453,6 +460,15 @@ export const spaceDetailSchema = spaceSchema.extend({
   links: z.array(spaceLinkSchema),
 });
 export type SpaceDetail = z.output<typeof spaceDetailSchema>;
+
+export const spaceViewSchema = spaceDetailSchema
+  .extend({
+    coverUrl: z.string().nullable(),
+    backgroundUrl: z.string().nullable(),
+    iconUrl: z.string().nullable(),
+  })
+  .strict();
+export type SpaceView = z.output<typeof spaceViewSchema>;
 
 export const listCommunitiesQuerySchema = z
   .object({
@@ -521,6 +537,9 @@ export const updateSpaceInputSchema = z
     accessRule: spaceAccessRuleSchema.optional(),
     capacity: z.number().int().min(0).nullable().optional(),
     settings: spaceSettingsSchema.partial().optional(),
+    coverAssetId: idSchema.nullable().optional(),
+    backgroundAssetId: idSchema.nullable().optional(),
+    iconAssetId: idSchema.nullable().optional(),
   })
   .strict();
 export type UpdateSpaceInput = z.infer<typeof updateSpaceInputSchema>;

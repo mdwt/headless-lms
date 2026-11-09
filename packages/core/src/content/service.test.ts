@@ -90,7 +90,7 @@ function makeRepo(): ContentRepository {
     communitiesWithDigest: vi.fn(),
     deleteCommunity: vi.fn(),
     deleteCommunitySettings: vi.fn(),
-    listSpaces: vi.fn(),
+    listSpaces: vi.fn().mockResolvedValue([]),
     findSpace: vi.fn(),
     lockSpace: vi.fn(),
     createSpace: vi.fn(),
@@ -150,8 +150,8 @@ const libraryAssets: ContentAssetReader = library();
 
 const UNSIGNED = 'ast_unsigned';
 
-const files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImage'> = {
-  syncPublicImage: vi.fn(async () => {}),
+const files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'> = {
+  syncPublicImages: vi.fn(async () => {}),
   readyFiles: async (_orgId, ids) =>
     Object.fromEntries(
       ids
@@ -1289,6 +1289,9 @@ function makeSpace(over: Partial<SpaceDetail> = {}): SpaceDetail {
     accessRule: 'all_members',
     capacity: null,
     settings: { comments: true, reactions: true, requireReview: false },
+    coverAssetId: null,
+    backgroundAssetId: null,
+    iconAssetId: null,
     createdAt: SPACE_AT,
     updatedAt: SPACE_AT,
     topics: [
@@ -1322,9 +1325,12 @@ describe('spaces', () => {
     vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
     const { svc } = build(repo);
 
-    await expect(svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).resolves.toEqual(
-      makeSpace(),
-    );
+    await expect(svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).resolves.toEqual({
+      ...makeSpace(),
+      coverUrl: null,
+      backgroundUrl: null,
+      iconUrl: null,
+    });
     await expect(svc.getCommunitySpace('cmy_other', 'spc_1', ownerIn('org1'))).rejects.toThrow(
       NotFoundError,
     );
@@ -1475,6 +1481,99 @@ describe('spaces', () => {
   });
 });
 
+describe('space images', () => {
+  const images = { coverAssetId: 'ast_cover', backgroundAssetId: null, iconAssetId: 'ast_icon' };
+
+  it('serves the images of a space in a published community publicly and in a draft one through the API', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findSpace).mockResolvedValue(makeSpace(images));
+    vi.mocked(repo.findCommunityById).mockResolvedValue(makeCommunity({ status: 'published' }));
+    const { svc } = build(repo);
+
+    expect(await svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).toMatchObject({
+      coverUrl: 'https://cdn.test/public/org1/spc_1/ast_cover',
+      backgroundUrl: null,
+      iconUrl: 'https://cdn.test/public/org1/spc_1/ast_icon',
+    });
+    vi.mocked(repo.findCommunityById).mockResolvedValue(makeCommunity());
+    expect(await svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).toMatchObject({
+      coverUrl: fileUrls.spaceImage('spc_1', 'cover'),
+      backgroundUrl: null,
+      iconUrl: fileUrls.spaceImage('spc_1', 'icon'),
+    });
+  });
+
+  it('publishes the images with the community and withdraws them on unpublish and delete', async () => {
+    const repo = makeRepo();
+    const sync = vi.mocked(files.syncPublicImages);
+    sync.mockClear();
+    const space = makeSpace(images);
+    vi.mocked(repo.findSpace).mockResolvedValue(space);
+    vi.mocked(repo.updateSpace).mockResolvedValue(space);
+    vi.mocked(repo.listSpaces).mockResolvedValue([space]);
+    vi.mocked(repo.deleteSpace).mockResolvedValue(true);
+    vi.mocked(repo.deleteCommunity).mockResolvedValue(true);
+    vi.mocked(repo.spacesLinkingContent).mockResolvedValue([]);
+    vi.mocked(repo.updateCommunity)
+      .mockResolvedValueOnce(makeCommunity({ status: 'published' }))
+      .mockResolvedValueOnce(makeCommunity({ status: 'draft' }))
+      .mockResolvedValueOnce(makeCommunity({ status: 'draft', title: 'x' }));
+    vi.mocked(repo.findCommunityById)
+      .mockResolvedValueOnce(makeCommunity({ status: 'published' }))
+      .mockResolvedValueOnce(makeCommunity({ status: 'draft' }))
+      .mockResolvedValue(makeCommunity());
+    const { svc } = build(repo);
+
+    await svc.updateSpace('cmy_1', 'spc_1', images, ownerIn('org1'));
+    await svc.updateSpace('cmy_1', 'spc_1', images, ownerIn('org1'));
+    await svc.updateCommunity('cmy_1', { status: 'published' }, ownerIn('org1'));
+    await svc.updateCommunity('cmy_1', { status: 'draft' }, ownerIn('org1'));
+    await svc.updateCommunity('cmy_1', { title: 'x' }, ownerIn('org1'));
+    await svc.deleteSpace('cmy_1', 'spc_1', ownerIn('org1'));
+    await svc.deleteCommunity('cmy_1', ownerIn('org1'));
+
+    expect(sync.mock.calls).toEqual([
+      ['org1', 'spc_1', ['ast_cover', 'ast_icon']],
+      ['org1', 'spc_1', []],
+      ['org1', 'cmy_1', []],
+      ['org1', 'spc_1', ['ast_cover', 'ast_icon']],
+      ['org1', 'cmy_1', []],
+      ['org1', 'spc_1', []],
+      ['org1', 'cmy_1', []],
+      ['org1', 'spc_1', []],
+      ['org1', 'cmy_1', []],
+      ['org1', 'spc_1', []],
+    ]);
+  });
+
+  it('takes images uploaded for the community, and others only with media:read', async () => {
+    const repo = makeRepo();
+    vi.mocked(repo.findSpace).mockResolvedValue(makeSpace());
+    vi.mocked(repo.updateSpace).mockResolvedValue(makeSpace());
+    vi.mocked(repo.findCommunityById).mockResolvedValue(makeCommunity());
+    const assets = {
+      libraryAssetsFor: vi.fn(async (_orgId: string, ids: string[]) =>
+        ids.map((id) => ({ id, contentId: id === 'ast_own' ? 'cmy_1' : null })),
+      ),
+    };
+    const { svc } = build(repo, assets);
+    const host = actorWith({ orgId: 'org1', content: { cmy_1: ['communities:write'] } });
+    const librarian = actorWith({
+      orgId: 'org1',
+      org: ['media:read'],
+      content: { cmy_1: ['communities:write'] },
+    });
+
+    await svc.updateSpace('cmy_1', 'spc_1', { coverAssetId: 'ast_own' }, host);
+    await expect(
+      svc.updateSpace('cmy_1', 'spc_1', { backgroundAssetId: 'ast_library' }, host),
+    ).rejects.toThrow(ForbiddenError);
+    await svc.updateSpace('cmy_1', 'spc_1', { backgroundAssetId: 'ast_library' }, librarian);
+
+    expect(repo.updateSpace).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('file URLs', () => {
   it('carries the thumbnail URL on course, download and community reads and writes', async () => {
     const repo = makeRepo();
@@ -1538,7 +1637,7 @@ describe('file URLs', () => {
 
   it('publishes the thumbnail when an item is published and withdraws it when unpublished or deleted', async () => {
     const repo = makeRepo();
-    const sync = vi.mocked(files.syncPublicImage);
+    const sync = vi.mocked(files.syncPublicImages);
     sync.mockClear();
     vi.mocked(repo.updateCourse).mockResolvedValueOnce(
       makeCourse({ status: 'published', thumbnailAssetId: 'ast_t' }),
@@ -1553,15 +1652,15 @@ describe('file URLs', () => {
     await svc.updateCourse('c1', { status: 'draft' }, ownerIn('org1'));
     await svc.deleteCourse('c1', ownerIn('org1'));
     expect(sync.mock.calls).toEqual([
-      ['org1', 'c1', 'ast_t'],
-      ['org1', 'c1', null],
-      ['org1', 'c1', null],
+      ['org1', 'c1', ['ast_t']],
+      ['org1', 'c1', []],
+      ['org1', 'c1', []],
     ]);
   });
 
   it("keeps a canceled event's thumbnail public", async () => {
     const repo = makeRepo();
-    const sync = vi.mocked(files.syncPublicImage);
+    const sync = vi.mocked(files.syncPublicImages);
     sync.mockClear();
     vi.mocked(repo.findEventById).mockResolvedValue(
       makeEvent({ status: 'published', thumbnailAssetId: 'ast_e' }),
@@ -1571,7 +1670,7 @@ describe('file URLs', () => {
     );
     const { svc } = build(repo);
     await svc.cancelEvent('evn_1', ownerIn('o1'));
-    expect(sync).toHaveBeenCalledWith('o1', 'evn_1', 'ast_e');
+    expect(sync).toHaveBeenCalledWith('o1', 'evn_1', ['ast_e']);
   });
 
   it('leaves the thumbnail URL empty when there is no thumbnail', async () => {

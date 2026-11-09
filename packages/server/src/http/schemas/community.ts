@@ -10,7 +10,7 @@ import {
   permissionSchema,
   patchCommunitySettingsInputSchema,
   setSpaceTopicsInputSchema,
-  spaceDetailSchema,
+  spaceViewSchema,
   spaceMemberSchema,
   subscriptionViewSchema,
   updateCommunityInputSchema,
@@ -37,7 +37,7 @@ export const UpdateCommunity = updateCommunityInputSchema;
 export const PatchDmSettings = patchDmSettingsInputSchema;
 export const PatchCommunitySettings = patchCommunitySettingsInputSchema;
 export const DmSettings = dmSettingsSchema;
-export const SpaceDetail = spaceDetailSchema;
+export const SpaceDetail = spaceViewSchema;
 export const SpaceMember = spaceMemberSchema;
 export const SpaceMembersPage = paginated(SpaceMember);
 export const CreateSpace = createSpaceInputSchema;
@@ -117,6 +117,9 @@ const CommunityHomeSpaceBase = z.object({
     .describe(
       'Where the viewer stands with this space, and so which action it offers. `open`: the viewer can open it without joining (an all-members space, or the viewer opens every space). `member`: the viewer belongs to it. `requested`: the viewer asked to join and awaits a decision. `invited`: the viewer may accept or refuse an invitation. `full`: it is at capacity. `none`: none of these; ask to join a `by_request` space, or wait for an invitation to a `by_invite` one.',
     ),
+  coverUrl: z.string().nullable(),
+  backgroundUrl: z.string().nullable(),
+  iconUrl: z.string().nullable(),
 });
 
 export const LockedCommunitySpace = CommunityHomeSpaceBase.extend({

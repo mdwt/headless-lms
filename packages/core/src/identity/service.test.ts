@@ -57,7 +57,7 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
 const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
 
 function build(repo = fakeRepo(), reader: MemberImageReader = { ownsImage: async () => true }) {
-  const images = { ...reader, syncPublicImage: vi.fn(async () => {}) };
+  const images = { ...reader, syncPublicImages: vi.fn(async () => {}) };
   const appended: NewDomainEvent[] = [];
   const uow: IdentityUnitOfWork = {
     run: (fn) =>
@@ -230,9 +230,9 @@ describe('updateProfile', () => {
     });
     await service.updateProfile({ imageAssetId: null }, memberOf('usr_invited', 'ou_1', 'org-1'));
     await service.updateProfile({ headline: 'Hi' }, memberOf('usr_invited', 'ou_1', 'org-1'));
-    expect(images.syncPublicImage.mock.calls).toEqual([
-      ['org-1', 'ou_1', 'ast_1'],
-      ['org-1', 'ou_1', null],
+    expect(images.syncPublicImages.mock.calls).toEqual([
+      ['org-1', 'ou_1', ['ast_1']],
+      ['org-1', 'ou_1', []],
     ]);
   });
 

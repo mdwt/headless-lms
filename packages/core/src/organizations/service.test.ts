@@ -493,7 +493,7 @@ function store(
     },
   });
   const send = vi.fn(async () => {});
-  const images = { syncPublicImage: vi.fn(async () => {}) };
+  const images = { syncPublicImages: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
@@ -879,7 +879,7 @@ describe('removePerson', () => {
     expect(w.orgUsers.has(s.oliver.orgUser.id)).toBe(false);
     expect(w.orgAdmin.removeMembership).toHaveBeenCalledWith(ORG, 'ba_oliver');
     expect(w.apiKeys.revokeAllFor).toHaveBeenCalledWith(ORG, 'ba_oliver');
-    expect(w.images.syncPublicImage).toHaveBeenCalledWith(ORG, s.oliver.orgUser.id, null);
+    expect(w.images.syncPublicImages).toHaveBeenCalledWith(ORG, s.oliver.orgUser.id, []);
   });
 
   it('refuses removing the owner, even for an Admin', async () => {

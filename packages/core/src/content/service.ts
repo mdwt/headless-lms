@@ -21,7 +21,9 @@ import type {
   SaveActivityInput,
   Space,
   SpaceDetail,
+  SpaceImage,
   SpaceSettings,
+  SpaceView,
 } from './model.js';
 import type {
   BundlesService,
@@ -86,7 +88,7 @@ export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
   libraryAssets: ContentAssetReader;
-  files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImage'>;
+  files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'>;
   fileUrls: FileUrls;
   scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
@@ -137,6 +139,12 @@ function shownPublicly(item: Pick<WithThumbnail, 'type' | 'status'>): boolean {
   return item.status === 'published' || (item.type === 'event' && item.status === 'canceled');
 }
 
+function spaceImageIds(space: Space): string[] {
+  return [space.coverAssetId, space.backgroundAssetId, space.iconAssetId].filter(
+    (id): id is string => id !== null,
+  );
+}
+
 function sameIdSet(current: string[], requested: string[]): boolean {
   if (current.length !== requested.length) {
     return false;
@@ -156,7 +164,7 @@ export class ContentService
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
   private readonly libraryAssets: ContentAssetReader;
-  private readonly files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImage'>;
+  private readonly files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
   private readonly scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   private readonly logger: Logger;
@@ -220,15 +228,46 @@ export class ContentService
   }
 
   private syncThumbnail(item: WithThumbnail): Promise<void> {
-    return this.files.syncPublicImage(
+    return this.files.syncPublicImages(
       item.orgId,
       item.id,
-      shownPublicly(item) ? item.thumbnailAssetId : null,
+      shownPublicly(item) && item.thumbnailAssetId ? [item.thumbnailAssetId] : [],
     );
   }
 
   private withdrawThumbnail(orgId: string, id: string): Promise<void> {
-    return this.files.syncPublicImage(orgId, id, null);
+    return this.files.syncPublicImages(orgId, id, []);
+  }
+
+  private spaceView(space: SpaceDetail, published: boolean): SpaceView {
+    const url = (image: SpaceImage, assetId: string | null) =>
+      !assetId
+        ? null
+        : published
+          ? this.fileUrls.publicImage(space.orgId, space.id, assetId)
+          : this.fileUrls.spaceImage(space.id, image);
+    return {
+      ...space,
+      coverUrl: url('cover', space.coverAssetId),
+      backgroundUrl: url('background', space.backgroundAssetId),
+      iconUrl: url('icon', space.iconAssetId),
+    };
+  }
+
+  private async communityPublished(orgId: string, communityId: string): Promise<boolean> {
+    return (await this.repo.findCommunityById(orgId, communityId))?.status === 'published';
+  }
+
+  private async oneSpaceView(space: SpaceDetail): Promise<SpaceView> {
+    return this.spaceView(space, await this.communityPublished(space.orgId, space.communityId));
+  }
+
+  private syncSpaceImages(space: Space, published: boolean): Promise<void> {
+    return this.files.syncPublicImages(
+      space.orgId,
+      space.id,
+      published ? spaceImageIds(space) : [],
+    );
   }
 
   private pageWithThumbnails<T extends WithThumbnail>(
@@ -1471,33 +1510,32 @@ export class ContentService
     return visible.length ? this.repo.findCommunitiesByIds(actor.orgId, visible) : [];
   }
 
-  async getSpace(spaceId: string, actor: Actor): Promise<SpaceDetail | null> {
+  async getSpace(spaceId: string, actor: Actor): Promise<SpaceView | null> {
     const space = await this.repo.findSpace(actor.orgId, spaceId);
-    if (space) {
-      this.require(actor, 'communities:read', space.communityId);
+    if (!space) {
+      return null;
     }
-    return space;
+    this.require(actor, 'communities:read', space.communityId);
+    return this.oneSpaceView(space);
   }
 
-  async getCommunitySpace(
-    communityId: string,
-    spaceId: string,
-    actor: Actor,
-  ): Promise<SpaceDetail> {
+  async getCommunitySpace(communityId: string, spaceId: string, actor: Actor): Promise<SpaceView> {
     this.require(actor, 'communities:read', communityId);
     const space = await this.repo.findSpace(actor.orgId, spaceId);
     if (space?.communityId !== communityId) {
       throw new NotFoundError('Space', spaceId);
     }
-    return space;
+    return this.oneSpaceView(space);
   }
 
-  async listSpaces(communityId: string, actor: Actor): Promise<SpaceDetail[]> {
+  async listSpaces(communityId: string, actor: Actor): Promise<SpaceView[]> {
     this.requireAny(actor, COMMUNITY_READERS, communityId);
-    if (!(await this.repo.findCommunityById(actor.orgId, communityId))) {
+    const community = await this.repo.findCommunityById(actor.orgId, communityId);
+    if (!community) {
       throw new NotFoundError('Community', communityId);
     }
-    return this.repo.listSpaces(actor.orgId, communityId);
+    const spaces = await this.repo.listSpaces(actor.orgId, communityId);
+    return spaces.map((space) => this.spaceView(space, community.status === 'published'));
   }
 
   async getDmSettings(communityId: string, actor: Actor): Promise<DmSettings | null> {
@@ -1563,6 +1601,12 @@ export class ContentService
     });
     this.logger.info('community updated', { orgId, communityId: id, actorId: actor.id });
     await this.syncThumbnail(community);
+    if (patch.status !== undefined) {
+      const spaces = await this.repo.listSpaces(orgId, id);
+      await Promise.all(
+        spaces.map((space) => this.syncSpaceImages(space, community.status === 'published')),
+      );
+    }
     return this.withThumbnail(community);
   }
 
@@ -1577,7 +1621,7 @@ export class ContentService
   async deleteCommunity(id: string, actor: Actor): Promise<void> {
     this.require(actor, 'communities:delete', id);
     const orgId = actor.orgId;
-    await this.uow.run(async ({ content, outbox }) => {
+    const spaceIds = await this.uow.run(async ({ content, outbox }) => {
       const community = await content.findCommunityById(orgId, id);
       if (!community) {
         this.logger.warn('community delete rejected — not found', {
@@ -1588,6 +1632,7 @@ export class ContentService
         throw new NotFoundError('Community', id);
       }
       const linked = await content.spacesLinkingContent(orgId, id);
+      const own = await content.listSpaces(orgId, id);
       const ok = await content.deleteCommunity(orgId, id);
       if (!ok) {
         throw new NotFoundError('Community', id);
@@ -1601,9 +1646,11 @@ export class ContentService
         }),
         ...(await this.spaceUpdates(content, orgId, linked, actor)),
       ]);
+      return own.map((space) => space.id);
     });
     this.logger.info('community deleted', { orgId, communityId: id, actorId: actor.id });
     await this.withdrawThumbnail(orgId, id);
+    await Promise.all(spaceIds.map((spaceId) => this.files.syncPublicImages(orgId, spaceId, [])));
   }
 
   async patchCommunitySettings(
@@ -1644,7 +1691,7 @@ export class ContentService
     communityId: string,
     input: CreateSpaceInput,
     actor: Actor,
-  ): Promise<SpaceDetail> {
+  ): Promise<SpaceView> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
     const resolved = this.resolvedSpace(input);
@@ -1679,7 +1726,7 @@ export class ContentService
       spaceId: space.id,
       actorId: actor.id,
     });
-    return space;
+    return this.oneSpaceView(space);
   }
 
   async updateSpace(
@@ -1687,9 +1734,19 @@ export class ContentService
     spaceId: string,
     patch: UpdateSpaceInput,
     actor: Actor,
-  ): Promise<SpaceDetail> {
+  ): Promise<SpaceView> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
+    await this.assertAttachable(
+      actor,
+      communityId,
+      [patch.coverAssetId, patch.backgroundAssetId, patch.iconAssetId],
+      async () => {
+        const current = await this.repo.findSpace(orgId, spaceId);
+        return current ? spaceImageIds(current) : [];
+      },
+      'A space',
+    );
     const space = await this.uow.run(async ({ content, outbox }) => {
       const current = await content.findSpace(orgId, spaceId);
       if (!current || current.communityId !== communityId) {
@@ -1721,7 +1778,9 @@ export class ContentService
       return updated;
     });
     this.logger.info('space updated', { orgId, communityId, spaceId, actorId: actor.id });
-    return space;
+    const published = await this.communityPublished(orgId, communityId);
+    await this.syncSpaceImages(space, published);
+    return this.spaceView(space, published);
   }
 
   async deleteSpace(communityId: string, spaceId: string, actor: Actor): Promise<void> {
@@ -1751,13 +1810,14 @@ export class ContentService
       ]);
     });
     this.logger.info('space deleted', { orgId, communityId, spaceId, actorId: actor.id });
+    await this.files.syncPublicImages(orgId, spaceId, []);
   }
 
   async reorderSpaces(
     communityId: string,
     orderedIds: string[],
     actor: Actor,
-  ): Promise<SpaceDetail[]> {
+  ): Promise<SpaceView[]> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
     const spaces = await this.uow.run(async ({ content, outbox }) => {
@@ -1790,7 +1850,8 @@ export class ContentService
       return reordered;
     });
     this.logger.info('spaces reordered', { orgId, communityId, actorId: actor.id });
-    return spaces;
+    const published = await this.communityPublished(orgId, communityId);
+    return spaces.map((space) => this.spaceView(space, published));
   }
 
   async setSpaceTopics(
@@ -1798,7 +1859,7 @@ export class ContentService
     spaceId: string,
     input: SetSpaceTopicsInput,
     actor: Actor,
-  ): Promise<SpaceDetail> {
+  ): Promise<SpaceView> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
     const names = input.topics.map((topic) => topic.name);
@@ -1838,7 +1899,7 @@ export class ContentService
       return updated;
     });
     this.logger.info('space topics set', { orgId, communityId, spaceId, actorId: actor.id });
-    return space;
+    return this.oneSpaceView(space);
   }
 
   async addSpaceLink(
@@ -1846,7 +1907,7 @@ export class ContentService
     spaceId: string,
     contentId: string,
     actor: Actor,
-  ): Promise<SpaceDetail> {
+  ): Promise<SpaceView> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
@@ -1880,7 +1941,7 @@ export class ContentService
       contentId,
       actorId: actor.id,
     });
-    return space;
+    return this.oneSpaceView(space);
   }
 
   async removeSpaceLink(
@@ -1888,7 +1949,7 @@ export class ContentService
     spaceId: string,
     linkId: string,
     actor: Actor,
-  ): Promise<SpaceDetail> {
+  ): Promise<SpaceView> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
@@ -1919,7 +1980,7 @@ export class ContentService
       linkId,
       actorId: actor.id,
     });
-    return space;
+    return this.oneSpaceView(space);
   }
 
   async reorderSpaceLinks(
@@ -1927,7 +1988,7 @@ export class ContentService
     spaceId: string,
     orderedIds: string[],
     actor: Actor,
-  ): Promise<SpaceDetail> {
+  ): Promise<SpaceView> {
     this.require(actor, 'communities:write', communityId);
     const orgId = actor.orgId;
     const space = await this.uow.run(async ({ content, outbox }) => {
@@ -1965,6 +2026,6 @@ export class ContentService
       spaceId,
       actorId: actor.id,
     });
-    return space;
+    return this.oneSpaceView(space);
   }
 }

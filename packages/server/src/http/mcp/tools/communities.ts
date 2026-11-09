@@ -89,7 +89,7 @@ export const communityTools: Tool[] = [
     name: 'update_space',
     title: 'Update space',
     description:
-      'Change a space name, description, access rule, capacity or settings. settings merges into the current settings. Fields left out stay as they are.',
+      'Change a space name, description, access rule, capacity, settings, cover, background or icon. settings merges into the current settings. Each image must be a ready image from list_media; null clears it. Fields left out stay as they are.',
     kind: 'write',
     idempotent: true,
     openWorld: false,

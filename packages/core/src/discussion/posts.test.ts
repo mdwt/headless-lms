@@ -165,6 +165,9 @@ function space(over: Partial<SpaceDetail> = {}): SpaceDetail {
     accessRule: 'all_members',
     capacity: null,
     settings: { comments: true, reactions: true, requireReview: false },
+    coverAssetId: null,
+    backgroundAssetId: null,
+    iconAssetId: null,
     topics: [],
     links: [],
     createdAt: AT,
@@ -232,7 +235,7 @@ function harness(options?: {
   people?: Actor[];
   gone?: string[];
   images?: Partial<
-    MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile' | 'syncPublicImage'>
+    MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile' | 'syncPublicImages'>
   >;
   profiles?: Record<string, Partial<AuthorRecord>>;
   scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
@@ -563,7 +566,7 @@ function harness(options?: {
       },
     });
 
-  const syncPublicImage = vi.fn(options?.images?.syncPublicImage ?? (async () => {}));
+  const syncPublicImages = vi.fn(options?.images?.syncPublicImages ?? (async () => {}));
   const scheduler = {
     at: vi.fn(options?.scheduler?.at ?? (async () => {})),
     cancel: vi.fn(options?.scheduler?.cancel ?? (async () => {})),
@@ -589,7 +592,7 @@ function harness(options?: {
       ownsUpload: async () => true,
       memberUploads: async (_orgId, ids) => ids.map(testUpload),
       ...options?.images,
-      syncPublicImage,
+      syncPublicImages,
     },
     fileUrls,
     bodies: options?.bodies ?? testBodies,
@@ -602,7 +605,7 @@ function harness(options?: {
     escapes,
     repo,
     scheduler,
-    syncPublicImage,
+    syncPublicImages,
     rows,
     flags,
     commentFlagRows,
@@ -1348,7 +1351,7 @@ describe('posts', () => {
   });
 
   it('publishes the cover when a post is published and withdraws it when the post is removed', async () => {
-    const { svc, syncPublicImage } = harness();
+    const { svc, syncPublicImages } = harness();
     const draft = await svc.create(
       draftInput({ mode: 'draft', coverAssetId: 'ast_cover' }),
       member,
@@ -1356,10 +1359,10 @@ describe('posts', () => {
     await svc.submit(draft.id, member);
     const removed = await svc.remove(draft.id, null, member);
     expect(removed.coverUrl).toBe(fileUrls.postCover(draft.id));
-    expect(syncPublicImage.mock.calls).toEqual([
-      [ORG, draft.id, null],
-      [ORG, draft.id, 'ast_cover'],
-      [ORG, draft.id, null],
+    expect(syncPublicImages.mock.calls).toEqual([
+      [ORG, draft.id, []],
+      [ORG, draft.id, ['ast_cover']],
+      [ORG, draft.id, []],
     ]);
   });
 

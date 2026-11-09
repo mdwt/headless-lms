@@ -64,7 +64,9 @@ export type PostServiceParams = {
   comments: PostCommentReader;
   subscriptions: SubscriptionsRepository;
   mentions: MentionsRepository;
-  images: MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile' | 'syncPublicImage'>;
+  images: MemberImageReader &
+    MemberUploadReader &
+    Pick<AssetFiles, 'signFile' | 'syncPublicImages'>;
   fileUrls: FileUrls;
   bodies: BodyParser;
   uow: PostUnitOfWork;
@@ -96,7 +98,7 @@ export class PostServiceImpl implements PostService {
   private readonly mentions: MentionsRepository;
   private readonly images: MemberImageReader &
     MemberUploadReader &
-    Pick<AssetFiles, 'signFile' | 'syncPublicImage'>;
+    Pick<AssetFiles, 'signFile' | 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
   private readonly bodies: BodyParser;
   private readonly uow: PostUnitOfWork;
@@ -419,10 +421,10 @@ export class PostServiceImpl implements PostService {
   }
 
   private syncCover(post: Post): Promise<void> {
-    return this.images.syncPublicImage(
+    return this.images.syncPublicImages(
       post.orgId,
       post.id,
-      post.status === 'published' ? post.coverAssetId : null,
+      post.status === 'published' && post.coverAssetId ? [post.coverAssetId] : [],
     );
   }
 

@@ -269,6 +269,7 @@ import type {
   GetSpaceErrors,
   GetSpaceFeedErrors,
   GetSpaceFeedResponses,
+  GetSpaceImageErrors,
   GetSpaceQueueErrors,
   GetSpaceQueueResponses,
   GetSpaceResponses,
@@ -4297,7 +4298,7 @@ export class Communities {
   /**
    * Update a space
    *
-   * Requires `communities:write`. Changes only the fields sent; `settings` merges into the current settings. An `all_members` space cannot have a capacity (409).
+   * Requires `communities:write`. Changes only the fields sent; `settings` merges into the current settings. An `all_members` space cannot have a capacity (409). `coverAssetId`, `backgroundAssetId` and `iconAssetId` take ready images from the media library, or null to clear one; without `media:read`, only images uploaded for the community (409 or 403 otherwise). In a published community the images are public.
    */
   public static updateSpace<ThrowOnError extends boolean = false>(
     parameters: {
@@ -4312,6 +4313,9 @@ export class Communities {
         reactions?: boolean;
         requireReview?: boolean;
       };
+      coverAssetId?: string | null;
+      backgroundAssetId?: string | null;
+      iconAssetId?: string | null;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateSpaceResponses, UpdateSpaceErrors, ThrowOnError, "data"> {
@@ -4327,6 +4331,9 @@ export class Communities {
             { in: "body", key: "accessRule" },
             { in: "body", key: "capacity" },
             { in: "body", key: "settings" },
+            { in: "body", key: "coverAssetId" },
+            { in: "body", key: "backgroundAssetId" },
+            { in: "body", key: "iconAssetId" },
           ],
         },
       ],
@@ -10253,6 +10260,37 @@ export class Files {
     >({
       responseStyle: "data",
       url: "/api/member/communities/{communityId}/thumbnail",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Redirect to a space's cover, background or icon
+   *
+   * For a space in an unpublished community, which only a holder of `communities:read` on the community may fetch: a space in a published community carries public `coverUrl`, `backgroundUrl` and `iconUrl` instead. 404 when the space has no such image.
+   */
+  public static getSpaceImage<ThrowOnError extends boolean = false>(
+    parameters: {
+      spaceId: string;
+      image: "cover" | "background" | "icon";
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<unknown, GetSpaceImageErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "spaceId" },
+            { in: "path", key: "image" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).get<unknown, GetSpaceImageErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/member/spaces/{spaceId}/images/{image}",
       ...options,
       ...params,
     });

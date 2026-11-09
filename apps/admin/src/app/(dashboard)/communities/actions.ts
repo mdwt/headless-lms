@@ -100,6 +100,9 @@ export interface SpaceInput {
   accessRule?: SpaceAccessRule;
   capacity?: number | null;
   settings?: Partial<SpaceSettings>;
+  coverAssetId?: string | null;
+  backgroundAssetId?: string | null;
+  iconAssetId?: string | null;
 }
 
 export async function createSpaceAction(
