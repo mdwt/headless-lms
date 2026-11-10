@@ -1,5 +1,20 @@
 # @headless-lms/core
 
+## 0.6.0
+
+### Minor Changes
+
+- [#8](https://github.com/mdwt/headless-lms/pull/8) [`5906dfa`](https://github.com/mdwt/headless-lms/commit/5906dfa2c2ff2f05a913f0e73ec5911af37b06c7) Thanks [@mdwt](https://github.com/mdwt)! - Only a signed-in person can create an API key. `POST /api/access/api-keys` answers 403 when the request is made with an API key or an app token. `EffectivePermissions` has `isToken()`, true for a caller that is a key or an app token.
+
+- [`0f1c31c`](https://github.com/mdwt/headless-lms/commit/0f1c31c68cfa57059446b3ef5b7665f54d8f4f98) Thanks [@mdwt](https://github.com/mdwt)! - An organization carries `metadata`, key-value strings. `POST /api/platform/organizations` takes optional `metadata` (at most 50 keys, keys up to 40 characters, values up to 500), stores it with the organization and returns it on `organization`. The API key created with the organization is always named `Platform`.
+
+  Breaking changes:
+
+  - `POST /api/platform/organizations` no longer takes `keyName`.
+  - `Organization` carries `metadata`, and `OrganizationsRepository` adds `setMetadata`.
+
+- [`6924b0d`](https://github.com/mdwt/headless-lms/commit/6924b0d941ba149e3c7a8ee250e9e487ef8edf1e) Thanks [@mdwt](https://github.com/mdwt)! - A space has an optional cover, background and icon, each a ready image from the media library: `coverAssetId`, `backgroundAssetId` and `iconAssetId` on the space update, `null` to clear one, and `coverUrl`, `backgroundUrl` and `iconUrl` on the space. The images of a space in a published community are public; otherwise they are served through access-checked file links.
+
 ## 0.5.0
 
 ### Minor Changes

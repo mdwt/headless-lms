@@ -1,5 +1,12 @@
 # @headless-lms/adapter-storage-s3
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [[`5906dfa`](https://github.com/mdwt/headless-lms/commit/5906dfa2c2ff2f05a913f0e73ec5911af37b06c7), [`0f1c31c`](https://github.com/mdwt/headless-lms/commit/0f1c31c68cfa57059446b3ef5b7665f54d8f4f98), [`6924b0d`](https://github.com/mdwt/headless-lms/commit/6924b0d941ba149e3c7a8ee250e9e487ef8edf1e)]:
+  - @headless-lms/core@0.6.0
+
 ## 0.2.0
 
 ### Minor Changes
