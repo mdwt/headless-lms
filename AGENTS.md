@@ -59,6 +59,12 @@ Each app's UI conventions are binding and app-specific. Read the relevant one **
 Both apps are shadcn-based with an existing set of house components.
 New UI copies an existing screen of the same kind.
 
+## Git workflow
+
+- Work on a short-lived branch, never commit straight to main.
+- Open a PR with `gh pr create`. The PR title is a Conventional Commit, e.g. `feat: add S3 storage adapter` or `fix: post pagination`.
+- Merge with `gh pr merge --squash --delete-branch` once CI passes.
+
 ## Coding standards
 
 - Don't add comments in the code.
