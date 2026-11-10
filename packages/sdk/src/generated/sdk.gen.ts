@@ -11811,13 +11811,15 @@ export class Platform {
   /**
    * Create an organization and its first API key
    *
-   * Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.
+   * Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.
    */
   public static createPlatformOrganization<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
       slug: string;
-      keyName?: string;
+      metadata?: {
+        [key: string]: string;
+      };
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
@@ -11833,7 +11835,7 @@ export class Platform {
           args: [
             { in: "body", key: "name" },
             { in: "body", key: "slug" },
-            { in: "body", key: "keyName" },
+            { in: "body", key: "metadata" },
           ],
         },
       ],

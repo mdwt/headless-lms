@@ -1,6 +1,7 @@
 export type {
   Organization,
   OrganizationInput,
+  OrganizationMetadata,
   OrgUser,
   OrgUserInput,
   Invite,

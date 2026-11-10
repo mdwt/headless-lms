@@ -1,6 +1,19 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, timestamp, primaryKey, unique, uniqueIndex } from "drizzle-orm/pg-core";
-import type { Invite, Organization, OrgUser } from "@headless-lms/core/schemas";
+import {
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  primaryKey,
+  unique,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import type {
+  Invite,
+  Organization,
+  OrganizationMetadata,
+  OrgUser,
+} from "@headless-lms/core/schemas";
 import { genId } from "@headless-lms/core/shared/id";
 import { users } from "./identity.js";
 import type { Expect, NoDrift } from "./drift.js";
@@ -16,6 +29,7 @@ export const organizations = pgTable("organizations", {
   ownerId: text("owner_id")
     .notNull()
     .references(() => users.id),
+  metadata: jsonb("metadata").$type<OrganizationMetadata>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

@@ -23,7 +23,7 @@ export async function platformRoutes(app: FastifyInstance, container: Container)
       operationId: 'createPlatformOrganization',
       tags,
       summary: 'Create an organization and its first API key',
-      description: `Requires the platform key as \`Authorization: Bearer <platform key>\`. Creates the organization, owned by the platform account, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.`,
+      description: `Requires the platform key as \`Authorization: Bearer <platform key>\`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.`,
       body: CreatePlatformOrganization,
       response: { 201: PlatformOrganization, ...refusals(400, 409) },
     },

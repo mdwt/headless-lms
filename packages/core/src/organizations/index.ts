@@ -40,7 +40,7 @@ export type {
   NewOrganizationRow,
   NewInviteRow,
 } from './ports.js';
-export type { Organization, OrgUser, Invite } from './model.js';
+export type { Organization, OrganizationMetadata, OrgUser, Invite } from './model.js';
 export { InviteError, OrganizationRuleError } from './members.js';
 export type {
   AssignmentView,

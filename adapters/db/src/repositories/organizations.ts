@@ -7,6 +7,7 @@ import type {
   NewInviteRow,
   NewOrganizationRow,
   Organization,
+  OrganizationMetadata,
   OrganizationsRepository,
   OrgUser,
   UpdateOrganizationInput,
@@ -99,6 +100,18 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       .where(eq(organizations.externalId, externalId))
       .limit(1);
     return row ?? null;
+  }
+
+  async setMetadata(id: string, metadata: OrganizationMetadata): Promise<Organization> {
+    const [row] = await this.db
+      .update(organizations)
+      .set({ metadata })
+      .where(eq(organizations.id, id))
+      .returning();
+    if (!row) {
+      throw new Error("failed to update organization");
+    }
+    return row;
   }
 
   async findBySlug(slug: string): Promise<Organization | null> {

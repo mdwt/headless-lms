@@ -89317,7 +89317,7 @@
         "tags": [
           "Platform"
         ],
-        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.",
+        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.",
         "requestBody": {
           "required": true,
           "content": {
@@ -89336,11 +89336,13 @@
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$"
                   },
-                  "keyName": {
-                    "description": "The name of the API key created with it. Default `Platform`",
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
+                  "metadata": {
+                    "description": "Key-value pairs stored with the organization",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "maxLength": 500
+                    }
                   }
                 },
                 "required": [
@@ -89373,13 +89375,20 @@
                         },
                         "createdAt": {
                           "type": "string"
+                        },
+                        "metadata": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [
                         "id",
                         "name",
                         "slug",
-                        "createdAt"
+                        "createdAt",
+                        "metadata"
                       ],
                       "additionalProperties": false
                     },

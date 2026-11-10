@@ -1516,14 +1516,21 @@ export class OrganizationServiceImpl implements OrganizationService {
       name: input.name,
       slug: input.slug,
     });
-    const org = await this.repo.findByExternalId(created.id);
-    if (!org) {
+    const found = await this.repo.findByExternalId(created.id);
+    if (!found) {
       throw new NotFoundError('Organization', created.id);
     }
-    const apiKey = await this.platformKey(org, ownerExternalId, input.keyName ?? 'Platform');
+    const org = await this.repo.setMetadata(found.id, input.metadata ?? {});
+    const apiKey = await this.platformKey(org, ownerExternalId, 'Platform');
     this.logger.info('platform organization created', { orgId: org.id, slug: org.slug });
     return {
-      organization: { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt },
+      organization: {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        metadata: org.metadata,
+        createdAt: org.createdAt,
+      },
       apiKey,
     };
   }

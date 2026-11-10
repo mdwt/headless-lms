@@ -29738,9 +29738,11 @@ export type CreatePlatformOrganizationData = {
     name: string;
     slug: string;
     /**
-     * The name of the API key created with it. Default `Platform`
+     * Key-value pairs stored with the organization
      */
-    keyName?: string;
+    metadata?: {
+      [key: string]: string;
+    };
   };
   path?: never;
   query?: never;
@@ -29802,6 +29804,9 @@ export type CreatePlatformOrganizationResponses = {
       name: string;
       slug: string;
       createdAt: string;
+      metadata: {
+        [key: string]: string;
+      };
     };
     apiKey: {
       id: string;

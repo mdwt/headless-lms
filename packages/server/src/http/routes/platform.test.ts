@@ -21,6 +21,12 @@ const API_KEY = {
   key: 'hlms_secret',
 };
 
+const YOGA = {
+  name: "Sarah's Yoga",
+  slug: 'sarahs-yoga',
+  metadata: { plan: 'pro' },
+};
+
 let calls: unknown[][] = [];
 let failure: Error | null = null;
 
@@ -32,7 +38,13 @@ const container = {
         throw failure;
       }
       return {
-        organization: { id: 'org_1', name: "Sarah's Yoga", slug: 'sarahs-yoga', createdAt: NOW },
+        organization: {
+          id: 'org_1',
+          name: "Sarah's Yoga",
+          slug: 'sarahs-yoga',
+          metadata: { plan: 'pro' },
+          createdAt: NOW,
+        },
         apiKey: API_KEY,
       };
     },
@@ -78,7 +90,7 @@ describe('platform routes', () => {
       method: 'POST',
       url: '/api/platform/organizations',
       headers: auth,
-      payload: { name: "Sarah's Yoga", slug: 'sarahs-yoga', keyName: 'Shop' },
+      payload: YOGA,
     });
     expect(res.statusCode).toBe(201);
     expect(res.json()).toEqual({
@@ -86,16 +98,33 @@ describe('platform routes', () => {
         id: 'org_1',
         name: "Sarah's Yoga",
         slug: 'sarahs-yoga',
+        metadata: { plan: 'pro' },
         createdAt: NOW.toISOString(),
       },
       apiKey: { ...API_KEY, createdAt: NOW.toISOString() },
     });
-    expect(calls).toEqual([
-      [
-        'createPlatformOrganization',
-        { name: "Sarah's Yoga", slug: 'sarahs-yoga', keyName: 'Shop' },
-      ],
-    ]);
+    expect(calls).toEqual([['createPlatformOrganization', YOGA]]);
+  });
+
+  it('refuses metadata beyond its limits', async () => {
+    for (const payload of [
+      { ...YOGA, metadata: { plan: 1 } },
+      { ...YOGA, metadata: { ['k'.repeat(41)]: 'v' } },
+      { ...YOGA, metadata: { plan: 'v'.repeat(501) } },
+      {
+        ...YOGA,
+        metadata: Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`k${i}`, 'v'])),
+      },
+    ]) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/platform/organizations',
+        headers: auth,
+        payload,
+      });
+      expect(res.statusCode).toBe(400);
+    }
+    expect(calls).toEqual([]);
   });
 
   it('creates another key for an organization', async () => {
@@ -122,7 +151,7 @@ describe('platform routes', () => {
         method: 'POST',
         url: '/api/platform/organizations',
         headers,
-        payload: { name: 'x', slug: 'x' },
+        payload: YOGA,
       });
       expect(res.statusCode).toBe(401);
     }
@@ -135,7 +164,7 @@ describe('platform routes', () => {
       method: 'POST',
       url: '/api/platform/organizations',
       headers: auth,
-      payload: { name: 'x', slug: 'taken' },
+      payload: { ...YOGA, slug: 'taken' },
     });
     expect(taken.statusCode).toBe(409);
     failure = new NotFoundError('Organization', 'org_9');
@@ -150,7 +179,7 @@ describe('platform routes', () => {
       method: 'POST',
       url: '/api/platform/organizations',
       headers: auth,
-      payload: { name: 'x', slug: 'Not A Slug' },
+      payload: { ...YOGA, slug: 'Not A Slug' },
     });
     expect(bad.statusCode).toBe(400);
   });

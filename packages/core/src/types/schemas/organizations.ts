@@ -99,6 +99,9 @@ export type RoleAssignment = z.output<typeof roleAssignmentSchema>;
 export const orgUserStatusSchema = z.enum(['invited', 'active']);
 export type OrgUserStatus = z.infer<typeof orgUserStatusSchema>;
 
+export const organizationMetadataSchema = z.record(z.string(), z.string());
+export type OrganizationMetadata = z.output<typeof organizationMetadataSchema>;
+
 export const organizationSchema = z
   .object({
     id: idSchema,
@@ -106,6 +109,7 @@ export const organizationSchema = z
     name: z.string(),
     slug: z.string(),
     ownerId: idSchema,
+    metadata: organizationMetadataSchema,
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })

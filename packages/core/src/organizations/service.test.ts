@@ -69,6 +69,7 @@ function store(
         name: input.name,
         slug: input.slug,
         ownerId: input.ownerId,
+        metadata: {},
         createdAt: now,
         updatedAt: now,
       };
@@ -93,6 +94,11 @@ function store(
     listIds: async () => [...orgs.keys()],
     findByExternalId: async (id) => [...orgs.values()].find((o) => o.externalId === id) ?? null,
     findBySlug: async (slug) => [...orgs.values()].find((o) => o.slug === slug) ?? null,
+    setMetadata: async (id, metadata) => {
+      const updated = { ...orgs.get(id)!, metadata };
+      orgs.set(id, updated);
+      return updated;
+    },
     upsertPendingInvite: async (orgId, input) => {
       const existing = [...invites.values()].find(
         (i) => i.orgId === orgId && i.email === input.email && i.status === 'pending',
@@ -1579,22 +1585,27 @@ describe('platform', () => {
     const first = await p.service.createPlatformOrganization({
       name: "Sarah's Yoga",
       slug: 'sarahs-yoga',
-      keyName: 'Shop',
+      metadata: { plan: 'pro' },
     });
     expect(p.accounts.createAccount).toHaveBeenCalledWith({
       email: 'platform@example.test',
       name: 'Shop',
     });
     const account = [...p.people.values()].find((x) => x.email === 'platform@example.test')!;
-    expect(first.organization).toMatchObject({ name: "Sarah's Yoga", slug: 'sarahs-yoga' });
+    expect(first.organization).toMatchObject({
+      name: "Sarah's Yoga",
+      slug: 'sarahs-yoga',
+      metadata: { plan: 'pro' },
+    });
+    expect(p.orgs.get(first.organization.id)?.metadata).toEqual({ plan: 'pro' });
     expect(first.apiKey).toMatchObject({
       key: 'secret',
-      name: 'Shop',
+      name: 'Platform',
       role: { key: 'owner', name: 'Owner' },
       expiresAt: null,
     });
     expect(p.apiKeys.create).toHaveBeenCalledWith(first.organization.id, account.externalId, {
-      name: 'Shop',
+      name: 'Platform',
       roleKey: 'owner',
     });
     const owner = await p.service.actorFor(
@@ -1603,9 +1614,13 @@ describe('platform', () => {
     );
     expect(owner?.permissions.isOwner()).toBe(true);
 
-    const second = await p.service.createPlatformOrganization({ name: 'Emma Art', slug: 'emma' });
+    const second = await p.service.createPlatformOrganization({
+      name: 'Emma Art',
+      slug: 'emma',
+    });
     expect(p.accounts.createAccount).toHaveBeenCalledTimes(1);
     expect(second.apiKey.name).toBe('Platform');
+    expect(second.organization.metadata).toEqual({});
   });
 
   it('creates another key only in an org the platform account belongs to', async () => {

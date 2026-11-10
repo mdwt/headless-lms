@@ -170,6 +170,7 @@ A platform that runs the LMS for its own customers creates an org for each of th
 
 - The **platform account** is one person, owner of every org the platform creates. It has no password, and no sign-in method can start a session for it; it acts only through its API keys.
 - Creating an org with the platform key creates the org, its roles, the platform account as owner, and an API key for the platform account carrying Owner, without expiry. The platform calls every other route with that key.
+- The platform can store key-value metadata with each org it creates.
 - The platform key also creates another key for an org whose owner, or an active member, is the platform account, to replace a lost or leaked one.
 
 ## Team

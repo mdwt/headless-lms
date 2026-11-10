@@ -1,4 +1,4 @@
-import type { Invite, Organization, OrgUser } from './model.js';
+import type { Invite, Organization, OrganizationMetadata, OrgUser } from './model.js';
 import type {
   AssignmentView,
   CreateRoleInput,
@@ -60,11 +60,11 @@ export type CallerLimit = { scopes: readonly Permission[] } | { roleKey: string 
 export interface PlatformOrganizationInput {
   name: string;
   slug: string;
-  keyName?: string | undefined;
+  metadata?: OrganizationMetadata | undefined;
 }
 
 export interface PlatformOrganization {
-  organization: AuthOrganization;
+  organization: AuthOrganization & { metadata: OrganizationMetadata };
   apiKey: CreatedApiKey;
 }
 
@@ -236,6 +236,7 @@ export interface OrganizationsRepository {
   listIds(): Promise<string[]>;
   findByExternalId(externalId: string): Promise<Organization | null>;
   findBySlug(slug: string): Promise<Organization | null>;
+  setMetadata(id: string, metadata: OrganizationMetadata): Promise<Organization>;
   upsertPendingInvite(orgId: string, input: NewInviteRow): Promise<Invite>;
   setInviteStatus(orgId: string, id: string, status: string): Promise<Invite | null>;
   setInviteRole(

@@ -9,13 +9,15 @@ export const CreatePlatformOrganization = z.object({
     .min(1)
     .max(50)
     .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only'),
-  keyName: ApiKeyName.optional().describe(
-    'The name of the API key created with it. Default `Platform`',
-  ),
+  metadata: z
+    .record(z.string().min(1).max(40), z.string().max(500))
+    .refine((metadata) => Object.keys(metadata).length <= 50, 'At most 50 metadata keys')
+    .optional()
+    .describe('Key-value pairs stored with the organization'),
 });
 
 export const PlatformOrganization = z.object({
-  organization: Organization,
+  organization: Organization.extend({ metadata: z.record(z.string(), z.string()) }),
   apiKey: CreatedApiKey,
 });
 
