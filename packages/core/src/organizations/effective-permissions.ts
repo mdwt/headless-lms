@@ -41,6 +41,7 @@ export class ResolvedPermissions implements EffectivePermissions {
     private readonly orgRole: RoleRef,
     private readonly content: Map<ContentId, ContentEntry>,
     private readonly owner: boolean,
+    private readonly token: boolean,
   ) {}
 
   has(permission: Permission, on?: ContentId): boolean {
@@ -96,6 +97,10 @@ export class ResolvedPermissions implements EffectivePermissions {
 
   isOwner(): boolean {
     return this.owner;
+  }
+
+  isToken(): boolean {
+    return this.token;
   }
 
   orgPermissions(): Permission[] {
@@ -157,6 +162,7 @@ export function resolvePermissions({
         : MEMBER_REF,
     content,
     owner && scopes === null,
+    scopes !== null,
   );
 }
 
@@ -165,6 +171,7 @@ export function systemPermissions(): ResolvedPermissions {
     new Set(ALL_PERMISSIONS),
     { key: 'system', name: 'System', team: false },
     new Map(),
+    false,
     false,
   );
 }

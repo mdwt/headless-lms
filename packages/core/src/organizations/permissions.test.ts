@@ -308,6 +308,8 @@ describe('resolvePermissions', () => {
     expect(resolvePermissions({ assignments, roles }).isOwner()).toBe(true);
     const key = resolvePermissions({ assignments, roles, tokenScopes: ['courses:read'] });
     expect(key.isOwner()).toBe(false);
+    expect(key.isToken()).toBe(true);
+    expect(resolvePermissions({ assignments, roles }).isToken()).toBe(false);
     expect(key.has('courses:read')).toBe(true);
     expect(key.has('courses:delete')).toBe(false);
     expect(() => key.require('people:write')).toThrow(ForbiddenError);
@@ -342,5 +344,6 @@ describe('resolvePermissions', () => {
       expect(system.has(permission, 'crs_9'), permission).toBe(true);
     }
     expect(system.isOwner()).toBe(false);
+    expect(system.isToken()).toBe(false);
   });
 });

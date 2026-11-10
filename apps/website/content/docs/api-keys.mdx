@@ -5,7 +5,7 @@ description: Call the API from a server with an API key, and create organization
 
 ## API keys
 
-A server, script or agent calls the API with an API key instead of a session. Create one in **Settings → API keys**, or with [`POST /api/access/api-keys`](/docs/api/access/createApiKey).
+A server, script or agent calls the API with an API key instead of a session. Create one in **Settings → API keys**, or with [`POST /api/access/api-keys`](/docs/api/access/createApiKey) while signed in. A key can't create another key.
 
 - A key acts as the person who created it, in the organization it was created in.
 - A key carries one of the organization's roles. On every request it holds that role's current permissions, limited to what its creator holds at that moment. A change to the role, or to the creator's roles, applies from the next request.
@@ -20,7 +20,7 @@ curl https://<your-api-host>/api/courses \
   -H "x-api-key: $LMS_API_KEY"
 ```
 
-A request that carries a key is judged on the key alone: an unknown, revoked or expired key gets `401`, and the request never falls back to a session cookie. Signing in, creating an organization as a signed-in person and accepting an invite need a session.
+A request that carries a key is judged on the key alone: an unknown, revoked or expired key gets `401`, and the request never falls back to a session cookie. Signing in, creating an organization as a signed-in person, accepting an invite and creating an API key need a session.
 
 ## The platform key
 
