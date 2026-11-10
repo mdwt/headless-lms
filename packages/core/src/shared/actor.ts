@@ -13,6 +13,7 @@ export interface EffectivePermissions {
   where(permission: Permission): { org: boolean; content: ContentId[] };
   roleOn(on?: ContentId): RoleRef;
   isOwner(): boolean;
+  isToken(): boolean;
 }
 
 export interface Actor {

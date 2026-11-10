@@ -123,7 +123,7 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
       operationId: 'createApiKey',
       tags,
       summary: 'Create an API key',
-      description: `Requires \`api_keys:write\`. The key acts as you in this organization with the permissions of the role given, never beyond what you hold at the time of each request. Send it in the \`x-api-key\` header or as \`Authorization: Bearer <key>\`; every route under /api and /mcp accepts it. 403 when the role holds a permission you hold nowhere; 404 when the organization has no such role. The key is returned once.`,
+      description: `Requires \`api_keys:write\` and a signed-in person: a request made with an API key or an app token gets 403. The key acts as you in this organization with the permissions of the role given, never beyond what you hold at the time of each request. Send it in the \`x-api-key\` header or as \`Authorization: Bearer <key>\`; every route under /api and /mcp accepts it. 403 when the role holds a permission you hold nowhere; 404 when the organization has no such role. The key is returned once.`,
       body: CreateApiKey,
       response: { 201: CreatedApiKey, ...refusals(400, 403, 404) },
     },

@@ -36,6 +36,6 @@ export function actorWith(shape: ActorShape = {}): Actor {
   return {
     id: shape.id ?? 'orm_actor',
     orgId: shape.orgId ?? 'org_1',
-    permissions: new ResolvedPermissions(org, orgRole, content, shape.owner ?? false),
+    permissions: new ResolvedPermissions(org, orgRole, content, shape.owner ?? false, false),
   };
 }

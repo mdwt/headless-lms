@@ -1236,6 +1236,25 @@ describe('api keys and the organization', () => {
     });
   });
 
+  it('refuses to create a key for a key or an app token', async () => {
+    const key = await w.service.actorFor(ORG, s.sarah.orgUser.id, { roleKey: 'owner' });
+    const app = await w.service.actorFor(ORG, s.sarah.orgUser.id, {
+      scopes: ['api_keys:write', 'courses:read'],
+    });
+    expect(key?.permissions.has('api_keys:write')).toBe(true);
+    expect(app?.permissions.has('api_keys:write')).toBe(true);
+    await expect(
+      w.service.createApiKey({ name: 'CI', role: 'member' }, key!),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      w.service.createApiKey({ name: 'CI', role: 'member' }, app!),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(w.apiKeys.create).not.toHaveBeenCalled();
+    await expect(
+      w.service.createApiKey({ name: 'CI', role: 'member' }, await w.actor(s.sarah.orgUser.id)),
+    ).resolves.toMatchObject({ key: 'secret' });
+  });
+
   it('offers only the roles whose every permission you hold somewhere', async () => {
     const owner = await w.actor(s.sarah.orgUser.id);
     await w.service.setOrgRole(s.james.orgUser.id, 'instructor', owner);

@@ -1447,6 +1447,13 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async createApiKey(input: CreateApiKeyInput, actor: Actor): Promise<CreatedApiKey> {
     actor.permissions.require('api_keys:write');
+    if (actor.permissions.isToken()) {
+      this.logger.warn('api key refused: caller is a key or an app token', {
+        orgId: actor.orgId,
+        actorId: actor.id,
+      });
+      throw new ForbiddenError('Sign in to create an API key');
+    }
     const roles = this.roleMap(await this.roles.storedRoles(actor.orgId));
     const role = roles.get(input.role);
     if (!role) {
@@ -1829,6 +1836,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         where: (p) => actor.permissions.where(p),
         roleOn: (on) => fresh.roleOn(on),
         isOwner: () => fresh.isOwner() && actor.permissions.isOwner(),
+        isToken: () => actor.permissions.isToken(),
       },
     };
   }
