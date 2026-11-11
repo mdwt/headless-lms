@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Headless LMS API",
-    "version": "0.5.0",
+    "version": "0.6.2",
     "description": "API documentation for the Headless LMS platform. Every route under /api takes a signed-in session or an API key, sent in the `x-api-key` header or as `Authorization: Bearer <key>`. The platform routes take the platform key as `Authorization: Bearer <platform key>`.",
     "license": {
       "name": "MIT",
@@ -4094,7 +4094,7 @@
         "tags": [
           "People"
         ],
-        "description": "Requires `people:write`. The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).",
+        "description": "Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).",
         "requestBody": {
           "required": true,
           "content": {
@@ -4145,6 +4145,10 @@
                     "id": {
                       "type": "string"
                     },
+                    "orgUserId": {
+                      "type": "string",
+                      "description": "The invited person, for granting access and item roles"
+                    },
                     "email": {
                       "type": "string"
                     },
@@ -4166,6 +4170,7 @@
                   },
                   "required": [
                     "id",
+                    "orgUserId",
                     "email",
                     "roleKey",
                     "status",

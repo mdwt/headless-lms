@@ -35,6 +35,9 @@ import type {
   UpdateOrgUserInput,
 } from './types.js';
 
+/** An invite just made, with the invited person's org user. */
+export type CreatedInvite = Invite & { orgUserId: string };
+
 export type { AuthHeaders } from '../identity/index.js';
 import type { AuthHeaders } from '../identity/index.js';
 
@@ -127,7 +130,11 @@ export interface OrganizationService {
   removePerson(orgUserId: string, actor: Actor): Promise<void>;
   transferOwnership(input: TransferOwnershipInput, actor: Actor): Promise<void>;
 
-  createInvite(input: CreateInviteInput, actor: Actor, inviterUserId: string): Promise<Invite>;
+  createInvite(
+    input: CreateInviteInput,
+    actor: Actor,
+    inviterUserId: string,
+  ): Promise<CreatedInvite>;
   resendInvite(orgUserId: string, actor: Actor, inviterUserId: string): Promise<void>;
   cancelInvite(orgUserId: string, actor: Actor): Promise<void>;
   peekInvite(token: string): Promise<Invite | null>;
