@@ -21,7 +21,6 @@ import type {
   SaveActivityInput,
   Space,
   SpaceDetail,
-  SpaceImage,
   SpaceSettings,
   SpaceView,
 } from './model.js';
@@ -64,7 +63,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { contentEvents } from './events.js';
 import { EVENT_LEADS, EVENT_STARTING_SOON_JOB } from './jobs.js';
 import type { Actor } from '../shared/actor.js';
-import type { AssetFiles, FileUrls } from '../assets/index.js';
+import type { AssetFiles, FileUrls, ReadyFile } from '../assets/index.js';
 import type { Logger, NewDomainEvent, Scheduler } from '../shared/ports.js';
 import {
   ConflictError,
@@ -88,7 +87,7 @@ export type ContentServiceParams = {
   repo: ContentRepository;
   uow: ContentUnitOfWork;
   libraryAssets: ContentAssetReader;
-  files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'>;
+  files: Pick<AssetFiles, 'readyFiles' | 'fileLinks' | 'syncPublicImages'>;
   fileUrls: FileUrls;
   scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   logger?: Logger;
@@ -164,7 +163,7 @@ export class ContentService
   private readonly repo: ContentRepository;
   private readonly uow: ContentUnitOfWork;
   private readonly libraryAssets: ContentAssetReader;
-  private readonly files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'>;
+  private readonly files: Pick<AssetFiles, 'readyFiles' | 'fileLinks' | 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
   private readonly scheduler: Pick<Scheduler, 'at' | 'cancel'>;
   private readonly logger: Logger;
@@ -216,15 +215,28 @@ export class ContentService
     return ids;
   }
 
-  private withThumbnail<T extends WithThumbnail>(item: T): T & { thumbnailUrl: string | null } {
-    return {
+  private async withThumbnail<T extends WithThumbnail>(
+    item: T,
+  ): Promise<T & { thumbnailUrl: string | null }> {
+    const [view] = await this.withThumbnails([item]);
+    return view!;
+  }
+
+  private async withThumbnails<T extends WithThumbnail>(
+    items: readonly T[],
+  ): Promise<(T & { thumbnailUrl: string | null })[]> {
+    const gated = items.flatMap((item) =>
+      item.thumbnailAssetId && !shownPublicly(item) ? [{ assetId: item.thumbnailAssetId }] : [],
+    );
+    const links = gated.length > 0 ? await this.files.fileLinks(items[0]!.orgId, gated) : {};
+    return items.map((item) => ({
       ...item,
       thumbnailUrl: !item.thumbnailAssetId
         ? null
         : shownPublicly(item)
           ? this.fileUrls.publicImage(item.orgId, item.id, item.thumbnailAssetId)
-          : this.fileUrls.thumbnail(item.type, item.id),
-    };
+          : (links[item.thumbnailAssetId] ?? null),
+    }));
   }
 
   private syncThumbnail(item: WithThumbnail): Promise<void> {
@@ -239,19 +251,37 @@ export class ContentService
     return this.files.syncPublicImages(orgId, id, []);
   }
 
-  private spaceView(space: SpaceDetail, published: boolean): SpaceView {
-    const url = (image: SpaceImage, assetId: string | null) =>
-      !assetId
-        ? null
-        : published
-          ? this.fileUrls.publicImage(space.orgId, space.id, assetId)
-          : this.fileUrls.spaceImage(space.id, image);
-    return {
-      ...space,
-      coverUrl: url('cover', space.coverAssetId),
-      backgroundUrl: url('background', space.backgroundAssetId),
-      iconUrl: url('icon', space.iconAssetId),
-    };
+  private async spaceView(space: SpaceDetail, published: boolean): Promise<SpaceView> {
+    const [view] = await this.spaceViews([space], published);
+    return view!;
+  }
+
+  private async spaceViews(
+    spaces: readonly SpaceDetail[],
+    published: boolean,
+  ): Promise<SpaceView[]> {
+    const gated = published ? [] : spaces.flatMap((space) => spaceImageIds(space));
+    const links =
+      gated.length > 0
+        ? await this.files.fileLinks(
+            spaces[0]!.orgId,
+            gated.map((assetId) => ({ assetId })),
+          )
+        : {};
+    return spaces.map((space) => {
+      const url = (assetId: string | null) =>
+        !assetId
+          ? null
+          : published
+            ? this.fileUrls.publicImage(space.orgId, space.id, assetId)
+            : (links[assetId] ?? null);
+      return {
+        ...space,
+        coverUrl: url(space.coverAssetId),
+        backgroundUrl: url(space.backgroundAssetId),
+        iconUrl: url(space.iconAssetId),
+      };
+    });
   }
 
   private async communityPublished(orgId: string, communityId: string): Promise<boolean> {
@@ -270,35 +300,39 @@ export class ContentService
     );
   }
 
-  private pageWithThumbnails<T extends WithThumbnail>(
+  private async pageWithThumbnails<T extends WithThumbnail>(
     page: Page<T>,
-  ): Page<T & { thumbnailUrl: string | null }> {
-    return { ...page, rows: page.rows.map((row) => this.withThumbnail(row)) };
+  ): Promise<Page<T & { thumbnailUrl: string | null }>> {
+    return { ...page, rows: await this.withThumbnails(page.rows) };
   }
 
-  private async downloadFiles(orgId: string, links: DownloadAsset[]): Promise<DownloadFile[]> {
+  private downloadFiles(orgId: string, links: DownloadAsset[]): Promise<DownloadFile[]> {
+    return this.listedFiles(orgId, links);
+  }
+
+  private eventFiles(orgId: string, links: EventAsset[]): Promise<EventFile[]> {
+    return this.listedFiles(orgId, links);
+  }
+
+  private async listedFiles<T extends { assetId: string; displayName: string | null }>(
+    orgId: string,
+    links: T[],
+  ): Promise<(T & ReadyFile & { url: string })[]> {
     const ready = await this.files.readyFiles(
       orgId,
       links.map((link) => link.assetId),
     );
-    return links.flatMap((link) => {
-      const file = ready[link.assetId];
-      return file
-        ? [{ ...link, ...file, url: this.fileUrls.downloadFile(link.downloadId, link.assetId) }]
-        : [];
-    });
-  }
-
-  private async eventFiles(orgId: string, links: EventAsset[]): Promise<EventFile[]> {
-    const ready = await this.files.readyFiles(
+    const urls = await this.files.fileLinks(
       orgId,
-      links.map((link) => link.assetId),
+      links.flatMap((link) => {
+        const file = ready[link.assetId];
+        return file ? [{ assetId: link.assetId, saveAs: link.displayName ?? file.filename }] : [];
+      }),
     );
     return links.flatMap((link) => {
       const file = ready[link.assetId];
-      return file
-        ? [{ ...link, ...file, url: this.fileUrls.eventFile(link.eventId, link.assetId) }]
-        : [];
+      const url = urls[link.assetId];
+      return file && url ? [{ ...link, ...file, url }] : [];
     });
   }
 
@@ -501,12 +535,17 @@ export class ContentService
       this.repo.listActivitiesForCourse(actor.orgId, courseId),
       this.repo.listActivityAssetsForCourse(actor.orgId, courseId),
     ]);
+    const urls = await this.files.fileLinks(
+      actor.orgId,
+      links.map((link) => ({ assetId: link.assetId })),
+    );
     return activities.map((activity) => ({
       ...activity,
       assetUrls: Object.fromEntries(
-        links
-          .filter((link) => link.activityId === activity.id)
-          .map((link) => [link.assetId, this.fileUrls.activityAsset(activity.id, link.assetId)]),
+        links.flatMap((link) => {
+          const url = urls[link.assetId];
+          return link.activityId === activity.id && url ? [[link.assetId, url]] : [];
+        }),
       ),
     }));
   }
@@ -988,7 +1027,7 @@ export class ContentService
       return [];
     }
     const found = await this.repo.findEventsByIds(actor.orgId, ids);
-    return found.map((event) => this.withThumbnail(event));
+    return this.withThumbnails(found);
   }
 
   async createEvent(input: CreateEventInput, actor: Actor): Promise<EventView> {
@@ -1535,7 +1574,7 @@ export class ContentService
       throw new NotFoundError('Community', communityId);
     }
     const spaces = await this.repo.listSpaces(actor.orgId, communityId);
-    return spaces.map((space) => this.spaceView(space, community.status === 'published'));
+    return this.spaceViews(spaces, community.status === 'published');
   }
 
   async getDmSettings(communityId: string, actor: Actor): Promise<DmSettings | null> {
@@ -1851,7 +1890,7 @@ export class ContentService
     });
     this.logger.info('spaces reordered', { orgId, communityId, actorId: actor.id });
     const published = await this.communityPublished(orgId, communityId);
-    return spaces.map((space) => this.spaceView(space, published));
+    return this.spaceViews(spaces, published);
   }
 
   async setSpaceTopics(

@@ -18,11 +18,11 @@ import {
   Discussion as DiscussionGen,
   Entitlements as EntitlementsGen,
   Events as EventsGen,
-  Files as FilesGen,
   Integrations as IntegrationsGen,
   Notifications as NotificationsGen,
   Organizations as OrganizationsGen,
   People as PeopleGen,
+  Platform as PlatformGen,
   Posts as PostsGen,
   Profile as ProfileGen,
   Progress as ProgressGen,
@@ -52,11 +52,11 @@ export const Content = ContentGen as Throwing<typeof ContentGen>;
 export const Discussion = DiscussionGen as Throwing<typeof DiscussionGen>;
 export const Entitlements = EntitlementsGen as Throwing<typeof EntitlementsGen>;
 export const Events = EventsGen as Throwing<typeof EventsGen>;
-export const Files = FilesGen as Throwing<typeof FilesGen>;
 export const Integrations = IntegrationsGen as Throwing<typeof IntegrationsGen>;
 export const Notifications = NotificationsGen as Throwing<typeof NotificationsGen>;
 export const Organizations = OrganizationsGen as Throwing<typeof OrganizationsGen>;
 export const People = PeopleGen as Throwing<typeof PeopleGen>;
+export const Platform = PlatformGen as Throwing<typeof PlatformGen>;
 export const Posts = PostsGen as Throwing<typeof PostsGen>;
 export const Profile = ProfileGen as Throwing<typeof ProfileGen>;
 export const Progress = ProgressGen as Throwing<typeof ProgressGen>;

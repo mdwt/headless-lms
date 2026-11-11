@@ -40,12 +40,18 @@ export interface ReadyFile {
   size: number;
 }
 
+export interface FileLinkRequest {
+  assetId: string;
+  /** Download the file under this name instead of showing it. */
+  saveAs?: string;
+}
+
 export interface AssetFiles {
   /** Ready files of the org among these ids, with what a download shows of them. */
   readyFiles(orgId: string, assetIds: readonly string[]): Promise<Record<string, ReadyFile>>;
-  /** A signed storage URL for a ready file of the org, after the caller has checked
-   *  access. `saveAs` makes it a short-lived download under that name. */
-  signFile(orgId: string, assetId: string, opts?: { saveAs?: string }): Promise<string | null>;
+  /** Signed storage links to the ready files of the org among these, keyed by asset id,
+   *  for a caller that has already checked access. */
+  fileLinks(orgId: string, files: readonly FileLinkRequest[]): Promise<Record<string, string>>;
   syncPublicImages(orgId: string, ownerId: string, assetIds: readonly string[]): Promise<void>;
 }
 
@@ -62,8 +68,6 @@ export interface AssetsService
   confirmOwn(id: string, actor: Actor): Promise<AssetView>;
   list(query: AssetsQuery, actor: Actor): Promise<Page<AssetView>>;
   get(id: string, actor: Actor): Promise<AssetView>;
-  libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string>;
-  ownUploadFile(assetId: string, actor: Actor): Promise<string>;
   remove(id: string, actor: Actor): Promise<void>;
   removeOwn(id: string, actor: Actor): Promise<void>;
   removeUnattached(orgId: string, now: Date): Promise<number>;

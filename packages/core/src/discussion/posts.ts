@@ -66,7 +66,7 @@ export type PostServiceParams = {
   mentions: MentionsRepository;
   images: MemberImageReader &
     MemberUploadReader &
-    Pick<AssetFiles, 'signFile' | 'syncPublicImages'>;
+    Pick<AssetFiles, 'fileLinks' | 'syncPublicImages'>;
   fileUrls: FileUrls;
   bodies: BodyParser;
   uow: PostUnitOfWork;
@@ -98,7 +98,7 @@ export class PostServiceImpl implements PostService {
   private readonly mentions: MentionsRepository;
   private readonly images: MemberImageReader &
     MemberUploadReader &
-    Pick<AssetFiles, 'signFile' | 'syncPublicImages'>;
+    Pick<AssetFiles, 'fileLinks' | 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
   private readonly bodies: BodyParser;
   private readonly uow: PostUnitOfWork;
@@ -739,48 +739,6 @@ export class PostServiceImpl implements PostService {
     return { ...page, rows: await this.viewsOf(actor, page.rows) };
   }
 
-  async coverFile(postId: string, actor: Actor): Promise<string> {
-    const post = await this.repo.find(actor.orgId, postId);
-    return this.signShown(actor, post, post?.coverAssetId ?? null, 'Post cover', postId);
-  }
-
-  async assetFile(postId: string, assetId: string, actor: Actor): Promise<string> {
-    const post = await this.repo.find(actor.orgId, postId);
-    const shown = post !== null && this.bodies.parse(post.body).assetIds.includes(assetId);
-    const [upload] = shown ? await this.images.memberUploads(actor.orgId, [assetId]) : [];
-    return this.signShown(
-      actor,
-      post,
-      upload ? assetId : null,
-      'Post file',
-      assetId,
-      upload && !INLINE_TYPES.test(upload.contentType) ? upload.filename : undefined,
-    );
-  }
-
-  private async signShown(
-    actor: Actor,
-    post: Post | null,
-    assetId: string | null,
-    label: string,
-    id: string,
-    saveAs?: string,
-  ): Promise<string> {
-    const orgId = actor.orgId;
-    if (!post || !assetId || !this.canSee(actor, post)) {
-      throw new NotFoundError(label, id);
-    }
-    const space = await this.content.getSpace(post.spaceId, this.authors.systemActor(orgId));
-    if (!space || !(await this.access.canOpen(space, actor))) {
-      throw new NotFoundError(label, id);
-    }
-    const url = await this.images.signFile(orgId, assetId, saveAs ? { saveAs } : {});
-    if (!url) {
-      throw new NotFoundError(label, id);
-    }
-    return url;
-  }
-
   async getPost(postId: string, actor: Actor): Promise<PostView> {
     const { post } = await this.loadVisible(actor, postId);
     this.logger.debug('post read', { orgId: actor.orgId, postId });
@@ -916,6 +874,16 @@ export class PostServiceImpl implements PostService {
       this.images.memberUploads(orgId, [...new Set([...bodyAssets.values()].flat())]),
     ]);
     const uploadOf = new Map(uploads.map((upload) => [upload.id, upload]));
+    const links = await this.images.fileLinks(orgId, [
+      ...posts.flatMap((post) =>
+        post.coverAssetId && post.status !== 'published' ? [{ assetId: post.coverAssetId }] : [],
+      ),
+      ...uploads.map((upload) =>
+        INLINE_TYPES.test(upload.contentType)
+          ? { assetId: upload.id }
+          : { assetId: upload.id, saveAs: upload.filename },
+      ),
+    ]);
     const subscriptionOf = new Map(subscribed.map((row) => [row.itemId, row]));
     const saved = new Set(bookmarked);
     return posts.map((post) => {
@@ -930,16 +898,17 @@ export class PostServiceImpl implements PostService {
           ? null
           : post.status === 'published'
             ? this.fileUrls.publicImage(orgId, post.id, post.coverAssetId)
-            : this.fileUrls.postCover(post.id),
+            : (links[post.coverAssetId] ?? null),
         assets: Object.fromEntries(
           (bodyAssets.get(post.id) ?? []).flatMap((assetId) => {
             const upload = uploadOf.get(assetId);
-            return upload
+            const url = links[assetId];
+            return upload && url
               ? [
                   [
                     assetId,
                     {
-                      url: this.fileUrls.postAsset(post.id, assetId),
+                      url,
                       kind: upload.kind,
                       filename: upload.filename,
                       size: upload.size,

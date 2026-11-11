@@ -4,7 +4,8 @@ AWS S3 implementation of the `ObjectStorage` port from `@headless-lms/core/types
 The bucket must already exist. Everything in it is private except the `public/`
 prefix, which holds the images the API serves publicly (profile photos and the
 thumbnails and covers of published items); private files are reached through
-short-lived presigned URLs. Also works against S3-compatible stores via `endpoint` + `forcePathStyle`.
+signed URLs, presigned on S3 or, with `cloudFront` set, signed for a CloudFront
+distribution in front of the bucket. Also works against S3-compatible stores via `endpoint` + `forcePathStyle`.
 
 The adapter reads no environment itself — the installation's `config.ts` parses
 env into an `S3StorageConfig` and injects the constructed adapter:
@@ -70,6 +71,55 @@ the bucket once (console, CLI, or IaC); everything the app does is object-level.
 4. Set `STORAGE_REGION`, `STORAGE_BUCKET`, and optionally the keys. Leave
    `STORAGE_ENDPOINT` and `STORAGE_FORCE_PATH_STYLE` unset for real AWS.
 
+## Serving through CloudFront
+
+Without `cloudFront`, a private file's link is a presigned S3 URL. With it, the
+link is a CloudFront signed URL on your distribution, so files are served and
+cached at the edge while the bucket stays private. The API signs each link
+locally when it returns the file; nothing calls AWS per file.
+
+1. Create a distribution with the bucket as its origin and origin access
+   control, and let only that distribution read the bucket:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": { "Service": "cloudfront.amazonaws.com" },
+         "Action": "s3:GetObject",
+         "Resource": "arn:aws:s3:::your-bucket/*",
+         "Condition": {
+           "StringEquals": {
+             "AWS:SourceArn": "arn:aws:cloudfront::<account>:distribution/<distribution-id>"
+           }
+         }
+       }
+     ]
+   }
+   ```
+
+2. Create a public key and a key group holding it. Keep the private key for
+   the adapter.
+3. Add a `public/*` behavior with no viewer restriction, for public images.
+4. On the default behavior, restrict viewer access to the key group, and use a
+   cache policy whose cache key holds only the query strings
+   `response-content-disposition` and `response-cache-control`. Those two are
+   forwarded to S3, which answers with them; the signature parameters stay out
+   of the key, so one viewer's request fills the edge cache for every viewer,
+   and CloudFront still checks the signature on every request. Use the managed
+   `CORS-S3Origin` origin request policy so the bucket's CORS rule answers
+   browser fetches.
+5. Pass `cloudFront: { url, keyPairId, privateKey }`, where `url` is the
+   distribution's origin (its domain or your alias). `publicBaseUrl` defaults to
+   the same origin.
+
+Every private file is served with `Cache-Control: public, max-age=31536000,
+immutable`: an asset's bytes never change under its key, and its signed link
+stays the same through each window the API signs for (`DELIVERY_URL_EXPIRY`),
+so browsers and the edge keep it.
+
 ## Path style
 
 S3 has two URL formats: virtual-hosted style (`https://bucket.s3.amazonaws.com/key`,
@@ -80,14 +130,16 @@ the bucket name cannot be a subdomain — they need path style. Set
 
 ## Environment variables (reference installation)
 
-| Variable                   | Required | Maps to                 | Notes                                                                                                                    |
-| -------------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `STORAGE_REGION`           | yes      | `region`                |                                                                                                                          |
-| `STORAGE_BUCKET`           | yes      | `bucket`                | Must exist; kept private.                                                                                                |
-| `STORAGE_ACCESS_KEY`       | no       | `accessKeyId`           | Omit for the default credential chain.                                                                                   |
-| `STORAGE_SECRET_KEY`       | no       | `secretAccessKey`       | Omit for the default credential chain.                                                                                   |
-| `STORAGE_ENDPOINT`         | no       | `endpoint`              | Full URL, for S3-compatible stores.                                                                                      |
-| `STORAGE_FORCE_PATH_STYLE` | no       | `forcePathStyle`        | `"true"` / `"false"`.                                                                                                    |
-| `STORAGE_UPLOAD_EXPIRY`    | no       | `uploadExpirySeconds`   | Default 300. Stray member uploads older than this are swept.                                                             |
-| `STORAGE_DOWNLOAD_EXPIRY`  | no       | `downloadExpirySeconds` | Download lifetime when the caller names none. Default 86400. The API names `DELIVERY_URL_EXPIRY` on every URL it serves. |
-| `STORAGE_PUBLIC_URL`       | yes      | `publicBaseUrl`         | Origin serving `public/*`, such as `https://cdn.example.com` or `https://your-bucket.s3.amazonaws.com`.                  |
+| Variable                         | Required | Maps to                 | Notes                                                                                                                                                                    |
+| -------------------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `STORAGE_REGION`                 | yes      | `region`                |                                                                                                                                                                          |
+| `STORAGE_BUCKET`                 | yes      | `bucket`                | Must exist; kept private.                                                                                                                                                |
+| `STORAGE_ACCESS_KEY`             | no       | `accessKeyId`           | Omit for the default credential chain.                                                                                                                                   |
+| `STORAGE_SECRET_KEY`             | no       | `secretAccessKey`       | Omit for the default credential chain.                                                                                                                                   |
+| `STORAGE_ENDPOINT`               | no       | `endpoint`              | Full URL, for S3-compatible stores.                                                                                                                                      |
+| `STORAGE_FORCE_PATH_STYLE`       | no       | `forcePathStyle`        | `"true"` / `"false"`.                                                                                                                                                    |
+| `STORAGE_UPLOAD_EXPIRY`          | no       | `uploadExpirySeconds`   | Default 300. Stray member uploads older than this are swept.                                                                                                             |
+| `STORAGE_PUBLIC_URL`             | no       | `publicBaseUrl`         | Origin serving `public/*`, such as `https://cdn.example.com` or `https://your-bucket.s3.amazonaws.com`. Required unless the CloudFront url is set, which it defaults to. |
+| `STORAGE_CLOUDFRONT_URL`         | no       | `cloudFront.url`        | Origin of the distribution in front of the bucket. Set all three CloudFront variables or none.                                                                           |
+| `STORAGE_CLOUDFRONT_KEY_PAIR_ID` | no       | `cloudFront.keyPairId`  | Id of the public key in the distribution's trusted key group.                                                                                                            |
+| `STORAGE_CLOUDFRONT_PRIVATE_KEY` | no       | `cloudFront.privateKey` | PEM private key of that public key.                                                                                                                                      |

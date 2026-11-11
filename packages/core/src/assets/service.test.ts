@@ -124,8 +124,7 @@ function service(overrides: Partial<ConstructorParameters<typeof AssetsServiceIm
     uow,
     memberImageMaxBytes: 1000,
     memberFileMaxBytes: 4000,
-    downloadLinkExpirySeconds: 600,
-    fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+    linkWindowSeconds: 21600,
     ...overrides,
     storage,
   });
@@ -337,8 +336,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+      linkWindowSeconds: 21600,
     });
     const now = new Date();
     assets.push({
@@ -390,8 +388,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+      linkWindowSeconds: 21600,
     });
     const now = new Date('2026-10-22T12:00:00Z');
     const old = new Date('2026-10-22T10:00:00Z');
@@ -437,8 +434,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+      linkWindowSeconds: 21600,
     });
     const old = new Date('2026-10-01T00:00:00Z');
     assets.push({
@@ -474,8 +470,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      downloadLinkExpirySeconds: 600,
-      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+      linkWindowSeconds: 21600,
       logger,
     });
     const old = new Date('2026-10-01T00:00:00Z');
@@ -556,8 +551,10 @@ describe('AssetsService', () => {
     expect(storage.copy).toHaveBeenCalledWith({ from: ticket.asset.key, to: confirmed?.key });
     expect(storage.stat).toHaveBeenCalledWith(confirmed?.key);
     expect(storage.remove).toHaveBeenCalledWith(ticket.asset.key);
-    expect(confirmed?.url).toMatch(/\/api\/member\/uploads\/ast_\w+\/file$/);
-    expect(storage.presignDownload).not.toHaveBeenCalled();
+    expect(confirmed?.url).toBe('https://storage/download');
+    expect(storage.presignDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ key: confirmed?.key }),
+    );
   });
 
   it('leaves a ready asset and its bytes alone when it is confirmed again', async () => {
@@ -615,9 +612,7 @@ describe('AssetsService', () => {
     await svc.confirm(library.asset.id, admin());
     await svc.confirmOwn(member.asset.id, uploader('ou_1'));
     expect((await svc.get(member.asset.id, admin()))?.url).toBeNull();
-    expect((await svc.get(library.asset.id, admin()))?.url).toMatch(
-      /\/api\/assets\/ast_\w+\/file$/,
-    );
+    expect((await svc.get(library.asset.id, admin()))?.url).toBe('https://storage/download');
     await expect(svc.remove(member.asset.id, admin())).resolves.toBeUndefined();
   });
 
@@ -837,10 +832,10 @@ describe('AssetsService', () => {
     }
   });
 
-  it('refuses a URL lifetime that is not a positive integer', () => {
+  it('refuses a link window that is not a positive integer', () => {
     const { repo } = fakeRepo();
     const { uow } = fakeUow(repo);
-    for (const downloadLinkExpirySeconds of [0, -1, 1.5, Number.NaN]) {
+    for (const linkWindowSeconds of [0, -1, 1.5, Number.NaN]) {
       expect(
         () =>
           new AssetsServiceImpl({
@@ -849,10 +844,9 @@ describe('AssetsService', () => {
             uow,
             memberImageMaxBytes: 1000,
             memberFileMaxBytes: 4000,
-            downloadLinkExpirySeconds,
-            fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+            linkWindowSeconds,
           }),
-      ).toThrow('invalid downloadLinkExpirySeconds');
+      ).toThrow('invalid linkWindowSeconds');
     }
   });
 
@@ -870,14 +864,16 @@ describe('AssetsService', () => {
 
     const confirmed = await svc.confirm(ticket.asset.id, admin());
 
-    expect(confirmed?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
-    expect((await svc.get(ticket.asset.id, admin()))?.url).toMatch(/\/api\/assets\/ast_\w+\/file$/);
-    expect((await svc.list({ page: 1, pageSize: 20 }, admin())).rows[0]?.url).toMatch(
-      /\/api\/assets\/ast_\w+\/file$/,
+    expect(confirmed?.url).toBe('https://storage/download');
+    expect((await svc.get(ticket.asset.id, admin()))?.url).toBe('https://storage/download');
+    expect((await svc.list({ page: 1, pageSize: 20 }, admin())).rows[0]?.url).toBe(
+      'https://storage/download',
     );
-    expect(confirmed?.downloadUrl).toMatch(/\/api\/assets\/ast_\w+\/download$/);
+    expect(confirmed?.downloadUrl).toBe('https://storage/download');
     expect(ticket.asset.downloadUrl).toBeNull();
-    expect(storage.presignDownload).not.toHaveBeenCalled();
+    expect(storage.presignDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ key: confirmed?.key, downloadFilename: 'a.png' }),
+    );
   });
 
   it('lists member uploads to staff without a URL', async () => {
@@ -891,7 +887,7 @@ describe('AssetsService', () => {
     );
     const own = await svc.confirmOwn(member.asset.id, uploader('ou_1'));
 
-    expect(own?.url).toMatch(/\/api\/member\/uploads\/ast_\w+\/file$/);
+    expect(own?.url).toBe('https://storage/download');
     const listed = await svc.list({ page: 1, pageSize: 20, source: 'member' }, admin());
     expect(listed.rows.map((a) => [a.status, a.url, a.downloadUrl])).toEqual([
       ['ready', null, null],
@@ -948,10 +944,12 @@ describe('AssetsService', () => {
     expect(await svc.readyFiles('org-1', [])).toEqual({});
   });
 
-  it('signs a ready file inline with the storage lifetime, and a download with the short one', async () => {
-    const { svc, assets, storage } = service();
+  it('signs ready files of the org for the window they are asked in and the next', async () => {
+    let clock = new Date('2026-11-11T07:30:00Z');
+    const { svc, assets, storage } = service({ now: () => clock });
     vi.mocked(storage.presignDownload).mockImplementation(
-      async ({ key, downloadFilename }) => `https://signed/${key}?as=${downloadFilename ?? ''}`,
+      async ({ key, downloadFilename, signedAt, expiresAt }) =>
+        `https://signed/${key}?as=${downloadFilename ?? ''}&from=${signedAt.toISOString()}&to=${expiresAt.toISOString()}`,
     );
     const now = new Date();
     assets.push({
@@ -970,29 +968,44 @@ describe('AssetsService', () => {
       updatedAt: now,
     });
 
-    expect(await svc.signFile('org-1', 'ast_guide')).toBe('https://signed/k-guide?as=');
-    expect(storage.presignDownload).toHaveBeenLastCalledWith({ key: 'k-guide' });
-    expect(await svc.signFile('org-1', 'ast_guide', { saveAs: 'Workbook.pdf' })).toBe(
-      'https://signed/k-guide?as=Workbook.pdf',
-    );
+    const links = await svc.fileLinks('org-1', [
+      { assetId: 'ast_guide', saveAs: 'Workbook.pdf' },
+      { assetId: 'ast_missing' },
+    ]);
+    expect(links).toEqual({
+      ast_guide:
+        'https://signed/k-guide?as=Workbook.pdf&from=2026-11-11T06:00:00.000Z&to=2026-11-11T18:00:00.000Z',
+    });
     expect(storage.presignDownload).toHaveBeenLastCalledWith({
       key: 'k-guide',
       downloadFilename: 'Workbook.pdf',
-      expiresInSeconds: 600,
+      signedAt: new Date('2026-11-11T06:00:00Z'),
+      expiresAt: new Date('2026-11-11T18:00:00Z'),
     });
-    expect(await svc.signFile('org-2', 'ast_guide')).toBeNull();
-    expect(await svc.signFile('org-1', 'ast_missing')).toBeNull();
+
+    clock = new Date('2026-11-11T11:59:59Z');
+    expect(
+      await svc.fileLinks('org-1', [{ assetId: 'ast_guide', saveAs: 'Workbook.pdf' }]),
+    ).toEqual(links);
+    clock = new Date('2026-11-11T12:00:00Z');
+    expect((await svc.fileLinks('org-1', [{ assetId: 'ast_guide' }])).ast_guide).toBe(
+      'https://signed/k-guide?as=&from=2026-11-11T12:00:00.000Z&to=2026-11-12T00:00:00.000Z',
+    );
+    expect(await svc.fileLinks('org-2', [{ assetId: 'ast_guide' }])).toEqual({});
+    expect(await svc.fileLinks('org-1', [])).toEqual({});
   });
 
-  it('serves library files to staff only, and an upload only to its uploader', async () => {
+  it('returns signed links with a library file to staff, and with an upload to its uploader', async () => {
     const { svc, storage } = service();
-    vi.mocked(storage.presignDownload).mockResolvedValue('https://signed');
+    vi.mocked(storage.presignDownload).mockImplementation(
+      async ({ key, downloadFilename }) => `https://signed/${key}?as=${downloadFilename ?? ''}`,
+    );
     vi.mocked(storage.stat).mockResolvedValue({ key: 'k', size: 50, contentType: 'image/png' });
     const library = await svc.requestUpload(
       { filename: 'a.png', contentType: 'image/png' },
       admin('ou_1'),
     );
-    await svc.confirm(library.asset.id, admin());
+    const confirmed = await svc.confirm(library.asset.id, admin());
     const member = await svc.requestMemberUpload(
       {
         filename: 'me.png',
@@ -1000,18 +1013,14 @@ describe('AssetsService', () => {
       },
       uploader('ou_1'),
     );
-    await svc.confirmOwn(member.asset.id, uploader('ou_1'));
+    const own = await svc.confirmOwn(member.asset.id, uploader('ou_1'));
 
-    expect(await svc.libraryFile(library.asset.id, { download: false }, admin())).toBe(
-      'https://signed',
-    );
-    await expect(svc.libraryFile(member.asset.id, { download: false }, admin())).rejects.toThrow(
-      NotFoundError,
-    );
-    expect(await svc.ownUploadFile(member.asset.id, uploader('ou_1'))).toBe('https://signed');
-    await expect(svc.ownUploadFile(member.asset.id, uploader('ou_2'))).rejects.toThrow(
-      NotFoundError,
-    );
+    expect(confirmed.url).toBe(`https://signed/${confirmed.key}?as=`);
+    expect(confirmed.downloadUrl).toBe(`https://signed/${confirmed.key}?as=a.png`);
+    expect(own.url).toBe(`https://signed/${own.key}?as=`);
+    expect(own.downloadUrl).toBeNull();
+    const listed = await svc.list({ page: 1, pageSize: 20, source: 'member' }, admin());
+    expect(listed.rows.map((row) => [row.url, row.downloadUrl])).toEqual([[null, null]]);
   });
 });
 
@@ -1118,7 +1127,7 @@ describe('public images', () => {
   });
 
   it('builds a public image URL from the public key', () => {
-    const urls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
+    const urls = createFileUrls((key) => `https://cdn.test/${key}`);
     expect(urls.publicImage('org-1', 'ou_1', 'ast_me')).toBe(
       'https://cdn.test/public/org-1/ou_1/ast_me',
     );
@@ -1138,10 +1147,7 @@ describe('AssetsService permissions', () => {
     expect(ticket.asset.uploadedBy).toBe('ou_james');
     const confirmed = await svc.confirm(ticket.asset.id, james);
     expect(confirmed?.status).toBe('ready');
-    expect(await svc.get(ticket.asset.id, james)).not.toBeNull();
-    expect(await svc.libraryFile(ticket.asset.id, { download: false }, james)).toBe(
-      'https://storage/download',
-    );
+    expect((await svc.get(ticket.asset.id, james)).url).toBe('https://storage/download');
   });
 
   it('refuses James an upload for crs_2, for a download, or to the library', async () => {
@@ -1182,9 +1188,7 @@ describe('AssetsService permissions', () => {
     );
     await expect(svc.get(library.asset.id, james)).rejects.toThrow(ForbiddenError);
     await expect(svc.confirm(other.asset.id, james)).rejects.toThrow(ForbiddenError);
-    await expect(svc.libraryFile(other.asset.id, { download: true }, james)).rejects.toThrow(
-      ForbiddenError,
-    );
+    await expect(svc.get(other.asset.id, james)).rejects.toThrow(ForbiddenError);
   });
 
   it('lists the whole library to media:read, otherwise only what was uploaded for the item', async () => {
@@ -1226,9 +1230,6 @@ describe('AssetsService permissions', () => {
     await expect(svc.confirm(ticket.asset.id, nobody)).rejects.toThrow(ForbiddenError);
     await expect(svc.get(ticket.asset.id, nobody)).rejects.toThrow(ForbiddenError);
     await expect(svc.list({ page: 1, pageSize: 20 }, nobody)).rejects.toThrow(ForbiddenError);
-    await expect(svc.libraryFile(ticket.asset.id, { download: false }, nobody)).rejects.toThrow(
-      ForbiddenError,
-    );
     await expect(svc.remove(ticket.asset.id, nobody)).rejects.toThrow(ForbiddenError);
   });
 });

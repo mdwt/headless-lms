@@ -187,6 +187,10 @@ export interface Config {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** IPs or CIDR ranges of the reverse proxies in front of the API; the client IP is the first address in the forwarded chain that is not one of them. */
+  trustedProxies?: string[];
+  /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
+  ipAddressHeaders?: string[];
   /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
   studentPortalUrl: string;
   /** Admin app origin — invite links for staff. */
@@ -195,9 +199,9 @@ export interface Config {
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
   logging?: LoggingConfig;
-  /** Lifetime of every signed file URL a response carries, seconds. Mirrors
-   *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
-  deliveryExpirySeconds: number;
+  /** Window of the signed file links a response carries, seconds. Mirrors
+   *  ServerConfig.deliveryWindowSeconds — createContainer threads it through. */
+  deliveryWindowSeconds: number;
   memberImageMaxBytes: number;
   memberFileMaxBytes: number;
   /** Let the default webhook sender reach loopback and private network addresses. Local development only. */
@@ -356,7 +360,7 @@ export async function buildContainer(
     studentPortalUrl: config.studentPortalUrl,
   });
 
-  const fileUrls = createFileUrls(config.authBaseURL, (key) => storage.publicUrl(key));
+  const fileUrls = createFileUrls((key) => storage.publicUrl(key));
   const assets = new AssetsServiceImpl({
     storage,
     repo: new DrizzleAssetsRepository(db, assetsLogger),
@@ -366,8 +370,7 @@ export async function buildContainer(
     })),
     memberImageMaxBytes: config.memberImageMaxBytes,
     memberFileMaxBytes: config.memberFileMaxBytes,
-    downloadLinkExpirySeconds: config.deliveryExpirySeconds,
-    fileUrls,
+    linkWindowSeconds: config.deliveryWindowSeconds,
     logger: assetsLogger,
   });
 
@@ -669,7 +672,6 @@ export async function buildContainer(
       repo: new DrizzleMemberRepository(db, reportingLogger),
       content,
       progress,
-      files: assets,
       fileUrls,
       access: entitlements,
       people: organizations,
@@ -957,6 +959,8 @@ export async function buildContainer(
     logger: authLogger,
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
+    trustedProxies: config.trustedProxies,
+    ipAddressHeaders: config.ipAddressHeaders,
   });
   orgAdminRef.current = auth;
 

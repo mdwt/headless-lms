@@ -14,6 +14,7 @@ import { mentionTokens } from './mentions.js';
 import { PostServiceImpl } from './posts.js';
 import type {
   AssetFiles,
+  FileLinkRequest,
   MemberImageReader,
   MemberUpload,
   MemberUploadReader,
@@ -208,7 +209,8 @@ function feedOrder(a: Post, b: Post): number {
   return a.id < b.id ? 1 : -1;
 }
 
-const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
+const fileUrls = createFileUrls((key) => `https://cdn.test/${key}`);
+const signedLink = (assetId: string) => `https://signed.test/${assetId}`;
 
 function testUpload(id: string): MemberUpload {
   const [kind, contentType] = id.includes('pdf')
@@ -235,7 +237,7 @@ function harness(options?: {
   people?: Actor[];
   gone?: string[];
   images?: Partial<
-    MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'signFile' | 'syncPublicImages'>
+    MemberImageReader & MemberUploadReader & Pick<AssetFiles, 'fileLinks' | 'syncPublicImages'>
   >;
   profiles?: Record<string, Partial<AuthorRecord>>;
   scheduler?: Partial<Pick<Scheduler, 'at' | 'cancel'>>;
@@ -587,7 +589,8 @@ function harness(options?: {
     profiles,
     comments,
     images: {
-      signFile: async () => 'https://signed',
+      fileLinks: async (_orgId: string, files: readonly FileLinkRequest[]) =>
+        Object.fromEntries(files.map(({ assetId }) => [assetId, signedLink(assetId)])),
       ownsImage: async () => true,
       ownsUpload: async () => true,
       memberUploads: async (_orgId, ids) => ids.map(testUpload),
@@ -720,7 +723,6 @@ describe('posts', () => {
     ]) {
       expect(await message(run)).toBe(expected);
     }
-    await expect(svc.coverFile(created.id, outsider)).rejects.toThrow(NotFoundError);
   });
 
   it('lets only the author edit, and a pending edit says it was already pending', async () => {
@@ -1296,7 +1298,7 @@ describe('posts', () => {
     });
     const signed = {
       coverUrl: expect.stringMatching(
-        /(\/api\/member\/posts\/[^/]+\/cover|\/public\/org-1\/[^/]+\/ast_cover)$/,
+        /^(https:\/\/signed\.test\/ast_cover|https:\/\/cdn\.test\/public\/org-1\/[^/]+\/ast_cover)$/,
       ),
       author: { imageUrl: fileUrls.publicImage(ORG, member.id, 'ast_photo') },
     };
@@ -1336,7 +1338,7 @@ describe('posts', () => {
     expect(await svc.approve(draft.id, null, moderator)).toMatchObject(signed);
   });
 
-  it('serves no cover URL for a post without a cover, and the post cover URL for one with', async () => {
+  it('serves no cover URL for a post without a cover, a public one when published and a signed one otherwise', async () => {
     const { svc } = harness();
     const bare = await svc.create(draftInput(), member);
     expect(bare).toMatchObject({ coverAssetId: null, coverUrl: null, author: { imageUrl: null } });
@@ -1347,7 +1349,7 @@ describe('posts', () => {
       draftInput({ mode: 'draft', coverAssetId: 'ast_cover' }),
       member,
     );
-    expect(draft.coverUrl).toBe(fileUrls.postCover(draft.id));
+    expect(draft.coverUrl).toBe(signedLink('ast_cover'));
   });
 
   it('publishes the cover when a post is published and withdraws it when the post is removed', async () => {
@@ -1358,7 +1360,7 @@ describe('posts', () => {
     );
     await svc.submit(draft.id, member);
     const removed = await svc.remove(draft.id, null, member);
-    expect(removed.coverUrl).toBe(fileUrls.postCover(draft.id));
+    expect(removed.coverUrl).toBe(signedLink('ast_cover'));
     expect(syncPublicImages.mock.calls).toEqual([
       [ORG, draft.id, []],
       [ORG, draft.id, ['ast_cover']],
@@ -1366,20 +1368,15 @@ describe('posts', () => {
     ]);
   });
 
-  it('serves the cover file to whoever can read the post, and nothing to anyone else', async () => {
+  it('links a draft cover only for whoever can read the draft', async () => {
     const { svc } = harness();
-    const post = await svc.create(draftInput({ coverAssetId: 'ast_cover' }), member);
-    const bare = await svc.create(draftInput({ title: 'Bare' }), member);
-    expect(await svc.coverFile(post.id, other)).toBe('https://signed');
-    await expect(svc.coverFile(post.id, outsider)).rejects.toThrow(NotFoundError);
-    await expect(svc.coverFile(bare.id, other)).rejects.toThrow(NotFoundError);
-    await expect(svc.coverFile('pst_missing', other)).rejects.toThrow(NotFoundError);
     const draft = await svc.create(
       draftInput({ mode: 'draft', title: 'Draft', coverAssetId: 'ast_cover' }),
       member,
     );
-    await expect(svc.coverFile(draft.id, other)).rejects.toThrow(NotFoundError);
-    expect(await svc.coverFile(draft.id, member)).toBe('https://signed');
+    await expect(svc.getPost(draft.id, other)).rejects.toThrow(NotFoundError);
+    await expect(svc.getPost(draft.id, outsider)).rejects.toThrow(NotFoundError);
+    expect((await svc.getPost(draft.id, member)).coverUrl).toBe(signedLink('ast_cover'));
   });
 });
 
@@ -1669,9 +1666,9 @@ describe('post body files', () => {
   const owned = (ids: string[]) => ({
     ownsUpload: async (_orgId: string, assetId: string) => ids.includes(assetId),
   });
-  const asset = (postId: string, id: string) => {
+  const asset = (_postId: string, id: string) => {
     const { kind, filename, size } = testUpload(id);
-    return { url: fileUrls.postAsset(postId, id), kind, filename, size };
+    return { url: signedLink(id), kind, filename, size };
   };
 
   it('describes each image, video and file the body shows', async () => {
@@ -1736,37 +1733,36 @@ describe('post body files', () => {
     expect(updated.assets).toEqual({ ast_b: asset(post.id, 'ast_b') });
   });
 
-  it('serves a file to whoever can read the post while its body shows it', async () => {
+  it('links a file for whoever can read the post while its body shows it', async () => {
     const { svc } = harness();
     const post = await svc.create(draftInput({ body: '![](asset:ast_a)' }), member);
-    expect(await svc.assetFile(post.id, 'ast_a', other)).toBe('https://signed');
-    await expect(svc.assetFile(post.id, 'ast_b', other)).rejects.toThrow(NotFoundError);
-    await expect(svc.assetFile(post.id, 'ast_a', outsider)).rejects.toThrow(NotFoundError);
-    await expect(svc.assetFile('pst_missing', 'ast_a', other)).rejects.toThrow(NotFoundError);
+    expect((await svc.getPost(post.id, other)).assets).toEqual({ ast_a: asset(post.id, 'ast_a') });
+    await expect(svc.getPost(post.id, outsider)).rejects.toThrow(NotFoundError);
     await svc.update(post.id, { body: 'No file now' }, member);
-    await expect(svc.assetFile(post.id, 'ast_a', other)).rejects.toThrow(NotFoundError);
+    expect((await svc.getPost(post.id, other)).assets).toEqual({});
     const draft = await svc.create(draftInput({ mode: 'draft', body: '![](asset:ast_a)' }), member);
-    await expect(svc.assetFile(draft.id, 'ast_a', other)).rejects.toThrow(NotFoundError);
-    expect(await svc.assetFile(draft.id, 'ast_a', member)).toBe('https://signed');
+    await expect(svc.getPost(draft.id, other)).rejects.toThrow(NotFoundError);
+    expect((await svc.getPost(draft.id, member)).assets).toEqual({
+      ast_a: asset(draft.id, 'ast_a'),
+    });
   });
 
   it('opens images, video, audio and PDFs in place and makes any other file a download', async () => {
-    const signFile = vi.fn(async () => 'https://signed');
-    const { svc } = harness({ images: { signFile } });
-    const post = await svc.create(
+    const fileLinks = vi.fn(async (_orgId: string, files: readonly FileLinkRequest[]) =>
+      Object.fromEntries(files.map(({ assetId }) => [assetId, signedLink(assetId)])),
+    );
+    const { svc } = harness({ images: { fileLinks } });
+    await svc.create(
       draftInput({
         body: '![](asset:ast_a) ![](asset:ast_vid) [a](asset:ast_pdf) [b](asset:ast_zip)',
       }),
       member,
     );
-    for (const id of ['ast_a', 'ast_vid', 'ast_pdf', 'ast_zip']) {
-      await svc.assetFile(post.id, id, other);
-    }
-    expect(signFile.mock.calls.map((call) => call.slice(1))).toEqual([
-      ['ast_a', {}],
-      ['ast_vid', {}],
-      ['ast_pdf', {}],
-      ['ast_zip', { saveAs: 'ast_zip.file' }],
+    expect(fileLinks.mock.lastCall?.[1]).toEqual([
+      { assetId: 'ast_a' },
+      { assetId: 'ast_vid' },
+      { assetId: 'ast_pdf' },
+      { assetId: 'ast_zip', saveAs: 'ast_zip.file' },
     ]);
   });
 });

@@ -1,6 +1,5 @@
 // HTTP routes for the assets media library. Assets are stored under the org's
-// private prefix and served through stable URLs that redirect to a signed
-// storage URL.
+// private prefix and served by signed storage URLs returned with each asset.
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -107,40 +106,4 @@ export async function assetsRoutes(app: FastifyInstance, container: Container): 
       return reply.code(204).send();
     },
   });
-
-  for (const { suffix, download, operationId, summary } of [
-    {
-      suffix: 'file',
-      download: false,
-      operationId: 'getLibraryFile',
-      summary: 'Redirect to a library file to show it',
-    },
-    {
-      suffix: 'download',
-      download: true,
-      operationId: 'downloadLibraryFile',
-      summary: 'Redirect to a library file saved under its filename',
-    },
-  ]) {
-    r.route({
-      method: 'GET',
-      url: `/api/assets/:id/${suffix}`,
-      schema: {
-        operationId,
-        tags,
-        summary,
-        description: `Requires one of \`media:read\`, \`courses:write\`, \`downloads:write\`, \`communities:write\`. \`media:read\` reaches every file; the write permission of a content item reaches the files uploaded for it. Ready library files of the organization; member uploads and pending files answer 404.`,
-        params: AssetIdParam,
-        response: { 302: z.void(), ...refusals(403, 404) },
-      },
-      handler: async (req, reply) => {
-        const actor = await resolveActor(container, req);
-        const url = await assets.libraryFile(req.params.id, { download }, actor);
-        return reply
-          .header('cache-control', 'no-store')
-          .header('referrer-policy', 'no-referrer')
-          .redirect(url, 302);
-      },
-    });
-  }
 }

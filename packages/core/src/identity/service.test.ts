@@ -54,7 +54,7 @@ function fakeRepo(over?: Partial<IdentityRepository>): IdentityRepository {
   };
 }
 
-const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
+const fileUrls = createFileUrls((key) => `https://cdn.test/${key}`);
 
 function build(repo = fakeRepo(), reader: MemberImageReader = { ownsImage: async () => true }) {
   const images = { ...reader, syncPublicImages: vi.fn(async () => {}) };
