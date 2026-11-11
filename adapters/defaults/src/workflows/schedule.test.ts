@@ -12,7 +12,6 @@ describe("fireDueSchedules", () => {
       fireSchedule,
       runAction: vi.fn(),
       finalize: vi.fn(),
-      runDelivery: vi.fn(),
     };
   }
 

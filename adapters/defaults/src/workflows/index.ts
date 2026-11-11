@@ -6,6 +6,7 @@ import type {
   AutomationEngine,
   AutomationExecutor,
   DeliveryDispatch,
+  DeliveryExecutor,
   JsonValue,
   Logger,
 } from "@headless-lms/core/types";
@@ -18,6 +19,7 @@ export { startScheduleLoop };
 
 export class InlineAutomationEngine implements AutomationEngine, Scheduler {
   private executor: AutomationExecutor | undefined;
+  private deliveries: DeliveryExecutor | undefined;
   private schedule: { stop(): void } | undefined;
   private readonly jobs: InlineJobs;
 
@@ -27,6 +29,10 @@ export class InlineAutomationEngine implements AutomationEngine, Scheduler {
 
   register(executor: AutomationExecutor): void {
     this.executor = executor;
+  }
+
+  registerDeliveries(executor: DeliveryExecutor): void {
+    this.deliveries = executor;
   }
 
   registerJobs(handlers: ScheduledJob[], recurring: RecurringJob[]): void {
@@ -75,10 +81,10 @@ export class InlineAutomationEngine implements AutomationEngine, Scheduler {
   }
 
   async deliver(d: DeliveryDispatch): Promise<void> {
-    if (!this.executor) {
-      throw new Error("InlineAutomationEngine.deliver called before register()");
+    if (!this.deliveries) {
+      throw new Error("InlineAutomationEngine.deliver called before registerDeliveries()");
     }
-    await this.executor.runDelivery(d, true);
+    await this.deliveries.runDelivery(d, true);
   }
 
   async start(): Promise<void> {

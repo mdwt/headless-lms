@@ -889,16 +889,17 @@ describe("HatchetAutomationEngine deliveries", () => {
   it("deliver enqueues one task run for the delivery", async () => {
     const fake = fakeHatchetClient();
     const engine = new HatchetAutomationEngine(fake.client);
-    engine.register({ runAction: vi.fn(), finalize: vi.fn(), runDelivery: vi.fn() });
+    engine.registerDeliveries({ runDelivery: vi.fn() });
     await engine.deliver({ orgId: "org-1", deliveryId: "ndl_1" });
     expect(fake.deliveryRunNoWait).toHaveBeenCalledWith({ orgId: "org-1", deliveryId: "ndl_1" });
   });
 
-  it("deliver refuses before register", async () => {
+  it("deliver refuses before a delivery executor is registered", async () => {
     const fake = fakeHatchetClient();
     const engine = new HatchetAutomationEngine(fake.client);
+    engine.register({ runAction: vi.fn(), finalize: vi.fn() });
     await expect(engine.deliver({ orgId: "org-1", deliveryId: "ndl_1" })).rejects.toThrow(
-      "before register()",
+      "before registerDeliveries()",
     );
     expect(fake.deliveryRunNoWait).not.toHaveBeenCalled();
   });
@@ -907,7 +908,7 @@ describe("HatchetAutomationEngine deliveries", () => {
     const fake = fakeHatchetClient();
     const engine = new HatchetAutomationEngine(fake.client);
     const runDelivery = vi.fn(async () => {});
-    engine.register({ runAction: vi.fn(), finalize: vi.fn(), runDelivery });
+    engine.registerDeliveries({ runDelivery });
     const input = { orgId: "org-1", deliveryId: "ndl_1" };
     await fake.callDelivery(input, 0);
     await fake.callDelivery(input, 2);
@@ -923,9 +924,7 @@ describe("HatchetAutomationEngine deliveries", () => {
     const fake = fakeHatchetClient();
     const engine = new HatchetAutomationEngine(fake.client);
     const error = new Error("smtp 451");
-    engine.register({
-      runAction: vi.fn(),
-      finalize: vi.fn(),
+    engine.registerDeliveries({
       runDelivery: vi.fn(async () => {
         throw error;
       }),

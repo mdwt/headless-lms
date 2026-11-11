@@ -45,6 +45,7 @@ export type {
   AutomationExecutor,
   AutomationEngine,
   DeliveryDispatch,
+  DeliveryExecutor,
   NewAutomation,
   NewAutomationRun,
   NewDelivery,

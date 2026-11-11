@@ -59,7 +59,7 @@ describe("InMemoryEventBus.subscribeAll", () => {
     await expect(bus.publish(event("entitlement.created", "evt_1"))).rejects.toThrow("boom");
   });
 
-  it("stops dispatching to later handlers once one throws", async () => {
+  it("still runs the later handlers when one throws, then rejects", async () => {
     const bus = new InMemoryEventBus();
     const seen: string[] = [];
     bus.subscribe("entitlement.created", async () => {
@@ -73,6 +73,21 @@ describe("InMemoryEventBus.subscribeAll", () => {
       seen.push("all-2");
     });
     await expect(bus.publish(event("entitlement.created", "evt_1"))).rejects.toThrow("boom");
-    expect(seen).toEqual(["type-specific", "all-1"]);
+    expect(seen).toEqual(["type-specific", "all-1", "all-2"]);
+  });
+
+  it("rejects with every error when several handlers throw", async () => {
+    const bus = new InMemoryEventBus();
+    const first = new Error("first");
+    const second = new Error("second");
+    bus.subscribeAll(async () => {
+      throw first;
+    });
+    bus.subscribeAll(async () => {
+      throw second;
+    });
+    const rejection = await bus.publish(event("entitlement.created", "evt_1")).catch((e) => e);
+    expect(rejection).toBeInstanceOf(AggregateError);
+    expect((rejection as AggregateError).errors).toEqual([first, second]);
   });
 });

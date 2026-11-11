@@ -88,7 +88,7 @@ const D = { orgId: 'org_1', deliveryId: 'ndl_1' };
 describe('NotificationDelivery', () => {
   it('sends through the channel to the recipient and marks the delivery sent', async () => {
     const { repo, channel, task } = build({});
-    await task.run(D, false);
+    await task.runDelivery(D, false);
     expect(channel?.recipient).toHaveBeenCalledWith('org_1', 'usr_sarah');
     expect(channel?.deliver).toHaveBeenCalledWith(notification, {
       devices: [device('dev_1'), device('dev_2')],
@@ -100,7 +100,7 @@ describe('NotificationDelivery', () => {
   it('stops when the delivery is missing or no longer pending', async () => {
     for (const found of [null, { delivery: delivery({ status: 'sent' }), notification }]) {
       const { repo, task } = build({ found });
-      await task.run(D, false);
+      await task.runDelivery(D, false);
       expect(repo.markSent).not.toHaveBeenCalled();
       expect(repo.markFailed).not.toHaveBeenCalled();
       expect(repo.recordError).not.toHaveBeenCalled();
@@ -109,13 +109,13 @@ describe('NotificationDelivery', () => {
 
   it('fails a delivery whose channel is no longer configured', async () => {
     const { repo, task } = build({ channel: null });
-    await task.run(D, false);
+    await task.runDelivery(D, false);
     expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', CHANNEL_NOT_CONFIGURED);
   });
 
   it('fails a delivery with no address without retrying', async () => {
     const { repo, channel, task } = build({ channel: { recipient: vi.fn(async () => null) } });
-    await expect(task.run(D, false)).resolves.toBeUndefined();
+    await expect(task.runDelivery(D, false)).resolves.toBeUndefined();
     expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', NO_ADDRESS);
     expect(channel?.deliver).not.toHaveBeenCalled();
   });
@@ -129,7 +129,7 @@ describe('NotificationDelivery', () => {
         }),
       },
     });
-    await expect(task.run(D, false)).rejects.toBe(error);
+    await expect(task.runDelivery(D, false)).rejects.toBe(error);
     expect(repo.recordError).toHaveBeenCalledWith('org_1', 'ndl_1', 'apns 503');
     expect(repo.markFailed).not.toHaveBeenCalled();
     expect(repo.markSent).not.toHaveBeenCalled();
@@ -143,7 +143,7 @@ describe('NotificationDelivery', () => {
         }),
       },
     });
-    await expect(task.run(D, true)).resolves.toBeUndefined();
+    await expect(task.runDelivery(D, true)).resolves.toBeUndefined();
     expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', 'identity down');
     expect(repo.recordError).not.toHaveBeenCalled();
   });
@@ -152,7 +152,7 @@ describe('NotificationDelivery', () => {
     const { repo, devices, task } = build({
       channel: { deliver: vi.fn(async () => ({ accepted: true, deadDeviceIds: ['dev_1'] })) },
     });
-    await task.run(D, false);
+    await task.runDelivery(D, false);
     expect(devices.removeDead).toHaveBeenCalledWith('org_1', ['dev_1']);
     expect(repo.markSent).toHaveBeenCalled();
   });
@@ -169,7 +169,7 @@ describe('NotificationDelivery', () => {
         })),
       },
     });
-    await task.run(D, false);
+    await task.runDelivery(D, false);
     expect(devices.removeDead).toHaveBeenCalledWith('org_1', ['dev_1', 'dev_2']);
     expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', error);
     expect(repo.markSent).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('NotificationDelivery', () => {
     const { repo, devices, task } = build({
       channel: { deliver: vi.fn(async () => ({ accepted: false, deadDeviceIds: [], error })) },
     });
-    await expect(task.run(D, false)).resolves.toBeUndefined();
+    await expect(task.runDelivery(D, false)).resolves.toBeUndefined();
     expect(devices.removeDead).not.toHaveBeenCalled();
     expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', error);
     expect(repo.recordError).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe('NotificationDelivery', () => {
     const { repo, task } = build({
       channel: { deliver: vi.fn(async () => ({ accepted: false, deadDeviceIds: [] })) },
     });
-    await task.run(D, false);
+    await task.runDelivery(D, false);
     expect(repo.markFailed).toHaveBeenCalledWith('org_1', 'ndl_1', NOT_ACCEPTED);
   });
 });

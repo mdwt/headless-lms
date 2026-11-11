@@ -5,6 +5,7 @@ import type {
   AutomationEngine,
   AutomationActionResult,
   DeliveryDispatch,
+  DeliveryExecutor,
   ScheduledAutomation,
   JsonValue,
 } from "@headless-lms/core/types";
@@ -179,6 +180,7 @@ function sdkLogger(logger: Logger): LogConstructor {
 
 export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   private executor: AutomationExecutor | undefined;
+  private deliveries: DeliveryExecutor | undefined;
   private jobs = new Map<string, ScheduledJob>();
   private recurring: RecurringJob[] = [];
   private worker: HatchetWorkerLike | undefined;
@@ -246,6 +248,10 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
     this.executor = executor;
   }
 
+  registerDeliveries(executor: DeliveryExecutor): void {
+    this.deliveries = executor;
+  }
+
   registerJobs(handlers: ScheduledJob[], recurring: RecurringJob[]): void {
     this.jobs = new Map(handlers.map((handler) => [handler.job, handler]));
     this.recurring = [...recurring];
@@ -309,8 +315,8 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   }
 
   async deliver(d: DeliveryDispatch): Promise<void> {
-    if (!this.executor) {
-      throw new Error("HatchetAutomationEngine.deliver called before register()");
+    if (!this.deliveries) {
+      throw new Error("HatchetAutomationEngine.deliver called before registerDeliveries()");
     }
     await this.deliveryTask.runNoWait(d);
   }
@@ -480,11 +486,13 @@ export class HatchetAutomationEngine implements AutomationEngine, Scheduler {
   }
 
   private async runDelivery(input: DeliveryDispatch, ctx: TaskCtxLike | undefined): Promise<void> {
-    if (!this.executor) {
-      throw new Error("HatchetAutomationEngine: notification-delivery invoked before register()");
+    if (!this.deliveries) {
+      throw new Error(
+        "HatchetAutomationEngine: notification-delivery invoked before registerDeliveries()",
+      );
     }
     const lastAttempt = (ctx?.retryCount?.() ?? 0) >= ACTION_RETRIES;
-    await this.executor.runDelivery(input, lastAttempt);
+    await this.deliveries.runDelivery(input, lastAttempt);
   }
 
   private async runSchedule(input: ScheduleTaskInput): Promise<void> {

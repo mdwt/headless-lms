@@ -177,6 +177,7 @@ function fakeRunsRepo(over?: Partial<AutomationRunsRepository>): AutomationRunsR
 function fakeEngine(over?: Partial<AutomationEngine>): AutomationEngine {
   return {
     register: vi.fn(),
+    registerDeliveries: vi.fn(),
     dispatch: vi.fn().mockResolvedValue(undefined),
     deliver: vi.fn().mockResolvedValue(undefined),
     start: vi.fn().mockResolvedValue(undefined),
@@ -251,10 +252,6 @@ function build(
   credentials = fakeCredentials(),
   webhooks = fakeWebhooks(),
   logger: Logger = noopLogger,
-  delivery = { run: vi.fn(async () => {}) },
-  processor: { process: (event: DomainEvent) => Promise<void> } = {
-    process: vi.fn(async () => {}),
-  },
 ) {
   const { uow, append, appended } = fakeUow(repo, runsRepo, credentials);
   const svc = new AutomationsServiceImpl({
@@ -274,8 +271,6 @@ function build(
         throw new Error('grantAccess: no grant writer configured');
       },
     },
-    delivery,
-    processor,
     logger,
   });
   return {
@@ -287,8 +282,6 @@ function build(
     integrations,
     credentials,
     webhooks,
-    delivery,
-    processor,
     append,
     appended,
   };
@@ -300,109 +293,6 @@ beforeAll(() => {
 });
 afterAll(() => {
   vi.useRealTimers();
-});
-
-describe('AutomationsService.runDelivery', () => {
-  it('runs the delivery task with the attempt flag the engine passes', async () => {
-    const { svc, delivery } = build();
-    await svc.runDelivery({ orgId: 'org-1', deliveryId: 'ndl_1' }, true);
-    expect(delivery.run).toHaveBeenCalledWith({ orgId: 'org-1', deliveryId: 'ndl_1' }, true);
-  });
-});
-
-describe('AutomationsService.handle and the notification process', () => {
-  it('runs the org automations first, then the notification process', async () => {
-    const order: string[] = [];
-    const engine = fakeEngine({
-      dispatch: vi.fn(async () => {
-        order.push('automation');
-      }),
-    });
-    const processor = {
-      process: vi.fn(async () => {
-        order.push('notifications');
-      }),
-    };
-    const { svc } = build(
-      fakeRepo(),
-      fakeRunsRepo(),
-      engine,
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      noopLogger,
-      undefined,
-      processor,
-    );
-    await svc.handle(ENTITLEMENT_CREATED_EVENT);
-    expect(order).toEqual(['automation', 'notifications']);
-    expect(processor.process).toHaveBeenCalledWith(ENTITLEMENT_CREATED_EVENT);
-  });
-
-  it('rethrows a notification process failure so the outbox redelivers', async () => {
-    const error = new Error('categories unreadable');
-    const processor = {
-      process: vi.fn(async () => {
-        throw error;
-      }),
-    };
-    const { svc, engine } = build(
-      fakeRepo(),
-      fakeRunsRepo(),
-      fakeEngine(),
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      noopLogger,
-      undefined,
-      processor,
-    );
-    await expect(svc.handle(ENTITLEMENT_CREATED_EVENT)).rejects.toBe(error);
-    expect(engine.dispatch).toHaveBeenCalledTimes(1);
-  });
-
-  it('still runs the notification process when an org automation fails', async () => {
-    const processor = { process: vi.fn(async () => {}) };
-    const { svc } = build(
-      fakeRepo(),
-      fakeRunsRepo(),
-      fakeEngine({ dispatch: vi.fn().mockRejectedValue(new Error('queue down')) }),
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      noopLogger,
-      undefined,
-      processor,
-    );
-    await svc.handle(ENTITLEMENT_CREATED_EVENT);
-    expect(processor.process).toHaveBeenCalledTimes(1);
-  });
-
-  it('runs neither for an automation event', async () => {
-    const processor = { process: vi.fn(async () => {}) };
-    const { svc, repo } = build(
-      fakeRepo(),
-      fakeRunsRepo(),
-      fakeEngine(),
-      fakeMailer(),
-      fakeIntegrations(),
-      fakeLookups(),
-      fakeCredentials(),
-      fakeWebhooks(),
-      noopLogger,
-      undefined,
-      processor,
-    );
-    await svc.handle({ ...ENTITLEMENT_CREATED_EVENT, type: 'automation.run.started' });
-    expect(repo.listByTrigger).not.toHaveBeenCalled();
-    expect(processor.process).not.toHaveBeenCalled();
-  });
 });
 
 describe('AutomationsService.handle', () => {

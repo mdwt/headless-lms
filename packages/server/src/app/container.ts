@@ -796,16 +796,17 @@ export async function buildContainer(
       new FetchWebhookSender({ allowPrivateNetwork: config.webhookAllowPrivateNetwork }),
     mail: wired.mail,
     grants: wired.grants,
-    delivery: new NotificationDelivery({
+    logger: automationsLogger,
+  });
+  automationEngine.register(automations);
+  automationEngine.registerDeliveries(
+    new NotificationDelivery({
       repo: notificationsRepo,
       channels: notificationRegistries.channels,
       devices,
       logger: automationsLogger,
     }),
-    processor: notificationProcessor,
-    logger: automationsLogger,
-  });
-  automationEngine.register(automations);
+  );
   automationEngine.registerJobs(
     [
       ...discussionJobs({ posts, digests, logger: discussionLogger }),
@@ -830,6 +831,7 @@ export async function buildContainer(
     new ChatLiveForwarder({ pubsub, logger: discussionLogger }).attach(eventBus);
   }
   eventBus.subscribeAll((event) => automations.handle(event));
+  eventBus.subscribeAll((event) => notificationProcessor.process(event));
   const outboxConfig = resolveOutboxConfig(config.outbox);
   const outboxRelay = new PollingOutboxRelay(
     new DrizzleOutboxStore(db, outboxLogger),
