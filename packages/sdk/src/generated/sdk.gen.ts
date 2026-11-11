@@ -155,7 +155,6 @@ import type {
   DisconnectIntegrationResponses,
   DismissCommentReportsErrors,
   DismissCommentReportsResponses,
-  DownloadLibraryFileErrors,
   EditChatMessageErrors,
   EditChatMessageResponses,
   EditCommentErrors,
@@ -166,7 +165,6 @@ import type {
   FlagMessageResponses,
   FlagPostErrors,
   FlagPostResponses,
-  GetActivityFileErrors,
   GetAssetErrors,
   GetAssetResponses,
   GetAutomationErrors,
@@ -183,7 +181,6 @@ import type {
   GetCommunityResponses,
   GetCommunitySpaceQueueErrors,
   GetCommunitySpaceQueueResponses,
-  GetCommunityThumbnailErrors,
   GetConnectionErrors,
   GetConnectionResponses,
   GetCourseAnalyticsErrors,
@@ -192,13 +189,10 @@ import type {
   GetCourseEnrollmentSeriesResponses,
   GetCourseErrors,
   GetCourseResponses,
-  GetCourseThumbnailErrors,
   GetDefaultNotificationCategoriesErrors,
   GetDefaultNotificationCategoriesResponses,
   GetDownloadErrors,
-  GetDownloadFileErrors,
   GetDownloadResponses,
-  GetDownloadThumbnailErrors,
   GetEnrollmentSeriesErrors,
   GetEnrollmentSeriesResponses,
   GetEventAnalyticsErrors,
@@ -206,12 +200,9 @@ import type {
   GetEventCalendarErrors,
   GetEventCalendarResponses,
   GetEventErrors,
-  GetEventFileErrors,
   GetEventResponses,
-  GetEventThumbnailErrors,
   GetInviteErrors,
   GetInviteResponses,
-  GetLibraryFileErrors,
   GetMemberChatErrors,
   GetMemberChatResponses,
   GetMemberChatUnreadErrors,
@@ -250,18 +241,14 @@ import type {
   GetMemberPushConfigResponses,
   GetMemberSpaceErrors,
   GetMemberSpaceResponses,
-  GetMemberUploadFileErrors,
   GetMemberViewerErrors,
   GetMemberViewerResponses,
-  GetMessageAttachmentErrors,
   GetMyPermissionsErrors,
   GetMyPermissionsResponses,
   GetOrgNotificationCategoriesErrors,
   GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
   GetOverviewResponses,
-  GetPostAssetErrors,
-  GetPostCoverErrors,
   GetPostErrors,
   GetPostResponses,
   GetRoleErrors,
@@ -269,7 +256,6 @@ import type {
   GetSpaceErrors,
   GetSpaceFeedErrors,
   GetSpaceFeedResponses,
-  GetSpaceImageErrors,
   GetSpaceQueueErrors,
   GetSpaceQueueResponses,
   GetSpaceResponses,
@@ -10091,386 +10077,6 @@ export class Assets {
       },
     );
   }
-
-  /**
-   * Redirect to a library file to show it
-   *
-   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` reaches every file; the write permission of a content item reaches the files uploaded for it. Ready library files of the organization; member uploads and pending files answer 404.
-   */
-  public static getLibraryFile<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetLibraryFileErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).get<unknown, GetLibraryFileErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/assets/{id}/file",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a library file saved under its filename
-   *
-   * Requires one of `media:read`, `courses:write`, `downloads:write`, `communities:write`. `media:read` reaches every file; the write permission of a content item reaches the files uploaded for it. Ready library files of the organization; member uploads and pending files answer 404.
-   */
-  public static downloadLibraryFile<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, DownloadLibraryFileErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).get<
-      unknown,
-      DownloadLibraryFileErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/assets/{id}/download",
-      ...options,
-      ...params,
-    });
-  }
-}
-
-export class Files {
-  /**
-   * Redirect to a file attached to an event
-   *
-   * For a holder of `events:read` on the event or the org, or an attendee of the published or canceled event. Saved under its display name. 404 otherwise, or when the file is not attached to the event.
-   */
-  public static getEventFile<ThrowOnError extends boolean = false>(
-    parameters: {
-      eventId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetEventFileErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "eventId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<unknown, GetEventFileErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/events/{eventId}/assets/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a course's thumbnail
-   *
-   * For an unpublished course, which only a holder of `courses:read` on it may fetch: a published course carries a public `thumbnailUrl` instead. 404 when the course has no thumbnail.
-   */
-  public static getCourseThumbnail<ThrowOnError extends boolean = false>(
-    parameters: {
-      courseId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetCourseThumbnailErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }]);
-    return (options?.client ?? client).get<unknown, GetCourseThumbnailErrors, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/member/courses/{courseId}/thumbnail",
-        ...options,
-        ...params,
-      },
-    );
-  }
-
-  /**
-   * Redirect to an event's cover
-   *
-   * For a draft event, which only a holder of `events:read` on it may fetch: a published or canceled event carries a public `thumbnailUrl` instead. 404 when the event read returns 404 or the event has no cover.
-   */
-  public static getEventThumbnail<ThrowOnError extends boolean = false>(
-    parameters: {
-      eventId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetEventThumbnailErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "eventId" }] }]);
-    return (options?.client ?? client).get<unknown, GetEventThumbnailErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/events/{eventId}/thumbnail",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a download's thumbnail
-   *
-   * For an unpublished download, which only a holder of `downloads:read` on it may fetch: a published download carries a public `thumbnailUrl` instead. 404 when the download has no thumbnail.
-   */
-  public static getDownloadThumbnail<ThrowOnError extends boolean = false>(
-    parameters: {
-      downloadId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetDownloadThumbnailErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "downloadId" }] }]);
-    return (options?.client ?? client).get<
-      unknown,
-      GetDownloadThumbnailErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/downloads/{downloadId}/thumbnail",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a community's thumbnail
-   *
-   * For an unpublished community, which only a holder of `communities:read` on it may fetch: a published community carries a public `thumbnailUrl` instead. 404 when the community has no thumbnail.
-   */
-  public static getCommunityThumbnail<ThrowOnError extends boolean = false>(
-    parameters: {
-      communityId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetCommunityThumbnailErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [{ args: [{ in: "path", key: "communityId" }] }],
-    );
-    return (options?.client ?? client).get<
-      unknown,
-      GetCommunityThumbnailErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/communities/{communityId}/thumbnail",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a space's cover, background or icon
-   *
-   * For a space in an unpublished community, which only a holder of `communities:read` on the community may fetch: a space in a published community carries public `coverUrl`, `backgroundUrl` and `iconUrl` instead. 404 when the space has no such image.
-   */
-  public static getSpaceImage<ThrowOnError extends boolean = false>(
-    parameters: {
-      spaceId: string;
-      image: "cover" | "background" | "icon";
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetSpaceImageErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "spaceId" },
-            { in: "path", key: "image" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<unknown, GetSpaceImageErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/spaces/{spaceId}/images/{image}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a file used in a lesson
-   *
-   * Served when the person can open the course, the course and the lesson are published, and the lesson lists the file. A holder of `courses:read` on the course may fetch any file a lesson lists. Use the URL as an img, video or audio src.
-   */
-  public static getActivityFile<ThrowOnError extends boolean = false>(
-    parameters: {
-      activityId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetActivityFileErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "activityId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<unknown, GetActivityFileErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/activities/{activityId}/assets/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a file in a download, saved under its display name
-   *
-   * Served when the person can open the download, it is published, and it lists the file. A holder of `downloads:read` on the download may fetch it unpublished. The storage link lives DELIVERY_URL_EXPIRY seconds.
-   */
-  public static getDownloadFile<ThrowOnError extends boolean = false>(
-    parameters: {
-      downloadId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetDownloadFileErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "downloadId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<unknown, GetDownloadFileErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/downloads/{downloadId}/assets/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a post's cover image
-   *
-   * For a post that is not published, served to whoever can read it: a published post carries a public `coverUrl` instead. 404 when the post has no cover.
-   */
-  public static getPostCover<ThrowOnError extends boolean = false>(
-    parameters: {
-      postId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetPostCoverErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "postId" }] }]);
-    return (options?.client ?? client).get<unknown, GetPostCoverErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/posts/{postId}/cover",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to a file in a post's body
-   *
-   * Served to whoever can read the post while its body shows the file. Images, video, audio and PDFs open in place; any other file downloads under its name.
-   */
-  public static getPostAsset<ThrowOnError extends boolean = false>(
-    parameters: {
-      postId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetPostAssetErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "postId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<unknown, GetPostAssetErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/member/posts/{postId}/assets/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to an image attached to a chat message
-   *
-   * Served to the chat's participants while the message stands, to holders of `communities:moderate` on the community also after it is deleted, and to them while the message is flagged.
-   */
-  public static getMessageAttachment<ThrowOnError extends boolean = false>(
-    parameters: {
-      chatId: string;
-      messageId: string;
-      assetId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetMessageAttachmentErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "chatId" },
-            { in: "path", key: "messageId" },
-            { in: "path", key: "assetId" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).get<
-      unknown,
-      GetMessageAttachmentErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/chats/{chatId}/messages/{messageId}/attachments/{assetId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Redirect to an image you uploaded
-   *
-   * Served only to the person who uploaded it, once it is finalized.
-   */
-  public static getMemberUploadFile<ThrowOnError extends boolean = false>(
-    parameters: {
-      id: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<unknown, GetMemberUploadFileErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "id" }] }]);
-    return (options?.client ?? client).get<
-      unknown,
-      GetMemberUploadFileErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/member/uploads/{id}/file",
-      ...options,
-      ...params,
-    });
-  }
 }
 
 export class Reporting {
@@ -10705,7 +10311,7 @@ export class Entitlements {
   /**
    * Grant a person access to content or a bundle
    *
-   * Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.
+   * Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. Granting to someone who already holds the grant sets the new expiry, and changes nothing when the expiry is the same. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.
    */
   public static grantEntitlement<ThrowOnError extends boolean = false>(
     parameters: {

@@ -55,12 +55,6 @@ import { grantExpired, grantOpens } from "./grant-covers.js";
 import { eventAnalyticsFigures, eventAttendeePage, upcomingEventCount } from "./event-reports.js";
 
 const entitlementCountExpr = sql<number>`count(${entitlements.id})`;
-// Completion now lives in the progress domain; the students report no longer
-// derives a percentage from entitlements. Placeholder until wired to progress.
-const avgProgressExpr = sql<number>`0`;
-// Last learning activity: the newest touch on any of the student's progress
-// records. A scalar subquery so it neither fans out the entitlement count nor
-// widens the GROUP BY.
 function hasNoOrgRole(): SQL {
   return sql`not exists (
     select 1 from ${roleAssignments} ra
@@ -86,6 +80,40 @@ function isStudent(memberRoleKey: string): SQL {
   )!;
 }
 
+// The mean, over the courses the student can open, of the share of each
+// course's published activities they completed: the same figure as
+// studentAnalytics.avgProgress.
+const avgProgressExpr = sql<number>`coalesce((
+  select round(avg(per_course.progress))
+  from (
+    select case
+      when count(a.id) = 0 then 0
+      else round(
+        least(count(pr.id) filter (where pr.completed_at is not null)::numeric / count(a.id), 1) * 100
+      )
+    end as progress
+    from (
+      select distinct ca.content_id
+      from content_access ca
+      join courses c on c.org_id = ca.org_id and c.id = ca.content_id
+      where ca.org_id = ${orgUsers.orgId} and ca.org_user_id = ${orgUsers.id}
+    ) held
+    left join activities a
+      on a.org_id = ${orgUsers.orgId}
+      and a.course_id = held.content_id
+      and coalesce((a.settings ->> 'published')::boolean, true)
+    left join progress_records pr
+      on pr.org_id = ${orgUsers.orgId}
+      and pr.org_user_id = ${orgUsers.id}
+      and pr.target_type = 'activity'
+      and pr.target_id = a.id
+    group by held.content_id
+  ) per_course
+), 0)::int`;
+
+// Last learning activity: the newest touch on any of the student's progress
+// records. A scalar subquery so it neither fans out the entitlement count nor
+// widens the GROUP BY.
 const lastActiveExpr = sql<Date | null>`(
   select max(pr.updated_at) from progress_records pr
   where pr.org_id = ${orgUsers.orgId} and pr.org_user_id = ${orgUsers.id}
@@ -691,6 +719,8 @@ export class DrizzleAdminRepository implements AdminReportRepository {
     const descending = sort?.startsWith("-") ?? false;
     const field = sort ? (descending ? sort.slice(1) : sort) : "firstName";
     const dir = descending ? desc : asc;
+    const nullsLast = (expr: SQL): SQL =>
+      descending ? sql`${expr} desc nulls last` : sql`${expr} asc nulls last`;
     switch (field) {
       case "email":
         return [dir(users.email)];
@@ -701,7 +731,7 @@ export class DrizzleAdminRepository implements AdminReportRepository {
       case "joinedAt":
         return [dir(orgUsers.createdAt)];
       case "lastActiveAt":
-        return [dir(lastActiveExpr)];
+        return [nullsLast(lastActiveExpr)];
       case "lastName":
         return [dir(studentLastName), dir(studentFirstName)];
       case "firstName":

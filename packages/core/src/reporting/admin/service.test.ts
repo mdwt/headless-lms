@@ -117,7 +117,7 @@ function build() {
       permissions: people,
       spaces,
       events,
-      fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+      fileUrls: createFileUrls((key) => `https://cdn.test/${key}`),
     }),
   };
 }

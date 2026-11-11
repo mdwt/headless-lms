@@ -175,6 +175,10 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       },
     },
     advanced: {
+      ipAddress: {
+        ...(opts.trustedProxies?.length && { trustedProxies: opts.trustedProxies }),
+        ...(opts.ipAddressHeaders?.length && { ipAddressHeaders: opts.ipAddressHeaders }),
+      },
       database: {
         // Prefixed, KSUID-bodied ids for every better-auth table (usr_, org_, …).
         generateId: () => prefixId("id"),

@@ -27,17 +27,17 @@ The inbound entry point is the HTTP layer. It calls into the core's services and
 
 The core is split into nine self-contained contexts. Each exposes one public surface, and contexts talk to each other only through those surfaces — never by reaching into another context's internals. A use case that spans contexts lives in the context whose responsibility it is; there is no orchestration tier above them.
 
-| Context           | Owns                                                                                                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **identity**      | Everyone in the system: the person, their profile and their sign-in, one model for learners and team alike                                                                      |
-| **organizations** | The tenant root: the organization, its people and invitations, the permission list, roles and assignments, and every permission check                                           |
-| **content**       | Authored content — courses, modules, activities, drip rules, downloads, and bundles of them                                                                                     |
-| **entitlements**  | Access grants: who can access what, and why. The only place access is checked; a grant to a bundle covers every item in it                                                      |
-| **progress**      | Per-student completion and derived progress                                                                                                                                     |
-| **assets**        | The org media library; public images (profile photos, published thumbnails and covers) at public URLs, every other file through a stable URL that checks access on each request |
-| **integrations**  | Which third-party integrations an org has connected                                                                                                                             |
-| **automations**   | Workflows and webhooks that react to domain events                                                                                                                              |
-| **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                                                                        |
+| Context           | Owns                                                                                                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **identity**      | Everyone in the system: the person, their profile and their sign-in, one model for learners and team alike                                                                  |
+| **organizations** | The tenant root: the organization, its people and invitations, the permission list, roles and assignments, and every permission check                                       |
+| **content**       | Authored content — courses, modules, activities, drip rules, downloads, and bundles of them                                                                                 |
+| **entitlements**  | Access grants: who can access what, and why. The only place access is checked; a grant to a bundle covers every item in it                                                  |
+| **progress**      | Per-student completion and derived progress                                                                                                                                 |
+| **assets**        | The org media library; public images (profile photos, published thumbnails and covers) at public URLs, every other file by a signed storage URL in the read that returns it |
+| **integrations**  | Which third-party integrations an org has connected                                                                                                                         |
+| **automations**   | Workflows and webhooks that react to domain events                                                                                                                          |
+| **discussion**    | Learner comments on activities — their replies, reactions, reports, and moderation state                                                                                    |
 
 Contexts communicate two ways: **synchronously**, by calling another context's public service directly, and **decoupled**, through an event bus — domain events fan out to automations and integrations.
 

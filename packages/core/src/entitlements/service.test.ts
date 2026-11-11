@@ -213,7 +213,7 @@ describe('EntitlementsService', () => {
   });
 
   it('grants an entitlement (insert) and returns it', async () => {
-    const { svc, repo } = build();
+    const { svc, repo } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(null) }));
     const result = await svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt: null }, admin);
     expect(result.id).toBe('e1');
     expect(repo.insert).toHaveBeenCalledWith('org-1', {
@@ -225,7 +225,7 @@ describe('EntitlementsService', () => {
   });
 
   it('appends entitlement.created (org + full snapshot) inside the unit of work', async () => {
-    const { svc, appended } = build();
+    const { svc, appended } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(null) }));
     await svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt: null }, admin);
     expect(appended).toEqual([
       expect.objectContaining({
@@ -234,6 +234,67 @@ describe('EntitlementsService', () => {
         data: SAMPLE,
       }),
     ]);
+  });
+
+  it('writes nothing and emits nothing when the person already holds the grant unchanged', async () => {
+    const expiresAt = new Date('2099-01-01T00:00:00Z');
+    for (const held of [SAMPLE, { ...SAMPLE, expiresAt }]) {
+      const { svc, repo, append } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(held) }));
+      const result = await svc.grant(
+        { orgUserId: 's1', contentId: 'c1', expiresAt: held.expiresAt && new Date(expiresAt) },
+        admin,
+      );
+      expect(result).toBe(held);
+      expect(repo.lockGrant).toHaveBeenCalledWith('org-1', {
+        orgUserId: 's1',
+        contentId: 'c1',
+        bundleId: null,
+      });
+      expect(repo.insert).not.toHaveBeenCalled();
+      expect(append).not.toHaveBeenCalled();
+    }
+  });
+
+  it('emits entitlement.updated when an active grant gets another expiry', async () => {
+    const expiresAt = new Date('2099-01-01T00:00:00Z');
+    const renewed = { ...SAMPLE, expiresAt };
+    const { svc, repo, appended } = build(fakeRepo({ insert: vi.fn().mockResolvedValue(renewed) }));
+    const result = await svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt }, admin);
+    expect(result).toBe(renewed);
+    expect(repo.insert).toHaveBeenCalledWith('org-1', {
+      orgUserId: 's1',
+      contentId: 'c1',
+      expiresAt,
+      source: 'manual',
+    });
+    expect(appended.map((event) => [event.type, event.data])).toEqual([
+      ['entitlement.updated', renewed],
+    ]);
+  });
+
+  it('emits entitlement.created when a revoked or expired grant is granted again', async () => {
+    const lapsed = [
+      { ...SAMPLE, status: 'revoked' as const },
+      { ...SAMPLE, expiresAt: new Date('2020-01-01T00:00:00Z') },
+    ];
+    for (const held of lapsed) {
+      const { svc, repo, appended } = build(
+        fakeRepo({ lockGrant: vi.fn().mockResolvedValue(held) }),
+      );
+      await svc.grant({ orgUserId: 's1', bundleId: null, contentId: 'c1', expiresAt: null }, admin);
+      expect(repo.insert).toHaveBeenCalledOnce();
+      expect(appended.map((event) => event.type)).toEqual(['entitlement.created']);
+    }
+  });
+
+  it('looks for the held grant by bundle when a bundle is granted', async () => {
+    const { svc, repo } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(null) }));
+    await svc.grant({ orgUserId: 's1', bundleId: 'bnd_1', expiresAt: null }, admin);
+    expect(repo.lockGrant).toHaveBeenCalledWith('org-1', {
+      orgUserId: 's1',
+      contentId: null,
+      bundleId: 'bnd_1',
+    });
   });
 
   it('revokes a direct grant to content via the tx-bound repository', async () => {
@@ -283,7 +344,10 @@ describe('EntitlementsService', () => {
 
   it('does not append when the write fails — the error propagates out of run', async () => {
     const { svc, append } = build(
-      fakeRepo({ insert: vi.fn().mockRejectedValue(new Error('boom')) }),
+      fakeRepo({
+        lockGrant: vi.fn().mockResolvedValue(null),
+        insert: vi.fn().mockRejectedValue(new Error('boom')),
+      }),
     );
     await expect(
       svc.grant({ orgUserId: 's1', contentId: 'c1', expiresAt: null }, admin),
@@ -314,7 +378,9 @@ describe('logging', () => {
   it('logs grant and revoke at info', async () => {
     const { createCapturingLogger } = await import('../shared/logger.js');
     const { logger, entries } = createCapturingLogger();
-    const repo = fakeRepo();
+    const repo = fakeRepo({
+      lockGrant: vi.fn().mockResolvedValueOnce(null).mockResolvedValue(SAMPLE),
+    });
     const { uow } = fakeUow(repo);
     const svc = new EntitlementsServiceImpl({
       repo,
@@ -1038,7 +1104,7 @@ describe('grant from an automation', () => {
   const input = { orgUserId: 's1', contentId: 'c1', expiresAt: new Date('2026-09-01T00:00:00Z') };
 
   it('grants as the system actor with source automation and no actor in the metadata', async () => {
-    const { svc, repo, appended } = build();
+    const { svc, repo, appended } = build(fakeRepo({ lockGrant: vi.fn().mockResolvedValue(null) }));
     await svc.grant(input, SYSTEM);
     expect(repo.insert).toHaveBeenCalledWith('org-1', { ...input, source: 'automation' });
     expect(appended).toEqual([

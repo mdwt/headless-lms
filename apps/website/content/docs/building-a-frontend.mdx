@@ -31,9 +31,9 @@ Decide from permissions, never from a role's key or name. An organization can re
 Responses carry every file's URL in its file fields, so a frontend puts them straight into `src` or `href` and never asks for a file by asset id. There are two kinds of URL:
 
 - **Public images.** A profile photo, and the thumbnail or cover of a published course, download, community, event (published or canceled) or post, is a public storage URL (`STORAGE_PUBLIC_URL`, the CDN or bucket origin). It needs no cookie, is cached for good, and changes when the image changes. Allow that origin wherever your frontend restricts image hosts, such as Next.js `images.remotePatterns`.
-- **Stable API URLs** for everything else. Each request checks access, then answers with a `302` redirect to a signed storage URL.
+- **Signed storage URLs** for everything else. The read that returns the file has already checked access, so the URL goes straight to storage (or the CDN in front of it) and needs no cookie. It expires; read the item again for a fresh one.
 
-| File                                   | Field                                                                                                                 | Who may fetch it                                                                                                                                                                  |
+| File                                   | Field                                                                                                                 | Who gets the URL                                                                                                                                                                  |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Thumbnail or cover of a published item | `thumbnailUrl`, `coverUrl`                                                                                            | Anyone: a public image                                                                                                                                                            |
 | Profile photo                          | `imageUrl` on authors, senders, directory entries, notifications and your own profile; `avatarUrl` on event attendees | Anyone: a public image, shown only inside the photo's organization                                                                                                                |
@@ -44,7 +44,7 @@ Responses carry every file's URL in its file fields, so a frontend puts them str
 | Message attachment                     | `url` on each of `attachments`                                                                                        | The chat's participants while the message stands; holders of `communities:moderate` while it is flagged                                                                           |
 | Your own upload                        | `url` on a finalized upload                                                                                           | Only the person who uploaded it                                                                                                                                                   |
 
-Anything else is a `404`. The Files section of the [API reference](/docs/api) lists every route.
+Nobody else gets the URL.
 
 ```tsx
 <img src={course.thumbnailUrl} alt="" />
@@ -54,20 +54,9 @@ Anything else is a `404`. The Files section of the [API reference](/docs/api) li
 </a>
 ```
 
-### The session cookie has to reach the API
-
-An `<img>` or `<video>` request can't carry a token; it sends cookies. Serve the frontend and the API from the same site, as subdomains of one domain such as `learn.example.com` and `api.example.com`, and set `AUTH_COOKIE_DOMAIN` to the parent domain (`.example.com`). Locally everything runs on `localhost`, which already shares the cookie. Don't set `crossorigin="anonymous"` on media elements, since it stops the cookie being sent to another subdomain.
-
 ### Link lifetimes
 
-The stable URL never expires; only the storage link it redirects to does. A public image URL never expires either. Requesting the stable URL again returns a fresh one.
-
-| File               | Storage link lifetime | Setting                   |
-| ------------------ | --------------------- | ------------------------- |
-| File in a download | 5 minutes             | `DELIVERY_URL_EXPIRY`     |
-| Every other file   | 24 hours              | `STORAGE_DOWNLOAD_EXPIRY` |
-
-A download link is used once to start the download. Video and audio keep fetching parts of the file while they play, so their links outlive a viewing.
+A public image URL never expires. A signed URL is signed when the read is made and expires `DELIVERY_URL_EXPIRY` seconds later (six hours by default), long enough for a lesson left open or a long video. Reading the item again returns a fresh URL.
 
 ## Lesson content
 

@@ -20,7 +20,6 @@ export function loadStorageConfig(): MinioStorageConfig | undefined {
     bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
     ...(process.env.STORAGE_PUBLIC_URL ? { publicUrl: process.env.STORAGE_PUBLIC_URL } : {}),
     uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
-    downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 86400),
   };
 }
 
@@ -46,6 +45,15 @@ export function parseMemberFileMaxBytes(): number {
     throw new Error(`invalid MEMBER_FILE_MAX_BYTES "${raw}" (expected a positive integer)`);
   }
   return value;
+}
+
+/** A comma-separated variable as a list; unset or empty → undefined. */
+export function parseList(name: string): string[] | undefined {
+  const values = (process.env[name] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return values.length > 0 ? values : undefined;
 }
 
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
@@ -84,6 +92,8 @@ function loadContainerConfig(): ContainerConfig {
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
     secureCookies: process.env.NODE_ENV === "production",
+    trustedProxies: parseList("AUTH_TRUSTED_PROXIES"),
+    ipAddressHeaders: parseList("AUTH_IP_ADDRESS_HEADERS"),
     studentPortalUrl: process.env.STUDENT_PORTAL_URL ?? "http://localhost:8002",
     adminAppUrl: process.env.ADMIN_APP_URL ?? "http://localhost:8001",
     platform: loadPlatformConfig(),
@@ -99,9 +109,7 @@ export function loadServerConfig(): ServerConfig {
     // can never drift from what better-auth is configured with.
     publicUrl: container.authBaseURL,
     clientOrigins: parseClientOrigins(),
-    // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
-    // default must never silently extend entitled/paywalled link lifetimes.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     // LISTEN needs a session connection; behind a transaction-mode pooler

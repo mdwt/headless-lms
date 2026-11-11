@@ -28,12 +28,12 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 ### Files
 
-| Variable                 | Required | Default     | Notes                                                                                                                                                                                                                                         |
-| ------------------------ | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DELIVERY_URL_EXPIRY`    | no       | `86400`     | How long the file URLs in API responses stay valid, in seconds. Every course, lesson, download, post, message, profile and library response signs its files with this lifetime. Must be a positive integer; the API does not start otherwise. |
-| `MEMBER_IMAGE_MAX_BYTES` | no       | `10485760`  | The largest image a member may upload (profile photo, post cover, message attachment), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise.                                          |
-| `MEMBER_FILE_MAX_BYTES`  | no       | `104857600` | The largest file other than an image a member may upload (a file, video or audio in a post), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise.                                    |
-| `REQUEST_LOGGING`        | no       | `true`      | One log line per request with its id, status and duration. Set to `false` to turn the access log off. Refused requests and errors are logged either way.                                                                                      |
+| Variable                 | Required | Default     | Notes                                                                                                                                                                                                      |
+| ------------------------ | -------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DELIVERY_URL_EXPIRY`    | no       | `21600`     | Lifetime of a signed file URL, in seconds, from the read that returns it. Must be a positive integer; the API does not start otherwise.                                                                    |
+| `MEMBER_IMAGE_MAX_BYTES` | no       | `10485760`  | The largest image a member may upload (profile photo, post cover, message attachment), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise.       |
+| `MEMBER_FILE_MAX_BYTES`  | no       | `104857600` | The largest file other than an image a member may upload (a file, video or audio in a post), in bytes. Checked when the upload is finalized. Must be a positive integer; the API does not start otherwise. |
+| `REQUEST_LOGGING`        | no       | `true`      | One log line per request with its id, status and duration. Set to `false` to turn the access log off. Refused requests and errors are logged either way.                                                   |
 
 These commands run across all workspaces:
 
@@ -47,6 +47,17 @@ These commands run across all workspaces:
 - `:8002` — Student portal
 - `:8005` — Postgres · `:8006/:8007` — MinIO (API / console)
 - `:8008/:8009` — Hatchet (gRPC / dashboard)
+
+## Behind a proxy
+
+Sign-in rate limits count requests per client IP, read from `X-Forwarded-For`. With more than one proxy in front of the API, such as a CDN and a load balancer, that header holds a chain of addresses, and the API can't tell which one is the client until it knows which are the proxies. Until then every request through the chain counts as one client, and all members share one sign-in limit.
+
+| Variable                  | Required | Default           | Notes                                                                                                                                                                            |
+| ------------------------- | -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_TRUSTED_PROXIES`    | no       | none              | Comma-separated IPs or CIDR ranges of the proxies, e.g. `10.0.0.0/16,192.0.2.10`. The client IP is the first address in the chain, read from the right, that is not one of them. |
+| `AUTH_IP_ADDRESS_HEADERS` | no       | `x-forwarded-for` | Comma-separated headers read for the client IP, in order. Name a header only when a proxy sets it itself and drops any copy the client sent.                                     |
+
+List the proxies' own addresses, not a range that also covers clients. The API must be reachable only through these proxies: a client that reaches it directly can send any forwarded header it likes. An installation that builds its own config sets `trustedProxies` and `ipAddressHeaders` on the container config.
 
 ## Live chat
 

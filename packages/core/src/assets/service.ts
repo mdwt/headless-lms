@@ -22,11 +22,12 @@ import type {
   AssetsRepository,
   AssetsService,
   AssetsUnitOfWork,
+  FileLinkRequest,
   MemberUpload,
   MemberUploadInput,
   ReadyFile,
 } from './ports.js';
-import { publicImageKey, publicImagePrefix, type FileUrls } from './file-urls.js';
+import { publicImageKey, publicImagePrefix } from './file-urls.js';
 import { noopLogger } from '../shared/logger.js';
 import { assetEvents } from './events.js';
 
@@ -94,8 +95,8 @@ export type AssetsServiceParams = {
   uow: AssetsUnitOfWork;
   memberImageMaxBytes: number;
   memberFileMaxBytes: number;
+  /** Lifetime of a file link, seconds, from when the read signs it. */
   downloadLinkExpirySeconds: number;
-  fileUrls: FileUrls;
   logger?: Logger;
 };
 
@@ -106,7 +107,6 @@ export class AssetsServiceImpl implements AssetsService {
   private readonly memberImageMaxBytes: number;
   private readonly memberFileMaxBytes: number;
   private readonly downloadLinkExpirySeconds: number;
-  private readonly fileUrls: FileUrls;
   private readonly logger: Logger;
 
   constructor(params: AssetsServiceParams) {
@@ -134,7 +134,6 @@ export class AssetsServiceImpl implements AssetsService {
     this.memberImageMaxBytes = params.memberImageMaxBytes;
     this.memberFileMaxBytes = params.memberFileMaxBytes;
     this.downloadLinkExpirySeconds = params.downloadLinkExpirySeconds;
-    this.fileUrls = params.fileUrls;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -258,26 +257,11 @@ export class AssetsServiceImpl implements AssetsService {
     if (!confirmed) {
       throw new NotFoundError('Asset', id);
     }
-    return confirmed.status === 'ready'
-      ? { ...confirmed, url: this.fileUrls.memberUpload(confirmed.id), downloadUrl: null }
-      : { ...confirmed, url: null, downloadUrl: null };
-  }
-
-  async ownUploadFile(assetId: string, actor: Actor): Promise<string> {
-    const orgId = actor.orgId;
-    if (!(await this.ownsUpload(orgId, assetId, actor.id))) {
-      this.logger.warn('upload file not served — not the uploader', {
-        orgId,
-        assetId,
-        orgUserId: actor.id,
-      });
-      throw new NotFoundError('Upload', assetId);
+    if (confirmed.status !== 'ready') {
+      return { ...confirmed, url: null, downloadUrl: null };
     }
-    const url = await this.signFile(orgId, assetId);
-    if (!url) {
-      throw new NotFoundError('Upload', assetId);
-    }
-    return url;
+    const links = await this.signReady([confirmed], () => undefined);
+    return { ...confirmed, url: links[confirmed.id] ?? null, downloadUrl: null };
   }
 
   async ownsUpload(orgId: string, assetId: string, orgUserId: string): Promise<boolean> {
@@ -341,7 +325,7 @@ export class AssetsServiceImpl implements AssetsService {
       await this.requireItemWrite(orgId, query.contentId, actor);
     }
     const page = await this.repo.list(orgId, { ...query, source: query.source ?? 'library' });
-    return { ...page, rows: await Promise.all(page.rows.map((asset) => this.view(asset))) };
+    return { ...page, rows: await this.views(page.rows) };
   }
 
   async get(id: string, actor: Actor): Promise<AssetView> {
@@ -363,23 +347,31 @@ export class AssetsServiceImpl implements AssetsService {
     );
   }
 
-  async signFile(
+  async fileLinks(
     orgId: string,
-    assetId: string,
-    opts: { saveAs?: string } = {},
-  ): Promise<string | null> {
-    const [asset] = await this.readyAmong(orgId, [assetId]);
-    if (!asset) {
-      this.logger.warn('file not served — no ready asset', { orgId, assetId });
-      return null;
-    }
-    return opts.saveAs === undefined
-      ? this.storage.presignDownload({ key: asset.key })
-      : this.storage.presignDownload({
+    files: readonly FileLinkRequest[],
+  ): Promise<Record<string, string>> {
+    const saveAs = new Map(files.map((file) => [file.assetId, file.saveAs]));
+    const ready = await this.readyAmong(orgId, [...saveAs.keys()]);
+    return this.signReady(ready, (asset) => saveAs.get(asset.id));
+  }
+
+  private async signReady(
+    assets: readonly Asset[],
+    saveAs: (asset: Asset) => string | undefined,
+  ): Promise<Record<string, string>> {
+    const links = await Promise.all(
+      assets.map(async (asset) => {
+        const filename = saveAs(asset);
+        const url = await this.storage.presignDownload({
           key: asset.key,
-          downloadFilename: opts.saveAs,
           expiresInSeconds: this.downloadLinkExpirySeconds,
+          ...(filename === undefined ? {} : { downloadFilename: filename }),
         });
+        return [asset.id, url] as const;
+      }),
+    );
+    return Object.fromEntries(links);
   }
 
   async syncPublicImages(
@@ -424,25 +416,6 @@ export class AssetsServiceImpl implements AssetsService {
     } catch (err) {
       this.logger.error('public images not synced', { orgId, ownerId, assetIds, err });
     }
-  }
-
-  async libraryFile(assetId: string, opts: { download: boolean }, actor: Actor): Promise<string> {
-    const orgId = actor.orgId;
-    const asset = await this.repo.findById(orgId, assetId);
-    if (!asset || asset.source !== 'library') {
-      this.logger.warn('library file not served — not a library asset', { orgId, assetId });
-      throw new NotFoundError('Asset', assetId);
-    }
-    await this.requireReach(asset, actor);
-    const url = await this.signFile(
-      orgId,
-      assetId,
-      opts.download ? { saveAs: asset.filename } : {},
-    );
-    if (!url) {
-      throw new NotFoundError('Asset', assetId);
-    }
-    return url;
   }
 
   async remove(id: string, actor: Actor): Promise<void> {
@@ -646,15 +619,22 @@ export class AssetsServiceImpl implements AssetsService {
     return rows.filter((asset) => asset.orgId === orgId && asset.status === 'ready');
   }
 
-  private view(asset: Asset): AssetView {
-    if (asset.source !== 'library' || asset.status !== 'ready') {
-      return { ...asset, url: null, downloadUrl: null };
-    }
-    return {
+  private async view(asset: Asset): Promise<AssetView> {
+    const [view] = await this.views([asset]);
+    return view!;
+  }
+
+  private async views(assets: readonly Asset[]): Promise<AssetView[]> {
+    const served = assets.filter((asset) => asset.source === 'library' && asset.status === 'ready');
+    const [urls, downloadUrls] = await Promise.all([
+      this.signReady(served, () => undefined),
+      this.signReady(served, (asset) => asset.filename),
+    ]);
+    return assets.map((asset) => ({
       ...asset,
-      url: this.fileUrls.libraryFile(asset.id),
-      downloadUrl: this.fileUrls.libraryDownload(asset.id),
-    };
+      url: urls[asset.id] ?? null,
+      downloadUrl: downloadUrls[asset.id] ?? null,
+    }));
   }
 
   private async discard(orgId: string, asset: Asset): Promise<boolean> {

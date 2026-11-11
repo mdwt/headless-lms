@@ -67,4 +67,8 @@ export interface CreateAuthOptions {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** IPs or CIDR ranges of the reverse proxies in front of the API; the client IP is the first address in the forwarded chain that is not one of them. */
+  trustedProxies?: string[];
+  /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
+  ipAddressHeaders?: string[];
 }

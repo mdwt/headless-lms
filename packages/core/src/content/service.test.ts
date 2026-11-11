@@ -150,7 +150,10 @@ const libraryAssets: ContentAssetReader = library();
 
 const UNSIGNED = 'ast_unsigned';
 
-const files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'> = {
+const signed = (assetId: string, saveAs?: string) =>
+  `https://signed.test/${assetId}${saveAs === undefined ? '' : `?as=${saveAs}`}`;
+
+const files: Pick<AssetFiles, 'readyFiles' | 'fileLinks' | 'syncPublicImages'> = {
   syncPublicImages: vi.fn(async () => {}),
   readyFiles: async (_orgId, ids) =>
     Object.fromEntries(
@@ -158,9 +161,15 @@ const files: Pick<AssetFiles, 'readyFiles' | 'syncPublicImages'> = {
         .filter((id) => id !== UNSIGNED)
         .map((id) => [id, { filename: `${id}.pdf`, contentType: 'application/pdf', size: 100 }]),
     ),
+  fileLinks: async (_orgId, requested) =>
+    Object.fromEntries(
+      requested
+        .filter(({ assetId }) => assetId !== UNSIGNED)
+        .map(({ assetId, saveAs }) => [assetId, signed(assetId, saveAs)]),
+    ),
 };
 
-const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
+const fileUrls = createFileUrls((key) => `https://cdn.test/${key}`);
 
 function fakeScheduler() {
   return {
@@ -985,7 +994,7 @@ function asFile(link: DownloadAsset) {
     filename: `${link.assetId}.pdf`,
     contentType: 'application/pdf',
     size: 100,
-    url: fileUrls.downloadFile(link.downloadId, link.assetId),
+    url: signed(link.assetId, link.displayName ?? `${link.assetId}.pdf`),
   };
 }
 
@@ -1110,7 +1119,7 @@ describe('download assets', () => {
     expect(repo.renameDownloadAsset).toHaveBeenCalledWith('o1', 'd1', 'a1', 'Workbook');
     expect(result).toEqual(list.map(asFile));
     expect(result[0]?.filename).toBe('a1.pdf');
-    expect(result[0]?.url).toBe(fileUrls.downloadFile('d1', 'a1'));
+    expect(result[0]?.url).toBe(signed('a1', 'Workbook'));
     expect(appended).toEqual([
       {
         type: 'content.download.asset.renamed',
@@ -1497,9 +1506,9 @@ describe('space images', () => {
     });
     vi.mocked(repo.findCommunityById).mockResolvedValue(makeCommunity());
     expect(await svc.getCommunitySpace('cmy_1', 'spc_1', ownerIn('org1'))).toMatchObject({
-      coverUrl: fileUrls.spaceImage('spc_1', 'cover'),
+      coverUrl: signed('ast_cover'),
       backgroundUrl: null,
-      iconUrl: fileUrls.spaceImage('spc_1', 'icon'),
+      iconUrl: signed('ast_icon'),
     });
   });
 
@@ -1594,32 +1603,28 @@ describe('file URLs', () => {
     vi.mocked(repo.updateCommunity).mockResolvedValue(community);
     const { svc } = build(repo);
 
-    expect((await svc.getCourse('c1', ownerIn('org1')))?.thumbnailUrl).toBe(
-      fileUrls.thumbnail('course', course.id),
-    );
+    expect((await svc.getCourse('c1', ownerIn('org1')))?.thumbnailUrl).toBe(signed('ast_cover'));
     expect(
       (await svc.listCourses({ page: 1, pageSize: 20 }, ownerIn('org1'))).rows.map(
         (c) => c.thumbnailUrl,
       ),
-    ).toEqual([fileUrls.thumbnail('course', course.id), null]);
+    ).toEqual([signed('ast_cover'), null]);
     expect((await svc.updateCourse('c1', { title: 'x' }, ownerIn('org1'))).thumbnailUrl).toBe(
-      fileUrls.thumbnail('course', course.id),
+      signed('ast_cover'),
     );
-    expect((await svc.getDownload('d1', ownerIn('o1')))?.thumbnailUrl).toBe(
-      fileUrls.thumbnail('download', download.id),
-    );
+    expect((await svc.getDownload('d1', ownerIn('o1')))?.thumbnailUrl).toBe(signed('ast_dl'));
     expect((await svc.updateDownload('d1', { title: 'x' }, ownerIn('o1'))).thumbnailUrl).toBe(
-      fileUrls.thumbnail('download', download.id),
+      signed('ast_dl'),
     );
     expect((await svc.getCommunity('cmy_1', ownerIn('org1')))?.thumbnailUrl).toBe(
-      fileUrls.thumbnail('community', community.id),
+      signed('ast_cmy'),
     );
     expect((await svc.updateCommunity('cmy_1', { title: 'x' }, ownerIn('org1'))).thumbnailUrl).toBe(
-      fileUrls.thumbnail('community', community.id),
+      signed('ast_cmy'),
     );
   });
 
-  it("serves a published item's thumbnail as a public image and a draft's through the API", async () => {
+  it("serves a published item's thumbnail as a public image and a draft's by a signed link", async () => {
     const repo = makeRepo();
     const published = makeCourse({ status: 'published', thumbnailAssetId: 'ast_t' });
     vi.mocked(repo.findCourseById).mockResolvedValue(published);
@@ -1734,22 +1739,21 @@ describe('file URLs', () => {
       [
         'act1',
         {
-          ast_video: fileUrls.activityAsset('act1', 'ast_video'),
-          ast_image: fileUrls.activityAsset('act1', 'ast_image'),
+          ast_video: signed('ast_video'),
+          ast_image: signed('ast_image'),
         },
       ],
       [
         'act2',
         {
-          ast_pdf: fileUrls.activityAsset('act2', 'ast_pdf'),
-          [UNSIGNED]: fileUrls.activityAsset('act2', UNSIGNED),
+          ast_pdf: signed('ast_pdf'),
         },
       ],
       ['act3', {}],
     ]);
   });
 
-  it('gives download files their stable URL and drops a file that is not ready', async () => {
+  it('gives download files a signed link under their name and drops a file that is not ready', async () => {
     const repo = makeRepo();
     vi.mocked(repo.listDownloadAssets).mockResolvedValue([
       makeDownloadAsset({ id: 'da1', assetId: 'a1', displayName: 'Workbook.pdf' }),
@@ -1763,8 +1767,8 @@ describe('file URLs', () => {
     expect(
       files.map((file) => [file.id, file.filename, file.contentType, file.size, file.url]),
     ).toEqual([
-      ['da1', 'a1.pdf', 'application/pdf', 100, fileUrls.downloadFile('d1', 'a1')],
-      ['da2', 'a2.pdf', 'application/pdf', 100, fileUrls.downloadFile('d1', 'a2')],
+      ['da1', 'a1.pdf', 'application/pdf', 100, signed('a1', 'Workbook.pdf')],
+      ['da2', 'a2.pdf', 'application/pdf', 100, signed('a2', 'a2.pdf')],
     ]);
   });
 });
@@ -2573,7 +2577,7 @@ function makeEventAsset(over: Partial<EventAsset> = {}): EventAsset {
 describe('event assets', () => {
   const tom = actorWith({ id: 'ou_tom', orgId: 'o1', content: { evn_1: ['events:write'] } });
 
-  it('lists the files in order with their event file urls', async () => {
+  it('lists the files in order with signed links under their names', async () => {
     const repo = makeRepo();
     vi.mocked(repo.findEventById).mockResolvedValue(makeEvent());
     vi.mocked(repo.listEventAssets).mockResolvedValue([
@@ -2588,7 +2592,7 @@ describe('event assets', () => {
         filename: 'a1.pdf',
         contentType: 'application/pdf',
         size: 100,
-        url: 'https://api.test/api/member/events/evn_1/assets/a1',
+        url: signed('a1', 'a1.pdf'),
       },
     ]);
   });

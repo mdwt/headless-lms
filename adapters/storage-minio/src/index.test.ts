@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { Client, CopyDestinationOptions } from "minio";
+import { PUBLIC_CACHE_CONTROL } from "@headless-lms/core/types";
 import { MinioStorageAdapter } from "./index.js";
 
 function adapter() {
@@ -13,7 +14,6 @@ function adapter() {
     region: "us-east-1",
     bucket: "lms",
     uploadExpirySeconds: 600,
-    downloadExpirySeconds: 300,
   });
 }
 
@@ -106,8 +106,30 @@ describe("MinioStorageAdapter", () => {
       bucket: "lms",
       publicUrl: "https://cdn.example.com/",
       uploadExpirySeconds: 600,
-      downloadExpirySeconds: 300,
     });
     expect(cdn.publicUrl("public/o/crs_1/a")).toBe("https://cdn.example.com/public/o/crs_1/a");
+  });
+
+  it("presigns a link for the given lifetime, cacheable and named when asked", async () => {
+    vi.spyOn(Client.prototype, "bucketExists").mockResolvedValue(true);
+    vi.spyOn(Client.prototype, "setBucketPolicy").mockResolvedValue();
+    const link = await adapter().presignDownload({
+      key: "org/o/document/a/guide.pdf",
+      expiresInSeconds: 21600,
+    });
+    const url = new URL(link);
+    expect(url.pathname).toBe("/lms/org/o/document/a/guide.pdf");
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("21600");
+    expect(url.searchParams.get("response-cache-control")).toBe(PUBLIC_CACHE_CONTROL);
+    const named = new URL(
+      await adapter().presignDownload({
+        key: "org/o/document/a/guide.pdf",
+        downloadFilename: "Workbook.pdf",
+        expiresInSeconds: 21600,
+      }),
+    );
+    expect(named.searchParams.get("response-content-disposition")).toBe(
+      'attachment; filename="Workbook.pdf"',
+    );
   });
 });

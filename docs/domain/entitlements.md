@@ -14,7 +14,7 @@ Owns access truth: the student↔content access grant, its validity, and its lif
 
 ## Capabilities
 
-- Grant access — entitle a student to a piece of content or a bundle, with an optional expiry. Granting again makes a revoked or expired grant active.
+- Grant access — entitle a student to a piece of content or a bundle, with an optional expiry. Granting again makes a revoked or expired grant active. Granting to someone who already holds the grant sets the new expiry, and changes nothing when the expiry is the same.
 - List grants — browse and filter entitlements by student, content, content type, status, or source.
 - Revoke a person's grant — revoke the direct grant one person holds to one content item or one bundle. For an event the person may revoke their own; anyone else needs to be able to manage its attendees.
 - Register for an event — a member grants a `public` event to themselves.
@@ -59,8 +59,8 @@ Entitlements owns the grant and its access start. To resolve what a student can 
 
 ## Events
 
-- `entitlement.created`
-- `entitlement.updated`
+- `entitlement.created` — a grant is made, or a revoked or expired one is made active again.
+- `entitlement.updated` — a grant the person already holds gets another expiry.
 - `entitlement.deleted`
 - `entitlement.expired` — emitted by the expiry run. One event per grant whose `expires_at` has passed.
 - `entitlement.ending_soon` — the same run, once per grant per community that grant opens, when the grant enters the seven days before `expires_at`. The data is the grant unchanged plus `communityId`.
