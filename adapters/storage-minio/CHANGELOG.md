@@ -1,5 +1,12 @@
 # @headless-lms/adapter-storage-minio
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [[`09803d1`](https://github.com/mdwt/headless-lms/commit/09803d113718799a421c6b0c4f5040cf5e5efdd1)]:
+  - @headless-lms/core@0.7.0
+
 ## 0.2.4
 
 ### Patch Changes
