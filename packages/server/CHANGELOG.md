@@ -1,5 +1,11 @@
 # @headless-lms/server
 
+## 0.6.1
+
+### Patch Changes
+
+- [#10](https://github.com/mdwt/headless-lms/pull/10) [`55b841b`](https://github.com/mdwt/headless-lms/commit/55b841bd93e97806773b333595c953f516a284a6) Thanks [@mdwt](https://github.com/mdwt)! - An installation can supply its own event bus: `adapters.eventBus` takes an `EventBus`, or a factory given its logger, in place of the same-process `InMemoryEventBus`. The outbox relay publishes to it, the core subscribers are attached to it, and the container exposes it as `container.eventBus`. `EventBus`, `DomainEvent` and `EventDefinition` are exported from `@headless-lms/server`.
+
 ## 0.6.0
 
 ### Minor Changes

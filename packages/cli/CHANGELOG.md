@@ -1,5 +1,12 @@
 # @headless-lms/cli
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [[`55b841b`](https://github.com/mdwt/headless-lms/commit/55b841bd93e97806773b333595c953f516a284a6)]:
+  - @headless-lms/server@0.6.1
+
 ## 0.2.4
 
 ### Patch Changes
