@@ -48,6 +48,17 @@ These commands run across all workspaces:
 - `:8005` — Postgres · `:8006/:8007` — MinIO (API / console)
 - `:8008/:8009` — Hatchet (gRPC / dashboard)
 
+## Behind a proxy
+
+Sign-in rate limits count requests per client IP, read from `X-Forwarded-For`. With more than one proxy in front of the API, such as a CDN and a load balancer, that header holds a chain of addresses, and the API can't tell which one is the client until it knows which are the proxies. Until then every request through the chain counts as one client, and all members share one sign-in limit.
+
+| Variable                  | Required | Default           | Notes                                                                                                                                                                            |
+| ------------------------- | -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_TRUSTED_PROXIES`    | no       | none              | Comma-separated IPs or CIDR ranges of the proxies, e.g. `10.0.0.0/16,192.0.2.10`. The client IP is the first address in the chain, read from the right, that is not one of them. |
+| `AUTH_IP_ADDRESS_HEADERS` | no       | `x-forwarded-for` | Comma-separated headers read for the client IP, in order. Name a header only when a proxy sets it itself and drops any copy the client sent.                                     |
+
+List the proxies' own addresses, not a range that also covers clients. The API must be reachable only through these proxies: a client that reaches it directly can send any forwarded header it likes. An installation that builds its own config sets `trustedProxies` and `ipAddressHeaders` on the container config.
+
 ## Live chat
 
 Members see new chat messages, edits, reactions, read marks and typing without reloading. Each browser holds one server-sent event stream to the API, and every API instance receives every chat change through the `PubSub` adapter. Live chat needs it on every instance, a single instance included; `apps/api` wires [`@headless-lms/adapter-pubsub-postgres`](/docs/adapters/pubsub/postgres). Without it the stream route answers 503.
