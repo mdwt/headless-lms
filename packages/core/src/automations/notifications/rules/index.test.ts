@@ -35,6 +35,7 @@ describe('RECIPIENT_RULES', () => {
         'entitlement.space_member.deleted',
         'entitlement.space_member.updated',
         'organization.role.assigned',
+        'progress.record.completed',
       ].sort(),
     );
   });

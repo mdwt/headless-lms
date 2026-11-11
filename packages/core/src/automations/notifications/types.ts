@@ -341,6 +341,16 @@ export const NOTIFICATION_TYPES: NotificationTypeDeclaration[] = [
     },
   },
   {
+    type: 'course.completed',
+    scopes: ['org'],
+    reasons: ['subject'],
+    display: { org: ['courseTitle'] },
+    email: { org: { template: 'courseCompleted' } },
+    push: {
+      org: { title: 'You completed {{courseTitle}}', body: 'Congratulations on finishing' },
+    },
+  },
+  {
     type: 'role.assigned',
     scopes: ['org'],
     reasons: ['subject'],

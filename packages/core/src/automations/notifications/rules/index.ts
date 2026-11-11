@@ -3,10 +3,12 @@ import { CONTENT_RULES } from './content.js';
 import { DISCUSSION_RULES } from './discussion.js';
 import { ENTITLEMENT_RULES } from './entitlements.js';
 import { ORGANIZATION_RULES } from './organizations.js';
+import { PROGRESS_RULES } from './progress.js';
 
 export const RECIPIENT_RULES: Record<string, RecipientRule> = {
   ...DISCUSSION_RULES,
   ...ENTITLEMENT_RULES,
   ...CONTENT_RULES,
   ...ORGANIZATION_RULES,
+  ...PROGRESS_RULES,
 };

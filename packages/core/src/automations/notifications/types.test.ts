@@ -26,7 +26,7 @@ describe('notification type declarations', () => {
     for (const key of keys) {
       expect(key).toMatch(/^[a-z][a-z0-9_.]{0,63}$/);
     }
-    expect(keys).toHaveLength(32);
+    expect(keys).toHaveLength(33);
   });
 
   it.each(NOTIFICATION_TYPES.map((declaration) => [declaration.type, declaration] as const))(
