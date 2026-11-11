@@ -126,6 +126,7 @@ import type {
   ChannelRegistry,
   CredentialStore,
   EmailSender,
+  EventBus,
   Logger,
   NotificationChannel,
   NotificationTypeRegistry,
@@ -158,6 +159,8 @@ export interface AdapterOverrides {
   bodyParser?: BodyParser;
   /** Delivery to every API instance, or a factory given its logger. Absent → no live chat; the chat stream answers 503. */
   pubsub?: PubSub | ((logger: Logger) => PubSub);
+  /** Delivers outbox events to their subscribers, or a factory given its logger. Absent → InMemoryEventBus (same process). */
+  eventBus?: EventBus | ((logger: Logger) => EventBus);
 }
 
 export interface BuildContainerOptions {
@@ -287,6 +290,8 @@ export interface Container {
    *  installation's entry point starts it after listen (gen-openapi must not
    *  poll). buildServer stops it onClose. */
   outboxRelay: OutboxRelay;
+  /** The event bus the outbox relay publishes to, with the core subscribers attached. */
+  eventBus: EventBus;
   /** The automation engine — constructed but NEVER started by the container;
    *  the installation's entry point starts it after listen (gen-openapi must
    *  not run a worker). buildServer stops it onClose. */
@@ -816,7 +821,11 @@ export async function buildContainer(
     [...discussionRecurringJobs, ...entitlementsRecurringJobs, ...assetsRecurringJobs],
   );
 
-  const eventBus = new InMemoryEventBus();
+  const eventBusOption = options?.adapters?.eventBus;
+  const eventBus: EventBus =
+    typeof eventBusOption === 'function'
+      ? eventBusOption(logger.child({ name: 'events' }))
+      : (eventBusOption ?? new InMemoryEventBus());
   if (pubsub) {
     new ChatLiveForwarder({ pubsub, logger: discussionLogger }).attach(eventBus);
   }
@@ -981,6 +990,7 @@ export async function buildContainer(
     mailer,
     credentials: credentialStore,
     outboxRelay,
+    eventBus,
     automationEngine,
     scheduler: automationEngine,
     pubsub,

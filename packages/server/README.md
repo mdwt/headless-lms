@@ -32,6 +32,12 @@ and the hub before the relay. `buildServer` closes the hub in `preClose`, so ope
 streams receive their closing frame, and on close stops the relay, the engine and then
 `PubSub`.
 
+The outbox relay publishes every committed event to the `EventBus`. Absent
+`adapters.eventBus`, it is the same-process `InMemoryEventBus`. An installation
+supplies its own (an instance, or a factory given its logger) to carry events over
+its own transport; the container attaches the core subscribers to it and exposes it
+as `container.eventBus`, which the entry point starts and stops when the bus needs it.
+
 Public surface (`src/index.ts`): `createContainer`, `buildServer`,
 `loadIntegrations`, the operational function `runMigrations` (re-exported from
 `@headless-lms/adapter-db`, which ships the `drizzle/` migration assets;
