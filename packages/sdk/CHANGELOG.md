@@ -1,5 +1,19 @@
 # @headless-lms/sdk
 
+## 0.7.1
+
+### Patch Changes
+
+- [#29](https://github.com/mdwt/headless-lms/pull/29) [`e6ea327`](https://github.com/mdwt/headless-lms/commit/e6ea327d00ed2d84411bbc882dbf51f3fed33f68) Thanks [@mdwt](https://github.com/mdwt)! - The entitlements list filters by every content type: `type=community` is accepted on `GET /api/entitlements` and the `list_access` MCP tool, next to `course`, `download` and `event`.
+
+- [#27](https://github.com/mdwt/headless-lms/pull/27) [`41766f7`](https://github.com/mdwt/headless-lms/commit/41766f7e66c9614857855e832d05082d7b1bdea7) Thanks [@mdwt](https://github.com/mdwt)! - Creating an invite returns the invited person's `orgUserId`, so access and item roles can be given to them without looking the person up. `POST /api/organizations/invites` and the `invite_person` and `invite_student` MCP tools return it.
+
+- [#31](https://github.com/mdwt/headless-lms/pull/31) [`c9a3c48`](https://github.com/mdwt/headless-lms/commit/c9a3c48a547aad25b57d5602da63fb2c35ba3d6a) Thanks [@mdwt](https://github.com/mdwt)! - The platform key finds an organization by its slug: `GET /api/platform/organizations?slug=`.
+
+- [#25](https://github.com/mdwt/headless-lms/pull/25) [`eb3ab88`](https://github.com/mdwt/headless-lms/commit/eb3ab88e7e294d035640c5a7cd55edd3bbfeb24d) Thanks [@mdwt](https://github.com/mdwt)! - Granting an entitlement to someone who already holds it no longer emits `entitlement.created`, so the access granted email and push are not sent again. When the expiry is the same, nothing is written and no event is emitted. When the expiry is different, the grant gets the new expiry and `entitlement.updated` is emitted. Granting a revoked or expired grant again still emits `entitlement.created`.
+
+- [#28](https://github.com/mdwt/headless-lms/pull/28) [`cb75a27`](https://github.com/mdwt/headless-lms/commit/cb75a278dea51e296b9d9a5750aae0c85d1e0cf9) Thanks [@mdwt](https://github.com/mdwt)! - The SDK exports `Platform`, with `createPlatformOrganization` and `createPlatformApiKey`. Pass the platform key per call: `Platform.createPlatformOrganization(input, { headers: { Authorization: "Bearer <platform key>" } })`.
+
 ## 0.7.0
 
 ### Minor Changes

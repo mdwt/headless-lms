@@ -1,5 +1,13 @@
 # create-headless-lms
 
+## 0.3.2
+
+### Patch Changes
+
+- [#14](https://github.com/mdwt/headless-lms/pull/14) [`ce18ba3`](https://github.com/mdwt/headless-lms/commit/ce18ba386d73e06588253bc8e39c119898b403f2) Thanks [@mdwt](https://github.com/mdwt)! - Sign-in rate limits count each member separately behind a chain of proxies. The container config takes `trustedProxies` (the IPs or CIDR ranges of the proxies in front of the API) and `ipAddressHeaders` (the headers read for the client IP), and passes them to better-auth. A generated installation reads them from `AUTH_TRUSTED_PROXIES` and `AUTH_IP_ADDRESS_HEADERS`, comma-separated. Without them, every request that arrives with more than one address in `X-Forwarded-For` shares one rate limit.
+
+- [#30](https://github.com/mdwt/headless-lms/pull/30) [`932f883`](https://github.com/mdwt/headless-lms/commit/932f883c8a287e349083d2849a5ccc20a007e141) Thanks [@mdwt](https://github.com/mdwt)! - A file link is signed when the read is made and expires `deliveryExpirySeconds` after, with no signing window. `ServerConfig.deliveryWindowSeconds` is `deliveryExpirySeconds` again, `AssetsServiceImpl` takes `downloadLinkExpirySeconds` instead of `linkWindowSeconds`, and `ObjectStorage.presignDownload` takes `expiresInSeconds` instead of `signedAt` and `expiresAt`.
+
 ## 0.3.1
 
 ### Patch Changes

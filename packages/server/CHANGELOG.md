@@ -1,5 +1,29 @@
 # @headless-lms/server
 
+## 0.8.0
+
+### Minor Changes
+
+- [#30](https://github.com/mdwt/headless-lms/pull/30) [`932f883`](https://github.com/mdwt/headless-lms/commit/932f883c8a287e349083d2849a5ccc20a007e141) Thanks [@mdwt](https://github.com/mdwt)! - A file link is signed when the read is made and expires `deliveryExpirySeconds` after, with no signing window. `ServerConfig.deliveryWindowSeconds` is `deliveryExpirySeconds` again, `AssetsServiceImpl` takes `downloadLinkExpirySeconds` instead of `linkWindowSeconds`, and `ObjectStorage.presignDownload` takes `expiresInSeconds` instead of `signedAt` and `expiresAt`.
+
+### Patch Changes
+
+- [#14](https://github.com/mdwt/headless-lms/pull/14) [`ce18ba3`](https://github.com/mdwt/headless-lms/commit/ce18ba386d73e06588253bc8e39c119898b403f2) Thanks [@mdwt](https://github.com/mdwt)! - Sign-in rate limits count each member separately behind a chain of proxies. The container config takes `trustedProxies` (the IPs or CIDR ranges of the proxies in front of the API) and `ipAddressHeaders` (the headers read for the client IP), and passes them to better-auth. A generated installation reads them from `AUTH_TRUSTED_PROXIES` and `AUTH_IP_ADDRESS_HEADERS`, comma-separated. Without them, every request that arrives with more than one address in `X-Forwarded-For` shares one rate limit.
+
+- [#29](https://github.com/mdwt/headless-lms/pull/29) [`e6ea327`](https://github.com/mdwt/headless-lms/commit/e6ea327d00ed2d84411bbc882dbf51f3fed33f68) Thanks [@mdwt](https://github.com/mdwt)! - The entitlements list filters by every content type: `type=community` is accepted on `GET /api/entitlements` and the `list_access` MCP tool, next to `course`, `download` and `event`.
+
+- [#27](https://github.com/mdwt/headless-lms/pull/27) [`41766f7`](https://github.com/mdwt/headless-lms/commit/41766f7e66c9614857855e832d05082d7b1bdea7) Thanks [@mdwt](https://github.com/mdwt)! - Creating an invite returns the invited person's `orgUserId`, so access and item roles can be given to them without looking the person up. `POST /api/organizations/invites` and the `invite_person` and `invite_student` MCP tools return it.
+
+- [#31](https://github.com/mdwt/headless-lms/pull/31) [`c9a3c48`](https://github.com/mdwt/headless-lms/commit/c9a3c48a547aad25b57d5602da63fb2c35ba3d6a) Thanks [@mdwt](https://github.com/mdwt)! - The platform key finds an organization by its slug: `GET /api/platform/organizations?slug=`.
+
+- [#25](https://github.com/mdwt/headless-lms/pull/25) [`eb3ab88`](https://github.com/mdwt/headless-lms/commit/eb3ab88e7e294d035640c5a7cd55edd3bbfeb24d) Thanks [@mdwt](https://github.com/mdwt)! - Granting an entitlement to someone who already holds it no longer emits `entitlement.created`, so the access granted email and push are not sent again. When the expiry is the same, nothing is written and no event is emitted. When the expiry is different, the grant gets the new expiry and `entitlement.updated` is emitted. Granting a revoked or expired grant again still emits `entitlement.created`.
+
+- Updated dependencies [[`ce18ba3`](https://github.com/mdwt/headless-lms/commit/ce18ba386d73e06588253bc8e39c119898b403f2), [`e6ea327`](https://github.com/mdwt/headless-lms/commit/e6ea327d00ed2d84411bbc882dbf51f3fed33f68), [`41766f7`](https://github.com/mdwt/headless-lms/commit/41766f7e66c9614857855e832d05082d7b1bdea7), [`932f883`](https://github.com/mdwt/headless-lms/commit/932f883c8a287e349083d2849a5ccc20a007e141), [`c9a3c48`](https://github.com/mdwt/headless-lms/commit/c9a3c48a547aad25b57d5602da63fb2c35ba3d6a), [`eb3ab88`](https://github.com/mdwt/headless-lms/commit/eb3ab88e7e294d035640c5a7cd55edd3bbfeb24d), [`9f13ac2`](https://github.com/mdwt/headless-lms/commit/9f13ac23d37a814749be2599dd703f4b3260003e)]:
+  - @headless-lms/adapter-auth@0.4.4
+  - @headless-lms/core@0.9.0
+  - @headless-lms/adapter-db@0.6.3
+  - @headless-lms/adapter-defaults@0.5.4
+
 ## 0.7.0
 
 ### Minor Changes
