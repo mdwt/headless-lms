@@ -1604,6 +1604,10 @@ export type CreateInviteResponses = {
    */
   201: {
     id: string;
+    /**
+     * The invited person, for granting access and item roles
+     */
+    orgUserId: string;
     email: string;
     roleKey: string;
     status: string;
@@ -25159,7 +25163,7 @@ export type ListEntitlementsData = {
     source?: string;
     orgUserId?: string;
     contentId?: string;
-    type?: "course" | "download" | "event";
+    type?: "course" | "download" | "community" | "event";
   };
   url: "/api/entitlements";
 };

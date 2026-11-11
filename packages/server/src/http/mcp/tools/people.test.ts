@@ -24,6 +24,7 @@ const cases: ToolCase[] = [
     expected: [{ email: 'sam@acme.test', firstName: 'Sam', sendEmail: true }, OWNER, 'usr_1'],
     returns: {
       id: 'inv_1',
+      orgUserId: 'ou_7',
       orgId: 'org_1',
       email: 'sam@acme.test',
       roleKey: 'member',
@@ -36,6 +37,7 @@ const cases: ToolCase[] = [
     },
     shown: {
       id: 'inv_1',
+      orgUserId: 'ou_7',
       email: 'sam@acme.test',
       roleKey: 'member',
       status: 'pending',

@@ -32,13 +32,14 @@ import {
   UpdateRole,
   refusals,
 } from '../schemas/index.js';
-import type { Invite as InviteRecord } from '@headless-lms/core/organizations';
+import type { CreatedInvite } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
 
-function inviteView(invite: InviteRecord) {
+function inviteView(invite: CreatedInvite) {
   return {
     id: invite.id,
+    orgUserId: invite.orgUserId,
     email: invite.email,
     roleKey: invite.roleKey,
     status: invite.status,
@@ -360,7 +361,7 @@ export async function organizationsRoutes(
       operationId: 'createInvite',
       tags: peopleTags,
       summary: 'Invite a person with an org role',
-      description: `Requires \`people:write\`. The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409).`,
+      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409).`,
       body: CreateInvite,
       response: { 201: Invite, ...refusals(403, 404, 409) },
     },

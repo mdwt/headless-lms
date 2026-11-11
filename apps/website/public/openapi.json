@@ -4094,7 +4094,7 @@
         "tags": [
           "People"
         ],
-        "description": "Requires `people:write`. The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).",
+        "description": "Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).",
         "requestBody": {
           "required": true,
           "content": {
@@ -4145,6 +4145,10 @@
                     "id": {
                       "type": "string"
                     },
+                    "orgUserId": {
+                      "type": "string",
+                      "description": "The invited person, for granting access and item roles"
+                    },
                     "email": {
                       "type": "string"
                     },
@@ -4166,6 +4170,7 @@
                   },
                   "required": [
                     "id",
+                    "orgUserId",
                     "email",
                     "roleKey",
                     "status",
@@ -76711,6 +76716,7 @@
               "enum": [
                 "course",
                 "download",
+                "community",
                 "event"
               ]
             },
@@ -76953,7 +76959,7 @@
         "tags": [
           "Entitlements"
         ],
-        "description": "Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.",
+        "description": "Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. Granting to someone who already holds the grant sets the new expiry, and changes nothing when the expiry is the same. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.",
         "requestBody": {
           "required": true,
           "content": {
