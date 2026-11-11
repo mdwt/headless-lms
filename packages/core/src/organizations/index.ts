@@ -24,6 +24,7 @@ export type {
   CallerLimit,
   PlatformAccount,
   PlatformOrganization,
+  PlatformOrganizationDetails,
   PlatformOrganizationInput,
   GrantReader,
   TransferOwnershipInput,

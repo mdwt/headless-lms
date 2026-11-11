@@ -166,12 +166,13 @@ Removing a level from a role is refused while the role is given at that level. A
 
 ## Platform
 
-A platform that runs the LMS for its own customers creates an org for each of them with the platform key, a secret in the deployment's configuration. The platform key creates orgs and API keys for them, and does nothing else.
+A platform that runs the LMS for its own customers creates an org for each of them with the platform key, a secret in the deployment's configuration. The platform key creates orgs and API keys for them, finds an org it created by its slug, and does nothing else.
 
 - The **platform account** is one person, owner of every org the platform creates. It has no password, and no sign-in method can start a session for it; it acts only through its API keys.
 - Creating an org with the platform key creates the org, its roles, the platform account as owner, and an API key for the platform account carrying Owner, without expiry. The platform calls every other route with that key.
 - The platform can store key-value metadata with each org it creates.
 - The platform key also creates another key for an org whose owner, or an active member, is the platform account, to replace a lost or leaked one.
+- The platform finds an org by its slug when it lost the response to creating it. Only an org the platform created is found.
 
 ## Team
 

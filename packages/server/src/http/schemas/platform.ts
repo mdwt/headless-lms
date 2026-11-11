@@ -16,9 +16,17 @@ export const CreatePlatformOrganization = z.object({
     .describe('Key-value pairs stored with the organization'),
 });
 
+export const PlatformOrganizationDetails = Organization.extend({
+  metadata: z.record(z.string(), z.string()),
+});
+
 export const PlatformOrganization = z.object({
-  organization: Organization.extend({ metadata: z.record(z.string(), z.string()) }),
+  organization: PlatformOrganizationDetails,
   apiKey: CreatedApiKey,
+});
+
+export const PlatformOrganizationQuery = z.object({
+  slug: z.string().min(1).max(50).describe('The slug the organization was created with'),
 });
 
 export const CreatePlatformApiKey = z.object({ name: ApiKeyName });

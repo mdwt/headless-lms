@@ -49,6 +49,8 @@ The response carries the organization and the key. Store both against your custo
 
 [`POST /api/platform/organizations/:orgId/api-keys`](/docs/api/platform/createPlatformApiKey) creates another key for an organization, to replace a lost or leaked one. Revoke the old key with the new one through [`DELETE /api/access/api-keys/:id`](/docs/api/access/deleteApiKey).
 
+[`GET /api/platform/organizations?slug=`](/docs/api/platform/getPlatformOrganization) finds an organization the platform created by its slug. When the response to creating an organization never arrived, look it up by the slug you sent, then create a key for it.
+
 ### Example
 
 A store builder runs Headless LMS for the sellers on its platform. Its servers hold the platform key, and its own dashboard is where sellers build their courses.

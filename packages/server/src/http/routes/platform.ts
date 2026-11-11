@@ -6,6 +6,8 @@ import {
   CreatePlatformApiKey,
   CreatePlatformOrganization,
   PlatformOrganization,
+  PlatformOrganizationDetails,
+  PlatformOrganizationQuery,
   PlatformOrgIdParam,
   refusals,
 } from '../schemas/index.js';
@@ -36,6 +38,24 @@ export async function platformRoutes(app: FastifyInstance, container: Container)
         },
         apiKey: created.apiKey,
       });
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/platform/organizations',
+    preHandler: app.requirePlatform,
+    schema: {
+      operationId: 'getPlatformOrganization',
+      tags,
+      summary: 'Find an organization by its slug',
+      description: `Requires the platform key as \`Authorization: Bearer <platform key>\`. Returns the organization with that slug and its metadata, to recover the id of an organization whose creation response was lost. 404 when no organization has the slug or the organization was not created with the platform key.`,
+      querystring: PlatformOrganizationQuery,
+      response: { 200: PlatformOrganizationDetails, ...refusals(400, 404) },
+    },
+    handler: async (req) => {
+      const org = await organizations.getPlatformOrganization(req.query.slug);
+      return { ...org, createdAt: org.createdAt.toISOString() };
     },
   });
 

@@ -1641,6 +1641,24 @@ describe('platform', () => {
     );
   });
 
+  it('finds by slug only an org the platform created', async () => {
+    const p = store({ platform: PLATFORM });
+    const { organization } = await p.service.createPlatformOrganization({
+      name: 'Yoga',
+      slug: 'yoga',
+      metadata: { plan: 'pro' },
+    });
+    await expect(p.service.getPlatformOrganization('yoga')).resolves.toEqual(organization);
+    await p.repo.create({ id: 'org_other', name: 'Other', slug: 'other', ownerId: 'usr_x' });
+    await expect(p.service.getPlatformOrganization('other')).rejects.toBeInstanceOf(NotFoundError);
+    const account = [...p.people.values()].find((x) => x.email === 'platform@example.test')!;
+    await p.service.addOrgUser({ orgId: 'org_other', userId: account.id });
+    await expect(p.service.getPlatformOrganization('other')).rejects.toBeInstanceOf(NotFoundError);
+    await expect(p.service.getPlatformOrganization('missing')).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
   it('knows the platform account by email, whatever its case', () => {
     const p = store({ platform: PLATFORM });
     expect(p.service.isPlatformAccount('PLATFORM@example.test')).toBe(true);

@@ -30,6 +30,7 @@ const STAFFLESS = new Set([
   'getMemberProfile',
   'createPlatformOrganization',
   'createPlatformApiKey',
+  'getPlatformOrganization',
 ]);
 
 const anything: unknown = new Proxy(() => anything, { get: () => anything });

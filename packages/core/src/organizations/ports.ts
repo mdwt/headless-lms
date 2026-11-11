@@ -63,8 +63,10 @@ export interface PlatformOrganizationInput {
   metadata?: OrganizationMetadata | undefined;
 }
 
+export type PlatformOrganizationDetails = AuthOrganization & { metadata: OrganizationMetadata };
+
 export interface PlatformOrganization {
-  organization: AuthOrganization & { metadata: OrganizationMetadata };
+  organization: PlatformOrganizationDetails;
   apiKey: CreatedApiKey;
 }
 
@@ -143,6 +145,7 @@ export interface OrganizationService {
 
   createPlatformOrganization(input: PlatformOrganizationInput): Promise<PlatformOrganization>;
   createPlatformApiKey(orgId: string, name: string): Promise<CreatedApiKey>;
+  getPlatformOrganization(slug: string): Promise<PlatformOrganizationDetails>;
   isPlatformAccount(email: string): boolean;
 }
 
