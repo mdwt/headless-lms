@@ -25,6 +25,7 @@ import {
   OrgUserContentParam,
   OrgUserIdParam,
   Organization,
+  ResendInvite,
   RoleKeyParam,
   SetRole,
   TransferOwnership,
@@ -67,9 +68,9 @@ export async function organizationsRoutes(
       tags,
       summary: 'Create an organization and make it active',
       description:
-        'For any signed-in person, including one with no organization yet. The caller becomes its owner.',
+        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.',
       body: CreateOrganization,
-      response: { 201: Organization },
+      response: { 201: Organization, ...refusals(400) },
     },
     handler: async (req, reply) => {
       const org = await organizations.createOrganization(req.body, req.headers);
@@ -78,6 +79,7 @@ export async function organizationsRoutes(
         slug: org.slug,
         id: org.id,
         createdAt: org.createdAt.toISOString(),
+        hosts: org.hosts,
       });
     },
   });
@@ -90,7 +92,7 @@ export async function organizationsRoutes(
       operationId: 'updateOrganization',
       tags,
       summary: 'Update the active organization',
-      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken.`,
+      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken. \`hosts\` replaces both hosts, and the next link uses the new value: links to courses and downloads use \`courses\`, links to communities and events use \`community\`. Changing the slug does not change the hosts.`,
       body: UpdateOrganization,
       response: { 200: Organization, ...refusals(403, 409) },
     },
@@ -102,6 +104,7 @@ export async function organizationsRoutes(
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
+        hosts: org.hosts,
       };
     },
   });
@@ -361,7 +364,7 @@ export async function organizationsRoutes(
       operationId: 'createInvite',
       tags: peopleTags,
       summary: 'Invite a person with an org role',
-      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409).`,
+      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409). \`host\` is the app the invite link opens and must be one of the organization's hosts (409).`,
       body: CreateInvite,
       response: { 201: Invite, ...refusals(403, 404, 409) },
     },
@@ -380,13 +383,19 @@ export async function organizationsRoutes(
       operationId: 'resendInvite',
       tags: peopleTags,
       summary: "Resend a person's pending invite",
-      description: `Requires \`people:write\`. Issues a new link; the resender becomes the inviter.`,
+      description: `Requires \`people:write\`. Issues a new link; the resender becomes the inviter. \`host\` is the app the invite link opens and must be one of the organization's hosts (409).`,
       params: OrgUserIdParam,
-      response: { 204: z.void(), ...refusals(403, 404) },
+      querystring: ResendInvite,
+      response: { 204: z.void(), ...refusals(403, 404, 409) },
     },
     handler: async (req, reply) => {
       const caller = await resolveCaller(container, req);
-      await organizations.resendInvite(req.params.orgUserId, caller.actor, caller.userId);
+      await organizations.resendInvite(
+        req.params.orgUserId,
+        caller.actor,
+        caller.userId,
+        req.query.host,
+      );
       return reply.code(204).send();
     },
   });

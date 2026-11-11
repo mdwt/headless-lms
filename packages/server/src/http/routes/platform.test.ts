@@ -21,6 +21,11 @@ const API_KEY = {
   key: 'hlms_secret',
 };
 
+const HOSTS = {
+  courses: 'https://sarahs-yoga.platform.test',
+  community: 'https://sarahs-yoga.platform.test',
+};
+
 const YOGA = {
   name: "Sarah's Yoga",
   slug: 'sarahs-yoga',
@@ -44,6 +49,7 @@ const container = {
           slug: 'sarahs-yoga',
           metadata: { plan: 'pro' },
           createdAt: NOW,
+          hosts: HOSTS,
         },
         apiKey: API_KEY,
       };
@@ -66,6 +72,7 @@ const container = {
         slug: 'sarahs-yoga',
         metadata: { plan: 'pro' },
         createdAt: NOW,
+        hosts: HOSTS,
       };
     },
   },
@@ -113,6 +120,7 @@ describe('platform routes', () => {
         slug: 'sarahs-yoga',
         metadata: { plan: 'pro' },
         createdAt: NOW.toISOString(),
+        hosts: HOSTS,
       },
       apiKey: { ...API_KEY, createdAt: NOW.toISOString() },
     });
@@ -165,6 +173,7 @@ describe('platform routes', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
       createdAt: NOW.toISOString(),
+      hosts: HOSTS,
     });
     expect(calls).toEqual([['getPlatformOrganization', 'sarahs-yoga']]);
   });

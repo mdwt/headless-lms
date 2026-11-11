@@ -3,8 +3,19 @@ import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/ty
 import { Link, Section, Text } from "@react-email/components";
 import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
-export function portal(ctx: TemplateContext, path: string): string {
-  return `${ctx.studentPortalUrl}${path}`;
+function hostsOf(ctx: TemplateContext) {
+  if (!ctx.hosts) {
+    throw new Error("This email links to an organization's apps and was sent without one");
+  }
+  return ctx.hosts;
+}
+
+export function communityApp(ctx: TemplateContext, path: string): string {
+  return `${hostsOf(ctx).community}${path}`;
+}
+
+export function courseApp(ctx: TemplateContext, path: string): string {
+  return `${hostsOf(ctx).courses}${path}`;
 }
 
 export function defineEmail<K extends keyof EmailTemplateParams>(opts: {
@@ -35,15 +46,15 @@ export function defineEmail<K extends keyof EmailTemplateParams>(opts: {
   return { subject: opts.subject, Component };
 }
 
-const community = (ctx: TemplateContext, id: string) => portal(ctx, `/communities/${id}`);
+const community = (ctx: TemplateContext, id: string) => communityApp(ctx, `/communities/${id}`);
 const space = (ctx: TemplateContext, communityId: string, spaceId: string) =>
-  portal(ctx, `/communities/${communityId}/spaces/${spaceId}`);
+  communityApp(ctx, `/communities/${communityId}/spaces/${spaceId}`);
 const post = (ctx: TemplateContext, communityId: string, postId: string) =>
-  portal(ctx, `/communities/${communityId}/posts/${postId}`);
+  communityApp(ctx, `/communities/${communityId}/posts/${postId}`);
 const comment = (ctx: TemplateContext, communityId: string, postId: string, commentId: string) =>
   `${post(ctx, communityId, postId)}#${commentId}`;
 const chat = (ctx: TemplateContext, communityId: string, chatId: string) =>
-  portal(ctx, `/communities/${communityId}/chats/${chatId}`);
+  communityApp(ctx, `/communities/${communityId}/chats/${chatId}`);
 
 function accessEnds(value: string): string {
   const date = new Date(value);
@@ -98,7 +109,7 @@ export const membershipEnded = defineEmail<"membershipEnded">({
     const [only] = params.communities;
     return params.communities.length === 1 && only
       ? { href: community(ctx, only.communityId), label: "Renew" }
-      : { href: portal(ctx, "/communities"), label: "Open communities" };
+      : { href: communityApp(ctx, "/communities"), label: "Open communities" };
   },
   preview: { communities: [{ communityId: "cmy_1", communityTitle: "Founders" }] },
 });

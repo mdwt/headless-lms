@@ -34,13 +34,21 @@ The catalog is closed and typed: every template id in `EmailTemplateParams` (fro
 
 ## Branding
 
-Every template receives a `TemplateContext` — brand name, base URL, and student portal URL — threaded in from the server config. The reference installation maps these from env:
+Every template receives a `TemplateContext` — brand name, base URL, and the organization's hosts. The reference installation maps the first two from env:
 
-| Variable             | Maps to            | Notes                                             |
-| -------------------- | ------------------ | ------------------------------------------------- |
-| `BRAND_NAME`         | `brandName`        | Shown in every email. Defaults to `Headless LMS`. |
-| `ADMIN_APP_URL`      | `baseUrl`          | Origin admin-app links resolve against.           |
-| `STUDENT_PORTAL_URL` | `studentPortalUrl` | Origin student-facing links resolve against.      |
+| Variable        | Maps to     | Notes                                             |
+| --------------- | ----------- | ------------------------------------------------- |
+| `BRAND_NAME`    | `brandName` | Shown in every email. Defaults to `Headless LMS`. |
+| `ADMIN_APP_URL` | `baseUrl`   | Origin admin-app links resolve against.           |
+
+`hosts` holds the origins member-facing links resolve against, read from the organization's settings when the email is sent:
+
+| Field             | Links                                     |
+| ----------------- | ----------------------------------------- |
+| `hosts.courses`   | Courses, lessons, downloads, the library  |
+| `hosts.community` | Communities, spaces, posts, chats, events |
+
+An organization starts with its slug under [`PLATFORM_HOST`](/docs/self-hosting#hosts) for both, and changes them with `PATCH /api/organizations`. `hosts` is `null` for an email sent outside an organization, such as a password reset.
 
 ## Previewing templates
 

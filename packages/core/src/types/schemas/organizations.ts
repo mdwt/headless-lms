@@ -191,6 +191,29 @@ export const updateOrgUserInputSchema = z
   .strict();
 export type UpdateOrgUserInput = z.infer<typeof updateOrgUserInputSchema>;
 
+function originOf(value: string): string | null {
+  if (!URL.canParse(value)) {
+    return null;
+  }
+  const url = new URL(value);
+  const web = url.protocol === 'https:' || url.protocol === 'http:';
+  return web && url.pathname === '/' && url.search === '' && url.hash === '' ? url.origin : null;
+}
+
+export const hostSchema = z
+  .string()
+  .trim()
+  .refine((value) => originOf(value) !== null, {
+    message: 'Use an origin such as https://learn.example.com, without a path',
+  })
+  .transform((value) => originOf(value) ?? value);
+
+export const hostsSchema = z.object({
+  courses: hostSchema,
+  community: hostSchema,
+});
+export type Hosts = z.infer<typeof hostsSchema>;
+
 export const createInviteInputSchema = z
   .object({
     email: emailSchema,
@@ -198,6 +221,7 @@ export const createInviteInputSchema = z
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     sendEmail: z.boolean().optional(),
+    host: hostSchema.optional(),
   })
   .strict();
 export type CreateInviteInput = z.input<typeof createInviteInputSchema>;

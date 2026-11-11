@@ -144,7 +144,7 @@ async function send<K extends EmailTemplateId>(
   deps: ActionDeps,
 ): Promise<boolean> {
   try {
-    await deps.mailer.send(recipient.to, template, recipient.params);
+    await deps.mailer.send(recipient.to, template, recipient.params, event.orgId);
     return true;
   } catch (err) {
     (deps.logger ?? noopLogger).warn('automation email not delivered', {

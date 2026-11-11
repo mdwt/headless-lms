@@ -631,12 +631,22 @@ export class Organizations {
   /**
    * Update the active organization
    *
-   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken.
+   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. `hosts` replaces both hosts, and the next link uses the new value: links to courses and downloads use `courses`, links to communities and events use `community`. Changing the slug does not change the hosts.
    */
   public static updateOrganization<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
       slug: string;
+      hosts?: {
+        /**
+         * Origin of the app that shows courses and downloads, such as https://learn.example.com
+         */
+        courses: string;
+        /**
+         * Origin of the app that shows communities and events, such as https://club.example.com
+         */
+        community: string;
+      };
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateOrganizationResponses, UpdateOrganizationErrors, ThrowOnError, "data"> {
@@ -647,6 +657,7 @@ export class Organizations {
           args: [
             { in: "body", key: "name" },
             { in: "body", key: "slug" },
+            { in: "body", key: "hosts" },
           ],
         },
       ],
@@ -672,7 +683,7 @@ export class Organizations {
   /**
    * Create an organization and make it active
    *
-   * For any signed-in person, including one with no organization yet. The caller becomes its owner.
+   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.
    */
   public static createOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1226,7 +1237,7 @@ export class People {
   /**
    * Invite a person with an org role
    *
-   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
+   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `host` is the app the invite link opens and must be one of the organization's hosts (409).
    */
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1235,6 +1246,7 @@ export class People {
       firstName?: string;
       lastName?: string;
       sendEmail?: boolean;
+      host?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<CreateInviteResponses, CreateInviteErrors, ThrowOnError, "data"> {
@@ -1248,6 +1260,7 @@ export class People {
             { in: "body", key: "firstName" },
             { in: "body", key: "lastName" },
             { in: "body", key: "sendEmail" },
+            { in: "body", key: "host" },
           ],
         },
       ],
@@ -1273,15 +1286,26 @@ export class People {
   /**
    * Resend a person's pending invite
    *
-   * Requires `people:write`. Issues a new link; the resender becomes the inviter.
+   * Requires `people:write`. Issues a new link; the resender becomes the inviter. `host` is the app the invite link opens and must be one of the organization's hosts (409).
    */
   public static resendInvite<ThrowOnError extends boolean = false>(
     parameters: {
       orgUserId: string;
+      host?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ResendInviteResponses, ResendInviteErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "orgUserId" },
+            { in: "query", key: "host" },
+          ],
+        },
+      ],
+    );
     return (options?.client ?? client).post<
       ResendInviteResponses,
       ResendInviteErrors,

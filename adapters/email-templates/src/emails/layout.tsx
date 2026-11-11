@@ -78,5 +78,5 @@ export function Paragraph({ children }: { children: ReactNode }) {
 export const PREVIEW_CTX: TemplateContext = {
   brandName: "Acme LMS",
   baseUrl: "http://localhost:8001",
-  studentPortalUrl: "http://localhost:8002",
+  hosts: { courses: "http://localhost:8002", community: "http://localhost:8002" },
 };

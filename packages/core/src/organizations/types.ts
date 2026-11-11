@@ -12,6 +12,7 @@ export type {
 } from '../types/index.js';
 
 export type { ProvisionUserInput } from '../types/index.js';
+import type { Hosts } from '../types/index.js';
 
 export interface CreateOrganizationInput {
   externalId?: string;
@@ -24,4 +25,5 @@ export interface CreateOrganizationInput {
 export interface UpdateOrganizationInput {
   name?: string | undefined;
   slug?: string | undefined;
+  hosts?: Hosts | undefined;
 }

@@ -64,7 +64,7 @@ flowchart TD
 - **Role** — a key, a name, a description, its levels, its permissions, and whether its holders are shown as team. A role the org changed or added also records the default role it started from.
 - **Assignment** — an org user, a role, and the org or one content item.
 - **Invite** — a pending invite to join an org, carrying the org role the invitee will hold. Domain-owned.
-- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings.
+- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings. Also among them are its hosts: where its course app and its community app are reached. Links sent to a person, in an email, an invite or a calendar file, use them, so a change applies to the next link. Both are always set. A new org starts with one host for both, its slug under the platform's host, and changes them later. For example, on a platform at `example.com` Acme starts at `acme.example.com`, then connects `learn.acme.com` for courses and `club.acme.com` for its community; from then on an email about a post links to the last.
 
 ## Permissions
 
@@ -194,7 +194,7 @@ Every org user who accepts an invite holds a Better Auth membership, whatever th
 
 ### Invites
 
-An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused.
+An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the app the invite was sent from, which must be one of the org's hosts.
 
 Every invite creates the person and an `invited` org user at once, whatever the role. This is what makes someone findable, grantable and reportable while their invitation is outstanding. Accepting activates that same org user, creates their membership if they have none, and sets the invited org role, so anything granted while they were pending survives. Accepting is refused when the inviter no longer holds what the invite needs; resending makes the resender the inviter.
 

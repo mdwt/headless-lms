@@ -1,6 +1,6 @@
 // Invites resource schemas — domain-owned invites (staff + student).
 import { z } from 'zod';
-import { emailSchema, roleKeySchema } from '@headless-lms/core/schemas';
+import { emailSchema, hostSchema, roleKeySchema } from '@headless-lms/core/schemas';
 
 export const Invite = z.object({
   id: z.string(),
@@ -19,8 +19,22 @@ export const CreateInvite = z.object({
   firstName: z.string().trim().min(1).optional(),
   lastName: z.string().trim().min(1).optional(),
   sendEmail: z.boolean().default(true),
+  host: hostSchema
+    .optional()
+    .describe(
+      "The app the invited person lands on: one of the organization's hosts. Absent → the course host.",
+    ),
 });
 export type CreateInvite = z.infer<typeof CreateInvite>;
+
+export const ResendInvite = z.object({
+  host: hostSchema
+    .optional()
+    .describe(
+      "The app the invited person lands on: one of the organization's hosts. Absent → the course host.",
+    ),
+});
+export type ResendInvite = z.infer<typeof ResendInvite>;
 
 export const InviteTokenParam = z.object({ token: z.string().min(1) });
 export type InviteTokenParam = z.infer<typeof InviteTokenParam>;

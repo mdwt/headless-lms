@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Headless LMS API",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "API documentation for the Headless LMS platform. Every route under /api takes a signed-in session or an API key, sent in the `x-api-key` header or as `Authorization: Bearer <key>`. The platform routes take the platform key as `Authorization: Bearer <platform key>`.",
     "license": {
       "name": "MIT",
@@ -73,7 +73,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner.",
+        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -87,7 +87,10 @@
                   },
                   "slug": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[a-z0-9-]+$",
+                    "description": "Unique. The organization's first host is this slug under the platform host."
                   }
                 },
                 "required": [
@@ -117,13 +120,33 @@
                     },
                     "createdAt": {
                       "type": "string"
+                    },
+                    "hosts": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "string",
+                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                        },
+                        "community": {
+                          "type": "string",
+                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                        }
+                      },
+                      "required": [
+                        "courses",
+                        "community"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "slug",
-                    "createdAt"
+                    "createdAt",
+                    "hosts"
                   ],
                   "additionalProperties": false
                 }
@@ -233,7 +256,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken.",
+        "description": "Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. `hosts` replaces both hosts, and the next link uses the new value: links to courses and downloads use `courses`, links to communities and events use `community`. Changing the slug does not change the hosts.",
         "requestBody": {
           "required": true,
           "content": {
@@ -251,6 +274,24 @@
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$"
+                  },
+                  "hosts": {
+                    "description": "Both hosts, replacing the current ones. Left out, the hosts stay as they are.",
+                    "type": "object",
+                    "properties": {
+                      "courses": {
+                        "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com",
+                        "type": "string"
+                      },
+                      "community": {
+                        "description": "Origin of the app that shows communities and events, such as https://club.example.com",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "courses",
+                      "community"
+                    ]
                   }
                 },
                 "required": [
@@ -280,13 +321,33 @@
                     },
                     "createdAt": {
                       "type": "string"
+                    },
+                    "hosts": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "string",
+                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                        },
+                        "community": {
+                          "type": "string",
+                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                        }
+                      },
+                      "required": [
+                        "courses",
+                        "community"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "slug",
-                    "createdAt"
+                    "createdAt",
+                    "hosts"
                   ],
                   "additionalProperties": false
                 }
@@ -4094,7 +4155,7 @@
         "tags": [
           "People"
         ],
-        "description": "Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).",
+        "description": "Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `host` is the app the invite link opens and must be one of the organization's hosts (409).",
         "requestBody": {
           "required": true,
           "content": {
@@ -4125,6 +4186,10 @@
                   "sendEmail": {
                     "default": true,
                     "type": "boolean"
+                  },
+                  "host": {
+                    "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host.",
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -4362,8 +4427,17 @@
         "tags": [
           "People"
         ],
-        "description": "Requires `people:write`. Issues a new link; the resender becomes the inviter.",
+        "description": "Requires `people:write`. Issues a new link; the resender becomes the inviter. `host` is the app the invite link opens and must be one of the organization's hosts (409).",
         "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "host",
+            "required": false,
+            "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
+          },
           {
             "schema": {
               "type": "string"
@@ -4478,6 +4552,31 @@
             }
           },
           "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -86831,7 +86930,8 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
-                    "pattern": "^[a-z0-9-]+$"
+                    "pattern": "^[a-z0-9-]+$",
+                    "description": "Unique. The organization's first host is this slug under the platform host."
                   },
                   "metadata": {
                     "description": "Key-value pairs stored with the organization",
@@ -86873,6 +86973,25 @@
                         "createdAt": {
                           "type": "string"
                         },
+                        "hosts": {
+                          "type": "object",
+                          "properties": {
+                            "courses": {
+                              "type": "string",
+                              "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                            },
+                            "community": {
+                              "type": "string",
+                              "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                            }
+                          },
+                          "required": [
+                            "courses",
+                            "community"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
+                        },
                         "metadata": {
                           "type": "object",
                           "additionalProperties": {
@@ -86885,6 +87004,7 @@
                         "name",
                         "slug",
                         "createdAt",
+                        "hosts",
                         "metadata"
                       ],
                       "additionalProperties": false
@@ -87128,6 +87248,25 @@
                     "createdAt": {
                       "type": "string"
                     },
+                    "hosts": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "string",
+                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                        },
+                        "community": {
+                          "type": "string",
+                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                        }
+                      },
+                      "required": [
+                        "courses",
+                        "community"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
+                    },
                     "metadata": {
                       "type": "object",
                       "additionalProperties": {
@@ -87140,6 +87279,7 @@
                     "name",
                     "slug",
                     "createdAt",
+                    "hosts",
                     "metadata"
                   ],
                   "additionalProperties": false

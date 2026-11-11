@@ -1942,6 +1942,12 @@
           "type": "boolean",
           "required": false,
           "description": null
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "required": false,
+          "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
         }
       ]
     },
@@ -2196,7 +2202,7 @@
     {
       "name": "update_organization",
       "title": "Update organization",
-      "description": "Change the organization's name or slug.",
+      "description": "Change the organization's name or slug, or the hosts its member apps are reached at.",
       "group": "Organization, roles and team",
       "kind": "write",
       "idempotent": true,
@@ -2213,6 +2219,12 @@
           "type": "string",
           "required": true,
           "description": null
+        },
+        {
+          "name": "hosts",
+          "type": "object",
+          "required": false,
+          "description": "Both hosts, replacing the current ones. Left out, the hosts stay as they are."
         }
       ]
     },
@@ -2565,6 +2577,12 @@
           "type": "boolean",
           "required": false,
           "description": null
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "required": false,
+          "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
         }
       ]
     },
@@ -2582,6 +2600,12 @@
           "type": "string",
           "required": true,
           "description": null
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "required": false,
+          "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
         }
       ]
     },

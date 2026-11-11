@@ -45,7 +45,9 @@ curl https://<your-api-host>/api/platform/organizations \
   -d '{"name":"Sarah'\''s Yoga","slug":"sarahs-yoga","keyName":"Storefront"}'
 ```
 
-The response carries the organization and the key. Store both against your customer; every later call for that customer uses the key. A slug in use gets `409`.
+The response carries the organization, with its `hosts`, and the key. Store the organization and the key against your customer; every later call for that customer uses the key. A slug in use gets `409`.
+
+The organization starts at its slug under [`PLATFORM_HOST`](/docs/self-hosting#hosts): with `PLATFORM_HOST=https://example.com`, `sarahs-yoga` starts at `https://sarahs-yoga.example.com`. When a customer connects their own domain, send it as `hosts` to [`PATCH /api/organizations`](/docs/api/organizations/updateOrganization) with their key.
 
 [`POST /api/platform/organizations/:orgId/api-keys`](/docs/api/platform/createPlatformApiKey) creates another key for an organization, to replace a lost or leaked one. Revoke the old key with the new one through [`DELETE /api/access/api-keys/:id`](/docs/api/access/deleteApiKey).
 

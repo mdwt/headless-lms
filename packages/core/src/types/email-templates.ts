@@ -2,6 +2,7 @@
 // The closed EmailTemplateId union is the guarantee that templates exist: a
 // TemplateRenderer implementation must answer every member or fail typecheck.
 import type { ContentType } from './schemas/content.js';
+import type { Hosts } from './schemas/organizations.js';
 
 /** Branding threaded into every template. */
 export interface TemplateContext {
@@ -9,8 +10,8 @@ export interface TemplateContext {
   brandName: string;
   /** Origin links resolve against (e.g. the admin app URL). */
   baseUrl: string;
-  /** Origin student-facing links resolve against (the student portal URL). */
-  studentPortalUrl: string;
+  /** The organization's course app and community app origins; null for an email sent outside an organization. */
+  hosts: Hosts | null;
 }
 
 /** A fully rendered email, ready for an EmailSender. */

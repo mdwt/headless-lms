@@ -28,6 +28,19 @@ export type UpdateOrganizationData = {
   body: {
     name: string;
     slug: string;
+    /**
+     * Both hosts, replacing the current ones. Left out, the hosts stay as they are.
+     */
+    hosts?: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
   };
   path?: never;
   query?: never;
@@ -95,6 +108,19 @@ export type UpdateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    /**
+     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+     */
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
   };
 };
 
@@ -104,6 +130,9 @@ export type UpdateOrganizationResponse =
 export type CreateOrganizationData = {
   body: {
     name: string;
+    /**
+     * Unique. The organization's first host is this slug under the platform host.
+     */
     slug: string;
   };
   path?: never;
@@ -156,6 +185,19 @@ export type CreateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    /**
+     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+     */
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
   };
 };
 
@@ -1532,6 +1574,10 @@ export type CreateInviteData = {
     firstName?: string;
     lastName?: string;
     sendEmail?: boolean;
+    /**
+     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     */
+    host?: string;
   };
   path?: never;
   query?: never;
@@ -1623,7 +1669,12 @@ export type ResendInviteData = {
   path: {
     orgUserId: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     */
+    host?: string;
+  };
   url: "/api/organizations/people/{orgUserId}/invite/resend";
 };
 
@@ -1663,6 +1714,14 @@ export type ResendInviteErrors = {
    * Default Response
    */
   404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -28939,6 +28998,19 @@ export type GetPlatformOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    /**
+     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+     */
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
     metadata: {
       [key: string]: string;
     };
@@ -28951,6 +29023,9 @@ export type GetPlatformOrganizationResponse =
 export type CreatePlatformOrganizationData = {
   body: {
     name: string;
+    /**
+     * Unique. The organization's first host is this slug under the platform host.
+     */
     slug: string;
     /**
      * Key-value pairs stored with the organization
@@ -29019,6 +29094,19 @@ export type CreatePlatformOrganizationResponses = {
       name: string;
       slug: string;
       createdAt: string;
+      /**
+       * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+       */
+      hosts: {
+        /**
+         * Origin of the app that shows courses and downloads, such as https://learn.example.com
+         */
+        courses: string;
+        /**
+         * Origin of the app that shows communities and events, such as https://club.example.com
+         */
+        community: string;
+      };
       metadata: {
         [key: string]: string;
       };

@@ -33,7 +33,7 @@ import type {
   SubjectRef,
 } from '../../types/index.js';
 import type { Actor } from '../../shared/actor.js';
-import type { EventFile, Page, Permission } from '../../types/index.js';
+import type { EventFile, Hosts, Page, Permission } from '../../types/index.js';
 import type {
   ActivityView,
   CommunityHome,
@@ -148,7 +148,7 @@ export type MemberReportServiceParams = {
   };
   notificationSettings: Pick<NotificationSettingsService, 'get'>;
   channels: Pick<ChannelRegistry, 'list'>;
-  studentPortalUrl: string;
+  hosts: (orgId: string) => Promise<Hosts>;
   now?: () => Date;
 };
 
@@ -165,7 +165,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
   private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
   private readonly channels: Pick<ChannelRegistry, 'list'>;
-  private readonly studentPortalUrl: string;
+  private readonly hosts: (orgId: string) => Promise<Hosts>;
   private readonly now: () => Date;
 
   constructor(params: MemberReportServiceParams) {
@@ -181,7 +181,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.notificationCategories = params.notificationCategories;
     this.notificationSettings = params.notificationSettings;
     this.channels = params.channels;
-    this.studentPortalUrl = params.studentPortalUrl.replace(/\/+$/, '');
+    this.hosts = params.hosts;
     this.now = params.now ?? (() => new Date());
   }
 
@@ -614,8 +614,9 @@ export class MemberReportServiceImpl implements MemberReportService {
 
   async eventCalendar(eventId: string, actor: Actor): Promise<string> {
     const { event, sight } = await this.requireEvent(eventId, actor);
+    const hosts = await this.hosts(actor.orgId);
     return eventCalendar(event, {
-      pageUrl: `${this.studentPortalUrl}/events/${encodeURIComponent(event.id)}`,
+      pageUrl: `${hosts.community}/events/${encodeURIComponent(event.id)}`,
       withLocation: sight !== 'public',
       now: this.now(),
     });

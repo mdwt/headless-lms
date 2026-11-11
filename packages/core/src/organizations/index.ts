@@ -2,6 +2,8 @@
 export { OrganizationServiceImpl } from './service.js';
 export type { OrganizationServiceParams, InviteUrls } from './service.js';
 export { OrgNotificationCategories } from './notification-categories.js';
+export { OrgHostSettings } from './hosts.js';
+export type { OrgHostSettingsParams } from './hosts.js';
 export { NotificationCatalog } from './notification-catalog.js';
 export type {
   NotificationCatalogParams,

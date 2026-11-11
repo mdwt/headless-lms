@@ -12,6 +12,7 @@ import {
   OrgUserContentParam,
   OrgUserIdParam,
   Organization,
+  ResendInvite,
   RoleKeyParam,
   SetRole,
   UpdateOrganization,
@@ -23,7 +24,8 @@ export const organizationTools: Tool[] = [
   defineTool({
     name: 'update_organization',
     title: 'Update organization',
-    description: "Change the organization's name or slug.",
+    description:
+      "Change the organization's name or slug, or the hosts its member apps are reached at.",
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -31,7 +33,13 @@ export const organizationTools: Tool[] = [
     output: Organization,
     call: async (input, { container, caller }) => {
       const org = await container.organizations.updateOrganization(input, caller.actor);
-      return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt.toISOString() };
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        createdAt: org.createdAt.toISOString(),
+        hosts: org.hosts,
+      };
     },
   }),
   defineTool({
@@ -212,9 +220,9 @@ export const organizationTools: Tool[] = [
     kind: 'write',
     idempotent: false,
     openWorld: true,
-    input: OrgUserIdParam,
-    call: ({ orgUserId }, { container, caller }) =>
-      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId),
+    input: OrgUserIdParam.extend(ResendInvite.shape),
+    call: ({ orgUserId, host }, { container, caller }) =>
+      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId, host),
   }),
   defineTool({
     name: 'cancel_invite',

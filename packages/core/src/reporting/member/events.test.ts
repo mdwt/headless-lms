@@ -150,7 +150,7 @@ function build(world: World = {}) {
     notificationCategories: {} as never,
     notificationSettings: {} as never,
     channels: {} as never,
-    studentPortalUrl: 'https://app.test/',
+    hosts: async () => ({ courses: 'https://learn.test', community: 'https://app.test' }),
     now: () => NOW,
   });
   return { svc, repo, content };

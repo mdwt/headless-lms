@@ -499,6 +499,13 @@ function store(
     },
   });
   const send = vi.fn(async () => {});
+  const HOSTS = { courses: 'https://learn.test', community: 'https://club.test' };
+  const assigned = new Map<string, typeof HOSTS>();
+  const assign = vi.fn(async (orgId: string, slug: string) => {
+    const host = `https://${slug}.platform.test`;
+    assigned.set(orgId, { courses: host, community: host });
+    return assigned.get(orgId)!;
+  });
   const images = { syncPublicImages: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
@@ -514,7 +521,16 @@ function store(
     accounts: () => accounts,
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
-    inviteUrls: { studentPortalUrl: 'https://learn.test', adminAppUrl: 'https://admin.test' },
+    inviteUrls: { adminAppUrl: 'https://admin.test' },
+    hosts: {
+      resolve: async (orgId: string) => assigned.get(orgId) ?? HOSTS,
+      assign,
+      replace: async (hosts: typeof HOSTS, actor: Actor) => {
+        actor.permissions.require('organizations:write');
+        assigned.set(actor.orgId, hosts);
+        return hosts;
+      },
+    },
     ...opts,
   });
 
@@ -568,6 +584,7 @@ function store(
     keys,
     accounts,
     send,
+    assign,
     blocked,
     holdsGrant,
     person,
@@ -956,6 +973,48 @@ describe('transferOwnership', () => {
 });
 
 describe('invites', () => {
+  it("links a Member invite to the host the inviting app names, when it is one of the organization's", async () => {
+    await w.service.createInvite(
+      { email: 'ivy@example.com', host: 'https://club.test' },
+      await w.actor(s.liam.orgUser.id),
+      s.liam.person.id,
+    );
+    expect(w.send).toHaveBeenCalledWith(
+      'ivy@example.com',
+      'studentInvite',
+      expect.objectContaining({
+        inviteUrl: expect.stringContaining('https://club.test/welcome?token='),
+      }),
+      ORG,
+    );
+    await w.service.resendInvite(
+      w.findByEmail('ivy@example.com').id,
+      await w.actor(s.liam.orgUser.id),
+      s.liam.person.id,
+      'https://learn.test',
+    );
+    expect(w.send).toHaveBeenLastCalledWith(
+      'ivy@example.com',
+      'studentInvite',
+      expect.objectContaining({
+        inviteUrl: expect.stringContaining('https://learn.test/welcome?token='),
+      }),
+      ORG,
+    );
+  });
+
+  it('refuses an invite to a host that is not one of the organization, and invites no one', async () => {
+    await expect(
+      w.service.createInvite(
+        { email: 'ivy@example.com', host: 'https://elsewhere.test' },
+        await w.actor(s.liam.orgUser.id),
+        s.liam.person.id,
+      ),
+    ).rejects.toBeInstanceOf(OrganizationRuleError);
+    expect(w.findByEmail('ivy@example.com')).toBeUndefined();
+    expect(w.send).not.toHaveBeenCalled();
+  });
+
   it('creates the invited person at once and links a Member invite to the learner portal', async () => {
     const invite = await w.service.createInvite(
       { email: 'ivy@example.com' },
@@ -971,6 +1030,7 @@ describe('invites', () => {
       expect.objectContaining({
         inviteUrl: expect.stringContaining('https://learn.test/welcome?token='),
       }),
+      ORG,
     );
   });
 
@@ -1004,6 +1064,7 @@ describe('invites', () => {
         role: 'Tutor',
         inviteUrl: expect.stringContaining('https://admin.test/invite?'),
       }),
+      ORG,
     );
   });
 
@@ -1331,6 +1392,19 @@ describe('api keys and the organization', () => {
     await expect(w.service.deleteRole(host.key, owner)).resolves.toBeUndefined();
   });
 
+  it('returns the hosts with the organization and replaces them when they are sent', async () => {
+    const admin = await w.actor(s.liam.orgUser.id);
+    const renamed = await w.service.updateOrganization({ name: 'Acme Two' }, admin);
+    expect(renamed.hosts).toEqual({
+      courses: 'https://learn.test',
+      community: 'https://club.test',
+    });
+    const hosts = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
+    const moved = await w.service.updateOrganization({ hosts }, admin);
+    expect(moved).toMatchObject({ name: 'Acme Two', hosts });
+    expect((await w.service.updateOrganization({ name: 'Acme' }, admin)).hosts).toEqual(hosts);
+  });
+
   it('refuses a taken slug before writing anything', async () => {
     await w.repo.create({ id: 'org_2', name: 'Other', slug: 'taken', ownerId: 'usr_x' });
     await expect(
@@ -1594,6 +1668,25 @@ describe('Better Auth on role changes', () => {
   });
 });
 
+describe('creating an organization', () => {
+  it('starts the new organization at its slug under the platform host', async () => {
+    const p = store();
+    const owner = await p.person('Sarah');
+    p.orgAdmin.createOrganization.mockImplementationOnce(
+      async (_headers: unknown, input: { name: string; slug: string }) => {
+        const org = await p.service.provisionOrganization({ ownerId: owner.person.id, ...input });
+        return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt };
+      },
+    );
+    const created = await p.service.createOrganization({ name: 'Yoga', slug: 'yoga' }, {});
+    expect(p.assign).toHaveBeenCalledWith(created.id, 'yoga');
+    expect(created.hosts).toEqual({
+      courses: 'https://yoga.platform.test',
+      community: 'https://yoga.platform.test',
+    });
+  });
+});
+
 describe('platform', () => {
   const PLATFORM = { email: 'Platform@Example.test', name: 'Shop' };
 
@@ -1603,6 +1696,10 @@ describe('platform', () => {
       name: "Sarah's Yoga",
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
+    });
+    expect(first.organization.hosts).toEqual({
+      courses: 'https://sarahs-yoga.platform.test',
+      community: 'https://sarahs-yoga.platform.test',
     });
     expect(p.accounts.createAccount).toHaveBeenCalledWith({
       email: 'platform@example.test',

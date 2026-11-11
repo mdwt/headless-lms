@@ -17,6 +17,7 @@ import type {
   ConnectedApp,
   ContentType,
   CreatedApiKey,
+  Hosts,
   OrgUserProfile,
   Permission,
   RoleAssignment,
@@ -66,7 +67,10 @@ export interface PlatformOrganizationInput {
   metadata?: OrganizationMetadata | undefined;
 }
 
-export type PlatformOrganizationDetails = AuthOrganization & { metadata: OrganizationMetadata };
+export type PlatformOrganizationDetails = AuthOrganization & {
+  metadata: OrganizationMetadata;
+  hosts: Hosts;
+};
 
 export interface PlatformOrganization {
   organization: PlatformOrganizationDetails;
@@ -79,9 +83,15 @@ export interface PlatformAccount {
 }
 
 export interface OrganizationService {
-  createOrganization(input: NewOrganizationInput, headers: AuthHeaders): Promise<AuthOrganization>;
+  createOrganization(
+    input: NewOrganizationInput,
+    headers: AuthHeaders,
+  ): Promise<AuthOrganization & { hosts: Hosts }>;
   provisionOrganization(input: CreateOrganizationInput): Promise<Organization>;
-  updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization>;
+  updateOrganization(
+    input: UpdateOrganizationInput,
+    actor: Actor,
+  ): Promise<Organization & { hosts: Hosts }>;
   deleteOrganization(id: string): Promise<Organization>;
   addOrgUser(input: AddOrgUserInput): Promise<OrgUser>;
   removeOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
@@ -137,7 +147,12 @@ export interface OrganizationService {
     actor: Actor,
     inviterUserId: string,
   ): Promise<CreatedInvite>;
-  resendInvite(orgUserId: string, actor: Actor, inviterUserId: string): Promise<void>;
+  resendInvite(
+    orgUserId: string,
+    actor: Actor,
+    inviterUserId: string,
+    host?: string,
+  ): Promise<void>;
   cancelInvite(orgUserId: string, actor: Actor): Promise<void>;
   peekInvite(token: string): Promise<Invite | null>;
   describeInvite(token: string): Promise<InviteDetails>;
