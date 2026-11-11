@@ -6,7 +6,6 @@ import type { ContentServicePort, EventFile, EventView } from '../../content/ind
 import { createFileUrls } from '../../assets/index.js';
 import { actorWith } from '../../organizations/index.js';
 import { ForbiddenError, NotFoundError } from '../../shared/errors.js';
-import type { Actor } from '../../shared/actor.js';
 import { eventCalendar } from './calendar.js';
 
 const ORG = 'org_1';
@@ -30,7 +29,7 @@ const EVENT: EventView = {
   title: 'Conversation practice',
   description: 'Practise speaking',
   thumbnailAssetId: 'ast_cover',
-  thumbnailUrl: 'https://api.test/api/member/events/evn_1/thumbnail',
+  thumbnailUrl: 'https://signed.test/ast_cover',
   status: 'published',
   startsAt: new Date('2026-05-12T16:00:00Z'),
   endsAt: new Date('2026-05-12T17:00:00Z'),
@@ -67,7 +66,7 @@ const FILE: EventFile = {
   filename: 'deck.pdf',
   contentType: 'application/pdf',
   size: 100,
-  url: 'https://api.test/api/member/events/evn_1/assets/ast_slides',
+  url: 'https://signed.test/ast_slides?as=Slides.pdf',
 };
 
 const ATTENDEES: EventAttendeeRow[] = [
@@ -129,13 +128,11 @@ function build(world: World = {}) {
       Object.fromEntries(ids.map((id) => [id, id === 'evn_1' ? [FILE] : []])),
     ),
   } as unknown as ContentServicePort;
-  const signFile = vi.fn(async (_orgId: string, assetId: string) => `https://signed/${assetId}`);
   const svc = new MemberReportServiceImpl({
     repo,
     content,
     progress: {} as never,
-    files: { signFile },
-    fileUrls: createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`),
+    fileUrls: createFileUrls((key) => `https://cdn.test/${key}`),
     access: {
       hasAccess: async (_o: string, orgUserId: string) =>
         (world.attending ?? ['ou_james']).includes(orgUserId),
@@ -156,7 +153,7 @@ function build(world: World = {}) {
     studentPortalUrl: 'https://app.test/',
     now: () => NOW,
   });
-  return { svc, repo, content, signFile };
+  return { svc, repo, content };
 }
 
 function ended(event: EventView = EVENT): EventView {
@@ -463,39 +460,6 @@ describe('eventCalendar', () => {
       );
     }
     expect(ics.replace(/\r\n /g, '')).toContain(`SUMMARY:${title}\r\n`);
-  });
-});
-
-describe('event files and the cover', () => {
-  it('signs an attached file under its display name for an attendee or a reader', async () => {
-    for (const actor of [james, tom] as Actor[]) {
-      const { svc, signFile } = build();
-      await expect(svc.eventFile('evn_1', 'ast_slides', actor)).resolves.toBe(
-        'https://signed/ast_slides',
-      );
-      expect(signFile).toHaveBeenCalledWith(ORG, 'ast_slides', { saveAs: 'Slides.pdf' });
-    }
-  });
-
-  it('answers 404 for a file to a member who only sees the event, or one not attached', async () => {
-    const { svc, signFile } = build();
-    await expect(svc.eventFile('evn_1', 'ast_slides', emma)).rejects.toThrow(NotFoundError);
-    await expect(svc.eventFile('evn_1', 'ast_other', james)).rejects.toThrow(NotFoundError);
-    expect(signFile).not.toHaveBeenCalled();
-  });
-
-  it('serves the cover to anyone the event read returns, and 404 otherwise', async () => {
-    const { svc } = build();
-    await expect(svc.thumbnailFile('event', 'evn_1', emma)).resolves.toBe(
-      'https://signed/ast_cover',
-    );
-    const hidden = build({ event: { ...EVENT, settings: { ...EVENT.settings, type: 'private' } } });
-    await expect(hidden.svc.thumbnailFile('event', 'evn_1', emma)).rejects.toThrow(NotFoundError);
-    await expect(hidden.svc.thumbnailFile('event', 'evn_1', james)).resolves.toBe(
-      'https://signed/ast_cover',
-    );
-    const bare = build({ event: { ...EVENT, thumbnailAssetId: null } });
-    await expect(bare.svc.thumbnailFile('event', 'evn_1', sarah)).rejects.toThrow(NotFoundError);
   });
 });
 

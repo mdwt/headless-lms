@@ -70,7 +70,7 @@ export type ChatServiceParams = {
   profiles: AuthorProfileReader;
   subscriptions: SubscriptionsRepository;
   mentions: MentionsRepository;
-  images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  images: MemberImageReader & Pick<AssetFiles, 'fileLinks'>;
   fileUrls: FileUrls;
   uow: ChatUnitOfWork;
   pubsub?: PubSub;
@@ -95,7 +95,7 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
   private readonly profiles: AuthorProfileReader;
   private readonly subscriptions: SubscriptionsRepository;
   private readonly mentions: MentionsRepository;
-  private readonly images: MemberImageReader & Pick<AssetFiles, 'signFile'>;
+  private readonly images: MemberImageReader & Pick<AssetFiles, 'fileLinks'>;
   private readonly fileUrls: FileUrls;
   private readonly uow: ChatUnitOfWork;
   private readonly pubsub: PubSub | null;
@@ -859,44 +859,6 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
     };
   }
 
-  async attachmentFile(
-    chatId: string,
-    messageId: string,
-    assetId: string,
-    actor: Actor,
-  ): Promise<string> {
-    const orgId = actor.orgId;
-    const chat = await this.repo.findChat(orgId, chatId);
-    const message = await this.repo.findMessage(orgId, messageId);
-    if (!chat || !message || message.chatId !== chatId) {
-      throw new NotFoundError('Message attachment', assetId);
-    }
-    const attached = (await this.repo.attachmentsOf(orgId, [messageId]))[messageId] ?? [];
-    if (!attached.includes(assetId)) {
-      throw new NotFoundError('Message attachment', assetId);
-    }
-    if (!(await this.access.isCommunityMember(chat.communityId, actor))) {
-      throw new NotFoundError('Message attachment', assetId);
-    }
-    const moderates = actor.permissions.has('communities:moderate', chat.communityId);
-    const users = await this.repo.participants(orgId, chatId);
-    const inChat = users.some((user) => user.orgUserId === actor.id && user.leftAt === null);
-    const readable = inChat
-      ? message.deletedAt === null || moderates
-      : moderates &&
-        (await this.repo.listOpenFlags(orgId, chat.communityId)).some(
-          (flag) => flag.messageId === messageId,
-        );
-    if (!readable) {
-      throw new NotFoundError('Message attachment', assetId);
-    }
-    const url = await this.images.signFile(orgId, assetId);
-    if (!url) {
-      throw new NotFoundError('Message attachment', assetId);
-    }
-    return url;
-  }
-
   async messageQueue(communityId: string, actor: Actor): Promise<MessageQueue> {
     const orgId = actor.orgId;
     this.requireModerator(actor, communityId, 'message queue');
@@ -1413,6 +1375,10 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
       message.deletedAt !== null &&
       !viewer?.permissions.has('communities:moderate', message.communityId);
     const shown = (message: Message) => (hidden(message) ? [] : (attached[message.id] ?? []));
+    const links = await this.images.fileLinks(
+      orgId,
+      messages.flatMap((message) => shown(message).map((assetId) => ({ assetId }))),
+    );
     return messages.map((message) => {
       const record = records[message.orgUserId];
       if (!record) {
@@ -1427,10 +1393,10 @@ export class ChatServiceImpl implements ChatService, ChatLiveReads {
           this.fileUrls,
           teamBadge(permissions.get(message.orgUserId), message.communityId),
         ),
-        attachments: shown(message).map((assetId) => ({
-          assetId,
-          url: this.fileUrls.messageAttachment(message.chatId, message.id, assetId),
-        })),
+        attachments: shown(message).flatMap((assetId) => {
+          const url = links[assetId];
+          return url ? [{ assetId, url }] : [];
+        }),
         reactions: counts?.reactions ?? {},
         viewerReaction: counts?.viewerReaction ?? null,
         mentions: hidden(message) ? [] : (mentioned[message.id] ?? []),

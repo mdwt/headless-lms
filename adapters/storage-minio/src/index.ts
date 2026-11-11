@@ -21,7 +21,6 @@ export interface MinioStorageConfig {
   bucket: string;
   publicUrl?: string;
   uploadExpirySeconds: number;
-  downloadExpirySeconds: number;
 }
 
 export class MinioStorageAdapter implements ObjectStorage {
@@ -30,7 +29,6 @@ export class MinioStorageAdapter implements ObjectStorage {
   private readonly region: string;
   private readonly publicBase: string;
   readonly uploadExpirySeconds: number;
-  private readonly downloadExpiry: number;
   private ensured = false;
 
   constructor(
@@ -52,7 +50,6 @@ export class MinioStorageAdapter implements ObjectStorage {
       `${config.useSSL ? "https" : "http"}://${config.endPoint}:${config.port}/${config.bucket}`
     ).replace(/\/+$/, "");
     this.uploadExpirySeconds = config.uploadExpirySeconds;
-    this.downloadExpiry = config.downloadExpirySeconds;
   }
 
   /** Create the (private) bucket if it does not exist. Call once at startup. */
@@ -87,13 +84,20 @@ export class MinioStorageAdapter implements ObjectStorage {
 
   async presignDownload(input: PresignDownloadInput): Promise<string> {
     await this.ensureBucket();
-    const expiresInSeconds = input.expiresInSeconds ?? this.downloadExpiry;
-    const respHeaders: Record<string, string> = {};
+    const respHeaders: Record<string, string> = {
+      "response-cache-control": PUBLIC_CACHE_CONTROL,
+    };
     if (input.downloadFilename) {
       respHeaders["response-content-disposition"] =
         `attachment; filename="${input.downloadFilename.replace(/"/g, "")}"`;
     }
-    return this.client.presignedGetObject(this.bucket, input.key, expiresInSeconds, respHeaders);
+    return this.client.presignedGetObject(
+      this.bucket,
+      input.key,
+      Math.round((input.expiresAt.getTime() - input.signedAt.getTime()) / 1000),
+      respHeaders,
+      input.signedAt,
+    );
   }
 
   async stat(key: string): Promise<StoredObjectInfo | null> {

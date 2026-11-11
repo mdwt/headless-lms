@@ -4,13 +4,12 @@ import {
   type EventSight,
   type EventView,
   type SpaceDetail,
-  type SpaceImage,
   type SpaceView,
 } from '../../content/index.js';
 import { NotFoundError } from '../../shared/errors.js';
 import { seesSpace, type EntitlementsService, type SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
-import type { AssetFiles, FileUrls } from '../../assets/index.js';
+import type { FileUrls } from '../../assets/index.js';
 import type { OrganizationService } from '../../organizations/index.js';
 import { PERMISSION_KEYS } from '../../types/schemas/organizations.js';
 import type {
@@ -104,8 +103,6 @@ type MemberContent = Pick<
   | 'listCourseModules'
   | 'listCourseActivityViews'
   | 'listCourseActivities'
-  | 'listCourseActivityAssets'
-  | 'getActivity'
   | 'findDownload'
   | 'listDownloadAssets'
   | 'findCommunity'
@@ -127,19 +124,6 @@ const READ_OF = {
   event: 'events:read',
 } as const satisfies Record<Owner, Permission>;
 
-const THUMBNAIL_OF = {
-  course: 'Course thumbnail',
-  download: 'Download thumbnail',
-  community: 'Community thumbnail',
-  event: 'Event thumbnail',
-} as const satisfies Record<Owner, string>;
-
-const SPACE_IMAGE_ASSET = {
-  cover: (space) => space.coverAssetId,
-  background: (space) => space.backgroundAssetId,
-  icon: (space) => space.iconAssetId,
-} as const satisfies Record<SpaceImage, (space: SpaceView) => string | null>;
-
 const EVENT_FACES = 10;
 
 interface SeenEvent {
@@ -152,7 +136,6 @@ export type MemberReportServiceParams = {
   repo: MemberReportRepository;
   content: MemberContent;
   progress: Pick<ProgressService, 'get' | 'listByTargets'>;
-  files: Pick<AssetFiles, 'signFile'>;
   fileUrls: FileUrls;
   access: MemberAccess;
   people: MemberPeople;
@@ -173,7 +156,6 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly repo: MemberReportRepository;
   private readonly content: MemberContent;
   private readonly progress: Pick<ProgressService, 'get' | 'listByTargets'>;
-  private readonly files: Pick<AssetFiles, 'signFile'>;
   private readonly fileUrls: FileUrls;
   private readonly access: MemberAccess;
   private readonly people: MemberPeople;
@@ -190,7 +172,6 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.repo = params.repo;
     this.content = params.content;
     this.progress = params.progress;
-    this.files = params.files;
     this.fileUrls = params.fileUrls;
     this.access = params.access;
     this.people = params.people;
@@ -486,87 +467,6 @@ export class MemberReportServiceImpl implements MemberReportService {
     return { download, assets };
   }
 
-  async thumbnailFile(owner: Owner, id: string, actor: Actor): Promise<string> {
-    const system = this.system(actor);
-    const item =
-      owner === 'event'
-        ? (await this.seeEvents([id], actor))[0]?.event
-        : owner === 'course'
-          ? await this.content.findCourse(id, system)
-          : owner === 'download'
-            ? await this.content.findDownload(id, system)
-            : await this.content.findCommunity(id, system);
-    if (
-      !item?.thumbnailAssetId ||
-      (owner !== 'event' &&
-        item.status !== 'published' &&
-        !actor.permissions.has(READ_OF[owner], id))
-    ) {
-      throw new NotFoundError(THUMBNAIL_OF[owner], id);
-    }
-    return signed(
-      await this.files.signFile(actor.orgId, item.thumbnailAssetId),
-      THUMBNAIL_OF[owner],
-      id,
-    );
-  }
-
-  async spaceImageFile(spaceId: string, image: SpaceImage, actor: Actor): Promise<string> {
-    const system = this.system(actor);
-    const space = await this.content.getSpace(spaceId, system);
-    const assetId = space ? SPACE_IMAGE_ASSET[image](space) : null;
-    const community = space ? await this.content.findCommunity(space.communityId, system) : null;
-    if (
-      !space ||
-      !assetId ||
-      !community ||
-      (community.status !== 'published' &&
-        !actor.permissions.has('communities:read', space.communityId))
-    ) {
-      throw new NotFoundError('Space image', spaceId);
-    }
-    return signed(await this.files.signFile(actor.orgId, assetId), 'Space image', spaceId);
-  }
-
-  async activityFile(activityId: string, assetId: string, actor: Actor): Promise<string> {
-    const system = this.system(actor);
-    const activity = await this.content.getActivity(activityId, system);
-    if (!activity) {
-      throw new NotFoundError('Lesson file', assetId);
-    }
-    if (!actor.permissions.has('courses:read', activity.courseId)) {
-      if (
-        !isActivityPublished(activity.settings) ||
-        !(await this.opensCourse(activity.courseId, actor))
-      ) {
-        throw new NotFoundError('Lesson file', assetId);
-      }
-    }
-    const links = await this.content.listCourseActivityAssets(activity.courseId, system);
-    if (!links.some((link) => link.activityId === activityId && link.assetId === assetId)) {
-      throw new NotFoundError('Lesson file', assetId);
-    }
-    return signed(await this.files.signFile(actor.orgId, assetId), 'Lesson file', assetId);
-  }
-
-  async downloadFile(downloadId: string, assetId: string, actor: Actor): Promise<string> {
-    if (!(await this.opensDownload(downloadId, actor))) {
-      throw new NotFoundError('Download file', assetId);
-    }
-    const files = await this.content.listDownloadAssets(downloadId, this.system(actor));
-    const file = files.find((f) => f.assetId === assetId);
-    if (!file) {
-      throw new NotFoundError('Download file', assetId);
-    }
-    return signed(
-      await this.files.signFile(actor.orgId, assetId, {
-        saveAs: file.displayName ?? file.filename,
-      }),
-      'Download file',
-      assetId,
-    );
-  }
-
   private async seeEvents(ids: string[], actor: Actor): Promise<SeenEvent[]> {
     if (ids.length === 0) {
       return [];
@@ -737,25 +637,6 @@ export class MemberReportServiceImpl implements MemberReportService {
     };
   }
 
-  async eventFile(eventId: string, assetId: string, actor: Actor): Promise<string> {
-    const [seen] = await this.seeEvents([eventId], actor);
-    if (!seen || seen.sight === 'public') {
-      throw new NotFoundError('Event file', assetId);
-    }
-    const files = await this.content.eventFilesFor([eventId], this.system(actor));
-    const file = files[eventId]?.find((f) => f.assetId === assetId);
-    if (!file) {
-      throw new NotFoundError('Event file', assetId);
-    }
-    return signed(
-      await this.files.signFile(actor.orgId, assetId, {
-        saveAs: file.displayName ?? file.filename,
-      }),
-      'Event file',
-      assetId,
-    );
-  }
-
   async directory(
     communityId: string,
     query: DirectoryQuery,
@@ -817,9 +698,17 @@ export class MemberReportServiceImpl implements MemberReportService {
       communityId,
       title: community.title,
       description: community.description,
-      thumbnailUrl: community.thumbnailUrl,
+      thumbnailUrl: showsImages(community.status, communityId, actor)
+        ? community.thumbnailUrl
+        : null,
       dm: community.settings.dm,
-      spaces: await this.homeSpaces(actor, communityId, spaces, everySpace),
+      spaces: await this.homeSpaces(
+        actor,
+        communityId,
+        spaces,
+        everySpace,
+        showsImages(community.status, communityId, actor),
+      ),
       viewer: {
         permissions: PERMISSION_KEYS.filter((p) => actor.permissions.has(p, communityId)),
         opensEverySpace: everySpace,
@@ -838,12 +727,22 @@ export class MemberReportServiceImpl implements MemberReportService {
     if (!(await this.access.isCommunityMember(communityId, actor))) {
       throw new NotFoundError('Space', spaceId);
     }
-    const space = await this.content.getSpace(spaceId, this.system(actor));
-    if (!space || space.communityId !== communityId) {
+    const system = this.system(actor);
+    const [space, community] = await Promise.all([
+      this.content.getSpace(spaceId, system),
+      this.content.findCommunity(communityId, system),
+    ]);
+    if (!space || space.communityId !== communityId || !community) {
       throw new NotFoundError('Space', spaceId);
     }
     const everySpace = await this.access.opensEverySpace(actor, communityId);
-    const [view] = await this.homeSpaces(actor, communityId, [space], everySpace);
+    const [view] = await this.homeSpaces(
+      actor,
+      communityId,
+      [space],
+      everySpace,
+      showsImages(community.status, communityId, actor),
+    );
     if (!view) {
       throw new NotFoundError('Space', spaceId);
     }
@@ -855,6 +754,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     communityId: string,
     spaces: SpaceView[],
     everySpace: boolean,
+    images: boolean,
   ): Promise<CommunityHomeSpace[]> {
     const orgId = actor.orgId;
     const excluding = await this.access.everySpaceOpeners(orgId, communityId);
@@ -883,9 +783,9 @@ export class MemberReportServiceImpl implements MemberReportService {
           memberCount,
           accessRule: space.accessRule,
           standing: standingOf(space, open.has(space.id), memberCount, standings[space.id]),
-          coverUrl: space.coverUrl,
-          backgroundUrl: space.backgroundUrl,
-          iconUrl: space.iconUrl,
+          coverUrl: images ? space.coverUrl : null,
+          backgroundUrl: images ? space.backgroundUrl : null,
+          iconUrl: images ? space.iconUrl : null,
         };
         if (!open.has(space.id)) {
           return { ...base, locked: true };
@@ -935,11 +835,8 @@ export class MemberReportServiceImpl implements MemberReportService {
   }
 }
 
-function signed(url: string | null, what: string, id: string): string {
-  if (!url) {
-    throw new NotFoundError(what, id);
-  }
-  return url;
+function showsImages(status: string, communityId: string, actor: Actor): boolean {
+  return status === 'published' || actor.permissions.has('communities:read', communityId);
 }
 
 function standingOf(

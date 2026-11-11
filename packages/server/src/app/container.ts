@@ -195,9 +195,9 @@ export interface Config {
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
   logging?: LoggingConfig;
-  /** Lifetime of every signed file URL a response carries, seconds. Mirrors
-   *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
-  deliveryExpirySeconds: number;
+  /** Window of the signed file links a response carries, seconds. Mirrors
+   *  ServerConfig.deliveryWindowSeconds — createContainer threads it through. */
+  deliveryWindowSeconds: number;
   memberImageMaxBytes: number;
   memberFileMaxBytes: number;
   /** Let the default webhook sender reach loopback and private network addresses. Local development only. */
@@ -356,7 +356,7 @@ export async function buildContainer(
     studentPortalUrl: config.studentPortalUrl,
   });
 
-  const fileUrls = createFileUrls(config.authBaseURL, (key) => storage.publicUrl(key));
+  const fileUrls = createFileUrls((key) => storage.publicUrl(key));
   const assets = new AssetsServiceImpl({
     storage,
     repo: new DrizzleAssetsRepository(db, assetsLogger),
@@ -366,8 +366,7 @@ export async function buildContainer(
     })),
     memberImageMaxBytes: config.memberImageMaxBytes,
     memberFileMaxBytes: config.memberFileMaxBytes,
-    downloadLinkExpirySeconds: config.deliveryExpirySeconds,
-    fileUrls,
+    linkWindowSeconds: config.deliveryWindowSeconds,
     logger: assetsLogger,
   });
 
@@ -669,7 +668,6 @@ export async function buildContainer(
       repo: new DrizzleMemberRepository(db, reportingLogger),
       content,
       progress,
-      files: assets,
       fileUrls,
       access: entitlements,
       people: organizations,

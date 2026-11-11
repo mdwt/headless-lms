@@ -26,7 +26,7 @@ import {
   type SettingsRepository,
 } from '../shared/settings.js';
 
-const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
+const fileUrls = createFileUrls((key) => `https://cdn.test/${key}`);
 
 function mentionStore() {
   const rows: { itemType: string; itemId: string; orgUserId: string; createdAt: Date }[] = [];

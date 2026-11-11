@@ -128,8 +128,7 @@ function fakeContent(
   } as unknown as ContentServicePort;
 }
 
-const fileUrls = createFileUrls('https://api.test', (key) => `https://cdn.test/${key}`);
-const files = { signFile: async (_orgId: string, assetId: string) => `https://signed/${assetId}` };
+const fileUrls = createFileUrls((key) => `https://cdn.test/${key}`);
 
 const readers: Pick<
   MemberReportServiceParams,
@@ -162,7 +161,6 @@ const readers: Pick<
 
 const deps: Pick<
   MemberReportServiceParams,
-  | 'files'
   | 'fileUrls'
   | 'access'
   | 'people'
@@ -174,7 +172,6 @@ const deps: Pick<
   | 'channels'
   | 'studentPortalUrl'
 > = {
-  files,
   fileUrls,
   access: {
     isCommunityMember: async () => false,
@@ -521,7 +518,6 @@ describe('file URLs', () => {
       }),
       content: fakeContentService({ findCommunity: async () => ({ id: 'cmy_1' }) as never }),
       progress: fakeProgress([]),
-      files,
       fileUrls,
       people,
       access: {
@@ -739,135 +735,6 @@ describe('file URLs', () => {
   });
 });
 
-describe('serving files', () => {
-  const student = stu;
-  const owner = ownerActor;
-  const link = (activityId: string, assetId: string) => ({
-    orgId: 'o1',
-    id: `aa_${activityId}_${assetId}`,
-    activityId,
-    assetId,
-    seq: 0,
-    createdAt: AT,
-    updatedAt: AT,
-  });
-  const file = (assetId: string, displayName: string | null) => ({
-    orgId: 'o1',
-    id: `da_${assetId}`,
-    downloadId: 'd1',
-    assetId,
-    seq: 0,
-    displayName,
-    filename: `${assetId}.pdf`,
-    contentType: 'application/pdf',
-    size: 10,
-    url: fileUrls.downloadFile('d1', assetId),
-    createdAt: AT,
-    updatedAt: AT,
-  });
-  const build = (
-    over: {
-      grants?: { orgId: string; contentId: string }[];
-      content?: Partial<ContentServicePort>;
-      repo?: Partial<MemberReportRepository>;
-    } = {},
-  ) => {
-    const signed: { assetId: string; saveAs?: string }[] = [];
-    const svc = new MemberReportServiceImpl({
-      repo: { ...fakeRepo(), ...over.repo },
-      content: fakeContentService({
-        findCourse: async (id) => (id === 'c1' ? { ...course('c1'), thumbnailUrl: null } : null),
-        getActivity: async (id) => (id === 'a1' ? activity('a1', 0) : null),
-        listCourseActivityAssets: async () => [link('a1', 'ast_video')],
-        findDownload: async () =>
-          ({ id: 'd1', status: 'published', thumbnailAssetId: 'ast_thumb' }) as never,
-        listDownloadAssets: async () => [file('ast_pdf', 'Workbook.pdf'), file('ast_notes', null)],
-        ...over.content,
-      }),
-      progress: fakeProgress([]),
-      ...deps,
-      files: {
-        signFile: async (_o, assetId, opts) => {
-          signed.push({ assetId, ...(opts?.saveAs ? { saveAs: opts.saveAs } : {}) });
-          return `https://signed/${assetId}`;
-        },
-      },
-      access: grantedAccess(
-        over.grants ?? [
-          { orgId: 'o1', contentId: 'c1' },
-          { orgId: 'o1', contentId: 'd1' },
-        ],
-      ),
-    });
-    return { svc, signed };
-  };
-
-  it('serves a lesson file the activity links to a student who can open the course', async () => {
-    const { svc, signed } = build();
-    expect(await svc.activityFile('a1', 'ast_video', student)).toBe('https://signed/ast_video');
-    expect(signed).toEqual([{ assetId: 'ast_video' }]);
-  });
-
-  it('refuses a lesson file without access, unlinked, in a draft lesson or course, but lets staff through', async () => {
-    await expect(
-      build({ grants: [] }).svc.activityFile('a1', 'ast_video', student),
-    ).rejects.toThrow(NotFoundError);
-    await expect(build().svc.activityFile('a1', 'ast_other', student)).rejects.toThrow(
-      NotFoundError,
-    );
-    const draftLesson = build({
-      content: { getActivity: async () => activity('a1', 0, { published: false }) },
-    });
-    await expect(draftLesson.svc.activityFile('a1', 'ast_video', student)).rejects.toThrow(
-      NotFoundError,
-    );
-    const draftCourse = build({
-      content: { findCourse: async () => ({ ...course('c1', 'draft'), thumbnailUrl: null }) },
-    });
-    await expect(draftCourse.svc.activityFile('a1', 'ast_video', student)).rejects.toThrow(
-      NotFoundError,
-    );
-    expect(await build({ grants: [] }).svc.activityFile('a1', 'ast_video', owner)).toBe(
-      'https://signed/ast_video',
-    );
-    await expect(build({ grants: [] }).svc.activityFile('a1', 'ast_other', owner)).rejects.toThrow(
-      NotFoundError,
-    );
-  });
-
-  it('serves a download file saved under its display name, or its filename', async () => {
-    const { svc, signed } = build();
-    expect(await svc.downloadFile('d1', 'ast_pdf', student)).toBe('https://signed/ast_pdf');
-    expect(await svc.downloadFile('d1', 'ast_notes', student)).toBe('https://signed/ast_notes');
-    await expect(svc.downloadFile('d1', 'ast_missing', student)).rejects.toThrow(NotFoundError);
-    expect(signed).toEqual([
-      { assetId: 'ast_pdf', saveAs: 'Workbook.pdf' },
-      { assetId: 'ast_notes', saveAs: 'ast_notes.pdf' },
-    ]);
-    await expect(build({ grants: [] }).svc.downloadFile('d1', 'ast_pdf', student)).rejects.toThrow(
-      NotFoundError,
-    );
-  });
-
-  it('serves the thumbnail of a published item to anyone, and of a draft only to staff', async () => {
-    const { svc } = build({ grants: [] });
-    expect(await svc.thumbnailFile('download', 'd1', student)).toBe('https://signed/ast_thumb');
-    const draft = build({
-      content: {
-        findCourse: async () =>
-          ({
-            ...course('c1', 'draft'),
-            thumbnailAssetId: 'ast_cover',
-            thumbnailUrl: null,
-          }) as never,
-      },
-    });
-    await expect(draft.svc.thumbnailFile('course', 'c1', student)).rejects.toThrow(NotFoundError);
-    expect(await draft.svc.thumbnailFile('course', 'c1', owner)).toBe('https://signed/ast_cover');
-    await expect(svc.thumbnailFile('course', 'c1', student)).rejects.toThrow(NotFoundError);
-  });
-});
-
 describe('community home', () => {
   const student = stu;
   const moderator = modActor;
@@ -982,23 +849,18 @@ describe('community home', () => {
       },
     });
 
-  it("serves a space's image to anyone in a published community, and in a draft one only with communities:read", async () => {
+  it("shows a space's images in a published community, and in a draft one only with communities:read", async () => {
     const svc = build();
-    expect(await svc.spaceImageFile('spc_request', 'icon', student)).toBe(
-      'https://signed/ast_icon',
-    );
-    await expect(svc.spaceImageFile('spc_request', 'cover', student)).rejects.toThrow(
-      NotFoundError,
-    );
-    await expect(svc.spaceImageFile('spc_missing', 'icon', student)).rejects.toThrow(NotFoundError);
+    const iconUrl = 'https://cdn.test/public/o1/spc_request/ast_icon';
+    const icon = async (actor: Actor) =>
+      (await svc.communityHome('cmy_1', actor)).spaces.find((row) => row.id === 'spc_request')
+        ?.iconUrl;
+    expect(await icon(student)).toBe(iconUrl);
     communityStatus = 'draft';
     try {
-      await expect(svc.spaceImageFile('spc_request', 'icon', student)).rejects.toThrow(
-        NotFoundError,
-      );
-      expect(await svc.spaceImageFile('spc_request', 'icon', owner)).toBe(
-        'https://signed/ast_icon',
-      );
+      expect(await icon(student)).toBeNull();
+      expect((await svc.communitySpace('cmy_1', 'spc_request', student)).iconUrl).toBeNull();
+      expect(await icon(owner)).toBe(iconUrl);
     } finally {
       communityStatus = 'published';
     }
@@ -1143,15 +1005,6 @@ describe('read permissions open content without a grant', () => {
     const svc = build();
     expect(await svc.getDownload('d1', james)).toMatchObject({ download: { id: 'd1' } });
     await expect(svc.getDownload('d2', james)).rejects.toThrow(NotFoundError);
-  });
-
-  it("serves an unpublished item's thumbnail with its read permission only", async () => {
-    const svc = build();
-    expect(await svc.thumbnailFile('course', 'c1', james)).toBe('https://signed/ast_cover');
-    expect(await svc.thumbnailFile('download', 'd1', james)).toBe('https://signed/ast_dl');
-    expect(await svc.thumbnailFile('community', 'cmy_1', james)).toBe('https://signed/ast_cmy');
-    await expect(svc.thumbnailFile('community', 'cmy_2', james)).rejects.toThrow(NotFoundError);
-    await expect(svc.thumbnailFile('course', 'c1', stu)).rejects.toThrow(NotFoundError);
   });
 });
 

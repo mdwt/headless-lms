@@ -376,8 +376,6 @@ export interface PostService {
   listOwn(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
   listBookmarked(communityId: string, query: PageQuery, actor: Actor): Promise<Page<PostView>>;
   /** Signed URL of the post's cover, for whoever can read the post. */
-  coverFile(postId: string, actor: Actor): Promise<string>;
-  assetFile(postId: string, assetId: string, actor: Actor): Promise<string>;
   getPost(postId: string, actor: Actor): Promise<PostView>;
   visible(postId: string, actor: Actor): Promise<{ post: Post; space: SpaceDetail }>;
   find(orgId: string, postId: string): Promise<Post | null>;
@@ -623,10 +621,6 @@ export interface ChatService extends ChatLiveReads {
     query: Pick<FeedQuery, 'page' | 'pageSize'>,
     actor: Actor,
   ): Promise<Page<MessageView>>;
-  /** Signed URL of a message attachment: for the chat's participants while the
-   *  message stands (moderators also after deletion), and for moderators while
-   *  it is flagged. */
-  attachmentFile(chatId: string, messageId: string, assetId: string, actor: Actor): Promise<string>;
   messageQueue(communityId: string, actor: Actor): Promise<MessageQueue>;
 }
 

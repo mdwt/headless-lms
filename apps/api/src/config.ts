@@ -90,7 +90,6 @@ export function loadStorageConfig(): MinioStorageConfig {
     bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
     ...(process.env.STORAGE_PUBLIC_URL ? { publicUrl: process.env.STORAGE_PUBLIC_URL } : {}),
     uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
-    downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 86400),
   };
 }
 
@@ -186,10 +185,10 @@ function loadContainerConfig(): ContainerConfig {
   const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   const adminAppUrl = process.env.ADMIN_APP_URL ?? clientOrigins[0] ?? "http://localhost:8001";
   return {
-    // Mirrors ServerConfig.deliveryExpirySeconds below — loadServerConfig
+    // Mirrors ServerConfig.deliveryWindowSeconds below — loadServerConfig
     // overrides this with the same value; kept here only so this object
     // satisfies Config on its own.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    deliveryWindowSeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     databaseUrl: process.env.DATABASE_URL ?? "",
@@ -232,9 +231,8 @@ export function loadServerConfig(): ServerConfig {
     // Fastify's per-request access log, one line per request with its id,
     // status and duration. On unless REQUEST_LOGGING=false.
     requestLogging: process.env.REQUEST_LOGGING !== "false",
-    // Download files only: their link is used once to start the download.
-    // Every other file streams or loads under STORAGE_DOWNLOAD_EXPIRY.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 300),
+    // A file link is the same all through its window and lives one to two windows.
+    deliveryWindowSeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     // LISTEN needs a session connection; behind a transaction-mode pooler

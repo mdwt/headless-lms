@@ -11,6 +11,7 @@ export type {
   AssetFiles,
   AssetsService,
   AssetsRepository,
+  FileLinkRequest,
   LibraryAssetReader,
   MemberImageReader,
   MemberUpload,
@@ -20,7 +21,7 @@ export type {
   ReadyFile,
 } from './ports.js';
 export { createFileUrls, publicImageKey, publicImagePrefix } from './file-urls.js';
-export type { FileUrls, ThumbnailOwner } from './file-urls.js';
+export type { FileUrls } from './file-urls.js';
 export type { AssetCreated, AssetDeleted, AssetEvent, AssetReady } from './events.js';
 export type {
   Asset,

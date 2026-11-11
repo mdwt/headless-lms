@@ -20,7 +20,6 @@ export function loadStorageConfig(): MinioStorageConfig | undefined {
     bucket: process.env.STORAGE_BUCKET ?? "headless-lms",
     ...(process.env.STORAGE_PUBLIC_URL ? { publicUrl: process.env.STORAGE_PUBLIC_URL } : {}),
     uploadExpirySeconds: Number(process.env.STORAGE_UPLOAD_EXPIRY ?? 300),
-    downloadExpirySeconds: Number(process.env.STORAGE_DOWNLOAD_EXPIRY ?? 86400),
   };
 }
 
@@ -99,9 +98,8 @@ export function loadServerConfig(): ServerConfig {
     // can never drift from what better-auth is configured with.
     publicUrl: container.authBaseURL,
     clientOrigins: parseClientOrigins(),
-    // Separate from STORAGE_DOWNLOAD_EXPIRY: raising the general storage
-    // default must never silently extend entitled/paywalled link lifetimes.
-    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 86400),
+    // A file link is the same all through its window and lives one to two windows.
+    deliveryWindowSeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     // LISTEN needs a session connection; behind a transaction-mode pooler
