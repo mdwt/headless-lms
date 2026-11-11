@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Headless LMS API",
-    "version": "0.6.2",
+    "version": "0.7.0",
     "description": "API documentation for the Headless LMS platform. Every route under /api takes a signed-in session or an API key, sent in the `x-api-key` header or as `Authorization: Bearer <key>`. The platform routes take the platform key as `Authorization: Bearer <platform key>`.",
     "license": {
       "name": "MIT",
