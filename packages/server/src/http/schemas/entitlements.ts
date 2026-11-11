@@ -2,13 +2,13 @@
 // a piece of content — generic over content types (course today) — its
 // validity + source. Distinct from payment and from completion.
 import { z } from 'zod';
-import { entitlementSchema, idSchema } from '@headless-lms/core/schemas';
+import { contentTypeSchema, entitlementSchema, idSchema } from '@headless-lms/core/schemas';
 import { DateTimeInput, ListQuery, paginated } from './shared.js';
 
 export const EntitlementStatus = z.enum(['active', 'expired', 'revoked']);
 export type EntitlementStatus = z.infer<typeof EntitlementStatus>;
 
-export const ContentType = z.enum(['course', 'download', 'event']);
+export const ContentType = contentTypeSchema;
 export type ContentType = z.infer<typeof ContentType>;
 
 /** Reference to the granted content: identity + display name (join-derived).

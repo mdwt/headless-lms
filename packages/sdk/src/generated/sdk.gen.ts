@@ -10273,7 +10273,7 @@ export class Entitlements {
       source?: string;
       orgUserId?: string;
       contentId?: string;
-      type?: "course" | "download" | "event";
+      type?: "course" | "download" | "community" | "event";
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ListEntitlementsResponses, ListEntitlementsErrors, ThrowOnError, "data"> {

@@ -25163,7 +25163,7 @@ export type ListEntitlementsData = {
     source?: string;
     orgUserId?: string;
     contentId?: string;
-    type?: "course" | "download" | "event";
+    type?: "course" | "download" | "community" | "event";
   };
   url: "/api/entitlements";
 };

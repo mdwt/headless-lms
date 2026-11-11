@@ -236,6 +236,15 @@ describe("grants to an event", () => {
     expect(queries[0]!.text).toContain('"events"."title"');
     expect(queries[1]!.text).toContain('left join "events"');
   });
+
+  it("filters grants by the community type", async () => {
+    const { repo, queries } = capturingDb();
+    await repo.list("org-1", { page: 1, pageSize: 20, type: "community" });
+    for (const query of queries.slice(0, 2)) {
+      expect(query.text).toContain('"content_items"."type" = $');
+      expect(query.values).toContain("community");
+    }
+  });
 });
 
 describe("holders", () => {
