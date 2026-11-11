@@ -1224,7 +1224,7 @@ export class People {
   /**
    * Invite a person with an org role
    *
-   * Requires `people:write`. The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
+   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
    */
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {

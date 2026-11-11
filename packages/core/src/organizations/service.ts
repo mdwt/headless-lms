@@ -8,6 +8,7 @@ import type {
   GrantReader,
   MembersRepository,
   OrgAdmin,
+  CreatedInvite,
   OrganizationService,
   OrganizationsRepository,
   OrganizationsUnitOfWork,
@@ -1096,7 +1097,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     input: CreateInviteInput,
     actor: Actor,
     inviterUserId: string,
-  ): Promise<Invite> {
+  ): Promise<CreatedInvite> {
     actor.permissions.require('people:write');
     const orgId = actor.orgId;
     const roleKey = input.roleKey ?? MEMBER_ROLE_KEY;
@@ -1142,14 +1143,16 @@ export class OrganizationServiceImpl implements OrganizationService {
     const sendEmail = input.sendEmail ?? true;
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-    const invite = await this.uow.run(async ({ organizations, outbox }) => {
+    const { invite, orgUserId } = await this.uow.run(async ({ organizations, outbox }) => {
       const events: NewOrganizationEvent[] = [];
-      if (!existing) {
+      let orgUserId = existing?.id;
+      if (!orgUserId) {
         const orgUser = await organizations.createOrgUser({
           orgId,
           userId: person.id,
           status: 'invited',
         });
+        orgUserId = orgUser.id;
         events.push(
           roleKey === MEMBER_ROLE_KEY
             ? organizationEvents.studentCreated.make({ orgId, data: orgUser })
@@ -1174,7 +1177,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         }),
       );
       await outbox.append(events);
-      return row;
+      return { invite: row, orgUserId };
     });
     if (sendEmail) {
       try {
@@ -1191,11 +1194,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.logger.info('invite created', {
       orgId,
       inviteId: invite.id,
+      orgUserId,
       roleKey,
       sendEmail,
       actorId: actor.id,
     });
-    return invite;
+    return { ...invite, orgUserId };
   }
 
   async resendInvite(orgUserId: string, actor: Actor, inviterUserId: string): Promise<void> {
