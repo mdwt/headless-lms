@@ -76711,6 +76711,7 @@
               "enum": [
                 "course",
                 "download",
+                "community",
                 "event"
               ]
             },

@@ -2004,7 +2004,7 @@
         },
         {
           "name": "type",
-          "type": "\"course\" | \"download\" | \"event\"",
+          "type": "\"course\" | \"download\" | \"community\" | \"event\"",
           "required": false,
           "description": null
         }
