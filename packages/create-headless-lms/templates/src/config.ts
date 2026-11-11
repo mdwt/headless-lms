@@ -98,8 +98,7 @@ export function loadServerConfig(): ServerConfig {
     // can never drift from what better-auth is configured with.
     publicUrl: container.authBaseURL,
     clientOrigins: parseClientOrigins(),
-    // A file link is the same all through its window and lives one to two windows.
-    deliveryWindowSeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     // LISTEN needs a session connection; behind a transaction-mode pooler
