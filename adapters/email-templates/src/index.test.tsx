@@ -9,7 +9,7 @@ import { ReactEmailTemplateRenderer } from "./index.js";
 const CTX: TemplateContext = {
   brandName: "Acme LMS",
   baseUrl: "http://localhost:8001",
-  studentPortalUrl: "http://localhost:8002",
+  hosts: { courses: "http://localhost:8002", community: "http://localhost:8002" },
 };
 
 const EVENT = {
@@ -313,6 +313,41 @@ describe("ReactEmailTemplateRenderer", () => {
     });
     expect(content.html).toContain('href="http://localhost:8002"');
     expect(content.text).toContain("Open your library");
+  });
+
+  it("fails for an email that links to an organization's apps when there is no organization", async () => {
+    await expect(renderer.render("eventGranted", { ...CTX, hosts: null }, EVENT)).rejects.toThrow(
+      /organization/,
+    );
+    const reset = await renderer.render(
+      "passwordReset",
+      { ...CTX, hosts: null },
+      { resetUrl: "https://admin.test/reset" },
+    );
+    expect(reset.text).toContain("https://admin.test/reset");
+  });
+
+  it("links community things to the community host and course things to the course host", async () => {
+    const ctx: TemplateContext = {
+      ...CTX,
+      hosts: { courses: "https://learn.acme.test", community: "https://club.acme.test" },
+    };
+    const granted = (contentType: "course" | "download" | "community" | "event") =>
+      renderer.render("accessGranted", ctx, { contentTitle: "T", contentId: "c1", contentType });
+    expect((await granted("course")).text).toContain("https://learn.acme.test/courses/c1");
+    expect((await granted("download")).text).toContain("https://learn.acme.test/downloads/c1");
+    expect((await granted("community")).text).toContain("https://club.acme.test/communities/c1");
+    expect((await granted("event")).text).toContain("https://club.acme.test/events/c1");
+    const event = await renderer.render("eventGranted", ctx, EVENT);
+    expect(event.text).toContain("https://club.acme.test/events/evn_1");
+    const post = await renderer.render("newPostInSpace", ctx, SAMPLE_PARAMS.newPostInSpace);
+    expect(post.text).toContain("https://club.acme.test/communities/");
+    const lesson = await renderer.render(
+      "courseActivityAdded",
+      ctx,
+      SAMPLE_PARAMS.courseActivityAdded,
+    );
+    expect(lesson.text).toContain("https://learn.acme.test/courses/");
   });
 
   it("lists each digest post with its author, space and comments, linked to the post", async () => {

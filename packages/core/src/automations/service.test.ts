@@ -470,11 +470,12 @@ describe('AutomationsService.runAction', () => {
       status: 'completed',
       recipients: ['s1'],
     });
-    expect(mailer.send).toHaveBeenCalledWith('bob@example.com', 'accessGranted', {
-      contentTitle: 'Intro',
-      contentId: 'c1',
-      contentType: 'course',
-    });
+    expect(mailer.send).toHaveBeenCalledWith(
+      'bob@example.com',
+      'accessGranted',
+      { contentTitle: 'Intro', contentId: 'c1', contentType: 'course' },
+      'org-1',
+    );
   });
 
   it('replaces an unclassified error with a generic one and logs the original', async () => {
@@ -516,9 +517,12 @@ describe('AutomationsService.runAction', () => {
       0,
     );
     expect(result.status).toBe('completed');
-    expect(mailer.send).toHaveBeenCalledWith('bob@example.com', 'accessRevoked', {
-      contentTitle: 'Intro',
-    });
+    expect(mailer.send).toHaveBeenCalledWith(
+      'bob@example.com',
+      'accessRevoked',
+      { contentTitle: 'Intro' },
+      'org-1',
+    );
   });
 
   it('throws when every email fails — the engine owns retry — and logs the error', async () => {

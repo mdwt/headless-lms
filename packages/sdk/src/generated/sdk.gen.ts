@@ -245,6 +245,8 @@ import type {
   GetMemberViewerResponses,
   GetMyPermissionsErrors,
   GetMyPermissionsResponses,
+  GetOrganizationHostsErrors,
+  GetOrganizationHostsResponses,
   GetOrgNotificationCategoriesErrors,
   GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
@@ -470,6 +472,8 @@ import type {
   ReorderSpacesResponses,
   ReplaceCommunityNotificationCategoriesErrors,
   ReplaceCommunityNotificationCategoriesResponses,
+  ReplaceOrganizationHostsErrors,
+  ReplaceOrganizationHostsResponses,
   ReplaceOrgNotificationCategoriesErrors,
   ReplaceOrgNotificationCategoriesResponses,
   ReplyToCommentErrors,
@@ -672,7 +676,7 @@ export class Organizations {
   /**
    * Create an organization and make it active
    *
-   * For any signed-in person, including one with no organization yet. The caller becomes its owner.
+   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.
    */
   public static createOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -700,6 +704,77 @@ export class Organizations {
     >({
       responseStyle: "data",
       url: "/api/organizations",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Get the organization's hosts
+   *
+   * Requires `organizations:read`. The origins of the organization's member apps, used for the links in emails, invites and calendar files.
+   */
+  public static getOrganizationHosts<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetOrganizationHostsResponses,
+    GetOrganizationHostsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    return (options?.client ?? client).get<
+      GetOrganizationHostsResponses,
+      GetOrganizationHostsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/hosts",
+      ...options,
+    });
+  }
+
+  /**
+   * Replace the organization's hosts
+   *
+   * Requires `organizations:write`. Stores both hosts. Links to courses and downloads use `courses`, links to communities and events use `community`. The next link uses the new value.
+   */
+  public static replaceOrganizationHosts<ThrowOnError extends boolean = false>(
+    parameters: {
+      courses: string;
+      community: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    ReplaceOrganizationHostsResponses,
+    ReplaceOrganizationHostsErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "courses" },
+            { in: "body", key: "community" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).put<
+      ReplaceOrganizationHostsResponses,
+      ReplaceOrganizationHostsErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/hosts",
       ...options,
       ...params,
       headers: {
@@ -1226,7 +1301,7 @@ export class People {
   /**
    * Invite a person with an org role
    *
-   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
+   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `host` is the app the invite link opens and must be one of the organization's hosts (409).
    */
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1235,6 +1310,7 @@ export class People {
       firstName?: string;
       lastName?: string;
       sendEmail?: boolean;
+      host?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<CreateInviteResponses, CreateInviteErrors, ThrowOnError, "data"> {
@@ -1248,6 +1324,7 @@ export class People {
             { in: "body", key: "firstName" },
             { in: "body", key: "lastName" },
             { in: "body", key: "sendEmail" },
+            { in: "body", key: "host" },
           ],
         },
       ],
@@ -1273,15 +1350,26 @@ export class People {
   /**
    * Resend a person's pending invite
    *
-   * Requires `people:write`. Issues a new link; the resender becomes the inviter.
+   * Requires `people:write`. Issues a new link; the resender becomes the inviter. `host` is the app the invite link opens and must be one of the organization's hosts (409).
    */
   public static resendInvite<ThrowOnError extends boolean = false>(
     parameters: {
       orgUserId: string;
+      host?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ResendInviteResponses, ResendInviteErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "orgUserId" }] }]);
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "orgUserId" },
+            { in: "query", key: "host" },
+          ],
+        },
+      ],
+    );
     return (options?.client ?? client).post<
       ResendInviteResponses,
       ResendInviteErrors,

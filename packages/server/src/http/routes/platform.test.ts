@@ -21,6 +21,11 @@ const API_KEY = {
   key: 'hlms_secret',
 };
 
+const HOSTS = {
+  courses: 'https://sarahs-yoga.platform.test',
+  community: 'https://sarahs-yoga.platform.test',
+};
+
 const YOGA = {
   name: "Sarah's Yoga",
   slug: 'sarahs-yoga',
@@ -46,6 +51,7 @@ const container = {
           createdAt: NOW,
         },
         apiKey: API_KEY,
+        hosts: HOSTS,
       };
     },
     createPlatformApiKey: async (orgId: string, name: string) => {
@@ -115,6 +121,7 @@ describe('platform routes', () => {
         createdAt: NOW.toISOString(),
       },
       apiKey: { ...API_KEY, createdAt: NOW.toISOString() },
+      hosts: HOSTS,
     });
     expect(calls).toEqual([['createPlatformOrganization', YOGA]]);
   });

@@ -123,6 +123,7 @@ export function emailChannel(deps: {
           to.email,
           template,
           emailParams(notification) as unknown as EmailTemplateParams[typeof template],
+          notification.orgId,
         );
       } catch (err) {
         if (isEmailRejected(err) || isEmailRenderError(err)) {

@@ -24,6 +24,7 @@ import type {
   TransferOwnershipInput,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
+import type { OrgHostSettings } from './hosts.js';
 import {
   InviteError,
   OrganizationRuleError,
@@ -61,6 +62,7 @@ import type {
   ConnectedApp,
   ContentType,
   CreatedApiKey,
+  Hosts,
   Level,
   Permission,
 } from '../types/index.js';
@@ -100,7 +102,6 @@ const SYSTEM_ID = 'system';
 type NewOrganizationEvent = NewDomainEvent<OrganizationEvent>;
 
 export interface InviteUrls {
-  studentPortalUrl: string;
   adminAppUrl: string;
 }
 
@@ -121,6 +122,7 @@ export type OrganizationServiceParams = {
   logger?: Logger;
   mailer?: Pick<Mailer, 'send'>;
   inviteUrls?: InviteUrls;
+  hosts?: Pick<OrgHostSettings, 'resolve' | 'assign'>;
 };
 
 function snapshot(role: OrgRole) {
@@ -198,6 +200,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly logger: Logger;
   private readonly mailer?: Pick<Mailer, 'send'>;
   private readonly inviteUrls?: InviteUrls;
+  private readonly hosts?: Pick<OrgHostSettings, 'resolve' | 'assign'>;
 
   constructor(params: OrganizationServiceParams) {
     this.repo = params.repo;
@@ -221,13 +224,23 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.logger = params.logger ?? noopLogger;
     this.mailer = params.mailer;
     this.inviteUrls = params.inviteUrls;
+    this.hosts = params.hosts;
   }
 
-  createOrganization(input: NewOrganizationInput, headers: AuthHeaders): Promise<AuthOrganization> {
-    return this.orgAdmin().createOrganization(headers, input);
+  async createOrganization(
+    input: NewOrganizationInput,
+    headers: AuthHeaders,
+  ): Promise<AuthOrganization & { hosts: Hosts }> {
+    const created = await this.orgAdmin().createOrganization(headers, input);
+    const org = await this.repo.findByExternalId(created.id);
+    if (!org) {
+      throw new NotFoundError('Organization', created.id);
+    }
+    return { ...created, hosts: await this.orgHosts().resolve(org.id) };
   }
 
   async provisionOrganization(input: CreateOrganizationInput): Promise<Organization> {
+    const hosts = this.orgHosts();
     const created = await this.uow.run(async ({ organizations, roles, outbox }) => {
       const id = genId('organization');
       const org = await organizations.create({
@@ -252,6 +265,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       ]);
       return org;
     });
+    await hosts.assign(created.id, created.slug);
     this.logger.info('organization created', { orgId: created.id, slug: created.slug });
     return created;
   }
@@ -1126,6 +1140,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       throw new OrganizationRuleError(`${role.name} can't be given on the organization`);
     }
     this.assertHolds(actor, role.permissions);
+    const host = input.host === undefined ? undefined : await this.inviteHost(orgId, input.host);
     const known = await this.people.getUserByEmail(email);
     const existing = known ? await this.repo.findOrgUser(orgId, known.id) : null;
     if (existing?.id === actor.id) {
@@ -1192,7 +1207,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     });
     if (sendEmail) {
       try {
-        await this.sendInviteEmail(invite, token, role);
+        await this.sendInviteEmail(
+          invite,
+          token,
+          role,
+          host ?? (await this.inviteHost(orgId, undefined)),
+        );
       } catch (err) {
         this.logger.error('failed to send invite email', {
           orgId,
@@ -1213,11 +1233,17 @@ export class OrganizationServiceImpl implements OrganizationService {
     return { ...invite, orgUserId };
   }
 
-  async resendInvite(orgUserId: string, actor: Actor, inviterUserId: string): Promise<void> {
+  async resendInvite(
+    orgUserId: string,
+    actor: Actor,
+    inviterUserId: string,
+    host?: string,
+  ): Promise<void> {
     actor.permissions.require('people:write');
     const orgId = actor.orgId;
     const { invite, role } = await this.pendingInviteOf(orgId, orgUserId);
     this.assertHolds(actor, role.permissions);
+    const inviteHost = await this.inviteHost(orgId, host);
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     const refreshed = await this.repo.setInviteToken(
@@ -1230,7 +1256,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!refreshed) {
       throw new NotFoundError('Invite', invite.id);
     }
-    await this.sendInviteEmail(refreshed, token, role);
+    await this.sendInviteEmail(refreshed, token, role, inviteHost);
     this.logger.info('invite resent', {
       orgId,
       orgUserId,
@@ -1538,7 +1564,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     const org = await this.repo.setMetadata(found.id, input.metadata ?? {});
     const apiKey = await this.platformKey(org, ownerExternalId, 'Platform');
     this.logger.info('platform organization created', { orgId: org.id, slug: org.slug });
-    return { organization: platformDetails(org), apiKey };
+    return {
+      organization: platformDetails(org),
+      apiKey,
+      hosts: await this.orgHosts().resolve(org.id),
+    };
   }
 
   async createPlatformApiKey(orgId: string, name: string): Promise<CreatedApiKey> {
@@ -1750,29 +1780,54 @@ export class OrganizationServiceImpl implements OrganizationService {
     return deleted;
   }
 
-  private async sendInviteEmail(invite: Invite, token: string, role: OrgRole): Promise<void> {
+  private orgHosts(): Pick<OrgHostSettings, 'resolve' | 'assign'> {
+    if (!this.hosts) {
+      throw new Error('organization hosts are not configured');
+    }
+    return this.hosts;
+  }
+
+  private async inviteHost(orgId: string, host: string | undefined): Promise<string> {
+    const hosts = await this.orgHosts().resolve(orgId);
+    if (host === undefined) {
+      return hosts.courses;
+    }
+    if (host !== hosts.courses && host !== hosts.community) {
+      this.logger.warn('invite refused: host is not one of the organization', { orgId, host });
+      throw new OrganizationRuleError("That host is not one of the organization's hosts");
+    }
+    return host;
+  }
+
+  private async sendInviteEmail(
+    invite: Invite,
+    token: string,
+    role: OrgRole,
+    host: string,
+  ): Promise<void> {
     if (!this.mailer || !this.inviteUrls) {
       throw new Error('invite delivery is not configured (mailer / invite urls missing)');
     }
     const learner = role.permissions.length === 0;
-    const base = learner
-      ? `${this.inviteUrls.studentPortalUrl}/welcome`
-      : `${this.inviteUrls.adminAppUrl}/invite`;
+    const base = learner ? `${host}/welcome` : `${this.inviteUrls.adminAppUrl}/invite`;
     const query = learner
       ? new URLSearchParams({ token })
       : new URLSearchParams({ token, email: invite.email });
     const inviteUrl = `${base}?${query.toString()}`;
     if (learner) {
-      await this.mailer.send(invite.email, 'studentInvite', {
-        inviteUrl,
-        studentName: invite.email,
-      });
+      await this.mailer.send(
+        invite.email,
+        'studentInvite',
+        { inviteUrl, studentName: invite.email },
+        invite.orgId,
+      );
     } else {
-      await this.mailer.send(invite.email, 'memberInvite', {
-        inviteUrl,
-        inviterName: 'Your team',
-        role: role.name,
-      });
+      await this.mailer.send(
+        invite.email,
+        'memberInvite',
+        { inviteUrl, inviterName: 'Your team', role: role.name },
+        invite.orgId,
+      );
     }
   }
 

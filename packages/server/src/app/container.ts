@@ -87,6 +87,7 @@ import {
   type OrgAdmin,
   NotificationCatalog,
   OrganizationServiceImpl,
+  OrgHostSettings,
   OrgNotificationCategories,
   type RoleDefinition,
 } from '@headless-lms/core/organizations';
@@ -179,8 +180,8 @@ export interface Config {
   authSecret: string;
   trustedOrigins: string[];
   /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl.
-   *  (studentPortalUrl is composed in from the top-level config field.) */
-  emailBranding?: Omit<TemplateContext, 'studentPortalUrl'>;
+   *  (hosts are composed in per organization.) */
+  emailBranding?: Omit<TemplateContext, 'hosts'>;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
@@ -191,8 +192,8 @@ export interface Config {
   trustedProxies?: string[];
   /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
   ipAddressHeaders?: string[];
-  /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
-  studentPortalUrl: string;
+  /** Origin a new organization's first host is made under, as `<slug>.<platform host>`. */
+  platformHost: string;
   /** Admin app origin — invite links for staff. */
   adminAppUrl: string;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
@@ -274,6 +275,7 @@ export interface Container {
     org: OrgNotificationCategories;
   };
   notificationCatalog: NotificationCatalog;
+  hosts: OrgHostSettings;
   notificationCategoryLists: NotificationCategories;
   notificationSettings: NotificationSettingsServiceImpl;
   devices: DevicesServiceImpl;
@@ -355,10 +357,20 @@ export async function buildContainer(
     typeof pubsubOption === 'function'
       ? pubsubOption(logger.child({ name: 'pubsub' }))
       : (pubsubOption ?? null);
-  const mailer = new Mailer(templates, email, {
-    ...(config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl }),
-    studentPortalUrl: config.studentPortalUrl,
+  const settings = new SettingsService(
+    new DrizzleSettingsRepository(db, logger.child({ name: 'settings' })),
+  );
+  const hosts = new OrgHostSettings({
+    settings,
+    platformHost: config.platformHost,
+    logger: logger.child({ name: 'org' }),
   });
+  const mailer = new Mailer(
+    templates,
+    email,
+    config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl },
+    (orgId) => hosts.resolve(orgId),
+  );
 
   const fileUrls = createFileUrls((key) => storage.publicUrl(key));
   const assets = new AssetsServiceImpl({
@@ -441,16 +453,11 @@ export async function buildContainer(
     },
     logger: logger.child({ name: 'org' }),
     mailer,
-    inviteUrls: { studentPortalUrl: config.studentPortalUrl, adminAppUrl: config.adminAppUrl },
+    inviteUrls: { adminAppUrl: config.adminAppUrl },
+    hosts,
     grants: (): GrantReader => entitlements,
   });
 
-  /*
-   * Settings
-   */
-  const settings = new SettingsService(
-    new DrizzleSettingsRepository(db, logger.child({ name: 'settings' })),
-  );
   // Content: reads on the root db; course writes + outbox append in one tx.
   const contentUow = new DrizzleUnitOfWork(db, (tx) => ({
     content: new DrizzleContentRepository(tx, contentLogger),
@@ -681,7 +688,7 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
-      studentPortalUrl: config.studentPortalUrl,
+      hosts: (orgId) => hosts.resolve(orgId),
     }),
   };
 
@@ -986,6 +993,7 @@ export async function buildContainer(
     notificationChannels: notificationRegistries.channels,
     notificationCategories,
     notificationCatalog,
+    hosts,
     notificationCategoryLists,
     notificationSettings,
     devices,

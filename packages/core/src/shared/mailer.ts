@@ -8,6 +8,7 @@ import type {
   TemplateRenderer,
 } from './ports.js';
 import type { ContentType } from '../types/schemas/content.js';
+import type { Hosts } from '../types/schemas/organizations.js';
 
 /** Resolves the recipient/content details a template needs when the
  *  triggering event carries only row ids. Wired by the app layer. */
@@ -57,18 +58,20 @@ export class Mailer {
   constructor(
     private readonly templates: TemplateRenderer,
     private readonly email: EmailSender,
-    private readonly ctx: TemplateContext,
+    private readonly ctx: Omit<TemplateContext, 'hosts'>,
+    private readonly hostsOf?: (orgId: string) => Promise<Hosts>,
   ) {}
 
   async send<K extends EmailTemplateId>(
     to: string,
     id: K,
     params: EmailTemplateParams[K],
-    ctx?: Partial<TemplateContext>,
+    orgId?: string,
   ): Promise<void> {
+    const hosts = orgId && this.hostsOf ? await this.hostsOf(orgId) : null;
     let content: Awaited<ReturnType<TemplateRenderer['render']>>;
     try {
-      content = await this.templates.render(id, { ...this.ctx, ...ctx }, params);
+      content = await this.templates.render(id, { ...this.ctx, hosts }, params);
     } catch (err) {
       throw new EmailRenderError(id, err);
     }

@@ -151,20 +151,26 @@ describe('email channel', () => {
       accepted: true,
       deadDeviceIds: [],
     });
-    expect(send).toHaveBeenCalledWith('sarah@example.com', 'replyToYourComment', {
-      commentId: 'cmt_1',
-      postId: 'pst_1',
-      communityId: 'cmy_1',
-      spaceId: 'spc_2',
-      postTitle: 'My first recording',
-      commenterName: 'James',
-      excerpt: 'Nice',
-    });
+    expect(send).toHaveBeenCalledWith(
+      'sarah@example.com',
+      'replyToYourComment',
+      {
+        commentId: 'cmt_1',
+        postId: 'pst_1',
+        communityId: 'cmy_1',
+        spaceId: 'spc_2',
+        postTitle: 'My first recording',
+        commenterName: 'James',
+        excerpt: 'Nice',
+      },
+      'org_1',
+    );
     await email.deliver(notification({ matchedReason: 'post_author' }), to!);
     expect(send).toHaveBeenLastCalledWith(
       'sarah@example.com',
       'newCommentOnPost',
       expect.anything(),
+      'org_1',
     );
   });
 

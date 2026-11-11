@@ -1,4 +1,5 @@
 import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
+import { communityApp, courseApp } from "./community.js";
 import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
 type Params = EmailTemplateParams["accessGranted"];
@@ -22,9 +23,13 @@ const BUTTON: Record<Params["contentType"], string> = {
 };
 
 function hrefOf(ctx: TemplateContext, params: Params): string {
-  return params.contentType === "bundle"
-    ? ctx.studentPortalUrl
-    : `${ctx.studentPortalUrl}/${PORTAL_PATH[params.contentType]}/${params.contentId}`;
+  if (params.contentType === "bundle") {
+    return courseApp(ctx, "");
+  }
+  const path = `/${PORTAL_PATH[params.contentType]}/${params.contentId}`;
+  return params.contentType === "community" || params.contentType === "event"
+    ? communityApp(ctx, path)
+    : courseApp(ctx, path);
 }
 
 export default function AccessGranted({ ctx, params }: { ctx: TemplateContext; params: Params }) {

@@ -104,6 +104,9 @@ export type UpdateOrganizationResponse =
 export type CreateOrganizationData = {
   body: {
     name: string;
+    /**
+     * Unique. The organization's first host is this slug under the platform host.
+     */
     slug: string;
   };
   path?: never;
@@ -156,11 +159,157 @@ export type CreateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
   };
 };
 
 export type CreateOrganizationResponse =
   CreateOrganizationResponses[keyof CreateOrganizationResponses];
+
+export type GetOrganizationHostsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/organizations/hosts";
+};
+
+export type GetOrganizationHostsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetOrganizationHostsError =
+  GetOrganizationHostsErrors[keyof GetOrganizationHostsErrors];
+
+export type GetOrganizationHostsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Origin of the app that shows courses and downloads, such as https://learn.example.com
+     */
+    courses: string;
+    /**
+     * Origin of the app that shows communities and events, such as https://club.example.com
+     */
+    community: string;
+  };
+};
+
+export type GetOrganizationHostsResponse =
+  GetOrganizationHostsResponses[keyof GetOrganizationHostsResponses];
+
+export type ReplaceOrganizationHostsData = {
+  body: {
+    /**
+     * Origin of the app that shows courses and downloads, such as https://learn.example.com
+     */
+    courses: string;
+    /**
+     * Origin of the app that shows communities and events, such as https://club.example.com
+     */
+    community: string;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations/hosts";
+};
+
+export type ReplaceOrganizationHostsErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ReplaceOrganizationHostsError =
+  ReplaceOrganizationHostsErrors[keyof ReplaceOrganizationHostsErrors];
+
+export type ReplaceOrganizationHostsResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    /**
+     * Origin of the app that shows courses and downloads, such as https://learn.example.com
+     */
+    courses: string;
+    /**
+     * Origin of the app that shows communities and events, such as https://club.example.com
+     */
+    community: string;
+  };
+};
+
+export type ReplaceOrganizationHostsResponse =
+  ReplaceOrganizationHostsResponses[keyof ReplaceOrganizationHostsResponses];
 
 export type TransferOwnershipData = {
   body: {
@@ -1532,6 +1681,10 @@ export type CreateInviteData = {
     firstName?: string;
     lastName?: string;
     sendEmail?: boolean;
+    /**
+     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     */
+    host?: string;
   };
   path?: never;
   query?: never;
@@ -1623,7 +1776,12 @@ export type ResendInviteData = {
   path: {
     orgUserId: string;
   };
-  query?: never;
+  query?: {
+    /**
+     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     */
+    host?: string;
+  };
   url: "/api/organizations/people/{orgUserId}/invite/resend";
 };
 
@@ -1663,6 +1821,14 @@ export type ResendInviteErrors = {
    * Default Response
    */
   404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -28951,6 +29117,9 @@ export type GetPlatformOrganizationResponse =
 export type CreatePlatformOrganizationData = {
   body: {
     name: string;
+    /**
+     * Unique. The organization's first host is this slug under the platform host.
+     */
     slug: string;
     /**
      * Key-value pairs stored with the organization
@@ -29050,6 +29219,16 @@ export type CreatePlatformOrganizationResponses = {
        * The key itself. Returned once, never again
        */
       key: string;
+    };
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
     };
   };
 };

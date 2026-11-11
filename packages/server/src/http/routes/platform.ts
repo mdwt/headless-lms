@@ -37,6 +37,7 @@ export async function platformRoutes(app: FastifyInstance, container: Container)
           createdAt: created.organization.createdAt.toISOString(),
         },
         apiKey: created.apiKey,
+        hosts: created.hosts,
       });
     },
   });

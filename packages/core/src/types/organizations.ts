@@ -13,6 +13,7 @@ export type {
   CreateOrgUserInput,
   UpdateOrgUserInput,
   CreateInviteInput,
+  Hosts,
   AcceptInviteInput,
   Level,
   Permission,

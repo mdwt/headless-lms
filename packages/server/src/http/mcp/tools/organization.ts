@@ -12,6 +12,9 @@ import {
   OrgUserContentParam,
   OrgUserIdParam,
   Organization,
+  OrganizationHosts,
+  ReplaceOrganizationHosts,
+  ResendInvite,
   RoleKeyParam,
   SetRole,
   UpdateOrganization,
@@ -33,6 +36,29 @@ export const organizationTools: Tool[] = [
       const org = await container.organizations.updateOrganization(input, caller.actor);
       return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt.toISOString() };
     },
+  }),
+  defineTool({
+    name: 'get_organization_hosts',
+    title: 'Get organization hosts',
+    description:
+      "The origins of the organization's member apps, used for the links in emails, invites and calendar files.",
+    kind: 'read',
+    idempotent: true,
+    openWorld: false,
+    input: noInput,
+    output: OrganizationHosts,
+    call: (_input, { container, caller }) => container.hosts.get(caller.actor),
+  }),
+  defineTool({
+    name: 'replace_organization_hosts',
+    title: 'Replace organization hosts',
+    description: 'Set the course host and the community host. The next link uses the new value.',
+    kind: 'write',
+    idempotent: true,
+    openWorld: false,
+    input: ReplaceOrganizationHosts,
+    output: OrganizationHosts,
+    call: (input, { container, caller }) => container.hosts.replace(input, caller.actor),
   }),
   defineTool({
     name: 'list_roles',
@@ -212,9 +238,9 @@ export const organizationTools: Tool[] = [
     kind: 'write',
     idempotent: false,
     openWorld: true,
-    input: OrgUserIdParam,
-    call: ({ orgUserId }, { container, caller }) =>
-      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId),
+    input: OrgUserIdParam.extend(ResendInvite.shape),
+    call: ({ orgUserId, host }, { container, caller }) =>
+      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId, host),
   }),
   defineTool({
     name: 'cancel_invite',

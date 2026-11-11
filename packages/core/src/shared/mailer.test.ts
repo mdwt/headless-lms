@@ -28,7 +28,7 @@ function fakes() {
 const CTX: TemplateContext = {
   brandName: 'Acme LMS',
   baseUrl: 'http://localhost:8001',
-  studentPortalUrl: 'http://localhost:8002',
+  hosts: null,
 };
 
 describe('Mailer', () => {
@@ -70,21 +70,20 @@ describe('Mailer', () => {
     expect(sent).toEqual([]);
   });
 
-  it('merges a per-send context override over the default', async () => {
+  it("renders with the organization's hosts when the send names one", async () => {
     const { rendered, templates, email } = fakes();
-    const mailer = new Mailer(templates, email, CTX);
+    const hosts = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
+    const asked: string[] = [];
+    const mailer = new Mailer(templates, email, CTX, async (orgId) => {
+      asked.push(orgId);
+      return hosts;
+    });
 
-    await mailer.send(
-      's@e.com',
-      'memberInvite',
-      {
-        inviteUrl: 'http://x',
-        inviterName: 'Ann',
-        role: 'admin',
-      },
-      { brandName: 'Ann Org' },
-    );
+    await mailer.send('s@e.com', 'courseCompleted', { courseTitle: 'Spanish' }, 'org_acme');
+    await mailer.send('s@e.com', 'magicLink', { url: 'http://x/y' });
 
-    expect(rendered[0]?.ctx).toEqual({ ...CTX, brandName: 'Ann Org' });
+    expect(asked).toEqual(['org_acme']);
+    expect(rendered[0]?.ctx).toEqual({ ...CTX, hosts });
+    expect(rendered[1]?.ctx).toEqual(CTX);
   });
 });
