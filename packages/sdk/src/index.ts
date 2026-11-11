@@ -18,7 +18,6 @@ import {
   Discussion as DiscussionGen,
   Entitlements as EntitlementsGen,
   Events as EventsGen,
-  Files as FilesGen,
   Integrations as IntegrationsGen,
   Notifications as NotificationsGen,
   Organizations as OrganizationsGen,
@@ -52,7 +51,6 @@ export const Content = ContentGen as Throwing<typeof ContentGen>;
 export const Discussion = DiscussionGen as Throwing<typeof DiscussionGen>;
 export const Entitlements = EntitlementsGen as Throwing<typeof EntitlementsGen>;
 export const Events = EventsGen as Throwing<typeof EventsGen>;
-export const Files = FilesGen as Throwing<typeof FilesGen>;
 export const Integrations = IntegrationsGen as Throwing<typeof IntegrationsGen>;
 export const Notifications = NotificationsGen as Throwing<typeof NotificationsGen>;
 export const Organizations = OrganizationsGen as Throwing<typeof OrganizationsGen>;
