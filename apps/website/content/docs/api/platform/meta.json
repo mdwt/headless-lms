@@ -2,6 +2,7 @@
   "title": "Platform",
   "description": "Organizations and their API keys, created with the platform key",
   "pages": [
+    "getPlatformOrganization",
     "createPlatformOrganization",
     "createPlatformApiKey"
   ]

@@ -249,6 +249,8 @@ import type {
   GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
   GetOverviewResponses,
+  GetPlatformOrganizationErrors,
+  GetPlatformOrganizationResponses,
   GetPostErrors,
   GetPostResponses,
   GetRoleErrors,
@@ -11414,6 +11416,36 @@ export class Access {
 }
 
 export class Platform {
+  /**
+   * Find an organization by its slug
+   *
+   * Requires the platform key as `Authorization: Bearer <platform key>`. Returns the organization with that slug and its metadata, to recover the id of an organization whose creation response was lost. 404 when no organization has the slug or the organization was not created with the platform key.
+   */
+  public static getPlatformOrganization<ThrowOnError extends boolean = false>(
+    parameters: {
+      slug: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<
+    GetPlatformOrganizationResponses,
+    GetPlatformOrganizationErrors,
+    ThrowOnError,
+    "data"
+  > {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "slug" }] }]);
+    return (options?.client ?? client).get<
+      GetPlatformOrganizationResponses,
+      GetPlatformOrganizationErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/platform/organizations",
+      ...options,
+      ...params,
+    });
+  }
+
   /**
    * Create an organization and its first API key
    *

@@ -15,6 +15,7 @@ import type {
   OrganizationsWriteScope,
   PlatformAccount,
   PlatformOrganization,
+  PlatformOrganizationDetails,
   PlatformOrganizationInput,
   ResolvedCaller,
   RolesRepository,
@@ -139,6 +140,16 @@ function lockKeys(orgId: string, roleKeys: string[], orgUserIds: string[]): stri
     ...roleKeys.map((key) => `role:${orgId}:${key}`),
     ...orgUserIds.map((id) => `org-user:${orgId}:${id}`),
   ];
+}
+
+function platformDetails(org: Organization): PlatformOrganizationDetails {
+  return {
+    id: org.id,
+    name: org.name,
+    slug: org.slug,
+    metadata: org.metadata,
+    createdAt: org.createdAt,
+  };
 }
 
 function roleView(role: OrgRole, holders: number): RoleView {
@@ -1527,31 +1538,39 @@ export class OrganizationServiceImpl implements OrganizationService {
     const org = await this.repo.setMetadata(found.id, input.metadata ?? {});
     const apiKey = await this.platformKey(org, ownerExternalId, 'Platform');
     this.logger.info('platform organization created', { orgId: org.id, slug: org.slug });
-    return {
-      organization: {
-        id: org.id,
-        name: org.name,
-        slug: org.slug,
-        metadata: org.metadata,
-        createdAt: org.createdAt,
-      },
-      apiKey,
-    };
+    return { organization: platformDetails(org), apiKey };
   }
 
   async createPlatformApiKey(orgId: string, name: string): Promise<CreatedApiKey> {
-    const account = this.platformAccount();
-    const [org, person] = await Promise.all([
-      this.repo.findById(orgId),
-      this.people.getUserByEmail(account.email),
-    ]);
-    const orgUser = org && person ? await this.repo.findOrgUser(org.id, person.id) : null;
-    if (!org || !person?.externalId || orgUser?.status !== 'active') {
+    const member = await this.platformMember(await this.repo.findById(orgId));
+    if (!member) {
       throw new NotFoundError('Organization', orgId);
     }
-    const apiKey = await this.platformKey(org, person.externalId, name);
-    this.logger.info('platform api key created', { orgId: org.id, keyId: apiKey.id });
+    const apiKey = await this.platformKey(member.org, member.externalId, name);
+    this.logger.info('platform api key created', { orgId: member.org.id, keyId: apiKey.id });
     return apiKey;
+  }
+
+  async getPlatformOrganization(slug: string): Promise<PlatformOrganizationDetails> {
+    const [org, person] = await Promise.all([
+      this.repo.findBySlug(slug),
+      this.people.getUserByEmail(this.platformAccount().email),
+    ]);
+    if (!org || !person || org.ownerId !== person.id) {
+      throw new NotFoundError('Organization', slug);
+    }
+    return platformDetails(org);
+  }
+
+  private async platformMember(
+    org: Organization | null,
+  ): Promise<{ org: Organization; externalId: string } | null> {
+    const person = await this.people.getUserByEmail(this.platformAccount().email);
+    if (!org || !person?.externalId) {
+      return null;
+    }
+    const orgUser = await this.repo.findOrgUser(org.id, person.id);
+    return orgUser?.status === 'active' ? { org, externalId: person.externalId } : null;
   }
 
   isPlatformAccount(email: string): boolean {

@@ -28873,6 +28873,81 @@ export type DeleteApiKeyResponses = {
   204: unknown;
 };
 
+export type GetPlatformOrganizationData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * The slug the organization was created with
+     */
+    slug: string;
+  };
+  url: "/api/platform/organizations";
+};
+
+export type GetPlatformOrganizationErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetPlatformOrganizationError =
+  GetPlatformOrganizationErrors[keyof GetPlatformOrganizationErrors];
+
+export type GetPlatformOrganizationResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    slug: string;
+    createdAt: string;
+    metadata: {
+      [key: string]: string;
+    };
+  };
+};
+
+export type GetPlatformOrganizationResponse =
+  GetPlatformOrganizationResponses[keyof GetPlatformOrganizationResponses];
+
 export type CreatePlatformOrganizationData = {
   body: {
     name: string;

@@ -55,6 +55,19 @@ const container = {
       }
       return { ...API_KEY, name };
     },
+    getPlatformOrganization: async (slug: string) => {
+      calls.push(['getPlatformOrganization', slug]);
+      if (failure) {
+        throw failure;
+      }
+      return {
+        id: 'org_1',
+        name: "Sarah's Yoga",
+        slug: 'sarahs-yoga',
+        metadata: { plan: 'pro' },
+        createdAt: NOW,
+      };
+    },
   },
 } as unknown as Container;
 
@@ -137,6 +150,45 @@ describe('platform routes', () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({ name: 'Rotated', key: 'hlms_secret' });
     expect(calls).toEqual([['createPlatformApiKey', 'org_1', 'Rotated']]);
+  });
+
+  it('finds an organization by its slug', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/platform/organizations?slug=sarahs-yoga',
+      headers: auth,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      id: 'org_1',
+      name: "Sarah's Yoga",
+      slug: 'sarahs-yoga',
+      metadata: { plan: 'pro' },
+      createdAt: NOW.toISOString(),
+    });
+    expect(calls).toEqual([['getPlatformOrganization', 'sarahs-yoga']]);
+  });
+
+  it('refuses a lookup without a slug or without the platform key, and maps an unknown slug to 404', async () => {
+    const noSlug = await app.inject({
+      method: 'GET',
+      url: '/api/platform/organizations',
+      headers: auth,
+    });
+    expect(noSlug.statusCode).toBe(400);
+    const noKey = await app.inject({
+      method: 'GET',
+      url: '/api/platform/organizations?slug=sarahs-yoga',
+    });
+    expect(noKey.statusCode).toBe(401);
+    expect(calls).toEqual([]);
+    failure = new NotFoundError('Organization', 'gone');
+    const missing = await app.inject({
+      method: 'GET',
+      url: '/api/platform/organizations?slug=gone',
+      headers: auth,
+    });
+    expect(missing.statusCode).toBe(404);
   });
 
   it('refuses a missing or wrong platform key, and an API key, before doing anything', async () => {
