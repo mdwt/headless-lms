@@ -1,5 +1,15 @@
 # @headless-lms/adapter-defaults
 
+## 0.5.2
+
+### Patch Changes
+
+- [#12](https://github.com/mdwt/headless-lms/pull/12) [`09803d1`](https://github.com/mdwt/headless-lms/commit/09803d113718799a421c6b0c4f5040cf5e5efdd1) Thanks [@mdwt](https://github.com/mdwt)! - The notification process runs apart from org automations. It has its own event bus subscriber, so a notification failure no longer fails the automations handler, and notifications no longer wait for automations to be dispatched. Notification deliveries have their own executor: `AutomationExecutor` no longer has `runDelivery`; an `AutomationEngine` takes a `DeliveryExecutor` through `registerDeliveries`, and `NotificationDelivery` implements it (`run` is now `runDelivery`). `AutomationsServiceImpl` no longer takes `delivery` or `processor`. `InMemoryEventBus` runs every handler even when one throws, then rejects with that error, or an `AggregateError` when several fail, so the outbox redelivers the event.
+
+- Updated dependencies [[`09803d1`](https://github.com/mdwt/headless-lms/commit/09803d113718799a421c6b0c4f5040cf5e5efdd1)]:
+  - @headless-lms/core@0.7.0
+  - @headless-lms/adapter-db@0.6.1
+
 ## 0.5.1
 
 ### Patch Changes

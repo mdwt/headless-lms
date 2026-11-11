@@ -1,5 +1,13 @@
 # @headless-lms/adapter-auth
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [[`09803d1`](https://github.com/mdwt/headless-lms/commit/09803d113718799a421c6b0c4f5040cf5e5efdd1)]:
+  - @headless-lms/core@0.7.0
+  - @headless-lms/adapter-db@0.6.1
+
 ## 0.4.1
 
 ### Patch Changes
