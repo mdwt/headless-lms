@@ -141,6 +141,15 @@ export function parseDatabasePool(): NonNullable<ContainerConfig["databasePool"]
   };
 }
 
+/** A comma-separated variable as a list; unset or empty → undefined. */
+export function parseList(name: string): string[] | undefined {
+  const values = (process.env[name] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return values.length > 0 ? values : undefined;
+}
+
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
   return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
@@ -204,6 +213,8 @@ function loadContainerConfig(): ContainerConfig {
     credentialStoreKey: process.env.CREDENTIAL_STORE_KEY ?? "",
     cookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
     secureCookies: process.env.NODE_ENV === "production",
+    trustedProxies: parseList("AUTH_TRUSTED_PROXIES"),
+    ipAddressHeaders: parseList("AUTH_IP_ADDRESS_HEADERS"),
     studentPortalUrl: process.env.STUDENT_PORTAL_URL ?? "http://localhost:8002",
     adminAppUrl,
     outbox: {

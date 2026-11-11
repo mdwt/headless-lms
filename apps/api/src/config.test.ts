@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { loadPlatformConfig, loadPushConfig, parseMemberImageMaxBytes } from "./config.js";
+import {
+  loadPlatformConfig,
+  loadPushConfig,
+  parseList,
+  parseMemberImageMaxBytes,
+} from "./config.js";
 
 const original = process.env.MEMBER_IMAGE_MAX_BYTES;
 const PUSH_VARS = [
@@ -15,6 +20,7 @@ const PUSH_VARS = [
   "PLATFORM_KEY",
   "PLATFORM_ACCOUNT_EMAIL",
   "PLATFORM_ACCOUNT_NAME",
+  "AUTH_TRUSTED_PROXIES",
 ];
 const originalPush = Object.fromEntries(PUSH_VARS.map((name) => [name, process.env[name]]));
 
@@ -120,5 +126,19 @@ describe("loadPlatformConfig", () => {
     process.env.PLATFORM_KEY = "k".repeat(40);
     delete process.env.PLATFORM_ACCOUNT_EMAIL;
     expect(() => loadPlatformConfig()).toThrow(/PLATFORM_ACCOUNT_EMAIL/);
+  });
+});
+
+describe("parseList", () => {
+  it("is undefined when the variable is unset or empty", () => {
+    delete process.env.AUTH_TRUSTED_PROXIES;
+    expect(parseList("AUTH_TRUSTED_PROXIES")).toBeUndefined();
+    process.env.AUTH_TRUSTED_PROXIES = " , ";
+    expect(parseList("AUTH_TRUSTED_PROXIES")).toBeUndefined();
+  });
+
+  it("splits on commas and trims", () => {
+    process.env.AUTH_TRUSTED_PROXIES = "10.0.0.0/16, 192.0.2.10";
+    expect(parseList("AUTH_TRUSTED_PROXIES")).toEqual(["10.0.0.0/16", "192.0.2.10"]);
   });
 });

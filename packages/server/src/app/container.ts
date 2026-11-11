@@ -187,6 +187,10 @@ export interface Config {
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
+  /** IPs or CIDR ranges of the reverse proxies in front of the API; the client IP is the first address in the forwarded chain that is not one of them. */
+  trustedProxies?: string[];
+  /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
+  ipAddressHeaders?: string[];
   /** Student portal origin — invite links for students, and the origin whose signups are invite-gated. */
   studentPortalUrl: string;
   /** Admin app origin — invite links for staff. */
@@ -955,6 +959,8 @@ export async function buildContainer(
     logger: authLogger,
     cookieDomain: config.cookieDomain,
     secureCookies: config.secureCookies,
+    trustedProxies: config.trustedProxies,
+    ipAddressHeaders: config.ipAddressHeaders,
   });
   orgAdminRef.current = auth;
 
