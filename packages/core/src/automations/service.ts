@@ -15,8 +15,6 @@ import {
 import { executeAction, type ActionOutcome } from './actions.js';
 import { generateWebhookSecret } from './webhook-signing.js';
 import type { CommunityMailReads, GrantWriter } from './community-mail.js';
-import type { NotificationDelivery } from './notifications/delivery.js';
-import type { NotificationProcessor } from './notifications/processor.js';
 import { cronSupported } from './schedule.js';
 import {
   ActionFailedError,
@@ -51,7 +49,6 @@ import type {
   AutomationsRepository,
   AutomationsService,
   AutomationsUnitOfWork,
-  DeliveryDispatch,
   WebhookSender,
 } from './ports.js';
 import type { CredentialStore, DomainEvent, Logger } from '../shared/ports.js';
@@ -215,8 +212,6 @@ export type AutomationsServiceParams = {
   webhooks: WebhookSender;
   mail: Omit<CommunityMailReads, 'recentMessageRecipients'>;
   grants: GrantWriter;
-  delivery: Pick<NotificationDelivery, 'run'>;
-  processor: Pick<NotificationProcessor, 'process'>;
   logger?: Logger;
 };
 
@@ -233,8 +228,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
   private readonly webhooks: WebhookSender;
   private readonly mail: CommunityMailReads;
   private readonly grants: GrantWriter;
-  private readonly delivery: Pick<NotificationDelivery, 'run'>;
-  private readonly processor: Pick<NotificationProcessor, 'process'>;
   private readonly logger: Logger;
 
   constructor(params: AutomationsServiceParams) {
@@ -254,8 +247,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         this.runsRepo.recentRecipients(orgId, automationId, chatId, since),
     };
     this.grants = params.grants;
-    this.delivery = params.delivery;
-    this.processor = params.processor;
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -279,7 +270,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
       }
       await this.dispatchOne(automation, event);
     }
-    await this.processor.process(event);
   }
 
   private async reconcileSchedules(orgId: string): Promise<void> {
@@ -448,10 +438,6 @@ export class AutomationsServiceImpl implements AutomationsService, AutomationExe
         ? { error: `delivery failed for ${failed.length} recipients: ${failed.join(', ')}` }
         : {}),
     };
-  }
-
-  runDelivery(d: DeliveryDispatch, lastAttempt: boolean): Promise<void> {
-    return this.delivery.run(d, lastAttempt);
   }
 
   async listSchedules(): Promise<ScheduledAutomation[]> {

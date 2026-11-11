@@ -2,7 +2,7 @@ import type { DevicesService } from '../../identity/index.js';
 import { noopLogger } from '../../shared/logger.js';
 import type { ChannelRegistry, Logger } from '../../shared/ports.js';
 import type { ChannelRecipient, DeliveryDispatch, DeliveryResult } from '../../types/index.js';
-import type { NotificationsRepository } from '../ports.js';
+import type { DeliveryExecutor, NotificationsRepository } from '../ports.js';
 
 export const CHANNEL_NOT_CONFIGURED = 'channel not configured';
 export const NO_ADDRESS = 'no address';
@@ -19,7 +19,7 @@ function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-export class NotificationDelivery {
+export class NotificationDelivery implements DeliveryExecutor {
   private readonly repo: NotificationDeliveryParams['repo'];
   private readonly channels: Pick<ChannelRegistry, 'get'>;
   private readonly devices: Pick<DevicesService, 'removeDead'>;
@@ -32,7 +32,7 @@ export class NotificationDelivery {
     this.logger = params.logger ?? noopLogger;
   }
 
-  async run(d: DeliveryDispatch, lastAttempt: boolean): Promise<void> {
+  async runDelivery(d: DeliveryDispatch, lastAttempt: boolean): Promise<void> {
     const found = await this.repo.findDelivery(d.orgId, d.deliveryId);
     if (!found || found.delivery.status !== 'pending') {
       this.logger.debug('notification delivery skipped', {

@@ -40,6 +40,7 @@ export type {
   AutomationExecutor,
   AutomationEngine,
   DeliveryDispatch,
+  DeliveryExecutor,
   WebhookRequest,
   WebhookResponse,
   WebhookSender,

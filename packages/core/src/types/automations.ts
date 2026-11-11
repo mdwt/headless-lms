@@ -46,13 +46,17 @@ export interface ScheduledAutomation {
 export interface AutomationExecutor {
   runAction(d: AutomationDispatch, index: number): Promise<AutomationActionResult>;
   finalize(d: AutomationDispatch, results: AutomationActionResult[]): Promise<void>;
-  runDelivery(d: DeliveryDispatch, lastAttempt: boolean): Promise<void>;
   listSchedules?(): Promise<ScheduledAutomation[]>;
   fireSchedule?(orgId: string, automationId: string, firedAt: Date): Promise<void>;
 }
 
+export interface DeliveryExecutor {
+  runDelivery(d: DeliveryDispatch, lastAttempt: boolean): Promise<void>;
+}
+
 export interface AutomationEngine {
   register(executor: AutomationExecutor): void;
+  registerDeliveries(executor: DeliveryExecutor): void;
   dispatch(d: AutomationDispatch): Promise<void>;
   deliver(d: DeliveryDispatch): Promise<void>;
   start(): Promise<void>;
