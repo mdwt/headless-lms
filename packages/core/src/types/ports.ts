@@ -42,9 +42,7 @@ export interface StoredObjectInfo {
 
 export interface PresignDownloadInput {
   key: string;
-  /** Links signed with the same key, times and filename are identical. */
-  signedAt: Date;
-  expiresAt: Date;
+  expiresInSeconds: number;
   /** Force a download with this filename (Content-Disposition: attachment). */
   downloadFilename?: string;
 }

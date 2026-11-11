@@ -56,7 +56,7 @@ Nobody else gets the URL.
 
 ### Link lifetimes
 
-A public image URL never expires. A signed URL is made for a window of time, `DELIVERY_URL_EXPIRY` seconds (six hours by default): every read in the same window returns the same URL for a file, so the browser keeps the file cached, and the URL expires at the end of the next window. A signed URL therefore works for between one and two windows, long enough for a lesson left open or a long video. Reading the item again returns a fresh URL.
+A public image URL never expires. A signed URL is signed when the read is made and expires `DELIVERY_URL_EXPIRY` seconds later (six hours by default), long enough for a lesson left open or a long video. Reading the item again returns a fresh URL.
 
 ## Lesson content
 

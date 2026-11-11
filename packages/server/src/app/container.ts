@@ -199,9 +199,9 @@ export interface Config {
   outbox?: OutboxConfig;
   /** Log level for the process-wide logger (HTTP + domain + relay). Default "info". */
   logging?: LoggingConfig;
-  /** Window of the signed file links a response carries, seconds. Mirrors
-   *  ServerConfig.deliveryWindowSeconds — createContainer threads it through. */
-  deliveryWindowSeconds: number;
+  /** Lifetime of every signed file link a response carries, seconds. Mirrors
+   *  ServerConfig.deliveryExpirySeconds — createContainer threads it through. */
+  deliveryExpirySeconds: number;
   memberImageMaxBytes: number;
   memberFileMaxBytes: number;
   /** Let the default webhook sender reach loopback and private network addresses. Local development only. */
@@ -370,7 +370,7 @@ export async function buildContainer(
     })),
     memberImageMaxBytes: config.memberImageMaxBytes,
     memberFileMaxBytes: config.memberFileMaxBytes,
-    linkWindowSeconds: config.deliveryWindowSeconds,
+    downloadLinkExpirySeconds: config.deliveryExpirySeconds,
     logger: assetsLogger,
   });
 

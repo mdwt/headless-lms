@@ -93,22 +93,21 @@ describe("S3StorageAdapter", () => {
     );
   });
 
-  it("presigns the same S3 link all through a window, cacheable and named when asked", async () => {
-    const link = await adapter().presignDownload({ key: "org/o/document/a/guide.pdf", ...WINDOW });
-    expect(await adapter().presignDownload({ key: "org/o/document/a/guide.pdf", ...WINDOW })).toBe(
-      link,
-    );
+  it("presigns an S3 link for the given lifetime, cacheable and named when asked", async () => {
+    const link = await adapter().presignDownload({
+      key: "org/o/document/a/guide.pdf",
+      expiresInSeconds: 21600,
+    });
     const url = new URL(link);
     expect(url.pathname).toBe("/org/o/document/a/guide.pdf");
-    expect(url.searchParams.get("X-Amz-Date")).toBe("20261111T060000Z");
-    expect(url.searchParams.get("X-Amz-Expires")).toBe("43200");
+    expect(url.searchParams.get("X-Amz-Expires")).toBe("21600");
     expect(url.searchParams.get("response-cache-control")).toBe(PUBLIC_CACHE_CONTROL);
     expect(url.searchParams.has("response-content-disposition")).toBe(false);
     const named = new URL(
       await adapter().presignDownload({
         key: "org/o/document/a/guide.pdf",
         downloadFilename: 'Work"book.pdf',
-        ...WINDOW,
+        expiresInSeconds: 21600,
       }),
     );
     expect(named.searchParams.get("response-content-disposition")).toBe(
@@ -116,19 +115,14 @@ describe("S3StorageAdapter", () => {
     );
   });
 
-  it("signs a CloudFront link with a canned policy that ends when the window does", async () => {
+  it("signs a CloudFront link with a canned policy that ends the lifetime after signing", async () => {
+    const before = Math.floor(Date.now() / 1000);
     const link = await cloudFront().presignDownload({
       key: "org/o/video/a/lesson one.mp4",
       downloadFilename: "Lesson.mp4",
-      ...WINDOW,
+      expiresInSeconds: 21600,
     });
-    expect(
-      await cloudFront().presignDownload({
-        key: "org/o/video/a/lesson one.mp4",
-        downloadFilename: "Lesson.mp4",
-        ...WINDOW,
-      }),
-    ).toBe(link);
+    const after = Math.ceil(Date.now() / 1000);
     const url = new URL(link);
     expect(url.origin + url.pathname).toBe(
       "https://media.example.com/org/o/video/a/lesson%20one.mp4",
@@ -137,8 +131,9 @@ describe("S3StorageAdapter", () => {
     expect(url.searchParams.get("response-content-disposition")).toBe(
       'attachment; filename="Lesson.mp4"',
     );
-    const expires = Math.floor(WINDOW.expiresAt.getTime() / 1000);
-    expect(url.searchParams.get("Expires")).toBe(String(expires));
+    const expires = Number(url.searchParams.get("Expires"));
+    expect(expires).toBeGreaterThanOrEqual(before + 21600);
+    expect(expires).toBeLessThanOrEqual(after + 21600);
     expect(url.searchParams.get("Key-Pair-Id")).toBe("K2JCJMDEHXQW5F");
     const resource = link.slice(0, link.indexOf("&Expires="));
     const policy = JSON.stringify({
@@ -153,11 +148,6 @@ describe("S3StorageAdapter", () => {
     expect(verify("RSA-SHA1", Buffer.from(policy), KEYS.publicKey, signature)).toBe(true);
   });
 });
-
-const WINDOW = {
-  signedAt: new Date("2026-11-11T06:00:00Z"),
-  expiresAt: new Date("2026-11-11T18:00:00Z"),
-};
 
 const KEYS = generateKeyPairSync("rsa", {
   modulusLength: 2048,

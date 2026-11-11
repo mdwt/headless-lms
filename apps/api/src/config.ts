@@ -194,10 +194,10 @@ function loadContainerConfig(): ContainerConfig {
   const trustedOrigins = [...new Set([...clientOrigins, apiOrigin])];
   const adminAppUrl = process.env.ADMIN_APP_URL ?? clientOrigins[0] ?? "http://localhost:8001";
   return {
-    // Mirrors ServerConfig.deliveryWindowSeconds below — loadServerConfig
+    // Mirrors ServerConfig.deliveryExpirySeconds below — loadServerConfig
     // overrides this with the same value; kept here only so this object
     // satisfies Config on its own.
-    deliveryWindowSeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     databaseUrl: process.env.DATABASE_URL ?? "",
@@ -242,8 +242,7 @@ export function loadServerConfig(): ServerConfig {
     // Fastify's per-request access log, one line per request with its id,
     // status and duration. On unless REQUEST_LOGGING=false.
     requestLogging: process.env.REQUEST_LOGGING !== "false",
-    // A file link is the same all through its window and lives one to two windows.
-    deliveryWindowSeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
+    deliveryExpirySeconds: Number(process.env.DELIVERY_URL_EXPIRY ?? 21600),
     memberImageMaxBytes: parseMemberImageMaxBytes(),
     memberFileMaxBytes: parseMemberFileMaxBytes(),
     // LISTEN needs a session connection; behind a transaction-mode pooler

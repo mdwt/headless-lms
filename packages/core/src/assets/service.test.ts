@@ -124,7 +124,7 @@ function service(overrides: Partial<ConstructorParameters<typeof AssetsServiceIm
     uow,
     memberImageMaxBytes: 1000,
     memberFileMaxBytes: 4000,
-    linkWindowSeconds: 21600,
+    downloadLinkExpirySeconds: 21600,
     ...overrides,
     storage,
   });
@@ -336,7 +336,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      linkWindowSeconds: 21600,
+      downloadLinkExpirySeconds: 21600,
     });
     const now = new Date();
     assets.push({
@@ -388,7 +388,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      linkWindowSeconds: 21600,
+      downloadLinkExpirySeconds: 21600,
     });
     const now = new Date('2026-10-22T12:00:00Z');
     const old = new Date('2026-10-22T10:00:00Z');
@@ -434,7 +434,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      linkWindowSeconds: 21600,
+      downloadLinkExpirySeconds: 21600,
     });
     const old = new Date('2026-10-01T00:00:00Z');
     assets.push({
@@ -470,7 +470,7 @@ describe('AssetsService', () => {
       uow,
       memberImageMaxBytes: 1000,
       memberFileMaxBytes: 4000,
-      linkWindowSeconds: 21600,
+      downloadLinkExpirySeconds: 21600,
       logger,
     });
     const old = new Date('2026-10-01T00:00:00Z');
@@ -832,10 +832,10 @@ describe('AssetsService', () => {
     }
   });
 
-  it('refuses a link window that is not a positive integer', () => {
+  it('refuses a link lifetime that is not a positive integer', () => {
     const { repo } = fakeRepo();
     const { uow } = fakeUow(repo);
-    for (const linkWindowSeconds of [0, -1, 1.5, Number.NaN]) {
+    for (const downloadLinkExpirySeconds of [0, -1, 1.5, Number.NaN]) {
       expect(
         () =>
           new AssetsServiceImpl({
@@ -844,9 +844,9 @@ describe('AssetsService', () => {
             uow,
             memberImageMaxBytes: 1000,
             memberFileMaxBytes: 4000,
-            linkWindowSeconds,
+            downloadLinkExpirySeconds,
           }),
-      ).toThrow('invalid linkWindowSeconds');
+      ).toThrow('invalid downloadLinkExpirySeconds');
     }
   });
 
@@ -944,12 +944,11 @@ describe('AssetsService', () => {
     expect(await svc.readyFiles('org-1', [])).toEqual({});
   });
 
-  it('signs ready files of the org for the window they are asked in and the next', async () => {
-    let clock = new Date('2026-11-11T07:30:00Z');
-    const { svc, assets, storage } = service({ now: () => clock });
+  it('signs ready files of the org for the link lifetime', async () => {
+    const { svc, assets, storage } = service();
     vi.mocked(storage.presignDownload).mockImplementation(
-      async ({ key, downloadFilename, signedAt, expiresAt }) =>
-        `https://signed/${key}?as=${downloadFilename ?? ''}&from=${signedAt.toISOString()}&to=${expiresAt.toISOString()}`,
+      async ({ key, downloadFilename, expiresInSeconds }) =>
+        `https://signed/${key}?as=${downloadFilename ?? ''}&for=${expiresInSeconds}`,
     );
     const now = new Date();
     assets.push({
@@ -968,28 +967,19 @@ describe('AssetsService', () => {
       updatedAt: now,
     });
 
-    const links = await svc.fileLinks('org-1', [
-      { assetId: 'ast_guide', saveAs: 'Workbook.pdf' },
-      { assetId: 'ast_missing' },
-    ]);
-    expect(links).toEqual({
-      ast_guide:
-        'https://signed/k-guide?as=Workbook.pdf&from=2026-11-11T06:00:00.000Z&to=2026-11-11T18:00:00.000Z',
-    });
+    expect(
+      await svc.fileLinks('org-1', [
+        { assetId: 'ast_guide', saveAs: 'Workbook.pdf' },
+        { assetId: 'ast_missing' },
+      ]),
+    ).toEqual({ ast_guide: 'https://signed/k-guide?as=Workbook.pdf&for=21600' });
     expect(storage.presignDownload).toHaveBeenLastCalledWith({
       key: 'k-guide',
       downloadFilename: 'Workbook.pdf',
-      signedAt: new Date('2026-11-11T06:00:00Z'),
-      expiresAt: new Date('2026-11-11T18:00:00Z'),
+      expiresInSeconds: 21600,
     });
-
-    clock = new Date('2026-11-11T11:59:59Z');
-    expect(
-      await svc.fileLinks('org-1', [{ assetId: 'ast_guide', saveAs: 'Workbook.pdf' }]),
-    ).toEqual(links);
-    clock = new Date('2026-11-11T12:00:00Z');
     expect((await svc.fileLinks('org-1', [{ assetId: 'ast_guide' }])).ast_guide).toBe(
-      'https://signed/k-guide?as=&from=2026-11-11T12:00:00.000Z&to=2026-11-12T00:00:00.000Z',
+      'https://signed/k-guide?as=&for=21600',
     );
     expect(await svc.fileLinks('org-2', [{ assetId: 'ast_guide' }])).toEqual({});
     expect(await svc.fileLinks('org-1', [])).toEqual({});

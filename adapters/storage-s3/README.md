@@ -116,9 +116,8 @@ locally when it returns the file; nothing calls AWS per file.
    the same origin.
 
 Every private file is served with `Cache-Control: public, max-age=31536000,
-immutable`: an asset's bytes never change under its key, and its signed link
-stays the same through each window the API signs for (`DELIVERY_URL_EXPIRY`),
-so browsers and the edge keep it.
+immutable`: an asset's bytes never change under its key, so the edge keeps
+it.
 
 ## Path style
 
