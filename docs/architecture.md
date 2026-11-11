@@ -57,11 +57,13 @@ she may moderate that post's community. The same request for a post in another c
 
 The assets context stores the files. Who may see a file is decided by the context that owns what the file belongs
 to. An image that anyone who sees the thing may see, such as a profile photo or the cover of a published course, is
-public and served directly. Every other file is reached through a link that asks the owning context, on every
-request, whether the caller may see it.
+public and served directly. Every other file is decided when the thing it belongs to is read: the read that returns
+the thing carries a signed storage link to each of its files, which expires. The file itself is fetched from
+storage, not through the API.
 
 For example, Sarah's course has a thumbnail and a lesson video. While the course is published, the thumbnail is
-public. The video's link checks each time that a grant covers the course.
+public. When a learner opens the lesson, the read checks that a grant covers the course and returns the video with a
+signed link that works for some hours.
 
 ### Adapters, Plugins, Integrations
 

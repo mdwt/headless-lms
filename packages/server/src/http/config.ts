@@ -16,10 +16,10 @@ export interface ServerConfig {
    *  Unset → on. Turn off for a quiet dev console; app-level logs are
    *  unaffected either way. */
   requestLogging?: boolean;
-  /** Lifetime of every signed file URL a response carries, seconds. Separate
-   *  from the storage adapter's general download expiry so raising that one
-   *  can't silently extend paywalled link lifetimes. */
-  deliveryExpirySeconds: number;
+  /** Window of the signed file links a response carries, seconds. A link is the
+   *  same all through the window it is signed in and expires at the end of the
+   *  next, so it lives between one and two windows. */
+  deliveryWindowSeconds: number;
   memberImageMaxBytes: number;
   memberFileMaxBytes: number;
   /** Postgres URL for the PubSub adapter's session connection. It must reach

@@ -24,7 +24,7 @@ The person in the member product. A student in a course, a member in a community
 - Their progress in a course.
 - The downloads they can open, and the paywall in front of a download.
 - **Directory** — the people in one community: members from their grants and holders of `communities:read` on it, each with their profile and, for team, the name of their role there. No write-context owns this join.
-- **Community home** — every space of the community with its topics, links, post defaults, member count and where the person stands with it, plus the community's description and direct-message settings, and whether the person can create events. One space can be read on its own in the same shape.
+- **Community home** — every space of the community with its topics, links, post defaults, member count and where the person stands with it, plus the community's description and direct-message settings, and whether the person can create events. The community's thumbnail and the spaces' images show while the community is published, and to holders of `communities:read` on it before then. One space can be read on its own in the same shape.
 - **Events** — an event as the person may see it. A holder of `events:read` on it sees it in any status, with everything. An attendee, directly or through a bundle, sees a published or canceled event with its location and files, and its recording after the end when replay is on. Anyone else in the org sees a published `public` event without its location, files and recording. Each event carries its attendee count, the faces of up to ten attendees, the places left, and what the person can do with it: whether they attend, can register, can open it, can manage its attendees, can edit, cancel or delete it. The events can be listed upcoming or past, and only the ones the person attends.
 - **Event calendar file** — the event as a calendar entry with its title, times and event page, and its location and meeting link when the person can open it.
 - **Event attendees** (`events:read`) — the people attending, each with their name, photo, how they got their place (registered, added, automation or bundle) and when, by date.
@@ -52,7 +52,7 @@ The person in the admin app, whatever their role. Each report needs a permission
 
 ## Build state
 
-`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory, the community home and events with their calendar file and attendees, each with the stable links of the files it shows, and the notification list, the unread counts and the notification settings. The admin service answers the org overview, the enrollment series, course analytics, the roster, a learner's record, community members, community analytics, and event attendees and analytics.
+`reporting/member` and `reporting/admin` are built. The member service answers courses, modules, activities, course progress, downloads, the community directory, the community home and events with their calendar file and attendees, each with the signed links of the files it shows, and the notification list, the unread counts and the notification settings. The admin service answers the org overview, the enrollment series, course analytics, the roster, a learner's record, community members, community analytics, and event attendees and analytics.
 
 ## Boundaries
 

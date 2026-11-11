@@ -42,7 +42,9 @@ export interface StoredObjectInfo {
 
 export interface PresignDownloadInput {
   key: string;
-  expiresInSeconds?: number;
+  /** Links signed with the same key, times and filename are identical. */
+  signedAt: Date;
+  expiresAt: Date;
   /** Force a download with this filename (Content-Disposition: attachment). */
   downloadFilename?: string;
 }
@@ -55,7 +57,7 @@ export interface ObjectStorage {
     contentType?: string;
     expiresInSeconds?: number;
   }): Promise<PresignedUpload>;
-  /** Presigned URL to fetch/serve a private object (temporary, expiring). */
+  /** Signed URL to a private object, served with PUBLIC_CACHE_CONTROL. */
   presignDownload(input: PresignDownloadInput): Promise<string>;
   /** Object metadata, or null if it does not exist. */
   stat(key: string): Promise<StoredObjectInfo | null>;

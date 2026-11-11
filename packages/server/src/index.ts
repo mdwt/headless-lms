@@ -51,7 +51,7 @@ export async function createContainer(
   return buildContainer(
     {
       ...config.container,
-      deliveryExpirySeconds: config.deliveryExpirySeconds,
+      deliveryWindowSeconds: config.deliveryWindowSeconds,
       memberImageMaxBytes: config.memberImageMaxBytes,
       memberFileMaxBytes: config.memberFileMaxBytes,
     },
