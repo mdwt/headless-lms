@@ -1,5 +1,14 @@
 # @headless-lms/adapter-db
 
+## 0.6.3
+
+### Patch Changes
+
+- [#24](https://github.com/mdwt/headless-lms/pull/24) [`9f13ac2`](https://github.com/mdwt/headless-lms/commit/9f13ac23d37a814749be2599dd703f4b3260003e) Thanks [@mdwt](https://github.com/mdwt)! - The students list returns each student's real average progress: the mean, over the courses they can open, of the share of published activities they completed, the same figure as the student's own analytics. It was always 0, and sorting by it did nothing. Sorting by last active puts students who were never active after the active ones, in either direction.
+
+- Updated dependencies [[`e6ea327`](https://github.com/mdwt/headless-lms/commit/e6ea327d00ed2d84411bbc882dbf51f3fed33f68), [`41766f7`](https://github.com/mdwt/headless-lms/commit/41766f7e66c9614857855e832d05082d7b1bdea7), [`932f883`](https://github.com/mdwt/headless-lms/commit/932f883c8a287e349083d2849a5ccc20a007e141), [`c9a3c48`](https://github.com/mdwt/headless-lms/commit/c9a3c48a547aad25b57d5602da63fb2c35ba3d6a), [`eb3ab88`](https://github.com/mdwt/headless-lms/commit/eb3ab88e7e294d035640c5a7cd55edd3bbfeb24d)]:
+  - @headless-lms/core@0.9.0
+
 ## 0.6.2
 
 ### Patch Changes
