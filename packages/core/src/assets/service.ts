@@ -95,11 +95,9 @@ export type AssetsServiceParams = {
   uow: AssetsUnitOfWork;
   memberImageMaxBytes: number;
   memberFileMaxBytes: number;
-  /** A file link is signed for the window it is made in and the one after, so it lives
-   *  between one and two windows and is the same link all through its window. */
-  linkWindowSeconds: number;
+  /** Lifetime of a file link, seconds, from when the read signs it. */
+  downloadLinkExpirySeconds: number;
   logger?: Logger;
-  now?: () => Date;
 };
 
 export class AssetsServiceImpl implements AssetsService {
@@ -108,9 +106,8 @@ export class AssetsServiceImpl implements AssetsService {
   private readonly uow: AssetsUnitOfWork;
   private readonly memberImageMaxBytes: number;
   private readonly memberFileMaxBytes: number;
-  private readonly linkWindowMs: number;
+  private readonly downloadLinkExpirySeconds: number;
   private readonly logger: Logger;
-  private readonly now: () => Date;
 
   constructor(params: AssetsServiceParams) {
     if (!Number.isSafeInteger(params.memberImageMaxBytes) || params.memberImageMaxBytes <= 0) {
@@ -123,9 +120,12 @@ export class AssetsServiceImpl implements AssetsService {
         `invalid memberFileMaxBytes "${params.memberFileMaxBytes}" (expected a positive integer)`,
       );
     }
-    if (!Number.isSafeInteger(params.linkWindowSeconds) || params.linkWindowSeconds <= 0) {
+    if (
+      !Number.isSafeInteger(params.downloadLinkExpirySeconds) ||
+      params.downloadLinkExpirySeconds <= 0
+    ) {
       throw new Error(
-        `invalid linkWindowSeconds "${params.linkWindowSeconds}" (expected a positive integer)`,
+        `invalid downloadLinkExpirySeconds "${params.downloadLinkExpirySeconds}" (expected a positive integer)`,
       );
     }
     this.storage = params.storage;
@@ -133,9 +133,8 @@ export class AssetsServiceImpl implements AssetsService {
     this.uow = params.uow;
     this.memberImageMaxBytes = params.memberImageMaxBytes;
     this.memberFileMaxBytes = params.memberFileMaxBytes;
-    this.linkWindowMs = params.linkWindowSeconds * 1000;
+    this.downloadLinkExpirySeconds = params.downloadLinkExpirySeconds;
     this.logger = params.logger ?? noopLogger;
-    this.now = params.now ?? (() => new Date());
   }
 
   async requestUpload(input: RequestUploadInput, actor: Actor): Promise<UploadTicket> {
@@ -361,17 +360,12 @@ export class AssetsServiceImpl implements AssetsService {
     assets: readonly Asset[],
     saveAs: (asset: Asset) => string | undefined,
   ): Promise<Record<string, string>> {
-    const signedAt = new Date(
-      Math.floor(this.now().getTime() / this.linkWindowMs) * this.linkWindowMs,
-    );
-    const expiresAt = new Date(signedAt.getTime() + 2 * this.linkWindowMs);
     const links = await Promise.all(
       assets.map(async (asset) => {
         const filename = saveAs(asset);
         const url = await this.storage.presignDownload({
           key: asset.key,
-          signedAt,
-          expiresAt,
+          expiresInSeconds: this.downloadLinkExpirySeconds,
           ...(filename === undefined ? {} : { downloadFilename: filename }),
         });
         return [asset.id, url] as const;

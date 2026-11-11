@@ -4,6 +4,7 @@ import { emailSchema, roleKeySchema } from '@headless-lms/core/schemas';
 
 export const Invite = z.object({
   id: z.string(),
+  orgUserId: z.string().describe('The invited person, for granting access and item roles'),
   email: z.string(),
   roleKey: z.string(),
   status: z.string(),

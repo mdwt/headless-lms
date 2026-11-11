@@ -39,6 +39,7 @@ export type {
   ResolvedCaller,
   NewOrganizationRow,
   NewInviteRow,
+  CreatedInvite,
 } from './ports.js';
 export type { Organization, OrganizationMetadata, OrgUser, Invite } from './model.js';
 export { InviteError, OrganizationRuleError } from './members.js';

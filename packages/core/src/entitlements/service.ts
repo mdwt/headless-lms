@@ -113,29 +113,42 @@ export class EntitlementsServiceImpl implements EntitlementsService {
     if (contentId !== null && type === null) {
       throw new NotFoundError('Content', contentId);
     }
-    const entitlement = await this.uow.run(async ({ entitlements, outbox }) => {
-      const created = await entitlements.insert(orgId, {
+    const { entitlement, change } = await this.uow.run(async ({ entitlements, outbox }) => {
+      const existing = await entitlements.lockGrant(orgId, {
+        orgUserId: grant.orgUserId,
+        contentId,
+        bundleId: grant.bundleId ?? null,
+      });
+      const held = existing !== null && activeNow(existing, new Date());
+      if (held && sameInstant(existing.expiresAt, grant.expiresAt)) {
+        return { entitlement: existing, change: 'none' as const };
+      }
+      const written = await entitlements.insert(orgId, {
         ...grant,
         source: this.sourceOf(actor, grant.orgUserId),
       });
+      const event = held
+        ? entitlementEvents.entitlementUpdated
+        : entitlementEvents.entitlementCreated;
       await outbox.append([
-        entitlementEvents.entitlementCreated.make({
-          orgId,
-          data: created,
-          metadata: this.actorMetadata(actor),
-        }),
+        event.make({ orgId, data: written, metadata: this.actorMetadata(actor) }),
       ]);
-      return created;
+      return { entitlement: written, change: held ? ('updated' as const) : ('created' as const) };
     });
-    this.logger.info('entitlement granted', {
-      orgId,
-      entitlementId: entitlement.id,
-      orgUserId: entitlement.orgUserId,
-      bundleId: entitlement.bundleId,
-      contentId: entitlement.contentId,
-      source: entitlement.source,
-      actorId: actor.id,
-    });
+    if (change !== 'none') {
+      this.logger.info(
+        change === 'created' ? 'entitlement granted' : 'entitlement expiry changed',
+        {
+          orgId,
+          entitlementId: entitlement.id,
+          orgUserId: entitlement.orgUserId,
+          bundleId: entitlement.bundleId,
+          contentId: entitlement.contentId,
+          source: entitlement.source,
+          actorId: actor.id,
+        },
+      );
+    }
     return entitlement;
   }
 
@@ -1126,6 +1139,10 @@ export class EntitlementsServiceImpl implements EntitlementsService {
 
 function alreadyRegistered(): ConflictError {
   return new ConflictError('You are already going to this event', 'already_registered');
+}
+
+function sameInstant(a: Date | null, b: Date | null): boolean {
+  return a === null || b === null ? a === b : a.getTime() === b.getTime();
 }
 
 function activeNow(grant: Entitlement, now: Date): boolean {

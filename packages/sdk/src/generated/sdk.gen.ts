@@ -1224,7 +1224,7 @@ export class People {
   /**
    * Invite a person with an org role
    *
-   * Requires `people:write`. The person is created by this call, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
+   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409).
    */
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -10311,7 +10311,7 @@ export class Entitlements {
   /**
    * Grant a person access to content or a bundle
    *
-   * Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.
+   * Requires `access:write`; to grant an event, `events:write` on it is enough. Name exactly one of `contentId` and `bundleId`. A bundle grant covers whatever the bundle holds, now and later. Granting again makes a revoked or expired grant active with the new expiry. Granting to someone who already holds the grant sets the new expiry, and changes nothing when the expiry is the same. A grant to an event needs it published and not ended, with a place left when it has a capacity: 409 `not_published`, `ended` or `full` otherwise; granting it to someone who already holds it changes nothing. 404 when the content or the person does not exist.
    */
   public static grantEntitlement<ThrowOnError extends boolean = false>(
     parameters: {

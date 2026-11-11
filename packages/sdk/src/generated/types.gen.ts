@@ -1604,6 +1604,10 @@ export type CreateInviteResponses = {
    */
   201: {
     id: string;
+    /**
+     * The invited person, for granting access and item roles
+     */
+    orgUserId: string;
     email: string;
     roleKey: string;
     status: string;

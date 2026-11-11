@@ -94,9 +94,8 @@ export class MinioStorageAdapter implements ObjectStorage {
     return this.client.presignedGetObject(
       this.bucket,
       input.key,
-      Math.round((input.expiresAt.getTime() - input.signedAt.getTime()) / 1000),
+      input.expiresInSeconds,
       respHeaders,
-      input.signedAt,
     );
   }
 

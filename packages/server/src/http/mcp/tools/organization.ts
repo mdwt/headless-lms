@@ -196,6 +196,7 @@ export const organizationTools: Tool[] = [
       const invite = await container.organizations.createInvite(input, caller.actor, caller.userId);
       return {
         id: invite.id,
+        orgUserId: invite.orgUserId,
         email: invite.email,
         roleKey: invite.roleKey,
         status: invite.status,

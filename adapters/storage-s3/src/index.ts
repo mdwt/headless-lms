@@ -114,7 +114,7 @@ export class S3StorageAdapter implements ObjectStorage {
         url: `${this.cloudFront.url}/${encodeKey(input.key)}?${query}`,
         keyPairId: this.cloudFront.keyPairId,
         privateKey: this.cloudFront.privateKey,
-        dateLessThan: input.expiresAt,
+        dateLessThan: new Date(Date.now() + input.expiresInSeconds * 1000),
       });
     }
     const command = new GetObjectCommand({
@@ -123,10 +123,7 @@ export class S3StorageAdapter implements ObjectStorage {
       ResponseCacheControl: PUBLIC_CACHE_CONTROL,
       ...(disposition ? { ResponseContentDisposition: disposition } : {}),
     });
-    return getSignedUrl(this.client, command, {
-      signingDate: input.signedAt,
-      expiresIn: Math.round((input.expiresAt.getTime() - input.signedAt.getTime()) / 1000),
-    });
+    return getSignedUrl(this.client, command, { expiresIn: input.expiresInSeconds });
   }
 
   async stat(key: string): Promise<StoredObjectInfo | null> {

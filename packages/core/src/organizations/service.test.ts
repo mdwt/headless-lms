@@ -964,6 +964,7 @@ describe('invites', () => {
     );
     expect(invite.roleKey).toBe('member');
     expect(w.findByEmail('ivy@example.com').status).toBe('invited');
+    expect(invite.orgUserId).toBe(w.findByEmail('ivy@example.com').id);
     expect(w.send).toHaveBeenCalledWith(
       'ivy@example.com',
       'studentInvite',
@@ -971,6 +972,22 @@ describe('invites', () => {
         inviteUrl: expect.stringContaining('https://learn.test/welcome?token='),
       }),
     );
+  });
+
+  it("returns the person's org user, the same one when they are invited again", async () => {
+    const liam = await w.actor(s.liam.orgUser.id);
+    const first = await w.service.createInvite(
+      { email: 'ivy@example.com', sendEmail: false },
+      liam,
+      s.liam.person.id,
+    );
+    const again = await w.service.createInvite(
+      { email: 'ivy@example.com', sendEmail: false },
+      liam,
+      s.liam.person.id,
+    );
+    expect(first.orgUserId).toBe(w.findByEmail('ivy@example.com').id);
+    expect(again.orgUserId).toBe(first.orgUserId);
   });
 
   it('names the role in a team invite and links to the admin app', async () => {
