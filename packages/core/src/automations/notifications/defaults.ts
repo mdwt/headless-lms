@@ -88,6 +88,7 @@ export const DEFAULT_ORG_CATEGORIES: NotificationCategory[] = [
     covers: [
       { type: 'role.assigned', reasons: ['subject'] },
       { type: 'comment.removed', reasons: ['subject'] },
+      { type: 'course.completed', reasons: ['subject'] },
     ],
     channels: { inApp: lockedOn, email: on, push: on },
   },
