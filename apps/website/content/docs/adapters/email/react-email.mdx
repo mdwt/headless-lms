@@ -48,7 +48,7 @@ Every template receives a `TemplateContext` — brand name, base URL, and the or
 | `hosts.courses`   | Courses, lessons, downloads, the library  |
 | `hosts.community` | Communities, spaces, posts, chats, events |
 
-An organization starts with its slug under [`PLATFORM_HOST`](/docs/self-hosting#hosts) for both, and changes them with `PUT /api/organizations/hosts`. `hosts` is `null` for an email sent outside an organization, such as a password reset.
+An organization starts with its slug under [`PLATFORM_HOST`](/docs/self-hosting#hosts) for both, and changes them with `PATCH /api/organizations`. `hosts` is `null` for an email sent outside an organization, such as a password reset.
 
 ## Previewing templates
 

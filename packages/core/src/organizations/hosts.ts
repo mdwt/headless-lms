@@ -44,16 +44,11 @@ export class OrgHostSettings {
     this.logger = params.logger ?? noopLogger;
   }
 
-  async get(actor: Actor): Promise<Hosts> {
-    actor.permissions.require('organizations:read');
-    return this.resolve(actor.orgId);
-  }
-
   async replace(hosts: Hosts, actor: Actor): Promise<Hosts> {
     actor.permissions.require('organizations:write');
     await this.store(actor.orgId, hosts);
     this.logger.info('org hosts replaced', { orgId: actor.orgId, orgUserId: actor.id });
-    return this.resolve(actor.orgId);
+    return { courses: hosts.courses, community: hosts.community };
   }
 
   async assign(orgId: string, slug: string): Promise<Hosts> {

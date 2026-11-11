@@ -137,7 +137,8 @@
                         "courses",
                         "community"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
                     }
                   },
                   "required": [
@@ -255,7 +256,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken.",
+        "description": "Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. `hosts` replaces both hosts, and the next link uses the new value: links to courses and downloads use `courses`, links to communities and events use `community`. Changing the slug does not change the hosts.",
         "requestBody": {
           "required": true,
           "content": {
@@ -273,6 +274,24 @@
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$"
+                  },
+                  "hosts": {
+                    "description": "Both hosts, replacing the current ones. Left out, the hosts stay as they are.",
+                    "type": "object",
+                    "properties": {
+                      "courses": {
+                        "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com",
+                        "type": "string"
+                      },
+                      "community": {
+                        "description": "Origin of the app that shows communities and events, such as https://club.example.com",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "courses",
+                      "community"
+                    ]
                   }
                 },
                 "required": [
@@ -302,13 +321,33 @@
                     },
                     "createdAt": {
                       "type": "string"
+                    },
+                    "hosts": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "string",
+                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                        },
+                        "community": {
+                          "type": "string",
+                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                        }
+                      },
+                      "required": [
+                        "courses",
+                        "community"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "slug",
-                    "createdAt"
+                    "createdAt",
+                    "hosts"
                   ],
                   "additionalProperties": false
                 }
@@ -411,297 +450,6 @@
             }
           },
           "409": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/organizations/hosts": {
-      "get": {
-        "operationId": "getOrganizationHosts",
-        "summary": "Get the organization's hosts",
-        "tags": [
-          "Organizations"
-        ],
-        "description": "Requires `organizations:read`. The origins of the organization's member apps, used for the links in emails, invites and calendar files.",
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "courses": {
-                      "type": "string",
-                      "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                    },
-                    "community": {
-                      "type": "string",
-                      "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                    }
-                  },
-                  "required": [
-                    "courses",
-                    "community"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "operationId": "replaceOrganizationHosts",
-        "summary": "Replace the organization's hosts",
-        "tags": [
-          "Organizations"
-        ],
-        "description": "Requires `organizations:write`. Stores both hosts. Links to courses and downloads use `courses`, links to communities and events use `community`. The next link uses the new value.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "courses": {
-                    "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com",
-                    "type": "string"
-                  },
-                  "community": {
-                    "description": "Origin of the app that shows communities and events, such as https://club.example.com",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "courses",
-                  "community"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "courses": {
-                      "type": "string",
-                      "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                    },
-                    "community": {
-                      "type": "string",
-                      "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                    }
-                  },
-                  "required": [
-                    "courses",
-                    "community"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    },
-                    "issues": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "path": {
-                            "type": "string",
-                            "description": "Where in the request, such as `body.topics[1].name`"
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "403": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -87225,6 +86973,25 @@
                         "createdAt": {
                           "type": "string"
                         },
+                        "hosts": {
+                          "type": "object",
+                          "properties": {
+                            "courses": {
+                              "type": "string",
+                              "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                            },
+                            "community": {
+                              "type": "string",
+                              "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                            }
+                          },
+                          "required": [
+                            "courses",
+                            "community"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
+                        },
                         "metadata": {
                           "type": "object",
                           "additionalProperties": {
@@ -87237,6 +87004,7 @@
                         "name",
                         "slug",
                         "createdAt",
+                        "hosts",
                         "metadata"
                       ],
                       "additionalProperties": false
@@ -87307,30 +87075,11 @@
                         "key"
                       ],
                       "additionalProperties": false
-                    },
-                    "hosts": {
-                      "type": "object",
-                      "properties": {
-                        "courses": {
-                          "type": "string",
-                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                        },
-                        "community": {
-                          "type": "string",
-                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                        }
-                      },
-                      "required": [
-                        "courses",
-                        "community"
-                      ],
-                      "additionalProperties": false
                     }
                   },
                   "required": [
                     "organization",
-                    "apiKey",
-                    "hosts"
+                    "apiKey"
                   ],
                   "additionalProperties": false
                 }
@@ -87499,6 +87248,25 @@
                     "createdAt": {
                       "type": "string"
                     },
+                    "hosts": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "string",
+                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
+                        },
+                        "community": {
+                          "type": "string",
+                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+                        }
+                      },
+                      "required": [
+                        "courses",
+                        "community"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
+                    },
                     "metadata": {
                       "type": "object",
                       "additionalProperties": {
@@ -87511,6 +87279,7 @@
                     "name",
                     "slug",
                     "createdAt",
+                    "hosts",
                     "metadata"
                   ],
                   "additionalProperties": false

@@ -2202,7 +2202,7 @@
     {
       "name": "update_organization",
       "title": "Update organization",
-      "description": "Change the organization's name or slug.",
+      "description": "Change the organization's name or slug, or the hosts its member apps are reached at.",
       "group": "Organization, roles and team",
       "kind": "write",
       "idempotent": true,
@@ -2219,39 +2219,12 @@
           "type": "string",
           "required": true,
           "description": null
-        }
-      ]
-    },
-    {
-      "name": "get_organization_hosts",
-      "title": "Get organization hosts",
-      "description": "The origins of the organization's member apps, used for the links in emails, invites and calendar files.",
-      "group": "Organization, roles and team",
-      "kind": "read",
-      "idempotent": true,
-      "openWorld": false,
-      "fields": []
-    },
-    {
-      "name": "replace_organization_hosts",
-      "title": "Replace organization hosts",
-      "description": "Set the course host and the community host. The next link uses the new value.",
-      "group": "Organization, roles and team",
-      "kind": "write",
-      "idempotent": true,
-      "openWorld": false,
-      "fields": [
-        {
-          "name": "courses",
-          "type": "string",
-          "required": true,
-          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
         },
         {
-          "name": "community",
-          "type": "string",
-          "required": true,
-          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
+          "name": "hosts",
+          "type": "object",
+          "required": false,
+          "description": "Both hosts, replacing the current ones. Left out, the hosts stay as they are."
         }
       ]
     },

@@ -275,7 +275,6 @@ export interface Container {
     org: OrgNotificationCategories;
   };
   notificationCatalog: NotificationCatalog;
-  hosts: OrgHostSettings;
   notificationCategoryLists: NotificationCategories;
   notificationSettings: NotificationSettingsServiceImpl;
   devices: DevicesServiceImpl;
@@ -993,7 +992,6 @@ export async function buildContainer(
     notificationChannels: notificationRegistries.channels,
     notificationCategories,
     notificationCatalog,
-    hosts,
     notificationCategoryLists,
     notificationSettings,
     devices,

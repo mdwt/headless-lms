@@ -2,22 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { runCase, OWNER, toolSpecs, type ToolCase } from '../test-support.js';
 import { organizationTools } from './organization.js';
 
+const NOW = new Date('2026-11-11T10:00:00.000Z');
 const HOSTS = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
 
 const cases: ToolCase[] = [
   {
-    tool: 'get_organization_hosts',
-    args: {},
-    service: 'hosts.get',
-    expected: [OWNER],
-    returns: HOSTS,
-  },
-  {
-    tool: 'replace_organization_hosts',
-    args: { courses: 'https://learn.acme.test/', community: 'https://club.acme.test' },
-    service: 'hosts.replace',
-    expected: [HOSTS, OWNER],
-    returns: HOSTS,
+    tool: 'update_organization',
+    args: { name: 'Acme', slug: 'acme', hosts: { ...HOSTS, courses: 'https://learn.acme.test/' } },
+    service: 'organizations.updateOrganization',
+    expected: [{ name: 'Acme', slug: 'acme', hosts: HOSTS }, OWNER],
+    returns: { id: 'org_1', name: 'Acme', slug: 'acme', createdAt: NOW, hosts: HOSTS },
+    shown: { id: 'org_1', name: 'Acme', slug: 'acme', createdAt: NOW.toISOString(), hosts: HOSTS },
   },
   {
     tool: 'list_roles',
@@ -101,8 +96,6 @@ describe('organization tools', () => {
   it('name their operation and hints', () => {
     expect(toolSpecs(organizationTools)).toEqual([
       ['update_organization', 'write', true, false],
-      ['get_organization_hosts', 'read', true, false],
-      ['replace_organization_hosts', 'write', true, false],
       ['list_roles', 'read', true, false],
       ['get_role', 'read', true, false],
       ['update_role', 'write', true, false],

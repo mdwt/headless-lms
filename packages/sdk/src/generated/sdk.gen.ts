@@ -245,8 +245,6 @@ import type {
   GetMemberViewerResponses,
   GetMyPermissionsErrors,
   GetMyPermissionsResponses,
-  GetOrganizationHostsErrors,
-  GetOrganizationHostsResponses,
   GetOrgNotificationCategoriesErrors,
   GetOrgNotificationCategoriesResponses,
   GetOverviewErrors,
@@ -472,8 +470,6 @@ import type {
   ReorderSpacesResponses,
   ReplaceCommunityNotificationCategoriesErrors,
   ReplaceCommunityNotificationCategoriesResponses,
-  ReplaceOrganizationHostsErrors,
-  ReplaceOrganizationHostsResponses,
   ReplaceOrgNotificationCategoriesErrors,
   ReplaceOrgNotificationCategoriesResponses,
   ReplyToCommentErrors,
@@ -635,12 +631,22 @@ export class Organizations {
   /**
    * Update the active organization
    *
-   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken.
+   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. `hosts` replaces both hosts, and the next link uses the new value: links to courses and downloads use `courses`, links to communities and events use `community`. Changing the slug does not change the hosts.
    */
   public static updateOrganization<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
       slug: string;
+      hosts?: {
+        /**
+         * Origin of the app that shows courses and downloads, such as https://learn.example.com
+         */
+        courses: string;
+        /**
+         * Origin of the app that shows communities and events, such as https://club.example.com
+         */
+        community: string;
+      };
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateOrganizationResponses, UpdateOrganizationErrors, ThrowOnError, "data"> {
@@ -651,6 +657,7 @@ export class Organizations {
           args: [
             { in: "body", key: "name" },
             { in: "body", key: "slug" },
+            { in: "body", key: "hosts" },
           ],
         },
       ],
@@ -704,77 +711,6 @@ export class Organizations {
     >({
       responseStyle: "data",
       url: "/api/organizations",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
-   * Get the organization's hosts
-   *
-   * Requires `organizations:read`. The origins of the organization's member apps, used for the links in emails, invites and calendar files.
-   */
-  public static getOrganizationHosts<ThrowOnError extends boolean = false>(
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    GetOrganizationHostsResponses,
-    GetOrganizationHostsErrors,
-    ThrowOnError,
-    "data"
-  > {
-    return (options?.client ?? client).get<
-      GetOrganizationHostsResponses,
-      GetOrganizationHostsErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/hosts",
-      ...options,
-    });
-  }
-
-  /**
-   * Replace the organization's hosts
-   *
-   * Requires `organizations:write`. Stores both hosts. Links to courses and downloads use `courses`, links to communities and events use `community`. The next link uses the new value.
-   */
-  public static replaceOrganizationHosts<ThrowOnError extends boolean = false>(
-    parameters: {
-      courses: string;
-      community: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<
-    ReplaceOrganizationHostsResponses,
-    ReplaceOrganizationHostsErrors,
-    ThrowOnError,
-    "data"
-  > {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "body", key: "courses" },
-            { in: "body", key: "community" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).put<
-      ReplaceOrganizationHostsResponses,
-      ReplaceOrganizationHostsErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/hosts",
       ...options,
       ...params,
       headers: {

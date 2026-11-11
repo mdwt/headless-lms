@@ -25,9 +25,6 @@ import {
   OrgUserContentParam,
   OrgUserIdParam,
   Organization,
-  CreatedOrganization,
-  OrganizationHosts,
-  ReplaceOrganizationHosts,
   ResendInvite,
   RoleKeyParam,
   SetRole,
@@ -73,7 +70,7 @@ export async function organizationsRoutes(
       description:
         'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.',
       body: CreateOrganization,
-      response: { 201: CreatedOrganization, ...refusals(400) },
+      response: { 201: Organization, ...refusals(400) },
     },
     handler: async (req, reply) => {
       const org = await organizations.createOrganization(req.body, req.headers);
@@ -95,7 +92,7 @@ export async function organizationsRoutes(
       operationId: 'updateOrganization',
       tags,
       summary: 'Update the active organization',
-      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken.`,
+      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken. \`hosts\` replaces both hosts, and the next link uses the new value: links to courses and downloads use \`courses\`, links to communities and events use \`community\`. Changing the slug does not change the hosts.`,
       body: UpdateOrganization,
       response: { 200: Organization, ...refusals(403, 409) },
     },
@@ -107,37 +104,9 @@ export async function organizationsRoutes(
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
+        hosts: org.hosts,
       };
     },
-  });
-
-  r.route({
-    method: 'GET',
-    url: '/api/organizations/hosts',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'getOrganizationHosts',
-      tags,
-      summary: "Get the organization's hosts",
-      description: `Requires \`organizations:read\`. The origins of the organization's member apps, used for the links in emails, invites and calendar files.`,
-      response: { 200: OrganizationHosts, ...refusals(403) },
-    },
-    handler: async (req) => container.hosts.get(await resolveActor(container, req)),
-  });
-
-  r.route({
-    method: 'PUT',
-    url: '/api/organizations/hosts',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'replaceOrganizationHosts',
-      tags,
-      summary: "Replace the organization's hosts",
-      description: `Requires \`organizations:write\`. Stores both hosts. Links to courses and downloads use \`courses\`, links to communities and events use \`community\`. The next link uses the new value.`,
-      body: ReplaceOrganizationHosts,
-      response: { 200: OrganizationHosts, ...refusals(400, 403) },
-    },
-    handler: async (req) => container.hosts.replace(req.body, await resolveActor(container, req)),
   });
 
   r.route({

@@ -4,8 +4,6 @@
   "pages": [
     "createOrganization",
     "updateOrganization",
-    "getOrganizationHosts",
-    "replaceOrganizationHosts",
     "transferOwnership",
     "getMemberOrg",
     "getMemberViewer"

@@ -122,7 +122,7 @@ export type OrganizationServiceParams = {
   logger?: Logger;
   mailer?: Pick<Mailer, 'send'>;
   inviteUrls?: InviteUrls;
-  hosts?: Pick<OrgHostSettings, 'resolve' | 'assign'>;
+  hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace'>;
 };
 
 function snapshot(role: OrgRole) {
@@ -144,13 +144,14 @@ function lockKeys(orgId: string, roleKeys: string[], orgUserIds: string[]): stri
   ];
 }
 
-function platformDetails(org: Organization): PlatformOrganizationDetails {
+function platformDetails(org: Organization, hosts: Hosts): PlatformOrganizationDetails {
   return {
     id: org.id,
     name: org.name,
     slug: org.slug,
     metadata: org.metadata,
     createdAt: org.createdAt,
+    hosts,
   };
 }
 
@@ -200,7 +201,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly logger: Logger;
   private readonly mailer?: Pick<Mailer, 'send'>;
   private readonly inviteUrls?: InviteUrls;
-  private readonly hosts?: Pick<OrgHostSettings, 'resolve' | 'assign'>;
+  private readonly hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace'>;
 
   constructor(params: OrganizationServiceParams) {
     this.repo = params.repo;
@@ -270,7 +271,10 @@ export class OrganizationServiceImpl implements OrganizationService {
     return created;
   }
 
-  async updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization> {
+  async updateOrganization(
+    input: UpdateOrganizationInput,
+    actor: Actor,
+  ): Promise<Organization & { hosts: Hosts }> {
     actor.permissions.require('organizations:write');
     const orgId = actor.orgId;
     const org = await this.repo.findById(orgId);
@@ -284,7 +288,10 @@ export class OrganizationServiceImpl implements OrganizationService {
         throw new OrganizationRuleError('That slug is already taken');
       }
     }
-    await this.orgAdmin().updateOrganization(org.externalId ?? org.id, input);
+    await this.orgAdmin().updateOrganization(org.externalId ?? org.id, {
+      name: input.name,
+      slug: input.slug,
+    });
     const updated = await this.uow.run(async ({ organizations, outbox }) => {
       const next = await organizations.update(orgId, { name: input.name, slug: input.slug });
       if (!next) {
@@ -299,8 +306,11 @@ export class OrganizationServiceImpl implements OrganizationService {
       ]);
       return next;
     });
+    const hosts = input.hosts
+      ? await this.orgHosts().replace(input.hosts, actor)
+      : await this.orgHosts().resolve(orgId);
     this.logger.info('organization updated', { orgId, actorId: actor.id });
-    return updated;
+    return { ...updated, hosts };
   }
 
   async deleteOrganization(id: string): Promise<Organization> {
@@ -1565,9 +1575,8 @@ export class OrganizationServiceImpl implements OrganizationService {
     const apiKey = await this.platformKey(org, ownerExternalId, 'Platform');
     this.logger.info('platform organization created', { orgId: org.id, slug: org.slug });
     return {
-      organization: platformDetails(org),
+      organization: platformDetails(org, await this.orgHosts().resolve(org.id)),
       apiKey,
-      hosts: await this.orgHosts().resolve(org.id),
     };
   }
 
@@ -1589,7 +1598,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!org || !person || org.ownerId !== person.id) {
       throw new NotFoundError('Organization', slug);
     }
-    return platformDetails(org);
+    return platformDetails(org, await this.orgHosts().resolve(org.id));
   }
 
   private async platformMember(
@@ -1780,7 +1789,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     return deleted;
   }
 
-  private orgHosts(): Pick<OrgHostSettings, 'resolve' | 'assign'> {
+  private orgHosts(): Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace'> {
     if (!this.hosts) {
       throw new Error('organization hosts are not configured');
     }

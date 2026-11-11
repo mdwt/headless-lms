@@ -522,7 +522,15 @@ function store(
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
     inviteUrls: { adminAppUrl: 'https://admin.test' },
-    hosts: { resolve: async (orgId: string) => assigned.get(orgId) ?? HOSTS, assign },
+    hosts: {
+      resolve: async (orgId: string) => assigned.get(orgId) ?? HOSTS,
+      assign,
+      replace: async (hosts: typeof HOSTS, actor: Actor) => {
+        actor.permissions.require('organizations:write');
+        assigned.set(actor.orgId, hosts);
+        return hosts;
+      },
+    },
     ...opts,
   });
 
@@ -1384,6 +1392,19 @@ describe('api keys and the organization', () => {
     await expect(w.service.deleteRole(host.key, owner)).resolves.toBeUndefined();
   });
 
+  it('returns the hosts with the organization and replaces them when they are sent', async () => {
+    const admin = await w.actor(s.liam.orgUser.id);
+    const renamed = await w.service.updateOrganization({ name: 'Acme Two' }, admin);
+    expect(renamed.hosts).toEqual({
+      courses: 'https://learn.test',
+      community: 'https://club.test',
+    });
+    const hosts = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
+    const moved = await w.service.updateOrganization({ hosts }, admin);
+    expect(moved).toMatchObject({ name: 'Acme Two', hosts });
+    expect((await w.service.updateOrganization({ name: 'Acme' }, admin)).hosts).toEqual(hosts);
+  });
+
   it('refuses a taken slug before writing anything', async () => {
     await w.repo.create({ id: 'org_2', name: 'Other', slug: 'taken', ownerId: 'usr_x' });
     await expect(
@@ -1676,7 +1697,7 @@ describe('platform', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
     });
-    expect(first.hosts).toEqual({
+    expect(first.organization.hosts).toEqual({
       courses: 'https://sarahs-yoga.platform.test',
       community: 'https://sarahs-yoga.platform.test',
     });

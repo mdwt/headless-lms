@@ -57,8 +57,6 @@ const NAMES = [
   'get_course_enrollment_trend',
   'get_student_analytics',
   'update_organization',
-  'get_organization_hosts',
-  'replace_organization_hosts',
   'list_roles',
   'get_role',
   'update_role',

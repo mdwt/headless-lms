@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ApiKeyName, CreatedApiKey } from './access.js';
-import { Organization, OrganizationHosts } from './organizations.js';
+import { Organization } from './organizations.js';
 
 export const CreatePlatformOrganization = z.object({
   name: z.string().trim().min(1).max(100),
@@ -24,7 +24,6 @@ export const PlatformOrganizationDetails = Organization.extend({
 export const PlatformOrganization = z.object({
   organization: PlatformOrganizationDetails,
   apiKey: CreatedApiKey,
-  hosts: OrganizationHosts,
 });
 
 export const PlatformOrganizationQuery = z.object({

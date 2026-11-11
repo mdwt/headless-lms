@@ -12,8 +12,6 @@ import {
   OrgUserContentParam,
   OrgUserIdParam,
   Organization,
-  OrganizationHosts,
-  ReplaceOrganizationHosts,
   ResendInvite,
   RoleKeyParam,
   SetRole,
@@ -26,7 +24,8 @@ export const organizationTools: Tool[] = [
   defineTool({
     name: 'update_organization',
     title: 'Update organization',
-    description: "Change the organization's name or slug.",
+    description:
+      "Change the organization's name or slug, or the hosts its member apps are reached at.",
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -34,31 +33,14 @@ export const organizationTools: Tool[] = [
     output: Organization,
     call: async (input, { container, caller }) => {
       const org = await container.organizations.updateOrganization(input, caller.actor);
-      return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt.toISOString() };
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        createdAt: org.createdAt.toISOString(),
+        hosts: org.hosts,
+      };
     },
-  }),
-  defineTool({
-    name: 'get_organization_hosts',
-    title: 'Get organization hosts',
-    description:
-      "The origins of the organization's member apps, used for the links in emails, invites and calendar files.",
-    kind: 'read',
-    idempotent: true,
-    openWorld: false,
-    input: noInput,
-    output: OrganizationHosts,
-    call: (_input, { container, caller }) => container.hosts.get(caller.actor),
-  }),
-  defineTool({
-    name: 'replace_organization_hosts',
-    title: 'Replace organization hosts',
-    description: 'Set the course host and the community host. The next link uses the new value.',
-    kind: 'write',
-    idempotent: true,
-    openWorld: false,
-    input: ReplaceOrganizationHosts,
-    output: OrganizationHosts,
-    call: (input, { container, caller }) => container.hosts.replace(input, caller.actor),
   }),
   defineTool({
     name: 'list_roles',

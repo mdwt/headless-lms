@@ -6,7 +6,7 @@
 "create-headless-lms": minor
 ---
 
-An organization holds where its member apps are reached: a `courses` host and a `community` host, both always set. A new organization starts with one host for both, its slug as a subdomain of the new `PLATFORM_HOST` variable (`https://example.com` gives `https://acme.example.com`), and creating one (`POST /api/organizations`, `POST /api/platform/organizations`) returns its `hosts`. `GET /api/organizations/hosts` reads them and `PUT /api/organizations/hosts` replaces them. Links in emails, member invites and event calendar files use the organization's hosts at the moment the link is written: communities, spaces, posts, chats and events link to `community`, courses, lessons and downloads to `courses`.
+An organization holds where its member apps are reached: a `courses` host and a `community` host, both always set. A new organization starts with one host for both, its slug as a subdomain of the new `PLATFORM_HOST` variable (`https://example.com` gives `https://acme.example.com`), The organization carries its `hosts` wherever it is returned, and `PATCH /api/organizations` takes `hosts` to replace them. Links in emails, member invites and event calendar files use the organization's hosts at the moment the link is written: communities, spaces, posts, chats and events link to `community`, courses, lessons and downloads to `courses`.
 
 `createInvite` and `resendInvite` take an optional `host`, the app the invite link opens; it must be one of the organization's hosts.
 

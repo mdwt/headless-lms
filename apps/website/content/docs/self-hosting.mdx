@@ -48,9 +48,9 @@ Every organization holds two hosts: where its course app is reached and where it
 | --------------- | -------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PLATFORM_HOST` | no       | `http://localhost:8002` | The origin a new organization's first host is made under: scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
 
-A new organization starts with one host for both apps: its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Slugs are unique, so no two organizations start at the same host. Creating an organization returns its `hosts`.
+A new organization starts with one host for both apps: its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Slugs are unique, so no two organizations start at the same host. The organization carries its `hosts` wherever it is returned.
 
-An organization changes its hosts with [`PUT /api/organizations/hosts`](/docs/api/organizations/replaceOrganizationHosts), for example when it connects its own domain or moves its community to a separate one. Both hosts are always set, and the next link uses the new value. Changing the slug later does not change the hosts.
+An organization changes its hosts by sending `hosts` to [`PATCH /api/organizations`](/docs/api/organizations/updateOrganization), for example when it connects its own domain or moves its community to a separate one. Both hosts are always set, and the next link uses the new value. Changing the slug later does not change the hosts.
 
 Point each host at the frontend that serves it. An installation with one organization sets `PLATFORM_HOST` to its domain and serves the member app at the organization's host, or stores the address it already uses with the same call.
 

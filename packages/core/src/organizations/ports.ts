@@ -67,12 +67,14 @@ export interface PlatformOrganizationInput {
   metadata?: OrganizationMetadata | undefined;
 }
 
-export type PlatformOrganizationDetails = AuthOrganization & { metadata: OrganizationMetadata };
+export type PlatformOrganizationDetails = AuthOrganization & {
+  metadata: OrganizationMetadata;
+  hosts: Hosts;
+};
 
 export interface PlatformOrganization {
   organization: PlatformOrganizationDetails;
   apiKey: CreatedApiKey;
-  hosts: Hosts;
 }
 
 export interface PlatformAccount {
@@ -86,7 +88,10 @@ export interface OrganizationService {
     headers: AuthHeaders,
   ): Promise<AuthOrganization & { hosts: Hosts }>;
   provisionOrganization(input: CreateOrganizationInput): Promise<Organization>;
-  updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization>;
+  updateOrganization(
+    input: UpdateOrganizationInput,
+    actor: Actor,
+  ): Promise<Organization & { hosts: Hosts }>;
   deleteOrganization(id: string): Promise<Organization>;
   addOrgUser(input: AddOrgUserInput): Promise<OrgUser>;
   removeOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;

@@ -28,6 +28,19 @@ export type UpdateOrganizationData = {
   body: {
     name: string;
     slug: string;
+    /**
+     * Both hosts, replacing the current ones. Left out, the hosts stay as they are.
+     */
+    hosts?: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
   };
   path?: never;
   query?: never;
@@ -95,6 +108,19 @@ export type UpdateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    /**
+     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+     */
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
   };
 };
 
@@ -159,6 +185,9 @@ export type CreateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    /**
+     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+     */
     hosts: {
       /**
        * Origin of the app that shows courses and downloads, such as https://learn.example.com
@@ -174,142 +203,6 @@ export type CreateOrganizationResponses = {
 
 export type CreateOrganizationResponse =
   CreateOrganizationResponses[keyof CreateOrganizationResponses];
-
-export type GetOrganizationHostsData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/api/organizations/hosts";
-};
-
-export type GetOrganizationHostsErrors = {
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type GetOrganizationHostsError =
-  GetOrganizationHostsErrors[keyof GetOrganizationHostsErrors];
-
-export type GetOrganizationHostsResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    /**
-     * Origin of the app that shows courses and downloads, such as https://learn.example.com
-     */
-    courses: string;
-    /**
-     * Origin of the app that shows communities and events, such as https://club.example.com
-     */
-    community: string;
-  };
-};
-
-export type GetOrganizationHostsResponse =
-  GetOrganizationHostsResponses[keyof GetOrganizationHostsResponses];
-
-export type ReplaceOrganizationHostsData = {
-  body: {
-    /**
-     * Origin of the app that shows courses and downloads, such as https://learn.example.com
-     */
-    courses: string;
-    /**
-     * Origin of the app that shows communities and events, such as https://club.example.com
-     */
-    community: string;
-  };
-  path?: never;
-  query?: never;
-  url: "/api/organizations/hosts";
-};
-
-export type ReplaceOrganizationHostsErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type ReplaceOrganizationHostsError =
-  ReplaceOrganizationHostsErrors[keyof ReplaceOrganizationHostsErrors];
-
-export type ReplaceOrganizationHostsResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    /**
-     * Origin of the app that shows courses and downloads, such as https://learn.example.com
-     */
-    courses: string;
-    /**
-     * Origin of the app that shows communities and events, such as https://club.example.com
-     */
-    community: string;
-  };
-};
-
-export type ReplaceOrganizationHostsResponse =
-  ReplaceOrganizationHostsResponses[keyof ReplaceOrganizationHostsResponses];
 
 export type TransferOwnershipData = {
   body: {
@@ -29105,6 +28998,19 @@ export type GetPlatformOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
+    /**
+     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+     */
+    hosts: {
+      /**
+       * Origin of the app that shows courses and downloads, such as https://learn.example.com
+       */
+      courses: string;
+      /**
+       * Origin of the app that shows communities and events, such as https://club.example.com
+       */
+      community: string;
+    };
     metadata: {
       [key: string]: string;
     };
@@ -29188,6 +29094,19 @@ export type CreatePlatformOrganizationResponses = {
       name: string;
       slug: string;
       createdAt: string;
+      /**
+       * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
+       */
+      hosts: {
+        /**
+         * Origin of the app that shows courses and downloads, such as https://learn.example.com
+         */
+        courses: string;
+        /**
+         * Origin of the app that shows communities and events, such as https://club.example.com
+         */
+        community: string;
+      };
       metadata: {
         [key: string]: string;
       };
@@ -29219,16 +29138,6 @@ export type CreatePlatformOrganizationResponses = {
        * The key itself. Returned once, never again
        */
       key: string;
-    };
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
     };
   };
 };

@@ -4,14 +4,6 @@
 import { z } from 'zod';
 import { hostSchema } from '@headless-lms/core/schemas';
 
-export const Organization = z.object({
-  id: z.string(),
-  name: z.string(),
-  slug: z.string(),
-  createdAt: z.string(),
-});
-export type Organization = z.infer<typeof Organization>;
-
 export const OrganizationHosts = z.object({
   courses: z
     .string()
@@ -26,8 +18,16 @@ export const OrganizationHosts = z.object({
 });
 export type OrganizationHosts = z.infer<typeof OrganizationHosts>;
 
-export const CreatedOrganization = Organization.extend({ hosts: OrganizationHosts });
-export type CreatedOrganization = z.infer<typeof CreatedOrganization>;
+export const Organization = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  createdAt: z.string(),
+  hosts: OrganizationHosts.describe(
+    "Where the organization's member apps are reached. Links in emails, invites and calendar files use them.",
+  ),
+});
+export type Organization = z.infer<typeof Organization>;
 
 export const CreateOrganization = z.object({
   name: z.string().min(1),
@@ -49,11 +49,12 @@ export const UpdateOrganization = z.object({
     .min(1)
     .max(50)
     .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only'),
+  hosts: z
+    .object({
+      courses: hostSchema.describe(OrganizationHosts.shape.courses.description ?? ''),
+      community: hostSchema.describe(OrganizationHosts.shape.community.description ?? ''),
+    })
+    .optional()
+    .describe('Both hosts, replacing the current ones. Left out, the hosts stay as they are.'),
 });
 export type UpdateOrganization = z.infer<typeof UpdateOrganization>;
-
-export const ReplaceOrganizationHosts = z.object({
-  courses: hostSchema.describe(OrganizationHosts.shape.courses.description ?? ''),
-  community: hostSchema.describe(OrganizationHosts.shape.community.description ?? ''),
-});
-export type ReplaceOrganizationHosts = z.infer<typeof ReplaceOrganizationHosts>;

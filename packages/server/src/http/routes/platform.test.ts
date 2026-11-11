@@ -49,9 +49,9 @@ const container = {
           slug: 'sarahs-yoga',
           metadata: { plan: 'pro' },
           createdAt: NOW,
+          hosts: HOSTS,
         },
         apiKey: API_KEY,
-        hosts: HOSTS,
       };
     },
     createPlatformApiKey: async (orgId: string, name: string) => {
@@ -72,6 +72,7 @@ const container = {
         slug: 'sarahs-yoga',
         metadata: { plan: 'pro' },
         createdAt: NOW,
+        hosts: HOSTS,
       };
     },
   },
@@ -119,9 +120,9 @@ describe('platform routes', () => {
         slug: 'sarahs-yoga',
         metadata: { plan: 'pro' },
         createdAt: NOW.toISOString(),
+        hosts: HOSTS,
       },
       apiKey: { ...API_KEY, createdAt: NOW.toISOString() },
-      hosts: HOSTS,
     });
     expect(calls).toEqual([['createPlatformOrganization', YOGA]]);
   });
@@ -172,6 +173,7 @@ describe('platform routes', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
       createdAt: NOW.toISOString(),
+      hosts: HOSTS,
     });
     expect(calls).toEqual([['getPlatformOrganization', 'sarahs-yoga']]);
   });

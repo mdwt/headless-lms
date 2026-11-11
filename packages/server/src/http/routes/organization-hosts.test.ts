@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
-import { actorWith, OrgHostSettings } from '@headless-lms/core/organizations';
+import { actorWith } from '@headless-lms/core/organizations';
 import type { Actor } from '@headless-lms/core/shared/actor';
-import { SettingsService, type SettingsRepository } from '@headless-lms/core/shared/settings';
 import type { Container } from '../../app/container.js';
 import { registerAuth } from '../plugins/auth.js';
 import { errorHandler } from '../plugins/error-handler.js';
@@ -15,24 +14,9 @@ const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
 const orgUser = { id: 'ou_staff', orgId: ORG.id, status: 'active' };
 const ADMIN = actorWith({ id: orgUser.id, orgId: ORG.id, org: ['organizations:write'] });
 let actor: Actor = ADMIN;
-const rows = new Map<string, Record<string, unknown>>();
-
-const settingsRepo: SettingsRepository = {
-  find: async (orgId, scopeId, namespace) => {
-    const value = rows.get(`${orgId}:${namespace}:${scopeId}`);
-    return value ? [{ namespace: namespace ?? '', scopeId, value }] : [];
-  },
-  patch: async (orgId, namespace, scopeId, patch) => {
-    const key = `${orgId}:${namespace}:${scopeId}`;
-    const value = { ...(rows.get(key) ?? {}), ...(patch as Record<string, unknown>) };
-    rows.set(key, value);
-    return { namespace, scopeId, value };
-  },
-};
-const hosts = new OrgHostSettings({
-  settings: new SettingsService(settingsRepo),
-  platformHost: 'https://platform.test',
-});
+const HOSTS = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
+const NOW = new Date('2026-11-11T10:00:00.000Z');
+const updates: unknown[] = [];
 const resent: unknown[][] = [];
 
 const container = {
@@ -52,13 +36,16 @@ const container = {
     getOrgUser: async () => orgUser,
     actorFor: async () => actor,
     resolveCaller: async () => resolvedCaller(ORG, { id: 'usr_1' }, orgUser, actor),
+    updateOrganization: async (input: { hosts?: typeof HOSTS }) => {
+      updates.push(input);
+      return { ...ORG, createdAt: NOW, hosts: input.hosts ?? HOSTS };
+    },
     resendInvite: async (...args: unknown[]) => {
       resent.push(args);
     },
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },
-  hosts,
 } as unknown as Container;
 
 let app: FastifyInstance;
@@ -77,64 +64,50 @@ afterAll(async () => {
   await app.close();
 });
 
-const STARTED = {
-  courses: 'https://acme.platform.test',
-  community: 'https://acme.platform.test',
-};
-
-beforeEach(async () => {
+beforeEach(() => {
   actor = ADMIN;
-  rows.clear();
+  updates.length = 0;
   resent.length = 0;
-  await hosts.assign(ORG.id, ORG.slug);
 });
 
-const put = (payload: unknown) =>
-  app.inject({ method: 'PUT', url: '/api/organizations/hosts', payload: payload as object });
+const patch = (payload: unknown) =>
+  app.inject({ method: 'PATCH', url: '/api/organizations', payload: payload as object });
 
 describe('organization hosts', () => {
-  it('answers the host the organization was created with for both apps', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/organizations/hosts' });
+  it('returns the hosts with the organization', async () => {
+    const res = await patch({ name: 'Acme', slug: 'acme' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual(STARTED);
+    expect(res.json()).toEqual({
+      id: ORG.id,
+      name: 'Acme',
+      slug: 'acme',
+      createdAt: NOW.toISOString(),
+      hosts: HOSTS,
+    });
+    expect(updates).toEqual([{ name: 'Acme', slug: 'acme' }]);
   });
 
-  it('stores the hosts as origins and returns them on the next read', async () => {
-    const res = await put({
-      courses: 'https://learn.acme.test/',
-      community: 'https://club.acme.test',
+  it('passes new hosts on as origins', async () => {
+    const res = await patch({
+      name: 'Acme',
+      slug: 'acme',
+      hosts: { courses: 'https://school.acme.test/', community: 'https://club.acme.test' },
     });
-    expect(res.statusCode).toBe(200);
-    const stored = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
-    expect(res.json()).toEqual(stored);
-    const read = await app.inject({ method: 'GET', url: '/api/organizations/hosts' });
-    expect(read.json()).toEqual(stored);
-    expect(await hosts.resolve(ORG.id)).toEqual(stored);
+    const hosts = { courses: 'https://school.acme.test', community: 'https://club.acme.test' };
+    expect(res.json()).toMatchObject({ hosts });
+    expect(updates).toEqual([{ name: 'Acme', slug: 'acme', hosts }]);
   });
 
   it.each([
+    { courses: 'https://learn.acme.test/courses', community: 'https://club.acme.test' },
+    { courses: 'learn.acme.test', community: 'https://club.acme.test' },
+    { courses: 'ftp://learn.acme.test', community: 'https://club.acme.test' },
     { courses: null, community: 'https://club.acme.test' },
     { community: 'https://club.acme.test' },
-  ])('refuses a replace that leaves a host out', async (payload) => {
-    expect((await put(payload)).statusCode).toBe(400);
-    expect(await hosts.resolve(ORG.id)).toEqual(STARTED);
-  });
-
-  it.each(['https://learn.acme.test/courses', 'learn.acme.test', 'ftp://learn.acme.test'])(
-    'refuses %s as a host',
-    async (courses) => {
-      const res = await put({ courses, community: 'https://club.acme.test' });
-      expect(res.statusCode).toBe(400);
-      expect(await hosts.resolve(ORG.id)).toEqual(STARTED);
-    },
-  );
-
-  it('refuses a caller without organizations:write, and a read without organizations:read', async () => {
-    actor = actorWith({ id: orgUser.id, orgId: ORG.id, org: ['organizations:read'] });
-    expect((await put(STARTED)).statusCode).toBe(403);
-    actor = actorWith({ id: orgUser.id, orgId: ORG.id, org: [] });
-    const read = await app.inject({ method: 'GET', url: '/api/organizations/hosts' });
-    expect(read.statusCode).toBe(403);
+  ])('refuses %j as hosts', async (hosts) => {
+    const res = await patch({ name: 'Acme', slug: 'acme', hosts });
+    expect(res.statusCode).toBe(400);
+    expect(updates).toEqual([]);
   });
 
   it('resends an invite with no host, and passes a named host on', async () => {

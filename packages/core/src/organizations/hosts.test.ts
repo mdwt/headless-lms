@@ -35,7 +35,6 @@ describe('OrgHostSettings', () => {
       courses: 'https://acme.platform.test',
       community: 'https://acme.platform.test',
     });
-    expect(await hosts.get(ADMIN)).toEqual(started);
     expect(await hosts.resolve('org_acme')).toEqual(started);
   });
 
@@ -89,16 +88,10 @@ describe('OrgHostSettings', () => {
     });
   });
 
-  it('needs organizations:read to see the hosts and organizations:write to change them', async () => {
+  it('needs organizations:write to change the hosts', async () => {
     const { hosts } = world();
     await hosts.assign('org_acme', 'acme');
     const reader = actorWith({ orgId: 'org_acme', org: ['organizations:read'] });
-    const nobody = actorWith({ orgId: 'org_acme', org: [] });
-    await expect(hosts.get(reader)).resolves.toEqual({
-      courses: 'https://acme.platform.test',
-      community: 'https://acme.platform.test',
-    });
-    await expect(hosts.get(nobody)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(
       hosts.replace(
         { courses: 'https://learn.acme.test', community: 'https://club.acme.test' },
