@@ -1,0 +1,2 @@
+CREATE INDEX "settings_courses_host_idx" ON "settings" USING btree (("value" #>> '{hosts,courses}')) WHERE "settings"."namespace" = 'organizations';--> statement-breakpoint
+CREATE INDEX "settings_community_host_idx" ON "settings" USING btree (("value" #>> '{hosts,community}')) WHERE "settings"."namespace" = 'organizations';

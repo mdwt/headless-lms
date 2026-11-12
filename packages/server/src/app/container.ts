@@ -27,6 +27,7 @@ import {
   DrizzleOutboxStore,
   DrizzleProgressRepository,
   DrizzleSettingsRepository,
+  DrizzleOrgHostIndex,
   DrizzleSubscriptionsRepository,
   DrizzleUnitOfWork,
 } from '@headless-lms/adapter-db';
@@ -184,7 +185,7 @@ export interface Config {
   emailBranding?: Omit<TemplateContext, 'hosts'>;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
-  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;
@@ -361,6 +362,7 @@ export async function buildContainer(
   );
   const hosts = new OrgHostSettings({
     settings,
+    index: new DrizzleOrgHostIndex(db),
     platformHost: config.platformHost,
     logger: logger.child({ name: 'org' }),
   });
@@ -883,6 +885,10 @@ export async function buildContainer(
     },
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
+    orgHosts: {
+      has: (origin) => organizations.isOrgHost(origin),
+      hasFor: (email, origin) => organizations.isHostOfPerson(email, origin),
+    },
     hooks: {
       sendResetPassword: async ({ user, url }) => {
         await identity.sendPasswordReset({ email: user.email, url });

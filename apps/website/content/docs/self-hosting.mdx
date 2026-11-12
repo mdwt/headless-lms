@@ -52,6 +52,12 @@ A new organization starts with one host for both apps: its slug as a subdomain o
 
 An organization changes its hosts by sending `hosts` to [`PATCH /api/organizations`](/docs/api/organizations/updateOrganization), for example when it connects its own domain or moves its community to a separate one. Both hosts are always set, and the next link uses the new value. Changing the slug later does not change the hosts.
 
+People can sign in from a page on any organization's host: the API trusts an origin that is one of an organization's hosts, beside the origins in `CLIENT_ORIGIN`, and a change of hosts applies from the next request. A password reset link or magic link that returns to an organization's host is sent only to a person who is active in that organization. A browser that calls the API from another origin still needs that origin in `CLIENT_ORIGIN`.
+
+| Variable             | Required | Default | Notes                                                                                                                                                                                                                                                                            |
+| -------------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_COOKIE_DOMAIN` | no       | unset   | The parent domain the session cookie is shared across, such as `.example.com`. Unset, the cookie is host-only: it belongs to whichever host served the request. Leave it unset when the API is served on each organization's host under `/api`, on domains that share no parent. |
+
 Point each host at the frontend that serves it. An installation with one organization sets `PLATFORM_HOST` to its domain and serves the member app at the organization's host, or stores the address it already uses with the same call.
 
 ### Default ports

@@ -104,6 +104,8 @@ export interface OrganizationService {
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   orgIds(): Promise<string[]>;
+  isOrgHost(origin: string): Promise<boolean>;
+  isHostOfPerson(email: string, origin: string): Promise<boolean>;
 
   actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null>;
   resolveCaller(

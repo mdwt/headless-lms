@@ -524,6 +524,10 @@ function store(
     inviteUrls: { adminAppUrl: 'https://admin.test' },
     hosts: {
       resolve: async (orgId: string) => assigned.get(orgId) ?? HOSTS,
+      orgsAt: async (host: string) =>
+        [...new Set([ORG, ...assigned.keys()])].filter((orgId) =>
+          Object.values(assigned.get(orgId) ?? HOSTS).includes(host),
+        ),
       assign,
       replace: async (hosts: typeof HOSTS, actor: Actor) => {
         actor.permissions.require('organizations:write');
@@ -1403,6 +1407,25 @@ describe('api keys and the organization', () => {
     const moved = await w.service.updateOrganization({ hosts }, admin);
     expect(moved).toMatchObject({ name: 'Acme Two', hosts });
     expect((await w.service.updateOrganization({ name: 'Acme' }, admin)).hosts).toEqual(hosts);
+  });
+
+  it("knows an organization's hosts from any other origin", async () => {
+    expect(await w.service.isOrgHost('https://learn.test')).toBe(true);
+    expect(await w.service.isOrgHost('https://club.test')).toBe(true);
+    expect(await w.service.isOrgHost('https://elsewhere.test')).toBe(false);
+    const admin = await w.actor(s.liam.orgUser.id);
+    const hosts = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
+    await w.service.updateOrganization({ hosts }, admin);
+    expect(await w.service.isOrgHost('https://learn.acme.test')).toBe(true);
+    expect(await w.service.isOrgHost('https://learn.test')).toBe(false);
+  });
+
+  it("counts a host as a person's only where they are an active org user", async () => {
+    const invited = await w.person('Noah', { status: 'invited' });
+    expect(await w.service.isHostOfPerson(s.james.person.email, 'https://learn.test')).toBe(true);
+    expect(await w.service.isHostOfPerson(invited.person.email, 'https://learn.test')).toBe(false);
+    expect(await w.service.isHostOfPerson('nobody@example.com', 'https://learn.test')).toBe(false);
+    expect(await w.service.isHostOfPerson(s.james.person.email, 'https://other.test')).toBe(false);
   });
 
   it('refuses a taken slug before writing anything', async () => {

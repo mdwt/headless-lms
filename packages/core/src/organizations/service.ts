@@ -122,7 +122,7 @@ export type OrganizationServiceParams = {
   logger?: Logger;
   mailer?: Pick<Mailer, 'send'>;
   inviteUrls?: InviteUrls;
-  hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace'>;
+  hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace' | 'orgsAt'>;
 };
 
 function snapshot(role: OrgRole) {
@@ -201,7 +201,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly logger: Logger;
   private readonly mailer?: Pick<Mailer, 'send'>;
   private readonly inviteUrls?: InviteUrls;
-  private readonly hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace'>;
+  private readonly hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace' | 'orgsAt'>;
 
   constructor(params: OrganizationServiceParams) {
     this.repo = params.repo;
@@ -391,6 +391,25 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   orgIds(): Promise<string[]> {
     return this.repo.listIds();
+  }
+
+  async isOrgHost(origin: string): Promise<boolean> {
+    return (await this.orgHosts().orgsAt(origin)).length > 0;
+  }
+
+  async isHostOfPerson(email: string, origin: string): Promise<boolean> {
+    const orgIds = await this.orgHosts().orgsAt(origin);
+    if (orgIds.length === 0) {
+      return false;
+    }
+    const person = await this.people.getUserByEmail(email);
+    if (!person) {
+      return false;
+    }
+    const orgUsers = await this.repo.findOrgUsersByUser(person.id);
+    return orgUsers.some(
+      (orgUser) => orgUser.status === 'active' && orgIds.includes(orgUser.orgId),
+    );
   }
 
   async actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null> {
@@ -1789,7 +1808,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     return deleted;
   }
 
-  private orgHosts(): Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace'> {
+  private orgHosts(): Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace' | 'orgsAt'> {
     if (!this.hosts) {
       throw new Error('organization hosts are not configured');
     }
