@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OrgHostSettings } from './hosts.js';
+import { OrgHostSettings, type OrgHostIndex } from './hosts.js';
 import { SettingsService, type SettingsRepository } from '../shared/settings.js';
 import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { actorWith } from './testing.js';
@@ -20,11 +20,19 @@ function world() {
       return { namespace, scopeId, value: next };
     },
   };
+  const index: OrgHostIndex = {
+    async findOrgIdsByHost(host) {
+      return [...rows]
+        .filter(([, value]) => Object.values(value.hosts ?? {}).includes(host))
+        .map(([key]) => key.split(':')[0]!);
+    },
+  };
   const hosts = new OrgHostSettings({
     settings: new SettingsService(repo),
+    index,
     platformHost: 'https://platform.test',
   });
-  return { hosts, rows, repo };
+  return { hosts, rows, repo, index };
 }
 
 describe('OrgHostSettings', () => {
@@ -39,8 +47,13 @@ describe('OrgHostSettings', () => {
   });
 
   it('keeps the scheme and port of the platform host, and uses the id when there is no slug', async () => {
-    const settings = new SettingsService(world().repo);
-    const local = new OrgHostSettings({ settings, platformHost: 'http://localhost:8002/' });
+    const { repo, index } = world();
+    const settings = new SettingsService(repo);
+    const local = new OrgHostSettings({
+      settings,
+      index,
+      platformHost: 'http://localhost:8002/',
+    });
     expect((await local.assign('org_acme', 'acme')).courses).toBe('http://acme.localhost:8002');
     expect((await local.assign('org_3LyAb', '')).courses).toBe('http://org-3lyab.localhost:8002');
   });
@@ -48,8 +61,9 @@ describe('OrgHostSettings', () => {
   it.each(['example.com', 'https://example.com/app', 'ftp://example.com'])(
     'refuses %s as the platform host',
     (platformHost) => {
-      const settings = new SettingsService(world().repo);
-      expect(() => new OrgHostSettings({ settings, platformHost })).toThrow(/platform host/);
+      const { repo, index } = world();
+      const settings = new SettingsService(repo);
+      expect(() => new OrgHostSettings({ settings, index, platformHost })).toThrow(/platform host/);
     },
   );
 
@@ -86,6 +100,18 @@ describe('OrgHostSettings', () => {
       notificationCategories: ['kept'],
       hosts: { courses: 'https://acme.platform.test', community: 'https://acme.platform.test' },
     });
+  });
+
+  it('finds the organizations at a host, from the next read after a change', async () => {
+    const { hosts } = world();
+    await hosts.assign('org_acme', 'acme');
+    expect(await hosts.orgsAt('https://acme.platform.test')).toEqual(['org_acme']);
+    await hosts.replace(
+      { courses: 'https://learn.acme.test', community: 'https://club.acme.test' },
+      ADMIN,
+    );
+    expect(await hosts.orgsAt('https://club.acme.test')).toEqual(['org_acme']);
+    expect(await hosts.orgsAt('https://acme.platform.test')).toEqual([]);
   });
 
   it('needs organizations:write to change the hosts', async () => {

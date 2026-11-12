@@ -53,17 +53,26 @@ export interface McpAuthOptions {
   orgPickerPage: string;
 }
 
+export interface OrgHosts {
+  /** Whether the origin is a host of any organization. */
+  has(origin: string): Promise<boolean>;
+  /** Whether the origin is a host of an organization the person with this email is active in. */
+  hasFor(email: string, origin: string): Promise<boolean>;
+}
+
 export interface CreateAuthOptions {
   db: NodePgDatabase;
   baseUrl: string;
   secret: string;
   trustedOrigins: string[];
+  /** Organizations' hosts, trusted beside `trustedOrigins` and asked on every request. Absent → only `trustedOrigins`. */
+  orgHosts?: OrgHosts;
   /** Logs failures that must not abort an auth flow (e.g. a failed invite email). */
   logger: Logger;
   /** Handlers for what the engine reports. The adapter owns no rules. */
   hooks: Hooks;
   mcp: McpAuthOptions;
-  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie. */
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;

@@ -6,7 +6,8 @@
 // Deliberately NOT bound to any domain: no FK to content or anywhere else, so
 // settings never learns what it is scoping. Rows orphaned by a deleted entity
 // are purged off that domain's *.deleted event, not by cascade.
-import { pgTable, text, jsonb, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgTable, text, jsonb, timestamp, primaryKey, index } from "drizzle-orm/pg-core";
 import type { Setting } from "@headless-lms/core/schemas";
 import { organizations } from "./organizations.js";
 import type { Expect, NoDrift } from "./drift.js";
@@ -32,6 +33,12 @@ export const settings = pgTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.namespace, t.scopeId] }),
+    coursesHost: index("settings_courses_host_idx")
+      .on(sql`(${t.value} #>> '{hosts,courses}')`)
+      .where(sql`${t.namespace} = 'organizations'`),
+    communityHost: index("settings_community_host_idx")
+      .on(sql`(${t.value} #>> '{hosts,community}')`)
+      .where(sql`${t.namespace} = 'organizations'`),
   }),
 );
 

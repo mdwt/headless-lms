@@ -5,8 +5,13 @@ import { NotFoundError } from '../shared/errors.js';
 import { noopLogger } from '../shared/logger.js';
 import { SettingsNamespace, type SettingsService } from '../shared/settings.js';
 
+export interface OrgHostIndex {
+  findOrgIdsByHost(host: string): Promise<string[]>;
+}
+
 export type OrgHostSettingsParams = {
   settings: SettingsService;
+  index: OrgHostIndex;
   platformHost: string;
   logger?: Logger;
 };
@@ -35,11 +40,13 @@ function labelOf(value: string): string {
 
 export class OrgHostSettings {
   private readonly settings: SettingsService;
+  private readonly index: OrgHostIndex;
   private readonly platform: URL;
   private readonly logger: Logger;
 
   constructor(params: OrgHostSettingsParams) {
     this.settings = params.settings;
+    this.index = params.index;
     this.platform = platformOrigin(params.platformHost);
     this.logger = params.logger ?? noopLogger;
   }
@@ -71,6 +78,10 @@ export class OrgHostSettings {
       throw new NotFoundError('Organization hosts', orgId);
     }
     return { courses, community };
+  }
+
+  orgsAt(host: string): Promise<string[]> {
+    return this.index.findOrgIdsByHost(host);
   }
 
   private async store(orgId: string, hosts: Hosts): Promise<void> {

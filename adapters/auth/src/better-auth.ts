@@ -88,6 +88,31 @@ const OAUTH_CLIENT_WRITES = new Set([
   "/oauth2/delete-client",
 ]);
 
+const CALLBACK_PARAMS = ["callbackURL", "errorCallbackURL", "newUserCallbackURL"];
+
+function webOrigin(value: string | null): string | null {
+  if (!value || !URL.canParse(value)) {
+    return null;
+  }
+  const url = new URL(value);
+  return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null;
+}
+
+function callbackOrigins(url: string): string[] {
+  if (!URL.canParse(url)) {
+    return [];
+  }
+  const { searchParams } = new URL(url);
+  return CALLBACK_PARAMS.map((name) => webOrigin(searchParams.get(name))).filter(
+    (origin): origin is string => origin !== null,
+  );
+}
+
+function requestOrigins(request: Request): string[] {
+  const page = webOrigin(request.headers.get("origin") || request.headers.get("referer"));
+  return [...new Set([...(page ? [page] : []), ...callbackOrigins(request.url)])];
+}
+
 function activeOrgOf(session: unknown): string | null {
   const value = (session as { activeOrganizationId?: string | null } | null)?.activeOrganizationId;
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -151,10 +176,43 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       );
     };
 
+  const orgHosts = opts.orgHosts;
+  const orgHostsOf = async (request: Request | undefined): Promise<string[]> => {
+    if (!orgHosts || !request) {
+      return [];
+    }
+    const trusted: string[] = [];
+    for (const origin of requestOrigins(request)) {
+      if (!opts.trustedOrigins.includes(origin) && (await orgHosts.has(origin))) {
+        trusted.push(origin);
+      }
+    }
+    return trusted;
+  };
+  const linkAllowed = async (email: string, url: string): Promise<boolean> => {
+    if (!orgHosts) {
+      return true;
+    }
+    for (const origin of callbackOrigins(url)) {
+      if (opts.trustedOrigins.includes(origin) || !(await orgHosts.has(origin))) {
+        continue;
+      }
+      if (!(await orgHosts.hasFor(email, origin))) {
+        opts.logger.warn("auth link not sent: its host is not one of the person's organizations", {
+          origin,
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   return {
     baseURL: opts.baseUrl,
     secret: opts.secret,
-    trustedOrigins: opts.trustedOrigins,
+    trustedOrigins: orgHosts
+      ? async (request?: Request) => [...opts.trustedOrigins, ...(await orgHostsOf(request))]
+      : opts.trustedOrigins,
     logger: {
       log: (level, message, ...args) => {
         const [first] = args;
@@ -184,13 +242,11 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         generateId: () => prefixId("id"),
       },
       // Cross-subdomain shared session cookie for admin/api/web on one parent
-      // domain (e.g. `.example.com` in prod). Left unset in local dev so the
-      // host-only `localhost` cookie is used, which is already shared across
-      // ports (cookies are not port-scoped).
-      crossSubDomainCookies: {
-        enabled: true,
-        domain: opts.cookieDomain || undefined,
-      },
+      // domain (e.g. `.example.com` in prod). Without a domain the cookie is
+      // host-only: set for whichever host served the request.
+      crossSubDomainCookies: opts.cookieDomain
+        ? { enabled: true, domain: opts.cookieDomain }
+        : { enabled: false },
       // Same-site cookie for the shared-parent-domain plan. Only switch to
       // `sameSite: "none"` + `secure` if admin and api are genuinely cross-site
       // (different registrable domains).
@@ -207,14 +263,22 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     emailAndPassword: {
       enabled: true,
       // Detached so send time can't reveal which emails have accounts, and a failed notice can't fail the reset.
-      sendResetPassword: detached("sendResetPassword", sendResetPassword),
+      sendResetPassword: detached("sendResetPassword", async (data, request) => {
+        if (await linkAllowed(data.user.email, data.url)) {
+          await sendResetPassword(data, request);
+        }
+      }),
       onPasswordReset: detached("onPasswordReset", onPasswordReset),
       revokeSessionsOnPasswordReset: true,
     },
     plugins: [
       magicLink({
         disableSignUp: true,
-        sendMagicLink,
+        sendMagicLink: async (data, ctx) => {
+          if (await linkAllowed(data.email, data.url)) {
+            await sendMagicLink(data, ctx);
+          }
+        },
       }),
       organization({
         ac,
