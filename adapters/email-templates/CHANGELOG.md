@@ -1,5 +1,12 @@
 # @headless-lms/adapter-email-templates
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`0a1d250`](https://github.com/mdwt/headless-lms/commit/0a1d250f710ac697f07d93b346350363f89316ed)]:
+  - @headless-lms/core@0.11.0
+
 ## 0.3.0
 
 ### Minor Changes
