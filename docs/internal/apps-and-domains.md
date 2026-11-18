@@ -15,7 +15,7 @@ and a community. An app serves one of them or both.
 For example, on a platform at `example.com` Acme starts with one app at `https://acme.example.com` serving both. It
 later runs a course app at `https://learn.acme.com` and a community app at `https://club.acme.com`.
 
-A domain is the whole origin the app is reached at, with its scheme and port, not the platform's host.
+A domain is the whole origin the app is reached at, with its scheme and port.
 
 One frontend deployment can serve many organizations. Each organization's domain points at it, and the domain of a
 request says whose courses or community to show.
@@ -23,11 +23,10 @@ request says whose courses or community to show.
 ## Rules
 
 - A domain belongs to one app, and so to one organization, across the whole system.
-- An app serves courses, the community, or both. It always serves at least one.
-- An organization has at most one app that serves courses and at most one that serves the community. So it has one
-  app or two.
+- An organization has at most one app that serves courses and at most one that serves the community.
 - A new organization gets one app at `https://<slug>.<PLATFORM_HOST>` that serves both.
-- A request that arrives on a domain is for that domain's app and its organization.
+- A request that arrives on a domain is for that domain's app and its organization. Everything logged for the
+  request carries the app's id.
 - A request on a domain that is no app's domain gets a 404.
 
 ## The table
@@ -51,21 +50,14 @@ apps
   check (courses or community)
 ```
 
-Nothing links an app or a domain to a single course or community.
-
-## From a request to its app
-
-The domain of a request is looked up in `apps`. It gives the app and the organization. Everything logged for the
-request carries the app's id.
-
 ## Which domain a link uses
 
-| The link is                                                           | Domain                                       |
-| --------------------------------------------------------------------- | -------------------------------------------- |
-| About a course or an activity                                         | The organization's app that serves courses   |
-| About a community, a space, a post, a chat or an event                | The organization's app that serves community |
-| Asked for on a domain: password reset, password changed, sign-in link | The domain it was asked for on               |
-| An invite                                                             | The domain it was sent from                  |
+| The link is                                                           | Domain                                           |
+| --------------------------------------------------------------------- | ------------------------------------------------ |
+| About a course or an activity                                         | The organization's app that serves courses       |
+| About a community, a space, a post, a chat or an event                | The organization's app that serves the community |
+| Asked for on a domain: password reset, password changed, sign-in link | The domain it was asked for on                   |
+| An invite                                                             | The domain it was sent from                      |
 
 For Acme with two apps:
 
