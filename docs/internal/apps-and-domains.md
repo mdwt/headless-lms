@@ -47,11 +47,12 @@ apps
 A domain is stored as an origin, normalised the way `hostSchema` normalises a host today. Saving a domain another
 app has, or a second app that serves courses or the community, is a 409.
 
-## The domain of a request
+## The renderer's lookup
 
-The domain of a request to the API is the origin the sign-in adapter already reads: the `Origin` or `Referer` header
-and the origin of the link's return address (`requestOrigins` and `callbackOrigins` in
-`adapters/auth/src/better-auth.ts`). A request from an app's domain is logged with the app's id.
+The app that renders, today the student app, receives a request on a domain and asks the API which app and
+organization that domain is. With no match it returns a 404. It makes the call as itself, not as the visitor.
+
+A request from an app's domain is logged with the app's id.
 
 ## Which domain a link uses
 
@@ -82,14 +83,13 @@ domain.
 
 The domain names the organization:
 
-1. The sign-in adapter passes the domain to its hooks.
+1. The sign-in adapter passes the domain to its hooks. It already reads it: the `Origin` or `Referer` header and the
+   origin of the link's return address (`requestOrigins` and `callbackOrigins` in
+   `adapters/auth/src/better-auth.ts`).
 2. Organizations looks the domain up.
 3. Identity's `sendPasswordReset`, `sendPasswordChanged` and `sendMagicLink`
    (`packages/core/src/identity/service.ts`) send with that organization, so the templates receive its apps as they
    do for an invite.
-
-A reset or sign-in link that returns to an app's domain is sent only to a person active in that organization, as
-today.
 
 ## What exists today
 
@@ -113,8 +113,9 @@ today.
   `DrizzleOrgHostIndex` go.
 - Organizations creates, lists, updates and deletes apps, each needing `organizations:write`, and looks a domain up.
   Creating an organization creates its first app.
-- The API gets app routes and MCP tools. `hosts` leaves the organization, platform and MCP
-  organization payloads. The admin app gets a screen for apps.
+- The API gets app routes, the renderer's lookup and MCP tools. `hosts` leaves the organization, platform and MCP
+  organization payloads.
+- The student app looks its domain up and returns a 404 when there is no app.
 - `isOrgHost` and `isHostOfPerson` read `apps`.
 - An invite's `host` becomes `domain`, checked against the organization's apps.
 - `TemplateContext.hosts` becomes the two apps, and the templates and the calendar file link build from them.
@@ -125,3 +126,5 @@ today.
 
 - **The name.** "App" already means a connected app, an outside program a person has authorised
   (`/api/access/apps`). The two need different names in the API and the docs.
+- **The renderer's credential.** The student app has none of its own: its server forwards the visitor's session
+  cookie (`apps/student/src/lib/api/server-call.ts`), and an API key carries one person's permissions.
