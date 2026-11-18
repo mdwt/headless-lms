@@ -26,13 +26,13 @@ request says whose courses or community to show.
 - An app serves courses, the community, or both. It always serves at least one.
 - An organization has at most one app that serves courses and at most one that serves the community. So it has one
   app or two.
-- An organization does not have to serve both. A course-only organization has no app that serves the community.
-  Removing or changing an app is never refused for leaving courses or the community without one.
+- Members reach courses or a community only through an app that serves them. An organization that runs a community
+  has an app serving it; a course-only organization has no community app and no community for anyone to be linked
+  to.
+- Removing or changing an app is never refused.
 - A new organization gets one app at `https://<slug>.<PLATFORM_HOST>` that serves both.
 - A request that arrives on a domain is for that domain's app and its organization.
-- There is no fallback. A request on a domain that is no app's domain gets a 404. An email that needs the app that
-  serves courses or the community, in an organization that has none, fails to render, as a template without hosts
-  does today.
+- There is no fallback. A request on a domain that is no app's domain gets a 404.
 
 ## The table
 
