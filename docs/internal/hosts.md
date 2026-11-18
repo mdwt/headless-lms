@@ -15,8 +15,8 @@ A host is the full origin an organization's app is reached at, such as `https://
 - A new organization starts with one host, its slug under the platform's host: `https://<slug>.<PLATFORM_HOST>`.
 - An organization has a default host. It starts as the host the organization was created with, and an admin can
   change it.
-- A course, a community or an event can pin one of its organization's hosts. An item with no pin uses the default
-  host.
+- A course, a community or an event is reached on one of its organization's hosts. Each one has a host setting; a
+  course, community or event with no host set is reached on the default host.
 - A request that arrives on a host is for the organization that host belongs to.
 
 ## The table
@@ -32,29 +32,32 @@ hosts
 ```
 
 The table says which hosts an organization has and nothing else. It has no column per kind of app and no column
-that names an item.
+that names a course or a community.
 
-## Pinning an item to a host
+## The host of a course or a community
 
-The pin is made on the item, not in the `hosts` table.
+The link is made on the course or the community, not in the `hosts` table. An event works the same way.
 
-- The pin is stored with the item's own settings.
-- There is no foreign key from content to `hosts`. An item is created without a host.
-- When a pin is saved, content checks with organizations that the host is one of the organization's hosts.
-- Removing a host checks nothing in content. An item pinned to a host that no longer exists uses the default host.
-- What sits inside an item uses the item's host: a module and an activity use their course's, a space, a post, a
-  comment and a chat use their community's.
+- The host is stored with the course's or the community's own settings.
+- There is no foreign key from content to `hosts`. A course or a community is created without choosing a host.
+- When a host is saved on a course or a community, content checks with organizations that it is one of the
+  organization's hosts.
+- Removing a host checks nothing in content. A course or a community whose host no longer exists is reached on the
+  default host.
+- What sits inside uses the same host: a module and an activity use their course's, a space, a post, a comment and
+  a chat use their community's.
 
 ## Which host a link uses
 
-| The link is                                                        | Host                                        |
-| ------------------------------------------------------------------ | ------------------------------------------- |
-| About an item: a new post, a course completed, an event reminder   | The item's pin, or the default host         |
-| About the organization and no item: an invite                      | The default host                            |
-| Asked for on a host: password reset, password changed, sign-in link | The host it was asked for on                |
+| The link is                                                                                | Host                          |
+| ------------------------------------------------------------------------------------------ | ----------------------------- |
+| About a course, a community or an event: a new post, a course completed, an event reminder | Its host, or the default host |
+| About the organization only: an invite                                                     | The default host              |
+| Asked for on a host: password reset, password changed, sign-in link                        | The host it was asked for on  |
 
 For example, Acme has `https://acme.example.com`, `https://learn.acme.com` and `https://club.acme.com`, with
-`https://learn.acme.com` as its default. Its community pins `https://club.acme.com`; its courses pin nothing.
+`https://learn.acme.com` as its default. Its community's host is `https://club.acme.com`; its courses have no host
+set.
 
 - An email about a new post links to `https://club.acme.com`.
 - An email about a completed course links to `https://learn.acme.com`.
@@ -92,5 +95,5 @@ its email links to.
 ## Not settled
 
 - **How the default host is recorded.** Not as a boolean column on `hosts`.
-- **Downloads.** A course, a community and an event each have a settings record that can hold a pin. A download has
-  none. Either a download gets one, or a download always uses the default host.
+- **Downloads.** A course, a community and an event each have a settings record that can hold a host. A download
+  has none. Either a download gets one, or a download is always reached on the default host.
