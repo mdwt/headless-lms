@@ -30,6 +30,9 @@ request says whose courses or community to show.
   Removing or changing an app is never refused for leaving courses or the community without one.
 - A new organization gets one app at `https://<slug>.<PLATFORM_HOST>` that serves both.
 - A request that arrives on a domain is for that domain's app and its organization.
+- There is no fallback. A request on a domain that is no app's domain gets a 404. An email that needs the app that
+  serves courses or the community, in an organization that has none, fails to render, as a template without hosts
+  does today.
 
 ## The table
 
@@ -115,5 +118,3 @@ With one organization per domain, the domain names the organization:
 
 - **The name.** "App" already means a connected app, an outside program a person has authorised
   (`/api/access/apps`). The two need different names in the API and the docs.
-- **An email with no app to link to.** A template throws today when it has no hosts to build a link from. With no
-  app serving courses or the community, an email about one of them has no domain for its link.
