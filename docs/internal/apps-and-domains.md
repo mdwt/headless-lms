@@ -47,10 +47,7 @@ apps
 A domain is stored as an origin, normalised the way `hostSchema` normalises a host today. Saving a domain another
 app has, or a second app that serves courses or the community, is a 409.
 
-## Looking up a domain
-
-A frontend asks which app is at its domain before anyone is signed in, so the lookup is a public route. It returns
-the app and its organization, or a 404.
+## The domain of a request
 
 The domain of a request to the API is the origin the sign-in adapter already reads: the `Origin` or `Referer` header
 and the origin of the link's return address (`requestOrigins` and `callbackOrigins` in
@@ -116,7 +113,7 @@ today.
   `DrizzleOrgHostIndex` go.
 - Organizations creates, lists, updates and deletes apps, each needing `organizations:write`, and looks a domain up.
   Creating an organization creates its first app.
-- The API gets app routes, the public lookup and MCP tools. `hosts` leaves the organization, platform and MCP
+- The API gets app routes and MCP tools. `hosts` leaves the organization, platform and MCP
   organization payloads. The admin app gets a screen for apps.
 - `isOrgHost` and `isHostOfPerson` read `apps`.
 - An invite's `host` becomes `domain`, checked against the organization's apps.
