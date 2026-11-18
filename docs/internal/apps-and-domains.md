@@ -26,6 +26,8 @@ request says whose courses or community to show.
 - An app serves courses, the community, or both. It always serves at least one.
 - An organization has at most one app that serves courses and at most one that serves the community. So it has one
   app or two.
+- An organization does not have to serve both. A course-only organization has no app that serves the community.
+  Removing or changing an app is never refused for leaving courses or the community without one.
 - A new organization gets one app at `https://<slug>.<PLATFORM_HOST>` that serves both.
 - A request that arrives on a domain is for that domain's app and its organization.
 
@@ -113,6 +115,5 @@ With one organization per domain, the domain names the organization:
 
 - **The name.** "App" already means a connected app, an outside program a person has authorised
   (`/api/access/apps`). The two need different names in the API and the docs.
-- **An organization with no app for one of the two.** A course-only organization has no app that serves the
-  community, where today both hosts are always set. Either that is allowed, and nothing links to a community it does
-  not run, or deleting or changing an app is refused when it would leave courses or the community unserved.
+- **An email with no app to link to.** A template throws today when it has no hosts to build a link from. With no
+  app serving courses or the community, an email about one of them has no domain for its link.
