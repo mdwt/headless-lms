@@ -154,6 +154,19 @@ of the link's return address (`requestOrigins` in `adapters/auth/src/better-auth
 | An app's, and the person is neither                               | Is refused                                             |
 | Any other domain, or none                                         | As today: the person's organization when they have one |
 
+The frontend never sends an organization id, and looking a domain up returns none. Sarah signs in on
+`https://learn.acme.com`:
+
+1. She submits her email and password. The browser posts to `https://learn.acme.com/api/auth/sign-in/email`, and
+   the request carries `Origin: https://learn.acme.com`.
+2. The API finds the app that has that domain. The app belongs to Acme.
+3. The API checks that Sarah is active in Acme and stores Acme's id on her session.
+4. Every later request carries her session cookie, and the API reads the organization from the session.
+
+A sign-in link has no form post: the session is created when the link is opened, and the domain is the origin of
+the link's return address. A frontend that signs a person in from its server sends the visitor's domain as
+`Origin`.
+
 For example, Sarah is in Acme and Globex, and James is only in Globex:
 
 - Sarah signs in on `https://learn.acme.com` and gets an Acme session. On Globex's domain she gets a Globex one.
