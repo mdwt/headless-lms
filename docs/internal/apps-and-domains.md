@@ -15,6 +15,42 @@ both. It later runs a course app at `https://learn.acme.com` and a community app
 One frontend deployment serves many organizations: each organization's domain points at it, and the domain says
 whose courses or community to show.
 
+## Use cases
+
+The design has to work for all five.
+
+**1. One organization, the bundled apps.** A school hosts the system for itself and serves the student app at its
+own domain.
+
+- It needs its domain on every link the API writes.
+- It has one organization, so there is nothing to look up.
+
+**2. Several organizations, the bundled apps.** An agency hosts the system for five clients. One student app
+deployment serves all five, and each client's domain points at it.
+
+- The student app needs to know which organization a domain is before anyone signs in, to show that organization's
+  name and to answer a domain nobody registered with a 404.
+- A person who signs in on a client's domain gets that client's courses.
+
+**3. Someone's own frontend, running only in the browser.** A developer builds a single-page app on the API and
+serves it as static files.
+
+- It needs the same as use case 2.
+- It cannot keep a secret: everything sent to a browser can be read. So looking a domain up needs no key.
+
+**4. Someone's own frontend, rendered on a server.** A developer builds a server-rendered site on the API.
+
+- It needs the same as use case 2.
+- Its server calls the API on the visitor's behalf, so it passes the visitor's domain along.
+
+**5. A platform.** A product creates one organization per customer with the platform key, runs its own frontends
+on each customer's domain and renders its own email templates.
+
+- It needs every email to say which organization it is for, including the three sign-in emails (#41).
+- Its templates need to find its own customer from the organization. It reads its customer id from the
+  organization's metadata.
+- It set each domain itself, so it knows which customer a domain is without asking. It may ask anyway.
+
 ## Rules
 
 - A domain belongs to one app, and so to one organization, across the whole system.
@@ -25,8 +61,8 @@ whose courses or community to show.
 - A session started on an app's domain is for that app's organization.
 - An app's domain reaches the API under `/api`. The browser's calls, the session cookie and the links in the
   sign-in emails all use the app's domain.
-- The API reads a request's domain to know its app and organization. No route tells a caller which app or
-  organization a domain is.
+- The API reads a request's domain to know its app and organization.
+- A frontend asks the API which app and organization its own domain is, with no key.
 
 ## The table
 
@@ -73,18 +109,38 @@ A request carries its domain in its `Origin` header, or else its `Referer`.
 - With a session for another organization it is a 401. This happens when `AUTH_COOKIE_DOMAIN` shares one cookie
   across the organizations' subdomains: Sarah signs in on Acme's domain and then opens Globex's.
 
+## Looking a domain up
+
+A frontend asks which app and organization the domain it is serving is. It asks before anyone has signed in, so the
+call needs no session and no key.
+
+Sarah opens `https://learn.acme.com`. The page asks:
+
+```
+GET https://learn.acme.com/api/app
+
+200  { "organization": { "name": "Acme" },
+       "app": { "name": "Acme Academy", "courses": true, "community": false } }
+```
+
+- The API answers for the domain of the request. The call takes no domain as a parameter.
+- A frontend rendered on a server makes the same call and sends the visitor's domain as `Origin`.
+- A request that carries no domain, or a domain that is no app's, is a 404.
+- It returns the organization's name, the app's name and what the app serves, and nothing else. A sign-in page on
+  that domain shows the same.
+- It is rate limited by IP address.
+
 ## The student app
 
-One deployment serves any organization's domain, with no setting per organization. The session says whose courses
-to show.
+One deployment serves any organization's domain, with no setting per organization.
 
+- It looks its domain up. It shows the organization's name on the sign-in page, and returns a 404 when there is no
+  app or when the app does not serve courses.
 - Its browser code calls the API at its own origin under `/api`, and the student app forwards `/api` to the API
   (`API_URL`). `NEXT_PUBLIC_API_URL` goes.
 - Its server calls carry the visitor's domain as `Origin`.
 - It has a page to ask for a password reset, a page to set the new password, and a page to ask for a sign-in link.
   Each names its own domain as the link's return address.
-
-A platform that runs its own frontends knows which organization a domain is, because it set the domain.
 
 ## Which organization a session is for
 
@@ -197,6 +253,9 @@ email is sent without an organization.
   browser only from the origins in `CLIENT_ORIGIN` (`packages/server/src/http/plugins/cors.ts`), so it cannot run
   on an organization's domain. Its server calls carry no `Origin` (`apps/student/src/lib/api/server-call.ts`). It
   has no page to ask for a password reset or a sign-in link.
+- No route tells a frontend which organization a domain is. One route needs no session today: reading an invite
+  by its token (`getInvite` in `packages/server/src/http/routes/organizations.ts`). The API's own routes have no
+  rate limit.
 - "App" also names a connected app (`/api/access/apps`).
 
 ## What changes
@@ -207,12 +266,13 @@ email is sent without an organization.
   its first app in the same unit of work.
 - The API gets the app routes and their MCP tools. `hosts` leaves the organization, platform and MCP organization
   payloads.
+- The API gets `GET /api/app`, which needs no session and no key, and a rate limit for it.
 - A request from an app's domain is logged with the app's id, and is a 401 with a session for another
   organization.
 - A password reset link and a sign-in link that return to an app's domain are written at that domain under `/api`.
 - The connected app routes and the sign-in port's method are renamed.
-- The student app calls the API at its own origin, sends the visitor's domain on its server calls, and gets its
-  password reset and sign-in link pages.
+- The student app looks its domain up, calls the API at its own origin, sends the visitor's domain on its server
+  calls, and gets its password reset and sign-in link pages.
 - `isOrgHost` and `isHostOfPerson` read `apps`.
 - `beforeCreateSession` sets the session's organization from the domain of the sign-in.
 - An invite's `host` becomes `domain`, checked against the organization's apps.
