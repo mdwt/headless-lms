@@ -36,6 +36,7 @@ import type {
   ListAutomationTriggersResponse,
   ListApiKeyRolesResponse,
   ListApiKeysResponse,
+  ListAppsResponse,
   ListAvailableIntegrationsResponse,
   ListConnectedAppsResponse,
   ListBundleItemsResponse,
@@ -65,6 +66,8 @@ import type {
 // --- entities (straight from the SDK responses) ----------------------------
 
 export type ConnectedApp = ListConnectedAppsResponse[number];
+/** A frontend the organization runs on a domain. */
+export type OrgApp = ListAppsResponse[number];
 export type ApiKeySummary = ListApiKeysResponse[number];
 export type ApiKeyRole = ListApiKeyRolesResponse[number];
 

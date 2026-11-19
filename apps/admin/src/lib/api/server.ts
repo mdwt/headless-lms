@@ -34,6 +34,7 @@ import {
   Events,
   Integrations,
   Notifications,
+  Organizations,
   People,
   Posts,
   Reporting,
@@ -50,6 +51,7 @@ import type {
   ApiKeySummary,
   Asset,
   ConnectedApp,
+  OrgApp,
   Automation,
   AutomationKind,
   AutomationRunsPage,
@@ -733,6 +735,9 @@ export const serverApi = {
     return triggers;
   },
 
+  async listApps(): Promise<OrgApp[]> {
+    return await Organizations.listApps(await authHeaders());
+  },
   async listConnectedApps(): Promise<ConnectedApp[]> {
     return await Access.listConnectedApps(await authHeaders());
   },

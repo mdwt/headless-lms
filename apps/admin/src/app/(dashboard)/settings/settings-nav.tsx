@@ -6,6 +6,7 @@ import {
   Bell,
   Blocks,
   Building2,
+  Globe,
   KeyRound,
   PlugZap,
   ShieldCheck,
@@ -39,6 +40,7 @@ const GROUPS: NavGroup[] = [
         icon: Building2,
         needs: "organizations:read",
       },
+      { href: "/settings/apps", label: "Apps", icon: Globe, needs: "organizations:read" },
       { href: "/settings/team", label: "Team", icon: Users, needs: "people:read" },
       { href: "/settings/roles", label: "Roles", icon: ShieldCheck, needs: "roles:read" },
       {
