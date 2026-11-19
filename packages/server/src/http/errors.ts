@@ -21,6 +21,7 @@ import {
 import { hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import { NoActiveOrgError } from './scope.js';
 import { UnauthorizedError } from './plugins/auth.js';
+import { TooManyRequestsError } from './rate-limit.js';
 
 export type Refusal = {
   status: number;
@@ -156,6 +157,9 @@ export function classifyError(error: unknown): Refusal | undefined {
   }
   if (error instanceof UnauthorizedError) {
     return { status: 401, error: 'unauthorized', message: error.message };
+  }
+  if (error instanceof TooManyRequestsError) {
+    return { status: 429, error: 'too_many_requests', message: error.message };
   }
   if (error instanceof InviteError) {
     return { status: 400, error: 'invalid_invite', message: error.message };

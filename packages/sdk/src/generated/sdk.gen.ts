@@ -169,6 +169,8 @@ import type {
   FlagMessageResponses,
   FlagPostErrors,
   FlagPostResponses,
+  GetAppErrors,
+  GetAppResponses,
   GetAssetErrors,
   GetAssetResponses,
   GetAutomationErrors,
@@ -894,6 +896,21 @@ export class Organizations {
         ...options?.headers,
         ...params.headers,
       },
+    });
+  }
+
+  /**
+   * The app and organization of the domain the request comes from
+   *
+   * Public: no session and no key. Answers for the domain in the `Origin` header, or else the `Referer`; it takes no domain as a parameter. A frontend's server sends its visitor's domain as `Origin` and the visitor's IP address as `X-Forwarded-For`. 404 when the request carries no domain or the domain is no app's. Limited to 100 requests in 10 seconds per client IP address (429, with `Retry-After`).
+   */
+  public static getApp<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetAppResponses, GetAppErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<GetAppResponses, GetAppErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/app",
+      ...options,
     });
   }
 

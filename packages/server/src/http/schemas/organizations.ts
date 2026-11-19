@@ -74,3 +74,13 @@ export type UpdateApp = z.infer<typeof UpdateApp>;
 
 export const AppIdParam = z.object({ appId: z.string() });
 export type AppIdParam = z.infer<typeof AppIdParam>;
+
+export const AppLookup = z.object({
+  organization: z.object({ name: z.string() }),
+  app: z.object({
+    name: z.string(),
+    courses: z.boolean().describe(APP_COURSES),
+    community: z.boolean().describe(APP_COMMUNITY),
+  }),
+});
+export type AppLookup = z.infer<typeof AppLookup>;

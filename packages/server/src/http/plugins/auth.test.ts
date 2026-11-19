@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Container } from '../../app/container.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
+import { registerAppDomain } from './app-domain.js';
 import { registerAuth } from './auth.js';
 import { errorHandler } from './error-handler.js';
 
@@ -179,6 +180,106 @@ describe('api keys', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(keyChecks).toBe(0);
+  });
+});
+
+describe("a request from an app's domain", () => {
+  const GLOBEX = { id: 'org_2', name: 'Globex', slug: 'globex', externalId: 'org_2' };
+  const DOMAINS: Record<string, typeof ORG> = {
+    'https://learn.acme.test': ORG,
+    'https://globex.platform.test': GLOBEX,
+  };
+  const GRANT = {
+    userId: 'usr_k',
+    orgId: ORG.id,
+    clientId: 'api-key:key_1',
+    limit: { roleKey: 'owner' },
+  };
+  let activeOrganizationId: string | null = ORG.id;
+  let scoped: FastifyInstance;
+
+  beforeAll(async () => {
+    scoped = Fastify();
+    scoped.setErrorHandler(errorHandler);
+    const world = {
+      ...container,
+      auth: {
+        ...container.auth,
+        verify: async () => ({ ...SESSION, session: { activeOrganizationId } }),
+        verifyApiKey: async () => GRANT,
+      },
+      organizations: {
+        ...container.organizations,
+        lookupDomain: async (domain: string) => {
+          const organization = DOMAINS[domain];
+          return organization ? { app: { id: `app_${organization.slug}` }, organization } : null;
+        },
+      },
+    } as unknown as Container;
+    registerAppDomain(scoped, world);
+    registerAuth(scoped, world);
+    const seen = (req: { orgId?: string }) => ({ orgId: req.orgId ?? null });
+    scoped.get('/org-scoped', { preHandler: scoped.requireOrgSession }, async (req) => seen(req));
+    scoped.get('/session-only', { preHandler: scoped.requireSession }, async (req) => seen(req));
+    await scoped.ready();
+  });
+
+  afterAll(async () => {
+    await scoped.close();
+  });
+
+  beforeEach(() => {
+    activeOrganizationId = ORG.id;
+  });
+
+  const get = (url: string, headers: Record<string, string>) =>
+    scoped.inject({ method: 'GET', url, headers });
+
+  it("is answered with a session for that app's organization", async () => {
+    for (const url of ['/org-scoped', '/session-only']) {
+      const res = await get(url, { origin: 'https://learn.acme.test' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ orgId: 'org_1' });
+    }
+  });
+
+  it('is a 401 with a session for another organization', async () => {
+    for (const url of ['/org-scoped', '/session-only']) {
+      const res = await get(url, { origin: 'https://globex.platform.test' });
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toEqual({
+        error: 'unauthorized',
+        message: 'This session is for another organization',
+      });
+    }
+    const referred = await get('/org-scoped', { referer: 'https://globex.platform.test/courses' });
+    expect(referred.statusCode).toBe(401);
+  });
+
+  it('is answered from any other domain, whatever organization the session is for', async () => {
+    const others: Record<string, string>[] = [{}, { origin: 'https://admin.example.com' }];
+    for (const headers of others) {
+      expect((await get('/org-scoped', headers)).statusCode).toBe(200);
+    }
+  });
+
+  it('lets a session with no organization reach the routes that need none', async () => {
+    activeOrganizationId = null;
+    const res = await get('/session-only', { origin: 'https://globex.platform.test' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ orgId: null });
+    const scopedRoute = await get('/org-scoped', { origin: 'https://globex.platform.test' });
+    expect(scopedRoute.statusCode).toBe(401);
+    expect(scopedRoute.json().message).toBe('Choose an organization to continue');
+  });
+
+  it('does not apply to an API key', async () => {
+    const res = await get('/org-scoped', {
+      origin: 'https://globex.platform.test',
+      'x-api-key': 'hlms_good',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ orgId: 'org_1' });
   });
 });
 

@@ -14,6 +14,7 @@ import { entitlementsRoutes } from './routes/entitlements.js';
 import { automationsRoutes } from './routes/automations.js';
 import { webhooksRoutes } from './routes/webhooks.js';
 import { organizationsRoutes } from './routes/organizations.js';
+import { appRoutes } from './routes/app.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { courseAnalyticsRoutes } from './routes/course-analytics.js';
 import { assetsRoutes } from './routes/assets.js';
@@ -28,6 +29,7 @@ export function registerRoutes(app: FastifyInstance, container: Container): void
   app.register(async (instance) => {
     // instance.addHook('onRequest', instance.requireSession);
     await organizationsRoutes(instance, container);
+    await appRoutes(instance, container);
   });
 
   app.register(async (instance) => {

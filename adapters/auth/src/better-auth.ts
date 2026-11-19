@@ -32,6 +32,7 @@ import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { apiKey } from "@better-auth/api-key";
+import { getIP } from "@better-auth/core/utils/ip";
 import { and, count, eq, sql } from "drizzle-orm";
 import { ac, OWNER_MEMBERSHIP, PARTICIPANT_MEMBERSHIP, roles } from "./access.js";
 import {
@@ -428,6 +429,10 @@ export class BetterAuth
 
   async handler(request: Request): Promise<Response> {
     return this.auth.handler(request);
+  }
+
+  clientIp(headers: IncomingHttpHeaders): string | null {
+    return getIP(fromNodeHeaders(headers), this.auth.options);
   }
 
   async authorizationServerMetadata(request: Request): Promise<Response> {

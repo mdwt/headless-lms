@@ -2754,6 +2754,74 @@ export type GetDefaultNotificationCategoriesResponses = {
 export type GetDefaultNotificationCategoriesResponse =
   GetDefaultNotificationCategoriesResponses[keyof GetDefaultNotificationCategoriesResponses];
 
+export type GetAppData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/app";
+};
+
+export type GetAppErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  429: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetAppError = GetAppErrors[keyof GetAppErrors];
+
+export type GetAppResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    organization: {
+      name: string;
+    };
+    app: {
+      name: string;
+      /**
+       * Whether the app serves courses and downloads
+       */
+      courses: boolean;
+      /**
+       * Whether the app serves communities and events
+       */
+      community: boolean;
+    };
+  };
+};
+
+export type GetAppResponse = GetAppResponses[keyof GetAppResponses];
+
 export type ListCoursesData = {
   body?: never;
   path?: never;

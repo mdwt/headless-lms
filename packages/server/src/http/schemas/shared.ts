@@ -34,7 +34,7 @@ export const UnavailableErrorBody = ErrorBody.extend({
 });
 export type UnavailableErrorBody = z.infer<typeof UnavailableErrorBody>;
 
-type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 422 | 502 | 503;
+type RefusalStatus = 400 | 403 | 404 | 409 | 413 | 415 | 422 | 429 | 502 | 503;
 type RefusalBodies<S extends RefusalStatus> = {
   [K in S]: K extends 400 | 422
     ? typeof ValidationErrorBody

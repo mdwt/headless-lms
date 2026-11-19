@@ -20,6 +20,13 @@ function carriesKey(request: FastifyRequest): boolean {
   return request.headers['x-api-key'] !== undefined || request.headers.authorization !== undefined;
 }
 
+function refuseAnotherOrganization(request: FastifyRequest, authOrgId: string): void {
+  const organization = request.appAt?.organization;
+  if (organization && (organization.externalId ?? organization.id) !== authOrgId) {
+    throw new UnauthorizedError('This session is for another organization');
+  }
+}
+
 function callerLimit(limit: CredentialLimit): CallerLimit {
   return 'roleKey' in limit ? limit : { scopes: limit.scopes.filter(isPermission) };
 }
@@ -83,6 +90,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
 
     const authOrgId = session.session.activeOrganizationId;
     if (authOrgId) {
+      refuseAnotherOrganization(request, authOrgId);
       request.authOrgId = authOrgId;
       const caller = await appServer.organizations.resolveCaller(authOrgId, session.user.id);
       if (caller) {
@@ -110,6 +118,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     if (!authOrgId) {
       throw new UnauthorizedError('Choose an organization to continue');
     }
+    refuseAnotherOrganization(request, authOrgId);
 
     const caller = await appServer.organizations.resolveCaller(authOrgId, session.user.id);
     if (!caller) {
