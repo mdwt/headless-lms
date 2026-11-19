@@ -232,9 +232,12 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
         continue;
       }
       if (!(await orgHosts.hasFor(email, origin))) {
-        opts.logger.warn("auth link not sent: its host is not one of the person's organizations", {
-          origin,
-        });
+        opts.logger.warn(
+          "auth link not sent: its domain is no app of an organization the person is in",
+          {
+            origin,
+          },
+        );
         return false;
       }
     }
