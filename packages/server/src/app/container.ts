@@ -191,7 +191,7 @@ export interface Config {
   trustedProxies?: string[];
   /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
   ipAddressHeaders?: string[];
-  /** Origin a new organization's first app is made under, as `<slug>.<platform host>`. */
+  /** Origin a new organization's first app starts at, or under as `<slug>.<platform host>`. */
   platformHost: string;
   /** Admin app origin — invite links for staff. */
   adminAppUrl: string;

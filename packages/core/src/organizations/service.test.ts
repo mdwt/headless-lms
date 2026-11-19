@@ -1836,7 +1836,7 @@ describe('Better Auth on role changes', () => {
 });
 
 describe('creating an organization', () => {
-  it('starts the new organization at its slug under the platform host', async () => {
+  it('starts the new organization at the platform host', async () => {
     const p = store();
     const owner = await p.person('Sarah');
     p.orgAdmin.createOrganization.mockImplementationOnce(
@@ -1852,11 +1852,43 @@ describe('creating an organization', () => {
         id: expect.stringMatching(/^app_/),
         name: 'Yoga',
         slug: 'yoga',
-        domain: 'https://yoga.platform.test',
+        domain: 'https://platform.test',
         courses: true,
         community: true,
       },
     ]);
+  });
+
+  it('starts the next organization at its slug under the platform host', async () => {
+    const p = store();
+    const owner = await p.person('Sarah');
+    await p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Yoga', slug: 'yoga' });
+    const pilates = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Pilates',
+      slug: 'pilates',
+    });
+    expect(await p.service.appsOf(pilates.id)).toMatchObject([
+      { name: 'Pilates', slug: 'pilates', domain: 'https://pilates.platform.test' },
+    ]);
+  });
+
+  it('gives the platform host to the next organization once it is free', async () => {
+    const p = store();
+    const owner = await p.person('Sarah');
+    const yoga = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Yoga',
+      slug: 'yoga',
+    });
+    const [first] = await p.service.appsOf(yoga.id);
+    await p.appsRepo.update(yoga.id, first!.id, { domain: 'https://learn.yoga.test' });
+    const pilates = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Pilates',
+      slug: 'pilates',
+    });
+    expect((await p.service.appsOf(pilates.id))[0]?.domain).toBe('https://platform.test');
   });
 
   it('keeps the scheme and port of the platform host, and uses the id when there is no slug', async () => {
@@ -1867,11 +1899,28 @@ describe('creating an organization', () => {
       name: 'Yoga',
       slug: 'yoga',
     });
-    expect((await p.service.appsOf(yoga.id))[0]?.domain).toBe('http://yoga.localhost:8002');
+    expect((await p.service.appsOf(yoga.id))[0]?.domain).toBe('http://localhost:8002');
+    const pilates = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Pilates',
+      slug: 'pilates',
+    });
+    expect((await p.service.appsOf(pilates.id))[0]?.domain).toBe('http://pilates.localhost:8002');
     const unnamed = await p.service.provisionOrganization({ ownerId: owner.person.id });
     const [app] = await p.service.appsOf(unnamed.id);
     const label = unnamed.id.toLowerCase().replace(/[^a-z0-9-]+/g, '-');
     expect(app).toMatchObject({ slug: label, domain: `http://${label}.localhost:8002` });
+  });
+
+  it("starts at the slug when the platform host is one of the installation's own addresses", async () => {
+    const p = store({ platformHost: 'https://admin.platform.test' });
+    const owner = await p.person('Sarah');
+    const yoga = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Yoga',
+      slug: 'yoga',
+    });
+    expect((await p.service.appsOf(yoga.id))[0]?.domain).toBe('https://yoga.admin.platform.test');
   });
 
   it.each(['example.com', 'https://example.com/app', 'ftp://example.com'])(
@@ -1884,13 +1933,15 @@ describe('creating an organization', () => {
   it("creates nothing when the first domain would be one of the installation's own addresses", async () => {
     const p = store();
     const owner = await p.person('Sarah');
+    const other = await p.repo.create({ id: 'org_9', name: 'Other', slug: 'other', ownerId: 'u' });
+    await p.appsRepo.create({ ...LEARN, orgId: other.id, domain: 'https://platform.test' });
     for (const slug of ['admin', 'api']) {
       await expect(
         p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Sneaky', slug }),
       ).rejects.toBeInstanceOf(ConflictError);
     }
-    expect([...p.orgs.keys()]).toEqual([]);
-    expect([...p.apps.keys()]).toEqual([]);
+    expect([...p.orgs.keys()]).toEqual(['org_9']);
+    expect([...p.apps.values()].map((app) => app.domain)).toEqual(['https://platform.test']);
     expect(p.assignments).toEqual([]);
     expect(p.events).toEqual([]);
   });
@@ -1898,8 +1949,17 @@ describe('creating an organization', () => {
   it('creates nothing when another app already has the first domain', async () => {
     const p = store();
     const owner = await p.person('Sarah');
-    const admin = await p.repo.create({ id: 'org_9', name: 'Other', slug: 'other', ownerId: 'u' });
-    await p.appsRepo.create({ ...LEARN, orgId: admin.id, domain: 'https://yoga.platform.test' });
+    const other = await p.repo.create({ id: 'org_9', name: 'Other', slug: 'other', ownerId: 'u' });
+    await p.appsRepo.create({ ...LEARN, orgId: other.id, domain: 'https://platform.test' });
+    await p.appsRepo.create({
+      ...LEARN,
+      id: 'app_club',
+      slug: 'club',
+      orgId: other.id,
+      courses: false,
+      community: true,
+      domain: 'https://yoga.platform.test',
+    });
     await expect(
       p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Yoga', slug: 'yoga' }),
     ).rejects.toBeInstanceOf(ConflictError);

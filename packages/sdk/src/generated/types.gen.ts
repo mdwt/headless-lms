@@ -105,7 +105,7 @@ export type CreateOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.
+     * Unique. The organization's first app takes this slug. Its domain is the platform host, or the slug as a subdomain of it when another app already has the platform host.
      */
     slug: string;
   };
@@ -29380,7 +29380,7 @@ export type CreatePlatformOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.
+     * Unique. The organization's first app takes this slug, and its domain is the slug as a subdomain of the platform host.
      */
     slug: string;
     /**

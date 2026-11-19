@@ -47,7 +47,7 @@ curl https://<your-api-host>/api/platform/organizations \
 
 The response carries the organization and the key. Store the organization and the key against your customer; every later call for that customer uses the key. A slug in use gets `409`.
 
-The organization starts with one [app](/docs/self-hosting#apps-and-domains) at its slug under `PLATFORM_HOST`: with `PLATFORM_HOST=https://example.com`, `sarahs-yoga` starts at `https://sarahs-yoga.example.com`. When a customer connects their own domain, read the organization's apps with [`GET /api/organizations/apps`](/docs/api/organizations/listApps) and send the domain to [`PATCH /api/organizations/apps/:appId`](/docs/api/organizations/updateApp), both with their key. A domain another app already has gets `409`.
+The organization starts with one [app](/docs/self-hosting#apps-and-domains) at its slug as a subdomain of `PLATFORM_HOST`: with `PLATFORM_HOST=https://example.com`, `sarahs-yoga` starts at `https://sarahs-yoga.example.com`. When a customer connects their own domain, read the organization's apps with [`GET /api/organizations/apps`](/docs/api/organizations/listApps) and send the domain to [`PATCH /api/organizations/apps/:appId`](/docs/api/organizations/updateApp), both with their key. A domain another app already has gets `409`.
 
 Every email about that organization reaches your [email templates](/docs/adapters/email/react-email#what-a-template-receives) with the organization and the metadata you stored with it, the password reset, password changed and sign-in link emails included when they are asked for on one of its domains.
 

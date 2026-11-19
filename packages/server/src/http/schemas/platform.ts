@@ -10,7 +10,7 @@ export const CreatePlatformOrganization = z.object({
     .max(50)
     .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only')
     .describe(
-      "Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.",
+      "Unique. The organization's first app takes this slug, and its domain is the slug as a subdomain of the platform host.",
     ),
   metadata: z
     .record(z.string().min(1).max(40), z.string().max(500))

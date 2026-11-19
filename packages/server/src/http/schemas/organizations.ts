@@ -20,7 +20,7 @@ export const CreateOrganization = z.object({
     .max(50)
     .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only')
     .describe(
-      "Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.",
+      "Unique. The organization's first app takes this slug. Its domain is the platform host, or the slug as a subdomain of it when another app already has the platform host.",
     ),
 });
 export type CreateOrganization = z.infer<typeof CreateOrganization>;

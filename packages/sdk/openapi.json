@@ -73,7 +73,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host. 409 when another app already has that domain.",
+        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one app that serves courses and the community, with the organization's name and slug, at the platform host. When another app already has the platform host, or the installation has a platform key, it starts at its slug as a subdomain of the platform host; 409 when another app already has that domain.",
         "requestBody": {
           "required": true,
           "content": {
@@ -90,7 +90,7 @@
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique. The organization's first app takes this slug, and its domain is the slug under the platform host."
+                    "description": "Unique. The organization's first app takes this slug. Its domain is the platform host, or the slug as a subdomain of it when another app already has the platform host."
                   }
                 },
                 "required": [
@@ -87850,7 +87850,7 @@
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique. The organization's first app takes this slug, and its domain is the slug under the platform host."
+                    "description": "Unique. The organization's first app takes this slug, and its domain is the slug as a subdomain of the platform host."
                   },
                   "metadata": {
                     "description": "Key-value pairs stored with the organization",

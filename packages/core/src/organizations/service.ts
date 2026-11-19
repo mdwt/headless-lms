@@ -263,7 +263,11 @@ export class OrganizationServiceImpl implements OrganizationService {
         status: 'active',
       });
       await roles.setOrgRole(org.id, owner.id, OWNER_ROLE_KEY, SYSTEM_ID);
-      const first = firstAppOf(this.platform, org);
+      const taken =
+        this.platformPerson !== undefined ||
+        this.reservedDomains.has(this.platform.origin) ||
+        (await apps.findByDomain(this.platform.origin)) !== null;
+      const first = firstAppOf(this.platform, org, taken ? 'subdomain' : 'platform');
       this.assertNotReserved(first.domain, org.id);
       await apps.create({ ...first, id: genId('app') });
       await outbox.append([

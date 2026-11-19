@@ -7,7 +7,7 @@
 "@headless-lms/adapter-email-templates": minor
 ---
 
-An organization's two hosts become apps. An app is a frontend the organization runs on a domain, with a name and a slug, serving courses, the community, or both. A domain belongs to one app across the installation, and an organization has at most one app that serves courses and one that serves the community. A new organization starts with one app that serves both, at its slug under `PLATFORM_HOST`; creating it is a `409` when another app already has that domain.
+An organization's two hosts become apps. An app is a frontend the organization runs on a domain, with a name and a slug, serving courses, the community, or both. A domain belongs to one app across the installation, and an organization has at most one app that serves courses and one that serves the community. A new organization starts with one app that serves both, at `PLATFORM_HOST`. When another app already has that address, or the installation has a platform key, it starts at its slug as a subdomain of `PLATFORM_HOST`; creating it is a `409` when another app already has that domain.
 
 - `GET`, `POST /api/organizations/apps` and `PATCH`, `DELETE /api/organizations/apps/:appId` manage them, with the MCP tools `list_apps`, `create_app`, `update_app` and `delete_app`. Listing needs `organizations:read`, the rest `organizations:write`.
 - `GET /api/app` tells a frontend which organization and app the domain of the request is, with no session and no key. It answers for the `Origin` header, or else the `Referer`, and is limited to 100 requests in 10 seconds per client IP address.

@@ -85,7 +85,7 @@ export async function organizationsRoutes(
       tags,
       summary: 'Create an organization and make it active',
       description:
-        "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host. 409 when another app already has that domain.",
+        "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one app that serves courses and the community, with the organization's name and slug, at the platform host. When another app already has the platform host, or the installation has a platform key, it starts at its slug as a subdomain of the platform host; 409 when another app already has that domain.",
       body: CreateOrganization,
       response: { 201: Organization, ...refusals(400, 409) },
     },

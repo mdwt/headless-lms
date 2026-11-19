@@ -16,4 +16,5 @@ pnpm --filter student dev   # api must be up on :8000
 ```
 
 Open it on an organization's domain: with the default `PLATFORM_HOST`, the
-organization with the slug `acme` is at `http://acme.localhost:8002`.
+first organization is at `http://localhost:8002` and a second one with the
+slug `acme` at `http://acme.localhost:8002`.

@@ -26,7 +26,7 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 `.env.example` documents every variable and the command that mints a Hatchet token for the local `hatchet` container.
 
-Sign up in the admin at `http://localhost:8001` and create an organization. The student app answers on an organization's domain: with the slug `acme`, open `http://acme.localhost:8002`.
+Sign up in the admin at `http://localhost:8001` and create an organization, then open the student app at `http://localhost:8002`.
 
 ### Files
 
@@ -46,11 +46,13 @@ These commands run across all workspaces:
 
 An app is a frontend an organization runs on a domain. It serves courses, the community, or both. An organization has at most one app that serves courses and one that serves the community, and a domain belongs to one app across the whole installation. Links the API writes, in emails, member invites and event calendar files, use the domain of the app that serves what the link is about: courses and downloads open the course app, communities and events the community app.
 
-| Variable        | Required | Default                 | Notes                                                                                                                                                                           |
-| --------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_HOST` | no       | `http://localhost:8002` | The origin a new organization's first app is made under: scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
+| Variable        | Required | Default                 | Notes                                                                                                                                                                                                 |
+| --------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_HOST` | no       | `http://localhost:8002` | The origin a new organization's first app starts at, where the student app is: scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
 
-A new organization starts with one app that serves both, with the organization's name and slug, at its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Creating an organization answers `409` when another app already has that domain, or when it is the admin app's address or the API's: with the admin app at `https://admin.example.com`, the slug `admin` is refused.
+A new organization starts with one app that serves both, with the organization's name and slug, at `PLATFORM_HOST`. An installation with one organization needs nothing more: with `PLATFORM_HOST=https://learn.school.com`, the school's app is at `https://learn.school.com`.
+
+When another app already has that address, the organization starts at its slug as a subdomain of it. So does every organization of an installation with a [platform key](/docs/api-keys#the-platform-key). With `PLATFORM_HOST=https://example.com`, a second organization with the slug `acme` starts at `https://acme.example.com`. Creating it answers `409` when another app already has that domain, or when it is the admin app's address or the API's: with the admin app at `https://admin.example.com`, the slug `admin` is refused.
 
 An organization manages its apps in **Settings → Apps**, or under [`/api/organizations/apps`](/docs/api/organizations/listApps): it adds an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain. Changing the organization's slug later does not change its apps.
 
@@ -71,7 +73,7 @@ The student app does this itself. One deployment serves every organization's cou
 - It keeps the answer for a domain for a minute, so a change to an organization's apps shows in the student app within that minute. Sign-in and every API request follow the change at once.
 - It has pages to sign in, ask for a password reset, set the new password and ask for a sign-in link.
 
-Locally, with the defaults, an organization with the slug `acme` is at `http://acme.localhost:8002`. An installation with one organization changes its app's domain to the address its student app already has.
+Locally, with the defaults, the first organization is at `http://localhost:8002` and a second one with the slug `acme` at `http://acme.localhost:8002`.
 
 #### Signing in on a domain
 
@@ -92,7 +94,7 @@ People sign in on an app's domain: the API trusts the domain of every app, besid
 
 - `:8000` — API
 - `:8001` — Admin dashboard
-- `:8002` — Student portal, at `http://<slug>.localhost:8002`
+- `:8002` — Student portal
 - `:8005` — Postgres · `:8006/:8007` — MinIO (API / console)
 - `:8008/:8009` — Hatchet (gRPC / dashboard)
 

@@ -22,13 +22,14 @@ function labelOf(value: string): string {
 export function firstAppOf(
   platform: URL,
   org: Pick<Organization, 'id' | 'name' | 'slug'>,
+  at: 'platform' | 'subdomain',
 ): Omit<App, 'id'> {
   const label = labelOf(org.slug) || labelOf(org.id);
   return {
     orgId: org.id,
     name: org.name,
     slug: label,
-    domain: `${platform.protocol}//${label}.${platform.host}`,
+    domain: at === 'platform' ? platform.origin : `${platform.protocol}//${label}.${platform.host}`,
     courses: true,
     community: true,
   };
