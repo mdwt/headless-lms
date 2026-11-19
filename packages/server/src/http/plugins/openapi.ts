@@ -60,6 +60,10 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
           description: 'The tenant: its members, roles, invites and students',
         },
         {
+          name: 'Apps',
+          description: 'The frontends an organization runs, and the domain each is reached at',
+        },
+        {
           name: 'Content',
           description: 'Authored content: courses and downloads, their structure and delivery',
         },

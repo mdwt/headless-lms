@@ -1,6 +1,7 @@
 import 'fastify';
 import type { User } from '@headless-lms/core/types';
-import type { AppAt, ResolvedCaller } from '@headless-lms/core/organizations';
+import type { ResolvedCaller } from '@headless-lms/core/organizations';
+import type { AppAt } from '@headless-lms/core/shared/apps';
 
 /** The session's account as the HTTP layer sees it. Re-exported from the
  *  package entry point so this module — and its augmentation — gets loaded. */

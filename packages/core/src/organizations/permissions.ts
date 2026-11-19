@@ -24,13 +24,13 @@ export const PERMISSIONS = {
   'organizations:read': {
     group: 'organization',
     label: 'See the organization',
-    description: "See the org's name, slug, apps and general settings.",
+    description: "See the org's name, slug and general settings.",
     about: 'org',
   },
   'organizations:write': {
     group: 'organization',
     label: 'Edit the organization',
-    description: "Change the org's name, slug, apps and general settings.",
+    description: "Change the org's name, slug and general settings.",
     about: 'org',
     implies: ['organizations:read'],
   },

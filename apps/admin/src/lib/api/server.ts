@@ -25,6 +25,7 @@ import "server-only";
 
 import {
   Access,
+  Apps,
   Assets,
   Automations,
   Communities,
@@ -34,7 +35,6 @@ import {
   Events,
   Integrations,
   Notifications,
-  Organizations,
   People,
   Posts,
   Reporting,
@@ -736,7 +736,7 @@ export const serverApi = {
   },
 
   async listApps(): Promise<OrgApp[]> {
-    return await Organizations.listApps(await authHeaders());
+    return await Apps.listApps(await authHeaders());
   },
   async listConnectedApps(): Promise<ConnectedApp[]> {
     return await Access.listConnectedApps(await authHeaders());

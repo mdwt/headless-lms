@@ -4,12 +4,8 @@ import { z } from 'zod';
 import {
   AcceptInvite,
   AcceptInviteResult,
-  App,
-  AppIdParam,
-  AppList,
   AssignmentList,
   ContentIdParam,
-  CreateApp,
   CreateInvite,
   CreateOrganization,
   CreateRole,
@@ -33,13 +29,11 @@ import {
   RoleKeyParam,
   SetRole,
   TransferOwnership,
-  UpdateApp,
   UpdateOrganization,
   UpdateRole,
   refusals,
 } from '../schemas/index.js';
 import type { CreatedInvite } from '@headless-lms/core/organizations';
-import type { App as OrganizationApp } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
 
@@ -52,17 +46,6 @@ function inviteView(invite: CreatedInvite) {
     status: invite.status,
     expiresAt: invite.expiresAt,
     createdAt: invite.createdAt,
-  };
-}
-
-function appView(app: OrganizationApp) {
-  return {
-    id: app.id,
-    name: app.name,
-    slug: app.slug,
-    domain: app.domain,
-    courses: app.courses,
-    community: app.community,
   };
 }
 
@@ -121,80 +104,6 @@ export async function organizationsRoutes(
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
       };
-    },
-  });
-
-  r.route({
-    method: 'GET',
-    url: '/api/organizations/apps',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'listApps',
-      tags,
-      summary: "The organization's apps",
-      description: `Requires \`organizations:read\`. An app is a frontend the organization runs on a domain; it serves courses, the community, or both. Links in emails, invites and calendar files use the domain of the app that serves what the link is about.`,
-      response: { 200: AppList, ...refusals(403) },
-    },
-    handler: async (req) =>
-      (await organizations.listApps(await resolveActor(container, req))).map(appView),
-  });
-
-  r.route({
-    method: 'POST',
-    url: '/api/organizations/apps',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'createApp',
-      tags,
-      summary: 'Add an app',
-      description: `Requires \`organizations:write\`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).`,
-      body: CreateApp,
-      response: { 201: App, ...refusals(400, 403, 409) },
-    },
-    handler: async (req, reply) =>
-      reply
-        .code(201)
-        .send(appView(await organizations.createApp(req.body, await resolveActor(container, req)))),
-  });
-
-  r.route({
-    method: 'PATCH',
-    url: '/api/organizations/apps/:appId',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'updateApp',
-      tags,
-      summary: 'Change an app',
-      description: `Requires \`organizations:write\`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.`,
-      params: AppIdParam,
-      body: UpdateApp,
-      response: { 200: App, ...refusals(400, 403, 404, 409) },
-    },
-    handler: async (req) =>
-      appView(
-        await organizations.updateApp(
-          req.params.appId,
-          req.body,
-          await resolveActor(container, req),
-        ),
-      ),
-  });
-
-  r.route({
-    method: 'DELETE',
-    url: '/api/organizations/apps/:appId',
-    preHandler: app.requireOrgSession,
-    schema: {
-      operationId: 'deleteApp',
-      tags,
-      summary: 'Delete an app',
-      description: `Requires \`organizations:write\`. Its domain stops reaching the organization, and frees up for another app.`,
-      params: AppIdParam,
-      response: { 204: z.void(), ...refusals(403, 404) },
-    },
-    handler: async (req, reply) => {
-      await organizations.deleteApp(req.params.appId, await resolveActor(container, req));
-      return reply.code(204).send();
     },
   });
 

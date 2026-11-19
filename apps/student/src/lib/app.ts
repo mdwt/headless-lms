@@ -12,7 +12,7 @@ import "server-only";
  */
 import { cache } from "react";
 import { notFound, unstable_rethrow } from "next/navigation";
-import { Organizations, type GetAppResponse } from "@headless-lms/sdk";
+import { Apps, type GetAppResponse } from "@headless-lms/sdk";
 
 import { visitorCallHeaders } from "./api/server-call";
 import { statusOf } from "./api/shared";
@@ -30,7 +30,7 @@ export const appAtDomain = cache(async (): Promise<AppAtDomain | null> => {
   const call = await visitorCallHeaders();
   return kept(call.headers.origin ?? "", async () => {
     try {
-      return await Organizations.getApp(call);
+      return await Apps.getApp(call);
     } catch (e) {
       unstable_rethrow(e);
       if (statusOf(e) === 404) return null;

@@ -120,7 +120,7 @@ No other context calls it directly. The server hands it to whoever needs it, as 
 Organizations creates, lists, updates and deletes apps. Listing needs `organizations:read`. Creating, updating and
 deleting need `organizations:write`.
 
-The routes are under `/api/organizations/apps`, with an MCP tool for each.
+The routes are under `/api/apps`, with an MCP tool for each.
 
 The admin app has a screen for them, Settings → Apps. It lists the organization's apps and, with
 `organizations:write`, adds, edits and deletes them: name, slug, domain and what the app serves.

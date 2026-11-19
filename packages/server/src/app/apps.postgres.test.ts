@@ -192,7 +192,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
   });
 
   it('starts the first organization at the platform host and the next at its slug under it', async () => {
-    const res = await call('GET', '/api/organizations/apps', { as: sarah, origin: ADMIN });
+    const res = await call('GET', '/api/apps', { as: sarah, origin: ADMIN });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([
       {
@@ -204,17 +204,17 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
         community: true,
       },
     ]);
-    const next = await call('GET', '/api/organizations/apps', { as: liam, origin: ADMIN });
+    const next = await call('GET', '/api/apps', { as: liam, origin: ADMIN });
     expect(next.json()).toMatchObject([
       { name: 'Globex', slug: `globex-${tag}`, domain: GLOBEX, courses: true, community: true },
     ]);
   });
 
   it('lets the organization move courses to its own domain and add a community app', async () => {
-    const [first] = (
-      await call('GET', '/api/organizations/apps', { as: sarah, origin: ADMIN })
-    ).json() as { id: string }[];
-    const course = await call('PATCH', `/api/organizations/apps/${first!.id}`, {
+    const [first] = (await call('GET', '/api/apps', { as: sarah, origin: ADMIN })).json() as {
+      id: string;
+    }[];
+    const course = await call('PATCH', `/api/apps/${first!.id}`, {
       as: sarah,
       origin: ADMIN,
       body: { name: 'Acme Academy', domain: `${LEARN}/`, community: false },
@@ -222,7 +222,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(course.statusCode).toBe(200);
     expect(course.json()).toMatchObject({ domain: LEARN, courses: true, community: false });
 
-    const club = await call('POST', '/api/organizations/apps', {
+    const club = await call('POST', '/api/apps', {
       as: sarah,
       origin: ADMIN,
       body: { name: 'Acme Club', slug: 'club', domain: CLUB, courses: false, community: true },
@@ -230,13 +230,13 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(club.statusCode).toBe(201);
     clubAppId = (club.json() as { id: string }).id;
 
-    const third = await call('POST', '/api/organizations/apps', {
+    const third = await call('POST', '/api/apps', {
       as: sarah,
       origin: ADMIN,
       body: { name: 'Third', slug: 'third', domain: GLOBEX, courses: false, community: true },
     });
     expect(third.statusCode).toBe(409);
-    const taken = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
+    const taken = await call('PATCH', `/api/apps/${clubAppId}`, {
       as: sarah,
       origin: ADMIN,
       body: { domain: GLOBEX },
@@ -247,7 +247,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
 
   it("refuses the admin app's address and the API's as a domain", async () => {
     for (const domain of [ADMIN, API]) {
-      const changed = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
+      const changed = await call('PATCH', `/api/apps/${clubAppId}`, {
         as: sarah,
         origin: ADMIN,
         body: { domain },
@@ -258,13 +258,13 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
   });
 
   it("refuses another organization's app, and an app that would serve nothing", async () => {
-    const stolen = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
+    const stolen = await call('PATCH', `/api/apps/${clubAppId}`, {
       as: liam,
       origin: ADMIN,
       body: { name: 'Mine' },
     });
     expect(stolen.statusCode).toBe(404);
-    const nothing = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
+    const nothing = await call('PATCH', `/api/apps/${clubAppId}`, {
       as: sarah,
       origin: ADMIN,
       body: { community: false },
@@ -463,7 +463,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
 
   it("creates nothing when the first domain of a new organization is already an app's", async () => {
     const slug = `taken-${tag}`;
-    const moved = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
+    const moved = await call('PATCH', `/api/apps/${clubAppId}`, {
       as: acmeAdmin,
       origin: ADMIN,
       body: { domain: `https://${slug}.p${tag}.test` },
@@ -479,7 +479,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     });
     expect(free.statusCode).toBe(201);
     expect(await sessionOrg(noah)).toBe((free.json() as { id: string }).id);
-    const held = await call('GET', '/api/organizations/apps', { as: noah, origin: ADMIN });
+    const held = await call('GET', '/api/apps', { as: noah, origin: ADMIN });
     expect(held.json()).toMatchObject([{ domain: PLATFORM }]);
 
     const oliver = new Person('Oliver');

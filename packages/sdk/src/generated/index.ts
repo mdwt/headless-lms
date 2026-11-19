@@ -2,6 +2,7 @@
 
 export {
   Access,
+  Apps,
   Assets,
   Automations,
   Chats,

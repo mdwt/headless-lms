@@ -12,6 +12,7 @@ export * from './students.js';
 export * from './entitlements.js';
 export * from './automations.js';
 export * from './organizations.js';
+export * from './apps.js';
 export * from './members.js';
 export * from './invites.js';
 export * from './dashboard.js';

@@ -41,8 +41,6 @@ export type {
   NewOrganizationRow,
   NewInviteRow,
   CreatedInvite,
-  AppsRepository,
-  AppAt,
   SessionOrganization,
 } from './ports.js';
 export type { Organization, OrganizationMetadata, OrgUser, Invite } from './model.js';

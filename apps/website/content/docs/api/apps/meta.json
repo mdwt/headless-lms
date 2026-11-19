@@ -1,0 +1,11 @@
+{
+  "title": "Apps",
+  "description": "The frontends an organization runs, and the domain each is reached at",
+  "pages": [
+    "getApp",
+    "listApps",
+    "createApp",
+    "updateApp",
+    "deleteApp"
+  ]
+}

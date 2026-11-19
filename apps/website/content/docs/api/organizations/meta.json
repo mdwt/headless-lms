@@ -4,12 +4,7 @@
   "pages": [
     "createOrganization",
     "updateOrganization",
-    "listApps",
-    "createApp",
-    "updateApp",
-    "deleteApp",
     "transferOwnership",
-    "getApp",
     "getMemberOrg",
     "getMemberViewer"
   ]

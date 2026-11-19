@@ -173,346 +173,6 @@ export type CreateOrganizationResponses = {
 export type CreateOrganizationResponse =
   CreateOrganizationResponses[keyof CreateOrganizationResponses];
 
-export type ListAppsData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/api/organizations/apps";
-};
-
-export type ListAppsErrors = {
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type ListAppsError = ListAppsErrors[keyof ListAppsErrors];
-
-export type ListAppsResponses = {
-  /**
-   * Default Response
-   */
-  200: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    /**
-     * The origin the app is reached at, such as https://learn.example.com
-     */
-    domain: string;
-    /**
-     * Whether the app serves courses and downloads
-     */
-    courses: boolean;
-    /**
-     * Whether the app serves communities and events
-     */
-    community: boolean;
-  }>;
-};
-
-export type ListAppsResponse = ListAppsResponses[keyof ListAppsResponses];
-
-export type CreateAppData = {
-  body: {
-    name: string;
-    /**
-     * Unique among the organization's apps
-     */
-    slug: string;
-    /**
-     * The origin the app is reached at, such as https://learn.example.com
-     */
-    domain: string;
-    /**
-     * Whether the app serves courses and downloads
-     */
-    courses: boolean;
-    /**
-     * Whether the app serves communities and events
-     */
-    community: boolean;
-  };
-  path?: never;
-  query?: never;
-  url: "/api/organizations/apps";
-};
-
-export type CreateAppErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type CreateAppError = CreateAppErrors[keyof CreateAppErrors];
-
-export type CreateAppResponses = {
-  /**
-   * Default Response
-   */
-  201: {
-    id: string;
-    name: string;
-    slug: string;
-    /**
-     * The origin the app is reached at, such as https://learn.example.com
-     */
-    domain: string;
-    /**
-     * Whether the app serves courses and downloads
-     */
-    courses: boolean;
-    /**
-     * Whether the app serves communities and events
-     */
-    community: boolean;
-  };
-};
-
-export type CreateAppResponse = CreateAppResponses[keyof CreateAppResponses];
-
-export type DeleteAppData = {
-  body?: never;
-  path: {
-    appId: string;
-  };
-  query?: never;
-  url: "/api/organizations/apps/{appId}";
-};
-
-export type DeleteAppErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type DeleteAppError = DeleteAppErrors[keyof DeleteAppErrors];
-
-export type DeleteAppResponses = {
-  /**
-   * Default Response
-   */
-  204: unknown;
-};
-
-export type UpdateAppData = {
-  body: {
-    name?: string;
-    slug?: string;
-    /**
-     * The origin the app is reached at, such as https://learn.example.com
-     */
-    domain?: string;
-    /**
-     * Whether the app serves courses and downloads
-     */
-    courses?: boolean;
-    /**
-     * Whether the app serves communities and events
-     */
-    community?: boolean;
-  };
-  path: {
-    appId: string;
-  };
-  query?: never;
-  url: "/api/organizations/apps/{appId}";
-};
-
-export type UpdateAppErrors = {
-  /**
-   * Default Response
-   */
-  400: {
-    error: string;
-    message?: string;
-    requestId?: string;
-    issues?: Array<{
-      /**
-       * Where in the request, such as `body.topics[1].name`
-       */
-      path: string;
-      message: string;
-    }>;
-  };
-  /**
-   * Default Response
-   */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  403: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  404: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  500: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-};
-
-export type UpdateAppError = UpdateAppErrors[keyof UpdateAppErrors];
-
-export type UpdateAppResponses = {
-  /**
-   * Default Response
-   */
-  200: {
-    id: string;
-    name: string;
-    slug: string;
-    /**
-     * The origin the app is reached at, such as https://learn.example.com
-     */
-    domain: string;
-    /**
-     * Whether the app serves courses and downloads
-     */
-    courses: boolean;
-    /**
-     * Whether the app serves communities and events
-     */
-    community: boolean;
-  };
-};
-
-export type UpdateAppResponse = UpdateAppResponses[keyof UpdateAppResponses];
-
 export type TransferOwnershipData = {
   body: {
     newOwnerOrgUserId: string;
@@ -2813,6 +2473,346 @@ export type GetAppResponses = {
 };
 
 export type GetAppResponse = GetAppResponses[keyof GetAppResponses];
+
+export type ListAppsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/apps";
+};
+
+export type ListAppsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListAppsError = ListAppsErrors[keyof ListAppsErrors];
+
+export type ListAppsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  }>;
+};
+
+export type ListAppsResponse = ListAppsResponses[keyof ListAppsResponses];
+
+export type CreateAppData = {
+  body: {
+    name: string;
+    /**
+     * Unique among the organization's apps
+     */
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/apps";
+};
+
+export type CreateAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreateAppError = CreateAppErrors[keyof CreateAppErrors];
+
+export type CreateAppResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string;
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+};
+
+export type CreateAppResponse = CreateAppResponses[keyof CreateAppResponses];
+
+export type DeleteAppData = {
+  body?: never;
+  path: {
+    appId: string;
+  };
+  query?: never;
+  url: "/api/apps/{appId}";
+};
+
+export type DeleteAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeleteAppError = DeleteAppErrors[keyof DeleteAppErrors];
+
+export type DeleteAppResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type UpdateAppData = {
+  body: {
+    name?: string;
+    slug?: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain?: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses?: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community?: boolean;
+  };
+  path: {
+    appId: string;
+  };
+  query?: never;
+  url: "/api/apps/{appId}";
+};
+
+export type UpdateAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type UpdateAppError = UpdateAppErrors[keyof UpdateAppErrors];
+
+export type UpdateAppResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+};
+
+export type UpdateAppResponse = UpdateAppResponses[keyof UpdateAppResponses];
 
 export type ListCoursesData = {
   body?: never;

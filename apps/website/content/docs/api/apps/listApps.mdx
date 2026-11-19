@@ -1,5 +1,5 @@
 ---
-description: "GET /api/organizations/apps. The organization's apps. Headless LMS Organizations API reference."
+description: "GET /api/apps. The organization's apps. Headless LMS Apps API reference."
 title: The organization's apps
 full: true
 _openapi:
@@ -24,7 +24,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/organizations/apps","method":"get"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/apps","method":"get"}]} showDescription />
     </>
   );
 }

@@ -208,9 +208,8 @@ describe("a request from an app's domain", () => {
         verify: async () => ({ ...SESSION, session: { activeOrganizationId } }),
         verifyApiKey: async () => GRANT,
       },
-      organizations: {
-        ...container.organizations,
-        lookupDomain: async (domain: string) => {
+      apps: {
+        at: async (domain: string) => {
           const organization = DOMAINS[domain];
           return organization ? { app: { id: `app_${organization.slug}` }, organization } : null;
         },

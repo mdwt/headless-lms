@@ -721,144 +721,6 @@ export class Organizations {
   }
 
   /**
-   * The organization's apps
-   *
-   * Requires `organizations:read`. An app is a frontend the organization runs on a domain; it serves courses, the community, or both. Links in emails, invites and calendar files use the domain of the app that serves what the link is about.
-   */
-  public static listApps<ThrowOnError extends boolean = false>(
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<ListAppsResponses, ListAppsErrors, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<ListAppsResponses, ListAppsErrors, ThrowOnError, "data">(
-      {
-        responseStyle: "data",
-        url: "/api/organizations/apps",
-        ...options,
-      },
-    );
-  }
-
-  /**
-   * Add an app
-   *
-   * Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).
-   */
-  public static createApp<ThrowOnError extends boolean = false>(
-    parameters: {
-      name: string;
-      slug: string;
-      domain: string;
-      courses: boolean;
-      community: boolean;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<CreateAppResponses, CreateAppErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "body", key: "name" },
-            { in: "body", key: "slug" },
-            { in: "body", key: "domain" },
-            { in: "body", key: "courses" },
-            { in: "body", key: "community" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).post<
-      CreateAppResponses,
-      CreateAppErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/apps",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
-   * Delete an app
-   *
-   * Requires `organizations:write`. Its domain stops reaching the organization, and frees up for another app.
-   */
-  public static deleteApp<ThrowOnError extends boolean = false>(
-    parameters: {
-      appId: string;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<DeleteAppResponses, DeleteAppErrors, ThrowOnError, "data"> {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "appId" }] }]);
-    return (options?.client ?? client).delete<
-      DeleteAppResponses,
-      DeleteAppErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/apps/{appId}",
-      ...options,
-      ...params,
-    });
-  }
-
-  /**
-   * Change an app
-   *
-   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.
-   */
-  public static updateApp<ThrowOnError extends boolean = false>(
-    parameters: {
-      appId: string;
-      name?: string;
-      slug?: string;
-      domain?: string;
-      courses?: boolean;
-      community?: boolean;
-    },
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<UpdateAppResponses, UpdateAppErrors, ThrowOnError, "data"> {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "appId" },
-            { in: "body", key: "name" },
-            { in: "body", key: "slug" },
-            { in: "body", key: "domain" },
-            { in: "body", key: "courses" },
-            { in: "body", key: "community" },
-          ],
-        },
-      ],
-    );
-    return (options?.client ?? client).patch<
-      UpdateAppResponses,
-      UpdateAppErrors,
-      ThrowOnError,
-      "data"
-    >({
-      responseStyle: "data",
-      url: "/api/organizations/apps/{appId}",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    });
-  }
-
-  /**
    * Transfer ownership of the organization
    *
    * Owner only. The new owner must be an active member. The previous owner takes the named org role, Member by default. 403 for anyone else, including the owner's API keys.
@@ -896,21 +758,6 @@ export class Organizations {
         ...options?.headers,
         ...params.headers,
       },
-    });
-  }
-
-  /**
-   * The app and organization of the domain the request comes from
-   *
-   * Public: no session and no key. Answers for the domain in the `Origin` header, or else the `Referer`; it takes no domain as a parameter. A frontend's server sends its visitor's domain as `Origin` and the visitor's IP address as `X-Forwarded-For`. 404 when the request carries no domain or the domain is no app's. Limited to 100 requests in 10 seconds per client IP address (429, with `Retry-After`).
-   */
-  public static getApp<ThrowOnError extends boolean = false>(
-    options?: Options<never, ThrowOnError>,
-  ): RequestResult<GetAppResponses, GetAppErrors, ThrowOnError, "data"> {
-    return (options?.client ?? client).get<GetAppResponses, GetAppErrors, ThrowOnError, "data">({
-      responseStyle: "data",
-      url: "/api/app",
-      ...options,
     });
   }
 
@@ -2433,6 +2280,161 @@ export class Notifications {
       responseStyle: "data",
       url: "/api/member/push-config",
       ...options,
+    });
+  }
+}
+
+export class Apps {
+  /**
+   * The app and organization of the domain the request comes from
+   *
+   * Public: no session and no key. Answers for the domain in the `Origin` header, or else the `Referer`; it takes no domain as a parameter. A frontend's server sends its visitor's domain as `Origin` and the visitor's IP address as `X-Forwarded-For`. 404 when the request carries no domain or the domain is no app's. Limited to 100 requests in 10 seconds per client IP address (429, with `Retry-After`).
+   */
+  public static getApp<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<GetAppResponses, GetAppErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<GetAppResponses, GetAppErrors, ThrowOnError, "data">({
+      responseStyle: "data",
+      url: "/api/app",
+      ...options,
+    });
+  }
+
+  /**
+   * The organization's apps
+   *
+   * Requires `organizations:read`. An app is a frontend the organization runs on a domain; it serves courses, the community, or both. Links in emails, invites and calendar files use the domain of the app that serves what the link is about.
+   */
+  public static listApps<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListAppsResponses, ListAppsErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<ListAppsResponses, ListAppsErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/apps",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Add an app
+   *
+   * Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).
+   */
+  public static createApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      name: string;
+      slug: string;
+      domain: string;
+      courses: boolean;
+      community: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateAppResponses, CreateAppErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "name" },
+            { in: "body", key: "slug" },
+            { in: "body", key: "domain" },
+            { in: "body", key: "courses" },
+            { in: "body", key: "community" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateAppResponses,
+      CreateAppErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/apps",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an app
+   *
+   * Requires `organizations:write`. Its domain stops reaching the organization, and frees up for another app.
+   */
+  public static deleteApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteAppResponses, DeleteAppErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "appId" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteAppResponses,
+      DeleteAppErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/apps/{appId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Change an app
+   *
+   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.
+   */
+  public static updateApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string;
+      name?: string;
+      slug?: string;
+      domain?: string;
+      courses?: boolean;
+      community?: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateAppResponses, UpdateAppErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "appId" },
+            { in: "body", key: "name" },
+            { in: "body", key: "slug" },
+            { in: "body", key: "domain" },
+            { in: "body", key: "courses" },
+            { in: "body", key: "community" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateAppResponses,
+      UpdateAppErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/apps/{appId}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     });
   }
 }

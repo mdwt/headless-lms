@@ -1,14 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ContentType, Level, Permission } from '../types/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
+import type { AppsRepository, AppsService } from '../shared/apps.js';
 import type { AssignmentRow } from './effective-permissions.js';
 import type { StoredOrgRole } from './org-roles.js';
-import type {
-  AppsRepository,
-  OrganizationsRepository,
-  OrganizationsUnitOfWork,
-  RolesRepository,
-} from './ports.js';
+import type { OrganizationsRepository, OrganizationsUnitOfWork, RolesRepository } from './ports.js';
 import type { IdentityService } from '../identity/index.js';
 import { OrganizationServiceImpl } from './service.js';
 import { DEFAULT_ROLES, validateRoleSet, type RoleDefinition } from './default-roles.js';
@@ -123,8 +119,7 @@ function service(storedRoles: StoredOrgRole[] = []) {
   const svc = new OrganizationServiceImpl({
     repo,
     roles,
-    apps,
-    platformHost: 'https://platform.test',
+    apps: {} as AppsService,
     membersRepo: { teamRows: async () => [] },
     people: {} as IdentityService,
     images: { syncPublicImages: async () => {} },

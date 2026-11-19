@@ -9,6 +9,7 @@ import { registerAuth } from '../plugins/auth.js';
 import { errorHandler } from '../plugins/error-handler.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
 import { organizationsRoutes } from './organizations.js';
+import { appsRoutes } from './apps.js';
 import { resolvedCaller } from '../test-caller.js';
 
 const ORG = { id: 'org_1', name: 'Acme', slug: 'acme', externalId: 'org_1' };
@@ -63,13 +64,15 @@ const container = {
       calls.push(['updateOrganization', input]);
       return { ...ORG, createdAt: NOW };
     },
-    listApps: record('listApps', [STORED]),
-    createApp: record('createApp', STORED),
-    updateApp: record('updateApp', STORED),
-    deleteApp: record('deleteApp', undefined),
     resendInvite: async (...args: unknown[]) => {
       calls.push(['resendInvite', args[3]]);
     },
+  },
+  apps: {
+    list: record('listApps', [STORED]),
+    create: record('createApp', STORED),
+    update: record('updateApp', STORED),
+    delete: record('deleteApp', undefined),
   },
   identity: { getUserByExternalId: async () => ({ id: 'usr_1' }) },
   requestContext: { set: () => {} },
@@ -84,6 +87,7 @@ beforeAll(async () => {
   app.setErrorHandler(errorHandler);
   registerAuth(app, container);
   await organizationsRoutes(app, container);
+  await appsRoutes(app, container);
   await app.ready();
 });
 
@@ -97,7 +101,7 @@ beforeEach(() => {
   failure = null;
 });
 
-const APPS = '/api/organizations/apps';
+const APPS = '/api/apps';
 const NEW = {
   name: 'Acme Club',
   slug: 'club',

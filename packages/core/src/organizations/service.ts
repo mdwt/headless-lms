@@ -2,8 +2,6 @@ import type {
   Accounts,
   ApiKeyRole,
   ApiKeys,
-  AppAt,
-  AppsRepository,
   AuthOrganization,
   CallerLimit,
   CreateApiKeyInput,
@@ -27,7 +25,7 @@ import type {
   TransferOwnershipInput,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
-import { firstAppOf, platformOrigin, servesCourses } from './apps.js';
+import { servesCourses, type AppAt, type AppsService } from '../shared/apps.js';
 import {
   InviteError,
   OrganizationRuleError,
@@ -55,9 +53,7 @@ import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
 import {
-  ConflictError,
   ForbiddenError,
-  InvalidInputError,
   NotFoundError,
 } from '../shared/errors.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
@@ -67,14 +63,11 @@ import { genId, prefixId } from '../shared/id.js';
 import { levelSchema } from '../types/schemas/organizations.js';
 import type {
   ApiKeySummary,
-  App,
   ConnectedApp,
   ContentType,
-  CreateAppInput,
   CreatedApiKey,
   Level,
   Permission,
-  UpdateAppInput,
 } from '../types/index.js';
 import {
   DEFAULT_ROLES,
@@ -118,9 +111,7 @@ export interface InviteUrls {
 export type OrganizationServiceParams = {
   repo: OrganizationsRepository;
   roles: RolesRepository;
-  apps: AppsRepository;
-  platformHost: string;
-  reservedDomains?: readonly string[];
+  apps: AppsService;
   membersRepo: MembersRepository;
   people: IdentityService;
   images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -198,9 +189,7 @@ function limitScopes(
 export class OrganizationServiceImpl implements OrganizationService {
   private readonly repo: OrganizationsRepository;
   private readonly roles: RolesRepository;
-  private readonly apps: AppsRepository;
-  private readonly platform: URL;
-  private readonly reservedDomains: ReadonlySet<string>;
+  private readonly apps: AppsService;
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
   private readonly images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -220,8 +209,6 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.repo = params.repo;
     this.roles = params.roles;
     this.apps = params.apps;
-    this.platform = platformOrigin(params.platformHost);
-    this.reservedDomains = new Set(params.reservedDomains);
     this.membersRepo = params.membersRepo;
     this.people = params.people;
     this.images = params.images;
@@ -263,13 +250,7 @@ export class OrganizationServiceImpl implements OrganizationService {
         status: 'active',
       });
       await roles.setOrgRole(org.id, owner.id, OWNER_ROLE_KEY, SYSTEM_ID);
-      const taken =
-        this.platformPerson !== undefined ||
-        this.reservedDomains.has(this.platform.origin) ||
-        (await apps.findByDomain(this.platform.origin)) !== null;
-      const first = firstAppOf(this.platform, org, taken ? 'subdomain' : 'platform');
-      this.assertNotReserved(first.domain, org.id);
-      await apps.create({ ...first, id: genId('app') });
+      await this.apps.start(org, apps);
       await outbox.append([
         organizationEvents.organizationCreated.make({ orgId: org.id, data: org }),
         organizationEvents.orgUserLinked.make({
@@ -399,87 +380,12 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.listIds();
   }
 
-  async isOrgHost(origin: string): Promise<boolean> {
-    return (await this.apps.findByDomain(origin)) !== null;
-  }
-
   async isHostOfPerson(email: string, origin: string): Promise<boolean> {
     return (await this.appOfPerson(email, [origin])) !== null;
   }
 
-  async createApp(input: CreateAppInput, actor: Actor): Promise<App> {
-    actor.permissions.require('organizations:write');
-    if (!input.courses && !input.community) {
-      throw new InvalidInputError('An app serves courses, the community, or both');
-    }
-    this.assertNotReserved(input.domain, actor.orgId);
-    const app = await this.apps.create({ ...input, orgId: actor.orgId, id: genId('app') });
-    this.logger.info('app created', {
-      orgId: actor.orgId,
-      appId: app.id,
-      domain: app.domain,
-      actorId: actor.id,
-    });
-    return app;
-  }
-
-  async listApps(actor: Actor): Promise<App[]> {
-    actor.permissions.require('organizations:read');
-    return this.apps.list(actor.orgId);
-  }
-
-  async updateApp(appId: string, input: UpdateAppInput, actor: Actor): Promise<App> {
-    actor.permissions.require('organizations:write');
-    const orgId = actor.orgId;
-    const current = await this.apps.find(orgId, appId);
-    if (!current) {
-      throw new NotFoundError('App', appId);
-    }
-    if (!(input.courses ?? current.courses) && !(input.community ?? current.community)) {
-      throw new InvalidInputError('An app serves courses, the community, or both');
-    }
-    if (input.domain !== undefined) {
-      this.assertNotReserved(input.domain, orgId);
-    }
-    const updated = await this.apps.update(orgId, appId, input);
-    if (!updated) {
-      throw new NotFoundError('App', appId);
-    }
-    this.logger.info('app updated', {
-      orgId,
-      appId,
-      domain: updated.domain,
-      actorId: actor.id,
-    });
-    return updated;
-  }
-
-  async deleteApp(appId: string, actor: Actor): Promise<void> {
-    actor.permissions.require('organizations:write');
-    const deleted = await this.apps.delete(actor.orgId, appId);
-    if (!deleted) {
-      throw new NotFoundError('App', appId);
-    }
-    this.logger.info('app deleted', {
-      orgId: actor.orgId,
-      appId,
-      domain: deleted.domain,
-      actorId: actor.id,
-    });
-  }
-
-  appsOf(orgId: string): Promise<App[]> {
-    return this.apps.list(orgId);
-  }
-
-  async lookupDomain(domain: string): Promise<AppAt | null> {
-    const app = await this.apps.findByDomain(domain);
-    const organization = app ? await this.repo.findById(app.orgId) : null;
-    return app && organization ? { app, organization } : null;
-  }
-
   async appOfPerson(email: string, domains: readonly string[]): Promise<AppAt | null> {
-    const at = await this.firstAppAt(domains);
+    const at = await this.apps.firstAt(domains);
     const person = at ? await this.people.getUserByEmail(email) : null;
     if (!at || !person) {
       return null;
@@ -492,7 +398,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     person: { id: string; email: string },
     domains: readonly string[],
   ): Promise<SessionOrganization> {
-    const at = await this.firstAppAt(domains);
+    const at = await this.apps.firstAt(domains);
     const orgUsers = await this.repo.findOrgUsersByUser(person.id);
     if (!at) {
       const [only] = orgUsers;
@@ -514,23 +420,6 @@ export class OrganizationServiceImpl implements OrganizationService {
       userId: person.id,
     });
     return { refused: true };
-  }
-
-  private assertNotReserved(domain: string, orgId: string): void {
-    if (this.reservedDomains.has(domain)) {
-      this.logger.warn('app refused: the domain is one of the installation', { orgId, domain });
-      throw new ConflictError('That domain is already in use');
-    }
-  }
-
-  private async firstAppAt(domains: readonly string[]): Promise<AppAt | null> {
-    for (const domain of new Set(domains)) {
-      const at = await this.lookupDomain(domain);
-      if (at) {
-        return at;
-      }
-    }
-    return null;
   }
 
   async actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null> {
@@ -1927,7 +1816,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     role: OrgRole,
     sendEmail: boolean,
   ): Promise<string | null> {
-    const apps = await this.apps.list(orgId);
+    const apps = await this.apps.of(orgId);
     if (domain !== undefined && !apps.some((app) => app.domain === domain)) {
       this.logger.warn('invite refused: domain is not one of the organization', { orgId, domain });
       throw new OrganizationRuleError("That domain is not one of the organization's apps");

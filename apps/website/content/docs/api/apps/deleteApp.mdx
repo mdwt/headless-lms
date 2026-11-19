@@ -1,5 +1,5 @@
 ---
-description: "DELETE /api/organizations/apps/{appId}. Delete an app. Headless LMS Organizations API reference."
+description: "DELETE /api/apps/{appId}. Delete an app. Headless LMS Apps API reference."
 title: Delete an app
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/organizations/apps/{appId}","method":"delete"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/apps/{appId}","method":"delete"}]} showDescription />
     </>
   );
 }

@@ -1,5 +1,5 @@
 ---
-description: "POST /api/organizations/apps. Add an app. Headless LMS Organizations API reference."
+description: "POST /api/apps. Add an app. Headless LMS Apps API reference."
 title: Add an app
 full: true
 _openapi:
@@ -24,7 +24,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/organizations/apps","method":"post"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/apps","method":"post"}]} showDescription />
     </>
   );
 }

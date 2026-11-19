@@ -119,6 +119,7 @@ import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups, type MailerSources } from '@headless-lms/core/shared/mailer';
+import { AppsService, servesCommunity } from '@headless-lms/core/shared/apps';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 import { platformKeyCheck, type PlatformConfig, type PlatformKeyCheck } from './platform.js';
 
@@ -257,6 +258,7 @@ export interface Container {
   // Domains
   identity: IdentityServiceImpl;
   organizations: OrganizationServiceImpl;
+  apps: AppsService;
   content: ContentService;
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
@@ -360,9 +362,9 @@ export async function buildContainer(
   );
   const mailerSources: MailerSources = {
     organization: async (orgId) => {
-      const [organization, apps] = await Promise.all([
+      const [organization, orgApps] = await Promise.all([
         organizations.getById(orgId),
-        organizations.appsOf(orgId),
+        apps.of(orgId),
       ]);
       return organization
         ? {
@@ -372,7 +374,7 @@ export async function buildContainer(
               slug: organization.slug,
               metadata: organization.metadata,
             },
-            apps,
+            apps: orgApps,
           }
         : null;
     },
@@ -432,12 +434,18 @@ export async function buildContainer(
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
   const platform = config.platform ? platformKeyCheck(config.platform) : null;
+  const apps = new AppsService({
+    repo: new DrizzleAppsRepository(db),
+    organization: (orgId) => organizationsRepo.findById(orgId),
+    platformHost: config.platformHost,
+    subdomains: config.platform !== undefined,
+    reservedDomains: [new URL(config.adminAppUrl).origin, new URL(config.authBaseURL).origin],
+    logger: logger.child({ name: 'apps' }),
+  });
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
-    apps: new DrizzleAppsRepository(db),
-    platformHost: config.platformHost,
-    reservedDomains: [new URL(config.adminAppUrl).origin, new URL(config.authBaseURL).origin],
+    apps,
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {
@@ -709,8 +717,7 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
-      communityDomain: async (orgId) =>
-        (await organizations.appsOf(orgId)).find((app) => app.community)?.domain ?? null,
+      communityDomain: async (orgId) => servesCommunity(await apps.of(orgId))?.domain ?? null,
     }),
   };
 
@@ -911,7 +918,7 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     orgHosts: {
-      has: (origin) => organizations.isOrgHost(origin),
+      has: async (origin) => (await apps.at(origin)) !== null,
       hasFor: (email, origin) => organizations.isHostOfPerson(email, origin),
     },
     hooks: {
@@ -1008,6 +1015,7 @@ export async function buildContainer(
     platform,
     identity,
     organizations,
+    apps,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.
     orgProvider: auth,
     content,

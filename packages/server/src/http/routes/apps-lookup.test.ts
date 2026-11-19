@@ -4,7 +4,7 @@ import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod
 import type { Container } from '../../app/container.js';
 import { registerAppDomain } from '../plugins/app-domain.js';
 import { errorHandler } from '../plugins/error-handler.js';
-import { appRoutes } from './app.js';
+import { appsRoutes } from './apps.js';
 
 const ACME = { id: 'org_acme', externalId: 'org_acme', name: 'Acme', slug: 'acme', metadata: {} };
 const LEARN = {
@@ -24,8 +24,8 @@ const container = {
   auth: {
     clientIp: (headers: Record<string, string | undefined>) => headers['x-forwarded-for'] ?? null,
   },
-  organizations: {
-    lookupDomain: async (domain: string) => {
+  apps: {
+    at: async (domain: string) => {
       lookups.push(domain);
       return domain === LEARN.domain ? { app: LEARN, organization: ACME } : null;
     },
@@ -43,7 +43,7 @@ beforeEach(async () => {
   app.setSerializerCompiler(serializerCompiler);
   app.setErrorHandler(errorHandler);
   registerAppDomain(app, container);
-  await appRoutes(app, container);
+  await appsRoutes(app, container);
   await app.ready();
 });
 

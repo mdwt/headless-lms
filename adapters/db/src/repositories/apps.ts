@@ -1,9 +1,9 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { AppsRepository } from "@headless-lms/core/organizations";
+import type { AppsRepository } from "@headless-lms/core/shared/apps";
 import type { App, UpdateAppInput } from "@headless-lms/core/types";
 import { ConflictError } from "@headless-lms/core/shared/errors";
-import { apps } from "../schema/organizations.js";
+import { apps } from "../schema/apps.js";
 import { pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
 const TAKEN: Record<string, string> = {

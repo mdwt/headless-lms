@@ -10,8 +10,8 @@ let lookups: string[] = [];
 let logContext: Record<string, unknown>[] = [];
 
 const container = {
-  organizations: {
-    lookupDomain: async (domain: string) => {
+  apps: {
+    at: async (domain: string) => {
       lookups.push(domain);
       return domain === CLUB.domain ? { app: CLUB, organization: ACME } : null;
     },

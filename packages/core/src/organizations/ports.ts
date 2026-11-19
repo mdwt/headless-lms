@@ -12,17 +12,15 @@ import type {
 } from './members.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
+import type { AppAt, AppsRepository } from '../shared/apps.js';
 import type {
   ApiKeySummary,
-  App,
   ConnectedApp,
   ContentType,
-  CreateAppInput,
   CreatedApiKey,
   OrgUserProfile,
   Permission,
   RoleAssignment,
-  UpdateAppInput,
 } from '../types/index.js';
 import type { AssignmentRow } from './effective-permissions.js';
 import type { StoredOrgRole } from './org-roles.js';
@@ -73,11 +71,6 @@ export type PlatformOrganizationDetails = AuthOrganization & {
   metadata: OrganizationMetadata;
 };
 
-export interface AppAt {
-  app: App;
-  organization: Organization;
-}
-
 export type SessionOrganization = { refused: true } | { refused: false; orgId: string | null };
 
 export interface PlatformOrganization {
@@ -106,15 +99,8 @@ export interface OrganizationService {
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
   getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   orgIds(): Promise<string[]>;
-  isOrgHost(origin: string): Promise<boolean>;
   isHostOfPerson(email: string, origin: string): Promise<boolean>;
 
-  createApp(input: CreateAppInput, actor: Actor): Promise<App>;
-  listApps(actor: Actor): Promise<App[]>;
-  updateApp(appId: string, input: UpdateAppInput, actor: Actor): Promise<App>;
-  deleteApp(appId: string, actor: Actor): Promise<void>;
-  appsOf(orgId: string): Promise<App[]>;
-  lookupDomain(domain: string): Promise<AppAt | null>;
   appOfPerson(email: string, domains: readonly string[]): Promise<AppAt | null>;
   sessionOrganization(
     person: { id: string; email: string },
@@ -303,15 +289,6 @@ export interface OrganizationsRepository {
   createOrgUser(input: CreateOrgUserInput): Promise<OrgUser>;
   updateOrgUser(orgId: string, id: string, patch: UpdateOrgUserInput): Promise<OrgUser | null>;
   deleteOrgUser(orgId: string, id: string): Promise<OrgUser | null>;
-}
-
-export interface AppsRepository {
-  create(app: App): Promise<App>;
-  list(orgId: string): Promise<App[]>;
-  find(orgId: string, id: string): Promise<App | null>;
-  findByDomain(domain: string): Promise<App | null>;
-  update(orgId: string, id: string, patch: UpdateAppInput): Promise<App | null>;
-  delete(orgId: string, id: string): Promise<App | null>;
 }
 
 export interface GrantReader {

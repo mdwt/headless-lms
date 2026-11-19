@@ -1,5 +1,5 @@
 ---
-description: "PATCH /api/organizations/apps/{appId}. Change an app. Headless LMS Organizations API reference."
+description: "PATCH /api/apps/{appId}. Change an app. Headless LMS Apps API reference."
 title: Change an app
 full: true
 _openapi:
@@ -23,7 +23,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/organizations/apps/{appId}","method":"patch"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/apps/{appId}","method":"patch"}]} showDescription />
     </>
   );
 }
