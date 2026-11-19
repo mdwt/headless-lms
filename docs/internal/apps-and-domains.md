@@ -80,10 +80,12 @@ apps
 ```
 
 A domain is stored as an origin, normalised the way `hostSchema` normalises a host today. Saving a domain another
-app has, or a second app that serves courses or the community, is a 409.
+app has, or a second app that serves courses or the community, is a 409. So is saving the admin app's address or
+the API's.
 
-The first app is created in the same unit of work as its organization. When another app already has the domain,
-creating the organization is a 409 and nothing is created.
+The first app is created in the same unit of work as its organization. When another app already has the domain, or
+it is the admin app's address or the API's, creating the organization is a 409 and nothing is created. For example,
+with the admin app at `https://admin.example.com`, an organization with the slug `admin` is refused.
 
 ## Who owns it
 
@@ -120,6 +122,8 @@ A request carries its domain in its `Origin` header, or else its `Referer`.
 - It is logged with the app's id.
 - With a session for another organization it is a 401. This happens when `AUTH_COOKIE_DOMAIN` shares one cookie
   across the organizations' subdomains: Sarah signs in on Acme's domain and then opens Globex's.
+- Its session cookie belongs to that domain. With `AUTH_COOKIE_DOMAIN` set to `.example.com`, an app at
+  `https://acme.example.com` shares the cookie, and an app at `https://learn.acme.com` gets one of its own.
 
 ## Looking a domain up
 
@@ -152,10 +156,13 @@ One deployment serves any organization's domain, with no setting per organizatio
 
 - It looks its domain up. It shows the organization's name on the sign-in page, and returns a 404 when there is no
   app or when the app does not serve courses.
+- It keeps the answer for a domain for a minute, so the renders and prefetches of a page share one lookup. A change
+  to an organization's apps shows in the student app within that minute. When a lookup fails it uses the answer it
+  last had.
 - Its browser code calls the API at its own origin under `/api`, and the student app forwards `/api` to the API
   (`API_URL`). `NEXT_PUBLIC_API_URL` goes.
 - Its server calls carry the visitor's domain as `Origin`. A read it forwards with no `Origin` gets its own domain
-  as one, so opening a sign-in link names the domain it was opened on.
+  as one.
 - The calls it forwards and its server calls both carry the visitor's IP address as `X-Forwarded-For`, so the
   sign-in rate limits and the lookup's count each visitor and not the student app.
 - It has a page to ask for a password reset, a page to set the new password, and a page to ask for a sign-in link.
@@ -171,7 +178,7 @@ of the link's return address (`requestOrigins` in `adapters/auth/src/better-auth
 | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
 | An app's, and the person is active in its organization            | Is for that organization                                         |
 | An app's, and the person holds an open invite to its organization | Has no organization; accepting the invite sets it                |
-| An app's, and the person is neither                               | Is refused, with a 401                                           |
+| An app's, and the person is neither                               | Is refused: a sign-in answers 401                                |
 | Any other domain, or none                                         | As today: the person's organization when they are in exactly one |
 
 The frontend never sends an organization id, and looking a domain up returns none. Sarah signs in on

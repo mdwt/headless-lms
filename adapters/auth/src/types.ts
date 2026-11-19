@@ -45,9 +45,10 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   ) => Promise<void>;
 };
 
-/** The domains a request names, most telling first: for a session, the page it was asked from
- *  (`Origin`, or else `Referer`) and then the link's return address; for a password reset or
- *  sign-in link email, the link's return address; for a password changed email, the page. */
+/** The domains a request names, most telling first: for a session, the return address of the
+ *  link that was opened and then the page it was asked from (`Origin`, or else `Referer`); for
+ *  a password reset or sign-in link email, the link's return address; for a password changed
+ *  email, the page. */
 export interface RequestDomains {
   domains: string[];
 }
@@ -79,7 +80,7 @@ export interface CreateAuthOptions {
   /** Handlers for what the engine reports. The adapter owns no rules. */
   hooks: Hooks;
   mcp: McpAuthOptions;
-  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. */
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. A request from a domain outside it gets host-only cookies too. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;

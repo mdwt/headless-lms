@@ -55,3 +55,8 @@ export async function authHeaders(): Promise<{ headers: Record<string, string> }
     headers: { cookie: (await cookies()).toString(), ...visitorHeaders(await headers()) },
   };
 }
+
+/** Header bag for a call that needs no session: the visitor's domain and IP address only. */
+export async function visitorCallHeaders(): Promise<{ headers: Record<string, string> }> {
+  return { headers: visitorHeaders(await headers()) };
+}

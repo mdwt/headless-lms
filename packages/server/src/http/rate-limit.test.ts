@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fixedWindowLimit } from './rate-limit.js';
 
 function clock(start = 1_000_000) {
@@ -46,5 +46,23 @@ describe('fixedWindowLimit', () => {
     }
     expect(limit('kept')).not.toBeNull();
     expect(limit('gone-1')).toBeNull();
+  });
+
+  it('clears lapsed keys at most once per window, however many new keys arrive', () => {
+    const time = clock();
+    const limit = fixedWindowLimit({ windowSeconds: 10, max: 1, now: time.now });
+    const deleted = vi.spyOn(Map.prototype, 'delete');
+    for (let i = 0; i < 10_000; i++) {
+      limit(`first-${i}`);
+    }
+    time.advance(10_000);
+    for (let i = 0; i < 10_000; i++) {
+      limit(`second-${i}`);
+    }
+    expect(deleted).toHaveBeenCalledTimes(10_000);
+    time.advance(10_000);
+    limit('third');
+    expect(deleted).toHaveBeenCalledTimes(20_000);
+    deleted.mockRestore();
   });
 });

@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { getSchema } from "better-auth/db";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { buildAuthOptions } from "./better-auth.js";
+import { BetterAuth, buildAuthOptions } from "./better-auth.js";
 import type { CreateAuthOptions, RequestDomains } from "./types.js";
 
 const API = "https://api.platform.test";
@@ -117,16 +117,27 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: bool
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 
-  const atApi = (link: string) => {
+  const atApi = (link: string, headers: Record<string, string> = {}) => {
     const url = new URL(link);
     return new Request(`${API}${url.pathname}${url.search}`, {
       redirect: "manual",
-      headers: { "sec-fetch-site": "none", "sec-fetch-mode": "navigate" },
+      headers: { "sec-fetch-site": "none", "sec-fetch-mode": "navigate", ...headers },
     });
   };
+  const adapter = new BetterAuth(
+    {
+      db: {} as NodePgDatabase,
+      baseUrl: API,
+      logger: logger as unknown as CreateAuthOptions["logger"],
+      mcp: { oauthEnabled: false },
+      cookieDomain: opts.cookieDomain,
+    } as unknown as CreateAuthOptions,
+    auth as unknown as ConstructorParameters<typeof BetterAuth>[1],
+  );
 
   return {
     auth,
+    adapter,
     hosts,
     resets,
     magicLinks,
@@ -229,6 +240,75 @@ describe("the session cookie", () => {
     for (const cookie of cookies) {
       expect(cookie).toMatch(/domain=\.platform\.test/i);
     }
+  });
+
+  describe("with a cookie domain set", () => {
+    const INSIDE = "https://acme.platform.test";
+    const signInThrough = (w: ReturnType<typeof world>, origin: string) =>
+      w.adapter.handler(
+        new Request(`${API}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin,
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-dest": "empty",
+          },
+          body: JSON.stringify({ email: "sarah@example.com", password: PASSWORD }),
+        }),
+      );
+
+    it("is host-only for an app on a domain outside it, and shared for one inside it", async () => {
+      const w = world({ cookieDomain: ".platform.test" });
+      w.hosts.set(INSIDE, ["sarah@example.com"]);
+      await w.signUp("sarah@example.com");
+
+      const outside = await signInThrough(w, ACME);
+      expect(outside.status).toBe(200);
+      expect(await outside.json()).toMatchObject({ user: { email: "sarah@example.com" } });
+      const hostOnly = outside.headers.getSetCookie();
+      expect(hostOnly.some((cookie) => cookie.includes("session_token"))).toBe(true);
+      for (const cookie of hostOnly) {
+        expect(cookie).not.toMatch(/domain=/i);
+        expect(cookie).toMatch(/httponly/i);
+        expect(cookie).toMatch(/path=\//i);
+      }
+
+      for (const origin of [INSIDE, ADMIN]) {
+        const shared = (await signInThrough(w, origin)).headers.getSetCookie();
+        expect(shared.length).toBeGreaterThan(0);
+        for (const cookie of shared) {
+          expect(cookie).toMatch(/domain=\.platform\.test/i);
+        }
+      }
+    });
+
+    it("goes by the return address of a link, not by where the click came from", async () => {
+      const w = world({ cookieDomain: ".platform.test" });
+      await w.signUp("sarah@example.com");
+      const webmail = { referer: "https://mail.example.org/inbox" };
+
+      await w.post("/sign-in/magic-link", ACME, {
+        email: "sarah@example.com",
+        callbackURL: `${ACME}/`,
+      });
+      const outside = await w.adapter.handler(w.atApi(w.magicLinks[0]!, webmail));
+      expect(outside.status).toBe(302);
+      for (const cookie of outside.headers.getSetCookie()) {
+        expect(cookie).not.toMatch(/domain=/i);
+      }
+
+      await w.post("/sign-in/magic-link", ADMIN, {
+        email: "sarah@example.com",
+        callbackURL: `${ADMIN}/`,
+      });
+      const inside = await w.adapter.handler(w.atApi(w.magicLinks[1]!, webmail));
+      expect(inside.headers.getSetCookie().length).toBeGreaterThan(0);
+      for (const cookie of inside.headers.getSetCookie()) {
+        expect(cookie).toMatch(/domain=\.platform\.test/i);
+      }
+    });
   });
 });
 
@@ -343,6 +423,15 @@ describe("a sign-in link to an app's domain", () => {
     for (const cookie of cookies) {
       expect(cookie).not.toMatch(/domain=/i);
     }
+  });
+
+  it("is decided by the domain it returns to, whatever page the click came from", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await link(w, "sarah@example.com", ACME);
+    w.asked.session.length = 0;
+    await w.auth.handler(w.atApi(w.magicLinks[0]!, { referer: `${OTHER}/courses` }));
+    expect(w.asked.session).toEqual([[ACME, OTHER]]);
   });
 
   it("signs nobody in when the session is refused", async () => {

@@ -241,6 +241,18 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(taken.json()).toMatchObject({ message: 'That domain is already in use' });
   });
 
+  it("refuses the admin app's address and the API's as a domain", async () => {
+    for (const domain of [ADMIN, API]) {
+      const changed = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
+        as: sarah,
+        origin: ADMIN,
+        body: { domain },
+      });
+      expect(changed.statusCode).toBe(409);
+    }
+    expect((await call('GET', '/api/app', { origin: ADMIN })).statusCode).toBe(404);
+  });
+
   it("refuses another organization's app, and an app that would serve nothing", async () => {
     const stolen = await call('PATCH', `/api/organizations/apps/${clubAppId}`, {
       as: liam,
@@ -308,6 +320,15 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(await sessionOrg(james)).toBeUndefined();
     expect((await signIn(james, GLOBEX)).statusCode).toBe(200);
     expect(await sessionOrg(james)).toBe(globexId);
+  });
+
+  it('gives a stranger who signs up on the domain no session', async () => {
+    const stranger = new Person('Stranger');
+    const refused = await signUp(stranger, LEARN);
+    expect(refused.statusCode).toBeGreaterThanOrEqual(400);
+    expect(refused.statusCode).toBeLessThan(500);
+    expect(await sessionOrg(stranger)).toBeUndefined();
+    expect((await signIn(stranger, LEARN)).statusCode).toBe(401);
   });
 
   it('lets an invited person sign up on the domain, accept, and then holds their session to the organization', async () => {

@@ -607,6 +607,7 @@ function store(
     roles,
     apps: appsRepo,
     platformHost: 'https://platform.test',
+    reservedDomains: ['https://admin.platform.test', 'https://api.platform.test'],
     membersRepo,
     people: guardedPeople,
     images,
@@ -1880,6 +1881,20 @@ describe('creating an organization', () => {
     },
   );
 
+  it("creates nothing when the first domain would be one of the installation's own addresses", async () => {
+    const p = store();
+    const owner = await p.person('Sarah');
+    for (const slug of ['admin', 'api']) {
+      await expect(
+        p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Sneaky', slug }),
+      ).rejects.toBeInstanceOf(ConflictError);
+    }
+    expect([...p.orgs.keys()]).toEqual([]);
+    expect([...p.apps.keys()]).toEqual([]);
+    expect(p.assignments).toEqual([]);
+    expect(p.events).toEqual([]);
+  });
+
   it('creates nothing when another app already has the first domain', async () => {
     const p = store();
     const owner = await p.person('Sarah');
@@ -2054,6 +2069,22 @@ describe('apps', () => {
       w.service.updateApp(LEARN.id, { domain: GLOBEX_APP.domain }, admin),
     ).rejects.toBeInstanceOf(ConflictError);
     expect(await w.service.appsOf(ORG)).toEqual([LEARN]);
+  });
+
+  it("refuses the installation's own addresses as a domain", async () => {
+    const admin = await w.actor(s.liam.orgUser.id);
+    await w.service.deleteApp(CLUB.id, admin);
+    const input = { name: 'Circle', slug: 'circle', courses: false, community: true };
+    for (const domain of ['https://admin.platform.test', 'https://api.platform.test']) {
+      await expect(w.service.createApp({ ...input, domain }, admin)).rejects.toBeInstanceOf(
+        ConflictError,
+      );
+      await expect(w.service.updateApp(LEARN.id, { domain }, admin)).rejects.toBeInstanceOf(
+        ConflictError,
+      );
+    }
+    expect(await w.service.appsOf(ORG)).toEqual([LEARN]);
+    expect(await w.service.isOrgHost('https://admin.platform.test')).toBe(false);
   });
 
   it('refuses a second app that serves courses or the community', async () => {

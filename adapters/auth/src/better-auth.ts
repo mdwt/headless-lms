@@ -128,12 +128,37 @@ function returnOrigin(link: string): string | null {
   return URL.canParse(link) ? webOrigin(new URL(link).searchParams.get("callbackURL")) : null;
 }
 
+function requestDomains(headers: Headers, url?: string): string[] {
+  const page = pageOrigin(headers);
+  return [...new Set([...(url ? callbackOrigins(url) : []), ...(page ? [page] : [])])];
+}
+
 function sessionDomains(ctx: GenericEndpointContext | null): string[] {
-  if (ctx?.request) {
-    return requestOrigins(ctx.request);
+  const headers = ctx?.request?.headers ?? ctx?.headers;
+  return headers ? requestDomains(headers, ctx?.request?.url) : [];
+}
+
+function within(origin: string, cookieDomain: string): boolean {
+  const host = new URL(origin).hostname.toLowerCase();
+  const parent = cookieDomain.replace(/^\./, "").toLowerCase();
+  return host === parent || host.endsWith(`.${parent}`);
+}
+
+function hostOnlyCookies(response: Response): Response {
+  const cookies = response.headers.getSetCookie();
+  if (cookies.length === 0) {
+    return response;
   }
-  const page = ctx?.headers ? pageOrigin(ctx.headers) : null;
-  return page ? [page] : [];
+  const headers = new Headers(response.headers);
+  headers.delete("set-cookie");
+  for (const cookie of cookies) {
+    headers.append("set-cookie", cookie.replace(/;\s*domain=[^;]*/i, ""));
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function activeOrgOf(session: unknown): string | null {
@@ -456,6 +481,7 @@ export class BetterAuth
   protected logger: Logger;
   protected mcp: CreateAuthOptions["mcp"];
   protected issuer: string;
+  protected cookieDomain: string | undefined;
   protected jwksCacheKey = {};
 
   constructor(opts: CreateAuthOptions, auth?: Auth) {
@@ -464,6 +490,7 @@ export class BetterAuth
     this.logger = opts.logger;
     this.mcp = opts.mcp;
     this.issuer = `${opts.baseUrl.replace(/\/+$/, "")}/api/auth`;
+    this.cookieDomain = opts.cookieDomain;
   }
 
   protected get pluginApi(): PluginApi {
@@ -471,7 +498,11 @@ export class BetterAuth
   }
 
   async handler(request: Request): Promise<Response> {
-    return this.auth.handler(request);
+    const response = await this.auth.handler(request);
+    const [domain] = requestDomains(request.headers, request.url);
+    return this.cookieDomain && domain && !within(domain, this.cookieDomain)
+      ? hostOnlyCookies(response)
+      : response;
   }
 
   clientIp(headers: IncomingHttpHeaders): string | null {

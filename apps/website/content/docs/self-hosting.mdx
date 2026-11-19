@@ -50,7 +50,7 @@ An app is a frontend an organization runs on a domain. It serves courses, the co
 | --------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PLATFORM_HOST` | no       | `http://localhost:8002` | The origin a new organization's first app is made under: scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
 
-A new organization starts with one app that serves both, with the organization's name and slug, at its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Creating an organization answers `409` when another app already has that domain.
+A new organization starts with one app that serves both, with the organization's name and slug, at its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Creating an organization answers `409` when another app already has that domain, or when it is the admin app's address or the API's: with the admin app at `https://admin.example.com`, the slug `admin` is refused.
 
 An organization manages its apps in **Settings → Apps**, or under [`/api/organizations/apps`](/docs/api/organizations/listApps): it adds an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain. Changing the organization's slug later does not change its apps.
 
@@ -68,6 +68,7 @@ The student app does this itself. One deployment serves every organization's cou
 
 - It asks the API which organization its domain is, with [`GET /api/app`](/docs/api/organizations/getApp), and shows that organization's name on its sign-in pages.
 - It answers `404` on a domain that is no app's, or whose app does not serve courses.
+- It keeps the answer for a domain for a minute, so a change to an organization's apps shows in the student app within that minute. Sign-in and every API request follow the change at once.
 - It has pages to sign in, ask for a password reset, set the new password and ask for a sign-in link.
 
 Locally, with the defaults, an organization with the slug `acme` is at `http://acme.localhost:8002`. An installation with one organization changes its app's domain to the address its student app already has.
@@ -83,9 +84,9 @@ People sign in on an app's domain: the API trusts the domain of every app, besid
 - A session for another organization is answered `401` on an app's domain.
 - A password reset link or sign-in link that returns to an app's domain is sent only to a person who is active in that app's organization. The link opens at that domain under `/api`, so the cookie of a sign-in link belongs to the domain the person lands on.
 
-| Variable             | Required | Default | Notes                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `AUTH_COOKIE_DOMAIN` | no       | unset   | The parent domain the session cookie is shared across, such as `.example.com`. Unset, the cookie is host-only: it belongs to whichever host served the request. Leave it unset when organizations' apps are on domains that share no parent. Set, one cookie is shared by every organization under that parent, and a person who opens another organization's domain signs in again. |
+| Variable             | Required | Default | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_COOKIE_DOMAIN` | no       | unset   | The parent domain the session cookie is shared across, such as `.example.com`, for an admin app and an API on separate hosts under it. Unset, the cookie is host-only: it belongs to whichever host served the request. Set, an app on a domain under it shares the cookie with every other organization there, and a person who opens another organization's domain signs in again; an app on a domain outside it, such as `learn.acme.com`, gets a host-only cookie. |
 
 ### Default ports
 

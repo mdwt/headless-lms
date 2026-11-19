@@ -11,8 +11,10 @@ An organization's two hosts become apps. An app is a frontend the organization r
 
 - `GET`, `POST /api/organizations/apps` and `PATCH`, `DELETE /api/organizations/apps/:appId` manage them, with the MCP tools `list_apps`, `create_app`, `update_app` and `delete_app`. Listing needs `organizations:read`, the rest `organizations:write`.
 - `GET /api/app` tells a frontend which organization and app the domain of the request is, with no session and no key. It answers for the `Origin` header, or else the `Referer`, and is limited to 100 requests in 10 seconds per client IP address.
-- A session started on an app's domain is for that app's organization. A person with an open invite there gets a session with no organization, and anyone else is refused with a `401`. On any other origin a person in exactly one organization gets a session for it, as before.
+- A session started on an app's domain is for that app's organization. A person with an open invite there gets a session with no organization, and anyone else is refused: a sign-in answers `401`. On any other origin a person in exactly one organization gets a session for it, as before.
 - A request from an app's domain is logged with the app's id, and is a `401` with a session for another organization.
+- With `AUTH_COOKIE_DOMAIN` set, a sign-in from a domain outside it gets a host-only cookie, so an organization's own domain works beside the shared one.
+- The admin app's address and the API's are refused as an app's domain, and so is creating an organization whose first domain would be one of them.
 - A password reset link and a sign-in link that return to an app's domain open at that domain under `/api`, so a sign-in link's cookie belongs to the domain the person lands on.
 - The password reset, password changed and sign-in link emails are sent with the organization and the app they were asked for on.
 - Email templates receive the organization (`id`, `name`, `slug`, `metadata`), its `courseApp` and `communityApp`, the `requestedApp` of a sign-in email, and the `recipient` (`email`, and the `id`, `firstName` and `lastName` of the person who has that address).

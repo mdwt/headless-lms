@@ -437,6 +437,7 @@ export async function buildContainer(
     roles: new DrizzleRolesRepository(db),
     apps: new DrizzleAppsRepository(db),
     platformHost: config.platformHost,
+    reservedDomains: [new URL(config.adminAppUrl).origin, new URL(config.authBaseURL).origin],
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {

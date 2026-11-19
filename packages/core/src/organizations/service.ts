@@ -54,7 +54,12 @@ import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
-import { ForbiddenError, InvalidInputError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type { AuthHeaders, IdentityService, SessionAdmin } from '../identity/index.js';
 import type { AssetFiles } from '../assets/index.js';
@@ -115,6 +120,7 @@ export type OrganizationServiceParams = {
   roles: RolesRepository;
   apps: AppsRepository;
   platformHost: string;
+  reservedDomains?: readonly string[];
   membersRepo: MembersRepository;
   people: IdentityService;
   images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -194,6 +200,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly roles: RolesRepository;
   private readonly apps: AppsRepository;
   private readonly platform: URL;
+  private readonly reservedDomains: ReadonlySet<string>;
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
   private readonly images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -214,6 +221,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.roles = params.roles;
     this.apps = params.apps;
     this.platform = platformOrigin(params.platformHost);
+    this.reservedDomains = new Set(params.reservedDomains);
     this.membersRepo = params.membersRepo;
     this.people = params.people;
     this.images = params.images;
@@ -255,7 +263,9 @@ export class OrganizationServiceImpl implements OrganizationService {
         status: 'active',
       });
       await roles.setOrgRole(org.id, owner.id, OWNER_ROLE_KEY, SYSTEM_ID);
-      await apps.create({ ...firstAppOf(this.platform, org), id: genId('app') });
+      const first = firstAppOf(this.platform, org);
+      this.assertNotReserved(first.domain, org.id);
+      await apps.create({ ...first, id: genId('app') });
       await outbox.append([
         organizationEvents.organizationCreated.make({ orgId: org.id, data: org }),
         organizationEvents.orgUserLinked.make({
@@ -398,6 +408,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!input.courses && !input.community) {
       throw new InvalidInputError('An app serves courses, the community, or both');
     }
+    this.assertNotReserved(input.domain, actor.orgId);
     const app = await this.apps.create({ ...input, orgId: actor.orgId, id: genId('app') });
     this.logger.info('app created', {
       orgId: actor.orgId,
@@ -422,6 +433,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     }
     if (!(input.courses ?? current.courses) && !(input.community ?? current.community)) {
       throw new InvalidInputError('An app serves courses, the community, or both');
+    }
+    if (input.domain !== undefined) {
+      this.assertNotReserved(input.domain, orgId);
     }
     const updated = await this.apps.update(orgId, appId, input);
     if (!updated) {
@@ -496,6 +510,13 @@ export class OrganizationServiceImpl implements OrganizationService {
       userId: person.id,
     });
     return { refused: true };
+  }
+
+  private assertNotReserved(domain: string, orgId: string): void {
+    if (this.reservedDomains.has(domain)) {
+      this.logger.warn('app refused: the domain is one of the installation', { orgId, domain });
+      throw new ConflictError('That domain is already in use');
+    }
   }
 
   private async firstAppAt(domains: readonly string[]): Promise<AppAt | null> {

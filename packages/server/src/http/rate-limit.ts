@@ -20,11 +20,13 @@ export function fixedWindowLimit(options: {
   const now = options.now ?? Date.now;
   const windowMs = options.windowSeconds * 1000;
   const windows = new Map<string, { count: number; resetAt: number }>();
+  let sweepAfter = 0;
   return (key) => {
     const at = now();
     const current = windows.get(key);
     if (!current || current.resetAt <= at) {
-      if (windows.size >= SWEEP_ABOVE) {
+      if (windows.size >= SWEEP_ABOVE && at >= sweepAfter) {
+        sweepAfter = at + windowMs;
         for (const [seen, window] of windows) {
           if (window.resetAt <= at) {
             windows.delete(seen);
