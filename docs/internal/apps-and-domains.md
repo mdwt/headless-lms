@@ -19,9 +19,11 @@ whose courses or community to show.
 
 - A domain belongs to one app, and so to one organization, across the whole system.
 - An organization has at most one app that serves courses and at most one that serves the community.
-- A new organization gets one app that serves both. Its domain is the organization's slug as a subdomain of the
-  platform host (`PLATFORM_HOST`), as its two hosts are assigned today.
+- A new organization gets one app that serves both. The app takes the organization's name and slug. Its domain is
+  the organization's slug as a subdomain of the platform host (`PLATFORM_HOST`), as its two hosts are assigned
+  today.
 - Looking a domain up gives its app and organization. A domain that is no app's domain is a 404.
+- A session started on an app's domain is for that app's organization.
 
 ## The table
 
@@ -47,12 +49,77 @@ apps
 A domain is stored as an origin, normalised the way `hostSchema` normalises a host today. Saving a domain another
 app has, or a second app that serves courses or the community, is a 409.
 
-## The renderer's lookup
+The first app is created in the same unit of work as its organization. When another app already has the domain,
+creating the organization is a 409 and nothing is created.
 
-The app that renders, today the student app, receives a request on a domain and asks the API which app and
-organization that domain is. With no match it returns a 404. It makes the call as itself, not as the visitor.
+## Managing apps
 
-A request from an app's domain is logged with the app's id.
+Organizations creates, lists, updates and deletes apps. Listing needs `organizations:read`. Creating, updating and
+deleting need `organizations:write`.
+
+The routes are under `/api/organizations/apps`, with an MCP tool for each.
+
+"App" means only this. A program a person has authorised is a connected app: its routes move from
+`/api/access/apps` to `/api/access/connected-apps`, and the sign-in port's `listApps` becomes `listConnectedApps`.
+
+## The frontend key
+
+A frontend deployment has a secret of its own, the frontend key. It lets the deployment ask the API which app and
+organization a domain is, which nobody else can ask.
+
+| Variable       | Notes                                                                               |
+| -------------- | ----------------------------------------------------------------------------------- |
+| `FRONTEND_KEY` | The frontend key, at least 32 characters. Unset: the lookup route does not exist.   |
+
+It is sent as `Authorization: Bearer <frontend key>` and compared the way the platform key is
+(`platformKeyCheck` in `packages/server/src/app/platform.ts`). It works only on the lookup. The platform key and
+API keys do not work there.
+
+It is one key for the installation, not one per app: a deployment that serves many organizations' domains has to
+ask before it knows which app it is serving.
+
+## The lookup
+
+```
+GET /api/frontend/apps?domain=https://learn.acme.com
+Authorization: Bearer <frontend key>
+```
+
+It returns the app with its id, name, slug, domain and what it serves, and the organization with its id, name and
+slug. A domain that is no app's domain is a 404. A request without the frontend key is a 401.
+
+A request that carries an app's domain in its `Origin` or `Referer` header is logged with the app's id.
+
+## The student app
+
+The student app holds the frontend key on its server. It looks up the domain of each request and returns a 404 when
+there is no app, or when the app does not serve courses.
+
+Its browser code calls the API at its own origin under `/api`, and the student app forwards `/api` to the API
+(`API_URL`). The session cookie then belongs to the app's domain, and the API sees that domain as the request's
+`Origin`. `NEXT_PUBLIC_API_URL` goes.
+
+It treats a session for another organization as signed out. This happens when `AUTH_COOKIE_DOMAIN` shares one
+cookie across the organizations' subdomains.
+
+## Which organization a session is for
+
+When a session is created, the API reads the domain of the sign-in: the `Origin` or `Referer` header, or the origin
+of the link's return address (`requestOrigins` in `adapters/auth/src/better-auth.ts`).
+
+| The domain is                                                         | The session                                              |
+| --------------------------------------------------------------------- | -------------------------------------------------------- |
+| An app's, and the person is active in its organization                | Is for that organization                                 |
+| An app's, and the person holds an open invite to its organization     | Has no organization; accepting the invite sets it        |
+| An app's, and the person is neither                                   | Is refused                                               |
+| Any other domain, or none                                             | As today: the person's organization when they have one   |
+
+For example, Sarah is in Acme and Globex, and James is only in Globex:
+
+- Sarah signs in on `https://learn.acme.com` and gets an Acme session. On Globex's domain she gets a Globex one.
+- James signs in on `https://learn.acme.com` and is refused.
+- Emma was invited to Acme. She signs in on `https://learn.acme.com`, accepts the invite, and her session is for
+  Acme.
 
 ## Which domain a link uses
 
@@ -70,10 +137,22 @@ For Acme with two apps:
 - An email about a new post links to `https://club.acme.com`.
 - Sarah asks for a password reset on `https://club.acme.com`. The link returns there.
 
+An emailed invite for a role with no permissions, with no domain named and no app that serves courses, is a 409.
+
+The calendar file of an event leaves the event page link out when the organization has no app that serves the
+community.
+
 ## What an email template receives
 
-A template receives the organization's course app and community app, each with its id, name, slug and domain, in
-place of the `hosts` pair. An email sent outside an organization receives neither.
+In place of the `hosts` pair, a template receives:
+
+- **The organization**: its id, name, slug and metadata. Metadata is what the platform set when it created the
+  organization, so a platform reads its own customer id from it.
+- **The course app and the community app**: each with its id, name, slug and domain.
+- **The app the email was requested on**, for the three sign-in emails.
+- **The recipient**: the email address, and the id, first name and last name when a person has that address.
+
+An email sent outside an organization receives no organization and no apps.
 
 ## The three sign-in emails (#41)
 
@@ -83,13 +162,24 @@ domain.
 
 The domain names the organization:
 
-1. The sign-in adapter passes the domain to its hooks. It already reads it: the `Origin` or `Referer` header and the
-   origin of the link's return address (`requestOrigins` and `callbackOrigins` in
-   `adapters/auth/src/better-auth.ts`).
+1. The sign-in adapter passes the domain to its hooks.
 2. Organizations looks the domain up.
 3. Identity's `sendPasswordReset`, `sendPasswordChanged` and `sendMagicLink`
-   (`packages/core/src/identity/service.ts`) send with that organization, so the templates receive its apps as they
-   do for an invite.
+   (`packages/core/src/identity/service.ts`) send with that organization and app, so the templates receive them
+   as they do for an invite.
+
+| Email            | The domain is                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| Password reset   | The origin of the link's return address                                              |
+| Sign-in link     | The origin of the link's return address                                              |
+| Password changed | The `Origin` header of the request that set the new password, or else its `Referer`  |
+
+A password reset or a sign-in link that returns to an app's domain is sent only to a person active in that app's
+organization, as today. A password changed email is sent with the organization only when the person is active in
+it.
+
+A frontend that sets the new password from its server forwards the `Origin` header. Without it the password changed
+email is sent without an organization.
 
 ## What exists today
 
@@ -98,33 +188,44 @@ The domain names the organization:
   `OrgHostSettings` (`packages/core/src/organizations/hosts.ts`).
 - Two organizations can hold the same host: the lookup indexes are not unique
   (`adapters/db/src/schema/settings.ts`) and `findOrgIdsByHost` returns a list.
+- A new organization's hosts are assigned after the unit of work that creates it (`provisionOrganization` in
+  `packages/core/src/organizations/service.ts`).
 - The organization, platform and MCP organization responses carry `hosts`, and updating an organization accepts
   them.
-- Email templates build links from them through the helpers in `adapters/email-templates/src/emails/community.tsx`,
-  used by the community, event, access granted and course activity emails. The calendar file's event page link uses
-  the community host (`packages/core/src/reporting/member/service.ts`).
+- A template receives the brand name, the admin app's address and the two hosts (`TemplateContext` in
+  `packages/core/src/types/email-templates.ts`). Templates build links through the helpers in
+  `adapters/email-templates/src/emails/community.tsx`, used by the community, event, access granted and course
+  activity emails. The calendar file's event page link uses the community host
+  (`packages/core/src/reporting/member/service.ts`).
 - Sign-in works from either host (`isOrgHost`, `isHostOfPerson`).
+- A session gets an organization only when the person is in exactly one, whatever domain they signed in on
+  (`beforeCreateSession` in `packages/server/src/app/container.ts`). A person in two gets a session with none, and
+  the student app signs them out.
 - An invite takes a `host`, which must be one of the organization's two and defaults to the course host
   (`inviteHost` in `packages/core/src/organizations/service.ts`).
+- The student app has no credential of its own: its server forwards the visitor's session cookie
+  (`apps/student/src/lib/api/server-call.ts`). Its browser code calls the API at one fixed address
+  (`NEXT_PUBLIC_API_URL`), and the API answers a browser only from the origins in `CLIENT_ORIGIN`
+  (`packages/server/src/http/plugins/cors.ts`).
+- "App" also names a connected app (`/api/access/apps`).
 
 ## What changes
 
 - The `apps` table replaces the two host settings and their indexes. `OrgHostSettings`, `OrgHostIndex` and
   `DrizzleOrgHostIndex` go.
-- Organizations creates, lists, updates and deletes apps, each needing `organizations:write`, and looks a domain up.
-  Creating an organization creates its first app.
-- The API gets app routes, the renderer's lookup and MCP tools. `hosts` leaves the organization, platform and MCP
-  organization payloads.
-- The student app looks its domain up and returns a 404 when there is no app.
+- Organizations creates, lists, updates and deletes apps and looks a domain up. Creating an organization creates
+  its first app in the same unit of work.
+- The API gets the app routes and their MCP tools, the frontend key and the lookup. `hosts` leaves the
+  organization, platform and MCP organization payloads.
+- The connected app routes and the sign-in port's method are renamed.
+- The student app holds the frontend key, looks its domain up, calls the API at its own origin, and treats a
+  session for another organization as signed out.
 - `isOrgHost` and `isHostOfPerson` read `apps`.
+- `beforeCreateSession` sets the session's organization from the domain of the sign-in.
 - An invite's `host` becomes `domain`, checked against the organization's apps.
-- `TemplateContext.hosts` becomes the two apps, and the templates and the calendar file link build from them.
-- The three sign-in emails are sent with the organization of their domain.
+- `TemplateContext.hosts` becomes the organization, the apps and the recipient. The templates build their links
+  from the apps, and the calendar file's event page link becomes optional.
+- The three sign-in emails are sent with the organization and app of their domain.
 - `docs/domain/organizations.md` describes apps where it describes hosts.
-
-## Not settled
-
-- **The name.** "App" already means a connected app, an outside program a person has authorised
-  (`/api/access/apps`). The two need different names in the API and the docs.
-- **The renderer's credential.** The student app has none of its own: its server forwards the visitor's session
-  cookie (`apps/student/src/lib/api/server-call.ts`), and an API key carries one person's permissions.
+- The website docs describe apps where they describe hosts, and the frontend key: `self-hosting.mdx`,
+  `api-keys.mdx` and `adapters/email/react-email.mdx` in `apps/website/content/docs`.
