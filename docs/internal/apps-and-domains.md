@@ -23,7 +23,7 @@ The design has to work for all four.
 own domain.
 
 - It needs its domain on every link the API writes.
-- It has one organization, so there is nothing to look up.
+- It has one organization, and its domain is that organization's app.
 
 **2. Several organizations, the bundled apps.** An agency hosts the system for five clients. One student app
 deployment serves all five, and each client's domain points at it.
@@ -123,11 +123,13 @@ A request carries its domain in its `Origin` header, or else its `Referer`.
 A frontend asks which app and organization the domain it is serving is. It asks before anyone has signed in, so the
 call needs no session and no key.
 
-Sarah opens `https://learn.acme.com`. The frontend's server asks the API, sending her domain as `Origin`:
+Sarah opens `https://learn.acme.com`. The frontend's server asks the API, sending her domain as `Origin` and her IP
+address as `X-Forwarded-For`:
 
 ```
 GET /api/app
 Origin: https://learn.acme.com
+X-Forwarded-For: 203.0.113.7
 
 200  { "organization": { "name": "Acme" },
        "app": { "name": "Acme Academy", "courses": true, "community": false } }
@@ -137,7 +139,8 @@ Origin: https://learn.acme.com
 - A request that carries no domain, or a domain that is no app's, is a 404.
 - It returns the organization's name, the app's name and what the app serves, and nothing else. A sign-in page on
   that domain shows the same.
-- It is rate limited by IP address.
+- It is rate limited by the visitor's IP address, which the API reads as the sign-in rate limits do
+  (`AUTH_TRUSTED_PROXIES`, `AUTH_IP_ADDRESS_HEADERS`).
 
 ## The student app
 
@@ -148,6 +151,8 @@ One deployment serves any organization's domain, with no setting per organizatio
 - Its browser code calls the API at its own origin under `/api`, and the student app forwards `/api` to the API
   (`API_URL`). `NEXT_PUBLIC_API_URL` goes.
 - Its server calls carry the visitor's domain as `Origin`.
+- The calls it forwards and its server calls both carry the visitor's IP address as `X-Forwarded-For`, so the
+  sign-in rate limits and the lookup's count each visitor and not the student app.
 - It has a page to ask for a password reset, a page to set the new password, and a page to ask for a sign-in link.
   Each names its own domain as the link's return address.
 
@@ -156,12 +161,12 @@ One deployment serves any organization's domain, with no setting per organizatio
 When a session is created, the API reads the domain of the sign-in: the `Origin` or `Referer` header, or the origin
 of the link's return address (`requestOrigins` in `adapters/auth/src/better-auth.ts`).
 
-| The domain is                                                     | The session                                            |
-| ----------------------------------------------------------------- | ------------------------------------------------------ |
-| An app's, and the person is active in its organization            | Is for that organization                               |
-| An app's, and the person holds an open invite to its organization | Has no organization; accepting the invite sets it      |
-| An app's, and the person is neither                               | Is refused                                             |
-| Any other domain, or none                                         | As today: the person's organization when they have one |
+| The domain is                                                     | The session                                                      |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| An app's, and the person is active in its organization            | Is for that organization                                         |
+| An app's, and the person holds an open invite to its organization | Has no organization; accepting the invite sets it                |
+| An app's, and the person is neither                               | Is refused                                                       |
+| Any other domain, or none                                         | As today: the person's organization when they are in exactly one |
 
 The frontend never sends an organization id, and looking a domain up returns none. Sarah signs in on
 `https://learn.acme.com`:
@@ -217,6 +222,9 @@ In place of the `hosts` pair, a template receives:
 - **The recipient**: the email address, and the id, first name and last name when a person has that address.
 
 An email sent outside an organization receives no organization and no apps.
+
+The mailer gets the organization, its apps and the recipient from functions the server hands it, as it gets the
+hosts today.
 
 ## The three sign-in emails (#41)
 
@@ -278,6 +286,9 @@ email is sent without an organization.
 - No route tells a frontend which organization a domain is. One route needs no session today: reading an invite
   by its token (`getInvite` in `packages/server/src/http/routes/organizations.ts`). The API's own routes have no
   rate limit.
+- The sign-in routes are rate limited in production, per visitor IP address read from `X-Forwarded-For`
+  (`AUTH_TRUSTED_PROXIES`, `AUTH_IP_ADDRESS_HEADERS`): three sign-ins in ten seconds. The student app's server
+  calls send only the session cookie (`authHeaders` in `apps/student/src/lib/api/server-call.ts`).
 - "App" also names a connected app (`/api/access/apps`).
 
 ## What changes
@@ -288,13 +299,13 @@ email is sent without an organization.
   its first app in the same unit of work.
 - The API gets the app routes and their MCP tools. `hosts` leaves the organization, platform and MCP organization
   payloads.
-- The API gets `GET /api/app`, which needs no session and no key, and a rate limit for it.
+- The API gets `GET /api/app`, which needs no session and no key, and a rate limit for it per visitor IP address.
 - A request from an app's domain is logged with the app's id, and is a 401 with a session for another
   organization.
 - A password reset link and a sign-in link that return to an app's domain are written at that domain under `/api`.
 - The connected app routes and the sign-in port's method are renamed.
 - The student app looks its domain up, calls the API at its own origin, sends the visitor's domain on its server
-  calls, and gets its password reset and sign-in link pages.
+  calls and the visitor's IP address on every call, and gets its password reset and sign-in link pages.
 - `isOrgHost` and `isHostOfPerson` read `apps`.
 - `beforeCreateSession` sets the session's organization from the domain of the sign-in.
 - An invite's `host` becomes `domain`, checked against the organization's apps.
@@ -303,4 +314,5 @@ email is sent without an organization.
 - The three sign-in emails are sent with the organization and app of their domain.
 - `docs/domain/organizations.md` describes apps where it describes hosts.
 - The website docs describe apps where they describe hosts: `self-hosting.mdx`, `api-keys.mdx` and
-  `adapters/email/react-email.mdx` in `apps/website/content/docs`.
+  `adapters/email/react-email.mdx` in `apps/website/content/docs`. `building-a-frontend.mdx` describes looking a
+  domain up, calling the API under `/api` and where a session's organization comes from.
