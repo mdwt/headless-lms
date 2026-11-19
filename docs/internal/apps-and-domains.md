@@ -61,7 +61,7 @@ on each customer's domain and renders its own email templates.
 
 ## The table
 
-Owned by organizations.
+No context owns it. The apps utility reads and writes it.
 
 ```
 apps
@@ -102,25 +102,28 @@ with the slug `globex` at `http://globex.localhost:8002`.
 
 ## Who owns it
 
-An organization's apps are settings of that organization, as its two hosts are today. Organizations reads and writes
-them. They are stored in their own table so that the database holds a domain to one organization. Looking a domain
-up is a read of that setting, one method on the organizations service. There is no new context and no new service.
+No context owns apps. An organization's apps are settings of that organization, kept by a shared utility
+(`packages/core/src/shared/apps.ts`) beside the settings store. Every context may use it, and it uses none. It holds
+the rules for saving an app, the app a new organization starts with, and the lookup from a domain to its app and
+organization. Apps are stored in their own table, and not in the settings store, so that the database holds a domain
+to one organization.
 
-No other context calls it directly. The server hands it to whoever needs it, as it hands them the hosts today:
-
-| Who needs it                | How it gets it                                                                         |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| The sign-in adapter         | The `OrgHosts` port (`adapters/auth/src/types.ts`), which the server fills             |
-| The mailer                  | A function the server hands it, `hostsOf` today (`packages/core/src/shared/mailer.ts`) |
-| Identity, for three emails  | The server's sign-in hook looks the domain up and passes the organization in           |
-| The route that looks one up | It calls the method and holds no logic                                                 |
+| Who uses it                   | For                                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| The app routes and MCP tools  | Listing, adding, changing and deleting apps, and looking a domain up                   |
+| The server, for every request | The app and organization of the request's domain                                       |
+| Organizations                 | A new organization's first app, the organization of a session, the domain of an invite |
+| The sign-in adapter           | Whether an origin is an app's: the `OrgHosts` port, which the server fills             |
+| The mailer                    | An organization's apps: a function the server hands it                                 |
+| Member reporting              | The community app's domain for a calendar file: a function the server hands it         |
+| Identity, for three emails    | The server's sign-in hook passes the organization and app of the domain in             |
 
 ## Managing apps
 
-Organizations creates, lists, updates and deletes apps. Listing needs `organizations:read`. Creating, updating and
-deleting need `organizations:write`.
+The apps utility creates, lists, updates and deletes apps. Listing needs `organizations:read`. Creating, updating
+and deleting need `organizations:write`.
 
-The routes are under `/api/apps`, with an MCP tool for each.
+The routes are under `/api/apps`, in their own group of the API reference, with an MCP tool for each.
 
 The admin app has a screen for them, Settings → Apps. It lists the organization's apps and, with
 `organizations:write`, adds, edits and deletes them: name, slug, domain and what the app serves.
@@ -261,7 +264,8 @@ domain.
 The domain names the organization:
 
 1. The sign-in adapter passes the domain to its hooks.
-2. Organizations looks the domain up.
+2. Organizations finds the app of the domain with the apps utility, and checks that the person is active in its
+   organization.
 3. Identity's `sendPasswordReset`, `sendPasswordChanged` and `sendMagicLink`
    (`packages/core/src/identity/service.ts`) send with that organization and app, so the templates receive them
    as they do for an invite.
@@ -321,8 +325,8 @@ email is sent without an organization.
 
 - The `apps` table replaces the two host settings and their indexes. `OrgHostSettings`, `OrgHostIndex` and
   `DrizzleOrgHostIndex` go.
-- Organizations creates, lists, updates and deletes apps and looks a domain up. Creating an organization creates
-  its first app in the same unit of work.
+- A shared apps utility creates, lists, updates and deletes apps and looks a domain up. Creating an organization
+  creates its first app in the same unit of work.
 - The API gets the app routes and their MCP tools. `hosts` leaves the organization, platform and MCP organization
   payloads.
 - The admin app gets its Apps screen.
@@ -333,13 +337,14 @@ email is sent without an organization.
 - The connected app routes and the sign-in port's method are renamed.
 - The student app looks its domain up, calls the API at its own origin, sends the visitor's domain on its server
   calls and the visitor's IP address on every call, and gets its password reset and sign-in link pages.
-- `isOrgHost` and `isHostOfPerson` read `apps`.
+- The sign-in adapter's `OrgHosts` port is filled from apps: `isOrgHost` goes and `isHostOfPerson` reads apps.
 - `beforeCreateSession` sets the session's organization from the domain of the sign-in.
 - An invite's `host` becomes `domain`, checked against the organization's apps.
 - `TemplateContext.hosts` becomes the organization, the apps and the recipient. The templates build their links
   from the apps, and the calendar file's event page link becomes optional.
 - The three sign-in emails are sent with the organization and app of their domain.
-- `docs/domain/organizations.md` describes apps where it describes hosts.
+- `docs/architecture.md` describes apps and domains. `docs/domain/organizations.md` drops hosts from the org
+  settings, and describes which organization a session is for and the domain of an invite.
 - The website docs describe apps where they describe hosts: `self-hosting.mdx`, `api-keys.mdx` and
   `adapters/email/react-email.mdx` in `apps/website/content/docs`. `building-a-frontend.mdx` describes looking a
   domain up, calling the API under `/api` and where a session's organization comes from.
