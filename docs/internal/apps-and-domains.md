@@ -85,6 +85,20 @@ app has, or a second app that serves courses or the community, is a 409.
 The first app is created in the same unit of work as its organization. When another app already has the domain,
 creating the organization is a 409 and nothing is created.
 
+## Who owns it
+
+Organizations owns apps and their domains, as it owns the two hosts today. Looking a domain up is one method on the
+organizations service. There is no new context and no new service.
+
+No other context calls it directly. The server hands it to whoever needs it, as it hands them the hosts today:
+
+| Who needs it                | How it gets it                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------- |
+| The sign-in adapter         | The `OrgHosts` port (`adapters/auth/src/types.ts`), which the server fills             |
+| The mailer                  | A function the server hands it, `hostsOf` today (`packages/core/src/shared/mailer.ts`) |
+| Identity, for three emails  | The server's sign-in hook looks the domain up and passes the organization in           |
+| The route that looks one up | It calls the method and holds no logic                                                 |
+
 ## Managing apps
 
 Organizations creates, lists, updates and deletes apps. Listing needs `organizations:read`. Creating, updating and
