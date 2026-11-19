@@ -30,7 +30,10 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   // Guard everything except the login page, the invite landing page (/welcome —
-  // reached from invite emails by visitors with no session yet), Next internals,
-  // and the (unused here) /api namespace.
-  matcher: ["/((?!login|welcome|_next/static|_next/image|favicon.ico|api).*)"],
+  // reached from invite emails by visitors with no session yet), the password
+  // reset and sign-in link pages, Next internals, and /api, which is forwarded to
+  // the API and guarded there.
+  matcher: [
+    "/((?!login|welcome|forgot-password|reset-password|sign-in-link|_next/static|_next/image|favicon.ico|api).*)",
+  ],
 };

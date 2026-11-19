@@ -188,12 +188,11 @@ type ReportBody = NonNullable<ReportProgressData["body"]>;
  *  body is pinned to the generated contract type. */
 export function flushKeepalive(activityId: string, items: VideoReportItem[]): void {
   if (items.length === 0) return;
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   const body: ReportBody = {
     activity: activityId,
     reports: items as ReportBody["reports"],
   };
-  void fetch(`${base}/api/member/progress`, {
+  void fetch("/api/member/progress", {
     method: "POST",
     credentials: "include",
     keepalive: true,

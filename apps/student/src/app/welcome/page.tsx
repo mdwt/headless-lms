@@ -18,8 +18,12 @@ import { getServerSession } from "@/lib/auth/server-session";
 import { authHeaders } from "@/lib/api/server-call";
 import { ApiError } from "@/lib/api/shared";
 import { fullName } from "@/lib/format";
+import { requireCourseApp } from "@/lib/app";
 
-export const metadata: Metadata = { title: "Welcome — Headless LMS" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { organization } = await requireCourseApp();
+  return { title: `Welcome — ${organization.name}` };
+}
 
 // The link carries a one-time token, so there is nothing cacheable here.
 export const dynamic = "force-dynamic";
@@ -29,6 +33,7 @@ export default async function WelcomePage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
+  await requireCourseApp();
   const { token = "" } = await searchParams;
 
   let invite: GetInviteResponse | undefined;

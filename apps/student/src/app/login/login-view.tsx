@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { signIn, useSession } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function LoginView() {
+/** Better Auth's answer when the API refuses the session: the account is not in this organization. */
+const NOT_A_MEMBER = "FAILED_TO_CREATE_SESSION";
+
+export function LoginView({ orgName }: { orgName: string }) {
   const router = useRouter();
   const params = useSearchParams();
   // Where the proxy wanted the user to land before it bounced them here.
@@ -16,6 +20,8 @@ export function LoginView() {
   const nextParam = params.get("next");
   const next =
     nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
+  const linkFailed = params.has("error");
+  const passwordReset = params.has("reset");
   const { data: session } = useSession();
 
   // A session that reaches this page is one worth honouring. Anything the API
@@ -30,7 +36,7 @@ export function LoginView() {
       {/* Form column */}
       <div className="flex flex-col bg-surface">
         <div className="flex h-16 items-center px-6 sm:px-10">
-          <span className="text-lg font-semibold tracking-tight text-ink">Headless LMS</span>
+          <span className="text-lg font-semibold tracking-tight text-ink">{orgName}</span>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
           <div className="w-full max-w-xs">
@@ -42,7 +48,33 @@ export function LoginView() {
                 Welcome back. Enter your credentials to continue your courses.
               </p>
             </div>
-            <SignInForm onDone={() => router.replace(next)} />
+            {passwordReset && (
+              <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-line bg-surface-warm px-3 py-2.5 text-sm text-ink">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                <p>Your password was changed. Sign in with the new one.</p>
+              </div>
+            )}
+            {linkFailed && (
+              <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-quiz-wrong-border bg-quiz-wrong-bg px-3 py-2.5 text-sm text-quiz-wrong-fg">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <p>That sign-in link didn&apos;t work. It may have expired or been used already.</p>
+              </div>
+            )}
+            <SignInForm orgName={orgName} onDone={() => router.replace(next)} />
+            <p className="mt-6 flex flex-col gap-2 text-center text-sm text-ink-3">
+              <Link
+                href="/forgot-password"
+                className="font-medium text-brand underline-offset-4 hover:underline"
+              >
+                Forgot your password?
+              </Link>
+              <Link
+                href="/sign-in-link"
+                className="font-medium text-brand underline-offset-4 hover:underline"
+              >
+                Email me a sign-in link
+              </Link>
+            </p>
           </div>
         </div>
       </div>
@@ -55,7 +87,7 @@ export function LoginView() {
             <p className="text-2xl font-medium tracking-tight text-surface text-balance">
               Your courses, in one calm place. Pick up right where you left off.
             </p>
-            <footer className="mt-4 text-sm text-surface/60">Headless LMS · Course platform</footer>
+            <footer className="mt-4 text-sm text-surface/60">{orgName}</footer>
           </blockquote>
         </div>
       </div>
@@ -63,7 +95,7 @@ export function LoginView() {
   );
 }
 
-function SignInForm({ onDone }: { onDone: () => void }) {
+function SignInForm({ orgName, onDone }: { orgName: string; onDone: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +107,11 @@ function SignInForm({ onDone }: { onDone: () => void }) {
     setSubmitting(true);
     const { error } = await signIn.email({ email, password });
     if (error) {
-      setError(error.message ?? "Invalid email or password");
+      setError(
+        error.code === NOT_A_MEMBER
+          ? `This account is not a member of ${orgName}.`
+          : (error.message ?? "Invalid email or password"),
+      );
       setSubmitting(false);
       return;
     }

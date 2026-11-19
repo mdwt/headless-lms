@@ -2,20 +2,22 @@ import "server-only";
 
 /**
  * Shared plumbing for server-side SDK reads. Configures the SDK base URL on
- * import and exposes the per-call cookie-forward header bag.
+ * import and exposes the per-call header bag: the visitor's cookie, domain and
+ * IP address.
  *
  * The SDK `client` is a module-level singleton shared across all concurrent
  * requests, so the cookie is threaded per-call via the `headers` option — never
  * `client.setConfig` with request state (which would leak cookies between users).
  */
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { configureSdk } from "@headless-lms/sdk";
 
+import { API_URL } from "./api-url";
 import { ApiError, responseMessage, responseStatus } from "./shared";
+import { visitorHeaders } from "./visitor";
 
-export const API_URL =
-  process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export { API_URL };
 
 // The client throws on failure rather than returning a result envelope, so no
 // call site unwraps. `onError` turns the raw response body it would otherwise
@@ -42,10 +44,14 @@ configureSdk({
 });
 
 /**
- * Per-call header bag: forwards the session cookie. The org the request is scoped
- * to rides in the session itself (better-auth `activeOrganizationId`, stamped at
- * login) — the API reads it there, so no per-request org header is needed.
+ * Per-call header bag: forwards the session cookie, with the visitor's domain as
+ * `Origin` and their IP address as `X-Forwarded-For`. The org the request is
+ * scoped to rides in the session itself (better-auth `activeOrganizationId`,
+ * stamped at login from the domain) — the API reads it there, and answers 401
+ * when the domain belongs to another organization.
  */
-export async function authHeaders(): Promise<{ headers: { cookie: string } }> {
-  return { headers: { cookie: (await cookies()).toString() } };
+export async function authHeaders(): Promise<{ headers: Record<string, string> }> {
+  return {
+    headers: { cookie: (await cookies()).toString(), ...visitorHeaders(await headers()) },
+  };
 }
