@@ -107,6 +107,9 @@ deleting need `organizations:write`.
 
 The routes are under `/api/organizations/apps`, with an MCP tool for each.
 
+The admin app has a screen for them, Settings → Apps. It lists the organization's apps and, with
+`organizations:write`, adds, edits and deletes them: name, slug, domain and what the app serves.
+
 "App" means only this. A program a person has authorised is a connected app: its routes move from
 `/api/access/apps` to `/api/access/connected-apps`, and the sign-in port's `listApps` becomes `listConnectedApps`.
 
@@ -140,7 +143,8 @@ X-Forwarded-For: 203.0.113.7
 - It returns the organization's name, the app's name and what the app serves, and nothing else. A sign-in page on
   that domain shows the same.
 - It is rate limited by the visitor's IP address, which the API reads as the sign-in rate limits do
-  (`AUTH_TRUSTED_PROXIES`, `AUTH_IP_ADDRESS_HEADERS`).
+  (`AUTH_TRUSTED_PROXIES`, `AUTH_IP_ADDRESS_HEADERS`): 100 requests in 10 seconds, then a 429 that says when to
+  come back.
 
 ## The student app
 
@@ -150,11 +154,13 @@ One deployment serves any organization's domain, with no setting per organizatio
   app or when the app does not serve courses.
 - Its browser code calls the API at its own origin under `/api`, and the student app forwards `/api` to the API
   (`API_URL`). `NEXT_PUBLIC_API_URL` goes.
-- Its server calls carry the visitor's domain as `Origin`.
+- Its server calls carry the visitor's domain as `Origin`. A read it forwards with no `Origin` gets its own domain
+  as one, so opening a sign-in link names the domain it was opened on.
 - The calls it forwards and its server calls both carry the visitor's IP address as `X-Forwarded-For`, so the
   sign-in rate limits and the lookup's count each visitor and not the student app.
 - It has a page to ask for a password reset, a page to set the new password, and a page to ask for a sign-in link.
   Each names its own domain as the link's return address.
+- A person who is refused because they are not in the organization is told so by its name.
 
 ## Which organization a session is for
 
@@ -165,7 +171,7 @@ of the link's return address (`requestOrigins` in `adapters/auth/src/better-auth
 | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
 | An app's, and the person is active in its organization            | Is for that organization                                         |
 | An app's, and the person holds an open invite to its organization | Has no organization; accepting the invite sets it                |
-| An app's, and the person is neither                               | Is refused                                                       |
+| An app's, and the person is neither                               | Is refused, with a 401                                           |
 | Any other domain, or none                                         | As today: the person's organization when they are in exactly one |
 
 The frontend never sends an organization id, and looking a domain up returns none. Sarah signs in on
@@ -299,6 +305,7 @@ email is sent without an organization.
   its first app in the same unit of work.
 - The API gets the app routes and their MCP tools. `hosts` leaves the organization, platform and MCP organization
   payloads.
+- The admin app gets its Apps screen.
 - The API gets `GET /api/app`, which needs no session and no key, and a rate limit for it per visitor IP address.
 - A request from an app's domain is logged with the app's id, and is a 401 with a session for another
   organization.

@@ -2,10 +2,18 @@
 
 Next.js student-facing app: course catalog, dashboard, and course player.
 
-Talks to the api exclusively through `@headless-lms/sdk` (configured once via
-`configureSdk({ baseUrl })`); the SDK ships TS source, so it's listed in
-`transpilePackages`.
+One deployment serves any organization's domain. It asks the API which
+organization its domain is, shows that organization's name on its sign-in
+pages, and answers 404 on a domain that is no course app's.
+
+The browser talks to the api under `/api` on the domain it is on, which this
+app forwards to `API_URL` (`src/app/api/[...path]/route.ts`). Server reads go
+through `@headless-lms/sdk`, carrying the visitor's cookie, domain and IP
+address; the SDK ships TS source, so it's listed in `transpilePackages`.
 
 ```bash
-pnpm --filter student dev   # http://localhost:8002 (api must be up on :8000)
+pnpm --filter student dev   # api must be up on :8000
 ```
+
+Open it on an organization's domain: with the default `PLATFORM_HOST`, the
+organization with the slug `acme` is at `http://acme.localhost:8002`.

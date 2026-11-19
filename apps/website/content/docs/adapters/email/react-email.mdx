@@ -21,11 +21,11 @@ The catalog is closed and typed: every template id in `EmailTemplateParams` (fro
 
 | Template            | Sent when                                                                                |
 | ------------------- | ---------------------------------------------------------------------------------------- |
-| `magicLink`         | A user signs in with a magic link                                                        |
+| `magicLink`         | A user asks for a sign-in link                                                           |
 | `emailVerification` | A user must verify their email address                                                   |
 | `passwordReset`     | A user requests a password reset                                                         |
 | `passwordChanged`   | A user's password has been reset                                                         |
-| `studentInvite`     | A person is invited with a role that holds no permissions, to the student portal         |
+| `studentInvite`     | A person is invited with a role that holds no permissions, to the organization's app     |
 | `memberInvite`      | A person is invited with a role that holds permissions, to the admin app; names the role |
 | `roleAssigned`      | A person is given a role that adds permissions, on the organization or on one item       |
 | `accessGranted`     | A student is granted access to content                                                   |
@@ -34,21 +34,41 @@ The catalog is closed and typed: every template id in `EmailTemplateParams` (fro
 
 ## Branding
 
-Every template receives a `TemplateContext` — brand name, base URL, and the organization's hosts. The reference installation maps the first two from env:
+The reference installation maps the installation's brand from env:
 
 | Variable        | Maps to     | Notes                                             |
 | --------------- | ----------- | ------------------------------------------------- |
 | `BRAND_NAME`    | `brandName` | Shown in every email. Defaults to `Headless LMS`. |
 | `ADMIN_APP_URL` | `baseUrl`   | Origin admin-app links resolve against.           |
 
-`hosts` holds the origins member-facing links resolve against, read from the organization's settings when the email is sent:
+## What a template receives
 
-| Field             | Links                                     |
-| ----------------- | ----------------------------------------- |
-| `hosts.courses`   | Courses, lessons, downloads, the library  |
-| `hosts.community` | Communities, spaces, posts, chats, events |
+Every template receives a `TemplateContext` with its params. It is read when the email is sent, so a change to an organization or its apps applies to the next email.
 
-An organization starts with its slug under [`PLATFORM_HOST`](/docs/self-hosting#hosts) for both, and changes them with `PATCH /api/organizations`. `hosts` is `null` for an email sent outside an organization, such as a password reset.
+| Field          | Holds                                                                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `brandName`    | The installation's brand name.                                                                                                                                     |
+| `baseUrl`      | The admin app's origin.                                                                                                                                            |
+| `organization` | The organization the email is about: `id`, `name`, `slug` and `metadata`. `null` for an email sent outside an organization.                                        |
+| `courseApp`    | The organization's [app](/docs/self-hosting#apps-and-domains) that serves courses: `id`, `name`, `slug` and `domain`. `null` when it has none.                     |
+| `communityApp` | The organization's app that serves the community, with the same fields. The same app as `courseApp` when one app serves both. `null` when it has none.             |
+| `requestedApp` | The app a password reset, password changed or sign-in link email was asked for on. `null` for every other email.                                                   |
+| `recipient`    | The address the email goes to, as `email`, and the `id`, `firstName` and `lastName` of the person who has that address. Those three are `null` when nobody has it. |
+
+Member-facing links resolve against an app's `domain`:
+
+| Field                 | Links                                     |
+| --------------------- | ----------------------------------------- |
+| `courseApp.domain`    | Courses, lessons, downloads, the library  |
+| `communityApp.domain` | Communities, spaces, posts, chats, events |
+
+`metadata` is the key-value pairs a [platform](/docs/api-keys#the-platform-key) stored with the organization when it created it, so its templates find their own customer from the organization.
+
+The password reset, password changed and sign-in link emails carry the organization and `requestedApp` when they are asked for on the domain of an app and the person is active in that app's organization. Asked for anywhere else, such as on the admin app, they carry no organization.
+
+For example, Sarah asks for a sign-in link on `https://club.acme.com`. The `magicLink` template receives Acme as `organization`, Acme's community app as `requestedApp`, and Sarah as `recipient`. Its link opens at `https://club.acme.com/api/auth/...`.
+
+A bundled template that links to an app the organization does not have fails to render, and the email is not sent.
 
 ## Previewing templates
 

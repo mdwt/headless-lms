@@ -1,5 +1,5 @@
 ---
-description: "GET /api/access/apps. Apps connected to this organization as you. Headless LMS Access API reference."
+description: "GET /api/access/connected-apps. Apps connected to this organization as you. Headless LMS Access API reference."
 title: Apps connected to this organization as you
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/access/apps","method":"get"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/access/connected-apps","method":"get"}]} showDescription />
     </>
   );
 }

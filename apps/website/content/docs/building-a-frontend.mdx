@@ -5,11 +5,55 @@ description: Read a signed-in member's courses, downloads and community, and sho
 
 The student app in `apps/student` is one frontend over the member API. Any other frontend uses the same routes, under `/api/member`.
 
+## Domains and the organization
+
+A frontend runs on the domain of one of an organization's [apps](/docs/self-hosting#apps-and-domains), and the API reads that domain to know which organization a request is for. One deployment can serve many organizations: each organization's domain points at it.
+
+- **Reach the API under `/api` on your own domain.** Forward `/api` to the API, unchanged. The browser's calls, the session cookie and the links in sign-in emails then all use the domain the person is on.
+- **A browser request carries its domain** in the `Origin` header, or else the `Referer`. A call your server makes for a visitor has neither: send the visitor's domain as `Origin`.
+- **Send the visitor's IP address** as `X-Forwarded-For` on what you forward and on what your server calls. The API's rate limits count it. See [Behind a proxy](/docs/self-hosting#behind-a-proxy).
+
+### Which organization is this domain?
+
+[`GET /api/app`](/docs/api/organizations/getApp) answers for the domain of the request, before anyone has signed in. It needs no session and no key, and takes no domain as a parameter.
+
+```bash
+curl https://<your-api-host>/api/app \
+  -H "Origin: https://learn.acme.com" \
+  -H "X-Forwarded-For: 203.0.113.7"
+```
+
+```json
+{
+  "organization": { "name": "Acme" },
+  "app": { "name": "Acme Academy", "courses": true, "community": false }
+}
+```
+
+- `404` means the request carries no domain, or the domain is no app's. Answer it with your own `404`.
+- `app.courses` and `app.community` say what the app serves. A course frontend on a community-only domain has nothing to show.
+- It is limited to 100 requests in 10 seconds per client IP address, and answers `429` with `Retry-After` beyond that.
+
 ## Sessions and the organization
 
-- A member signs in with email and password through Better Auth (`/api/auth/*`). The session is a cookie.
-- The organization comes from the session, not from a header or subdomain.
-- Every `/api/member` route answers `401` without a session.
+- A member signs in with email and password, or with a sign-in link, through Better Auth (`/api/auth/*`). The session is a cookie on your domain.
+- The organization comes from the session. The API sets it when the session is created, from the domain the person signed in on. A frontend never sends an organization id.
+- A person who is not in the organization of your domain is refused: sign-in answers `401` with the code `FAILED_TO_CREATE_SESSION`.
+- A person with an open invite to the organization gets a session with no organization. [`POST /api/organizations/invites/accept`](/docs/api/people/acceptInvite) sets it; read the session again afterwards.
+- Every `/api/member` route answers `401` without a session, and with a session for another organization. Sign the person out and ask them to sign in again.
+
+### Password reset and sign-in links
+
+Name a page on your own domain as the return address, and the email's link opens on your domain:
+
+| The person asks for | Call                                                                                   | The link lands on                       |
+| ------------------- | -------------------------------------------------------------------------------------- | --------------------------------------- |
+| A password reset    | `POST /api/auth/request-password-reset` with `email` and `redirectTo`                  | `redirectTo`, with `token` in the query |
+| A sign-in link      | `POST /api/auth/sign-in/magic-link` with `email`, `callbackURL` and `errorCallbackURL` | `callbackURL`, signed in                |
+
+- Set the new password with `POST /api/auth/reset-password`, sending `newPassword` and the `token`.
+- A link that returns to an app's domain is sent only to a person who is active in that app's organization. The call answers the same either way.
+- A sign-in link that fails lands on `errorCallbackURL` with `error` in the query.
 
 ## Access
 

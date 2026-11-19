@@ -19,10 +19,11 @@ A permission names one thing a person may do, such as editing a course. A role i
 | Org role              | The role a person holds on the org. Everyone has exactly one; it is Member unless they were given another.                                                  |
 | Effective permissions | Everything a person may do on an item: their org role's permissions plus those of the role given to them on that item.                                      |
 | Team                  | People shown as team on a content item: a badge with their role's name, the team section of a community's directory, and the direct-message rules for team. |
+| App                   | A frontend the org runs on a domain, serving courses, the community, or both. A connected app is something else: a program a person has let act as them.    |
 
 ## Scope
 
-- Owns the **organization (tenant)**, the **org user** (person ↔ org), the **invite**, the **roles** and the **assignments**.
+- Owns the **organization (tenant)**, its **apps**, the **org user** (person ↔ org), the **invite**, the **roles** and the **assignments**.
 - Owns the **permission list** and **authorization**: every permission check in the system is answered from what organizations holds.
 - Owns **people management**: inviting, giving and removing roles, removing people, and transferring ownership.
 - Does **not** own the person record (identity), access to content (entitlements), content (content), or completion (progress).
@@ -64,7 +65,8 @@ flowchart TD
 - **Role** — a key, a name, a description, its levels, its permissions, and whether its holders are shown as team. A role the org changed or added also records the default role it started from.
 - **Assignment** — an org user, a role, and the org or one content item.
 - **Invite** — a pending invite to join an org, carrying the org role the invitee will hold. Domain-owned.
-- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings. Also among them are its hosts: where its course app and its community app are reached. Links sent to a person, in an email, an invite or a calendar file, use them, so a change applies to the next link. Both are always set. A new org starts with one host for both, its slug under the platform's host, and changes them later. For example, on a platform at `example.com` Acme starts at `acme.example.com`, then connects `learn.acme.com` for courses and `club.acme.com` for its community; from then on an email about a post links to the last. People sign in from a page on any of an org's hosts, from the moment the host is set. A link that signs a person in or resets their password, and returns to an org's host, is sent only to a person who is active in that org.
+- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings. Also among them are its apps.
+- **App** — a frontend the org runs on a domain. It serves courses, the community, or both. An org has at most one app that serves courses and one that serves the community, and a domain belongs to one app across every org. A new org starts with one app that serves both, at its slug under the platform's host, and adds, changes and deletes apps later. Links sent to a person, in an email, an invite or a calendar file, use the domain of the app that serves what the link is about, so a change applies to the next link. For example, on a platform at `example.com` Acme starts at `acme.example.com`, then runs a course app at `learn.acme.com` and a community app at `club.acme.com`; from then on an email about a post links to the last.
 
 ## Permissions
 
@@ -77,8 +79,8 @@ The permission list is part of the product. A deployment or an org can't add a p
 
 | Permission                      | Allows                                                                                                                     | About     |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `organizations:read`            | See the org's name, slug and general settings.                                                                             | org       |
-| `organizations:write`           | Change the org's name, slug and general settings.                                                                          | org       |
+| `organizations:read`            | See the org's name, slug, apps and general settings.                                                                       | org       |
+| `organizations:write`           | Change the org's name, slug, apps and general settings.                                                                    | org       |
 | `api_keys:read`                 | List your own API keys.                                                                                                    | org       |
 | `api_keys:write`                | Create your own API keys.                                                                                                  | org       |
 | `api_keys:delete`               | Revoke your own API keys.                                                                                                  | org       |
@@ -188,13 +190,27 @@ A person is team on a content item when the role given to them there, or their o
 6. **Removing a person** deletes their org user and their assignments, removes their Better Auth membership, and revokes their API keys, connected apps and tokens for the org. A refusal, such as for someone whose posts must be kept, changes nothing.
 7. **Deleting a content item** deletes the roles given on it.
 
+## Signing in on a domain
+
+A domain tells which org a person is signing in to, because it belongs to one app.
+
+- A session started on an app's domain is for that app's org, when the person is active in it.
+- A person who holds an open invite to that org gets a session with no org. Accepting the invite sets it.
+- Anyone else is refused there.
+- A session started anywhere else, such as on the admin app, is for the person's org when they are in exactly one.
+- On an app's domain, a session for another org is not accepted.
+- A link that signs a person in or resets their password, and returns to an app's domain, is sent only to a person who is active in that app's org. The email says which org and which app it was asked for on, as does the email that confirms a changed password.
+- A frontend asks which org and app its domain is before anyone has signed in, and is told the org's name, the app's name and what the app serves.
+
+For example, Sarah is in Acme and Globex, and James is only in Globex. Sarah signs in on `learn.acme.com` and gets an Acme session; on Globex's domain she gets a Globex one. James is refused on `learn.acme.com`. Emma was invited to Acme: she signs in on `learn.acme.com`, accepts the invite, and her session is for Acme.
+
 ## Membership
 
 Every org user who accepts an invite holds a Better Auth membership, whatever their role. A person has at most one membership per org, and changing their roles never touches it. Accepting an invite as an existing member, to change their role, keeps their one membership.
 
 ### Invites
 
-An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the app the invite was sent from, which must be one of the org's hosts.
+An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the domain the invite names, which must be one of the org's apps, or else the app that serves courses. With neither, an emailed invite is refused.
 
 Every invite creates the person and an `invited` org user at once, whatever the role. This is what makes someone findable, grantable and reportable while their invitation is outstanding. Accepting activates that same org user, creates their membership if they have none, and sets the invited org role, so anything granted while they were pending survives. Accepting is refused when the inviter no longer holds what the invite needs; resending makes the resender the inviter.
 
@@ -248,4 +264,4 @@ The organization is the tenant root. Every org-scoped record across the system b
 
 ## Build state
 
-The permission list, the default set, org roles, assignments on the org and on content items, effective permissions, the no-escalation rules, ownership transfer, invites and removal are built and **persisted**. Every method a person can reach checks a permission. API keys carry a role and app tokens carry scopes, and both are limited to their creator's current permissions. The platform key and the platform account are built. `organization.user.updated` is declared, and nothing emits it.
+The permission list, the default set, org roles, assignments on the org and on content items, effective permissions, the no-escalation rules, ownership transfer, invites, removal, apps and signing in on a domain are built and **persisted**. Every method a person can reach checks a permission. API keys carry a role and app tokens carry scopes, and both are limited to their creator's current permissions. The platform key and the platform account are built. `organization.user.updated` is declared, and nothing emits it.

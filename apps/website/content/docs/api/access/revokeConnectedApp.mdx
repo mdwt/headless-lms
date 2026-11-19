@@ -1,5 +1,5 @@
 ---
-description: "DELETE /api/access/apps/{clientId}. Disconnect an app. Headless LMS Access API reference."
+description: "DELETE /api/access/connected-apps/{clientId}. Disconnect an app. Headless LMS Access API reference."
 title: Disconnect an app
 full: true
 _openapi:
@@ -22,7 +22,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/access/apps/{clientId}","method":"delete"}]} showDescription />
+      <OpenAPIPage document="../../packages/sdk/openapi.json" operations={[{"path":"/api/access/connected-apps/{clientId}","method":"delete"}]} showDescription />
     </>
   );
 }

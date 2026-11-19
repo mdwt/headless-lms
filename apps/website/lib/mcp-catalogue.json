@@ -6,7 +6,7 @@
       "resource": "organizations",
       "action": "read",
       "label": "See the organization",
-      "description": "See the org's name, slug and general settings.",
+      "description": "See the org's name, slug, apps and general settings.",
       "about": "org",
       "implies": [],
       "roles": [
@@ -20,7 +20,7 @@
       "resource": "organizations",
       "action": "write",
       "label": "Edit the organization",
-      "description": "Change the org's name, slug and general settings.",
+      "description": "Change the org's name, slug, apps and general settings.",
       "about": "org",
       "implies": [
         "organizations:read"
