@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { AuthHeading, AuthShell } from "@/components/auth/auth-shell";
+import { AuthHeading } from "@/components/auth/auth-heading";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { BackToSignIn } from "@/components/auth/back-to-sign-in";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 

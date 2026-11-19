@@ -7,7 +7,8 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthHeading, AuthShell } from "@/components/auth/auth-shell";
+import { AuthHeading } from "@/components/auth/auth-heading";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { BackToSignIn } from "@/components/auth/back-to-sign-in";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 

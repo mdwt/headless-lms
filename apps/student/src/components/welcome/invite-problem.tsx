@@ -1,7 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthHeading } from "@/components/auth/auth-shell";
+import { AuthHeading } from "@/components/auth/auth-heading";
 
 /**
  * Terminal state for a link that can't be acted on — no token in the URL, or a

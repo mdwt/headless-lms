@@ -3,7 +3,7 @@
 import { Info } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthHeading } from "@/components/auth/auth-shell";
+import { AuthHeading } from "@/components/auth/auth-heading";
 import { authClient } from "@/lib/auth/client";
 import { acceptInvite } from "@/app/welcome/actions";
 import { CreateAccountForm, type CreateAccountOutcome } from "./create-account-form";

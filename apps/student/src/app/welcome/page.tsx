@@ -10,7 +10,8 @@
 import type { Metadata } from "next";
 import { People, type GetInviteResponse } from "@headless-lms/sdk";
 
-import { AuthShell, AuthHeading } from "@/components/auth/auth-shell";
+import { AuthHeading } from "@/components/auth/auth-heading";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { InviteProblem } from "@/components/welcome/invite-problem";
 import { InviteAuthForm } from "@/components/welcome/invite-auth-form";
 import { AcceptInviteCard } from "@/components/welcome/accept-invite-card";
