@@ -67,9 +67,9 @@ The routes are under `/api/organizations/apps`, with an MCP tool for each.
 A frontend deployment has a secret of its own, the frontend key. It lets the deployment ask the API which app and
 organization a domain is, which nobody else can ask.
 
-| Variable       | Notes                                                                               |
-| -------------- | ----------------------------------------------------------------------------------- |
-| `FRONTEND_KEY` | The frontend key, at least 32 characters. Unset: the lookup route does not exist.   |
+| Variable       | Notes                                                                             |
+| -------------- | --------------------------------------------------------------------------------- |
+| `FRONTEND_KEY` | The frontend key, at least 32 characters. Unset: the lookup route does not exist. |
 
 It is sent as `Authorization: Bearer <frontend key>` and compared the way the platform key is
 (`platformKeyCheck` in `packages/server/src/app/platform.ts`). It works only on the lookup. The platform key and
@@ -107,12 +107,12 @@ cookie across the organizations' subdomains.
 When a session is created, the API reads the domain of the sign-in: the `Origin` or `Referer` header, or the origin
 of the link's return address (`requestOrigins` in `adapters/auth/src/better-auth.ts`).
 
-| The domain is                                                         | The session                                              |
-| --------------------------------------------------------------------- | -------------------------------------------------------- |
-| An app's, and the person is active in its organization                | Is for that organization                                 |
-| An app's, and the person holds an open invite to its organization     | Has no organization; accepting the invite sets it        |
-| An app's, and the person is neither                                   | Is refused                                               |
-| Any other domain, or none                                             | As today: the person's organization when they have one   |
+| The domain is                                                     | The session                                            |
+| ----------------------------------------------------------------- | ------------------------------------------------------ |
+| An app's, and the person is active in its organization            | Is for that organization                               |
+| An app's, and the person holds an open invite to its organization | Has no organization; accepting the invite sets it      |
+| An app's, and the person is neither                               | Is refused                                             |
+| Any other domain, or none                                         | As today: the person's organization when they have one |
 
 For example, Sarah is in Acme and Globex, and James is only in Globex:
 
@@ -168,11 +168,11 @@ The domain names the organization:
    (`packages/core/src/identity/service.ts`) send with that organization and app, so the templates receive them
    as they do for an invite.
 
-| Email            | The domain is                                                                        |
-| ---------------- | ------------------------------------------------------------------------------------ |
-| Password reset   | The origin of the link's return address                                              |
-| Sign-in link     | The origin of the link's return address                                              |
-| Password changed | The `Origin` header of the request that set the new password, or else its `Referer`  |
+| Email            | The domain is                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Password reset   | The origin of the link's return address                                             |
+| Sign-in link     | The origin of the link's return address                                             |
+| Password changed | The `Origin` header of the request that set the new password, or else its `Referer` |
 
 A password reset or a sign-in link that returns to an app's domain is sent only to a person active in that app's
 organization, as today. A password changed email is sent with the organization only when the person is active in
