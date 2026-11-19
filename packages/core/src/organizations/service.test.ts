@@ -445,8 +445,8 @@ function store(
         keys.filter((k) => k.orgId === orgId && k.roleKey === roleKey).length,
     ),
     revoke: vi.fn(async () => {}),
-    listApps: vi.fn(async () => []),
-    revokeApp: vi.fn(async () => {}),
+    listConnectedApps: vi.fn(async () => []),
+    revokeConnectedApp: vi.fn(async () => {}),
     revokeAllFor: vi.fn(async () => {}),
   } satisfies ApiKeys;
   const accounts = {

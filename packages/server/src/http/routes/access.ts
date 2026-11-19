@@ -54,7 +54,7 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
 
   r.route({
     method: 'GET',
-    url: '/api/access/apps',
+    url: '/api/access/connected-apps',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'listConnectedApps',
@@ -68,7 +68,7 @@ export async function accessRoutes(app: FastifyInstance, container: Container): 
 
   r.route({
     method: 'DELETE',
-    url: '/api/access/apps/:clientId',
+    url: '/api/access/connected-apps/:clientId',
     preHandler: app.requireOrgSession,
     schema: {
       operationId: 'revokeConnectedApp',

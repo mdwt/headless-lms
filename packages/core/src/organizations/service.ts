@@ -1565,12 +1565,12 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async listConnectedApps(actor: Actor): Promise<ConnectedApp[]> {
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
-    return this.apiKeys().listApps(orgExternalId, userExternalId);
+    return this.apiKeys().listConnectedApps(orgExternalId, userExternalId);
   }
 
   async revokeConnectedApp(clientId: string, actor: Actor): Promise<void> {
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
-    await this.apiKeys().revokeApp(orgExternalId, userExternalId, clientId);
+    await this.apiKeys().revokeConnectedApp(orgExternalId, userExternalId, clientId);
     this.logger.info('connected app revoked', {
       orgId: actor.orgId,
       actorId: actor.id,

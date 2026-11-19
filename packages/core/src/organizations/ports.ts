@@ -352,7 +352,7 @@ export interface ApiKeys {
   ): Promise<StoredApiKey & { key: string }>;
   countWithRole(orgId: string, roleKey: string): Promise<number>;
   revoke(orgId: string, userExternalId: string, keyId: string): Promise<void>;
-  listApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]>;
-  revokeApp(orgId: string, userExternalId: string, clientId: string): Promise<void>;
+  listConnectedApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]>;
+  revokeConnectedApp(orgId: string, userExternalId: string, clientId: string): Promise<void>;
   revokeAllFor(orgId: string, userExternalId: string): Promise<void>;
 }

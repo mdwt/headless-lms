@@ -28534,7 +28534,7 @@ export type ListConnectedAppsData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/access/apps";
+  url: "/api/access/connected-apps";
 };
 
 export type ListConnectedAppsErrors = {
@@ -28588,7 +28588,7 @@ export type RevokeConnectedAppData = {
     clientId: string;
   };
   query?: never;
-  url: "/api/access/apps/{clientId}";
+  url: "/api/access/connected-apps/{clientId}";
 };
 
 export type RevokeConnectedAppErrors = {

@@ -11300,7 +11300,7 @@ export class Access {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/access/apps",
+      url: "/api/access/connected-apps",
       ...options,
     });
   }
@@ -11324,7 +11324,7 @@ export class Access {
       "data"
     >({
       responseStyle: "data",
-      url: "/api/access/apps/{clientId}",
+      url: "/api/access/connected-apps/{clientId}",
       ...options,
       ...params,
     });

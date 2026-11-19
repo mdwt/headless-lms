@@ -590,7 +590,7 @@ export class BetterAuth
     await ctx.adapter.delete({ model: "apikey", where: [{ field: "id", value: keyId }] });
   }
 
-  async listApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]> {
+  async listConnectedApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]> {
     if (!this.mcp.oauthEnabled) {
       return [];
     }
@@ -623,7 +623,7 @@ export class BetterAuth
     );
   }
 
-  async revokeApp(orgId: string, userExternalId: string, clientId: string): Promise<void> {
+  async revokeConnectedApp(orgId: string, userExternalId: string, clientId: string): Promise<void> {
     if (!this.mcp.oauthEnabled) {
       return;
     }
