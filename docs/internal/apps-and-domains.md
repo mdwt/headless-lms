@@ -87,8 +87,9 @@ creating the organization is a 409 and nothing is created.
 
 ## Who owns it
 
-Organizations owns apps and their domains, as it owns the two hosts today. Looking a domain up is one method on the
-organizations service. There is no new context and no new service.
+An organization's apps are settings of that organization, as its two hosts are today. Organizations reads and writes
+them. They are stored in their own table so that the database holds a domain to one organization. Looking a domain
+up is a read of that setting, one method on the organizations service. There is no new context and no new service.
 
 No other context calls it directly. The server hands it to whoever needs it, as it hands them the hosts today:
 
