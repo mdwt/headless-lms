@@ -2765,14 +2765,6 @@ export type GetAppErrors = {
   /**
    * Default Response
    */
-  401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
   404: {
     error: string;
     message?: string;

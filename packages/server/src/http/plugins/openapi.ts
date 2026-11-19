@@ -10,7 +10,7 @@ import type { ServerConfig } from '../config.js';
 import { ErrorBody, ValidationErrorBody } from '../schemas/shared.js';
 import pkg from '../../../package.json' with { type: 'json' };
 
-const PUBLIC_ROUTES = new Set(['GET /api/organizations/invites/:token']);
+const PUBLIC_ROUTES = new Set(['GET /api/organizations/invites/:token', 'GET /api/app']);
 
 type RouteSchema = {
   body?: unknown;

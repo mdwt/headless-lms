@@ -4,7 +4,7 @@ import { getSchema } from "better-auth/db";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { buildAuthOptions } from "./better-auth.js";
-import type { CreateAuthOptions } from "./types.js";
+import type { CreateAuthOptions, RequestDomains } from "./types.js";
 
 const API = "https://api.platform.test";
 const ADMIN = "https://admin.platform.test";
@@ -28,6 +28,16 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: bool
   ]);
   const resets: string[] = [];
   const magicLinks: string[] = [];
+  const asked: Record<"reset" | "changed" | "magicLink" | "session", string[][]> = {
+    reset: [],
+    changed: [],
+    magicLink: [],
+    session: [],
+  };
+  const sessions: { refuse: boolean; activeOrganizationId: string | null } = {
+    refuse: false,
+    activeOrganizationId: null,
+  };
   const options = buildAuthOptions({
     db: {} as NodePgDatabase,
     baseUrl: API,
@@ -42,12 +52,25 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: bool
     logger: logger as unknown as CreateAuthOptions["logger"],
     hooks: {
       beforeUserCreate: async () => undefined,
-      sendResetPassword: async ({ url }: { url: string }) => {
+      sendResetPassword: async ({ url }: { url: string }, from: RequestDomains) => {
         resets.push(url);
+        asked.reset.push(from.domains);
       },
-      onPasswordReset: async () => undefined,
-      sendMagicLink: async ({ url }: { url: string }) => {
+      onPasswordReset: async (_data: unknown, from: RequestDomains) => {
+        asked.changed.push(from.domains);
+      },
+      sendMagicLink: async ({ url }: { url: string }, from: RequestDomains) => {
         magicLinks.push(url);
+        asked.magicLink.push(from.domains);
+      },
+      beforeCreateSession: async (session: Record<string, unknown>, from: RequestDomains) => {
+        asked.session.push(from.domains);
+        if (sessions.refuse) {
+          return false;
+        }
+        return sessions.activeOrganizationId
+          ? { data: { ...session, activeOrganizationId: sessions.activeOrganizationId } }
+          : undefined;
       },
     } as unknown as CreateAuthOptions["hooks"],
     mcp: {
@@ -94,11 +117,31 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: bool
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
 
-  return { auth, hosts, resets, magicLinks, post, signUp, signIn, settled };
+  const atApi = (link: string) => {
+    const url = new URL(link);
+    return new Request(`${API}${url.pathname}${url.search}`, {
+      redirect: "manual",
+      headers: { "sec-fetch-site": "none", "sec-fetch-mode": "navigate" },
+    });
+  };
+
+  return {
+    auth,
+    hosts,
+    resets,
+    magicLinks,
+    asked,
+    sessions,
+    post,
+    signUp,
+    signIn,
+    settled,
+    atApi,
+  };
 }
 
-describe("sign-in from an organization's host", () => {
-  it("is accepted from a host of an organization and from a listed origin", async () => {
+describe("sign-in from an app's domain", () => {
+  it("is accepted from the domain of an organization's app and from a listed origin", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     expect((await w.signIn("sarah@example.com", ACME)).status).toBe(200);
@@ -112,7 +155,7 @@ describe("sign-in from an organization's host", () => {
     expect((await w.signIn("sarah@example.com", `${ACME}.stranger.test`)).status).toBe(403);
   });
 
-  it("follows a change of hosts on the next request", async () => {
+  it("follows a change of domains on the next request", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     w.hosts.set("https://club.acme.test", ["sarah@example.com"]);
@@ -121,10 +164,46 @@ describe("sign-in from an organization's host", () => {
     expect((await w.signIn("sarah@example.com", ACME)).status).toBe(403);
   });
 
-  it("is refused from an organization's host when no hosts are wired", async () => {
+  it("is refused from an app's domain when no domains are wired", async () => {
     const w = world({ orgHosts: false });
     await w.signUp("sarah@example.com");
     expect((await w.signIn("sarah@example.com", ACME)).status).toBe(403);
+  });
+});
+
+describe("the session of a sign-in", () => {
+  it("is decided with the domain the sign-in was asked from", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    w.asked.session.length = 0;
+    await w.signIn("sarah@example.com", ACME);
+    await w.signIn("sarah@example.com", ADMIN);
+    expect(w.asked.session).toEqual([[ACME], [ADMIN]]);
+  });
+
+  it("is for the organization the hook names", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    w.sessions.activeOrganizationId = "org_acme";
+    const res = await w.signIn("sarah@example.com", ACME);
+    const cookie = res.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ");
+    const session = await w.auth.api.getSession({ headers: new Headers({ cookie }) });
+    expect(session?.session.activeOrganizationId).toBe("org_acme");
+  });
+
+  it("is refused with a 401 and no cookie when the hook refuses it", async () => {
+    const w = world();
+    await w.signUp("james@example.com");
+    w.sessions.refuse = true;
+    const res = await w.signIn("james@example.com", ACME);
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: "FAILED_TO_CREATE_SESSION" });
+    expect(res.headers.getSetCookie().some((cookie) => cookie.includes("session_token"))).toBe(
+      false,
+    );
   });
 });
 
@@ -153,22 +232,42 @@ describe("the session cookie", () => {
   });
 });
 
-describe("a password reset link to an organization's host", () => {
+describe("a password reset link to an app's domain", () => {
   const reset = (w: ReturnType<typeof world>, email: string, origin: string, host: string) =>
     w.post("/request-password-reset", origin, { email, redirectTo: `${host}/reset-password` });
 
-  it("is sent to a person of that organization and lands on the host with the token", async () => {
+  it("is sent to a person of that organization, written at the app's domain, and lands there with the token", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     expect((await reset(w, "sarah@example.com", ACME, ACME)).status).toBe(200);
     await w.settled();
     expect(w.resets).toHaveLength(1);
+    expect(w.resets[0]).toMatch(
+      new RegExp(`^${ACME}/api/auth/reset-password/[^/?]+\\?callbackURL=`),
+    );
+    expect(w.asked.reset).toEqual([[ACME]]);
 
-    const res = await w.auth.handler(new Request(w.resets[0]!, { redirect: "manual" }));
+    const res = await w.auth.handler(w.atApi(w.resets[0]!));
     expect(res.status).toBe(302);
     const location = new URL(res.headers.get("location")!);
     expect(location.origin).toBe(ACME);
     expect(location.searchParams.get("token")).toBeTruthy();
+  });
+
+  it("names the domain of the page the new password was set on", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await reset(w, "sarah@example.com", ACME, ACME);
+    await w.settled();
+    const opened = await w.auth.handler(w.atApi(w.resets[0]!));
+    const token = new URL(opened.headers.get("location")!).searchParams.get("token");
+    const changed = await w.post("/reset-password", ACME, {
+      newPassword: "a new long password",
+      token,
+    });
+    expect(changed.status).toBe(200);
+    await w.settled();
+    expect(w.asked.changed).toEqual([[ACME]]);
   });
 
   it("is not sent when the host belongs to an organization the person is not in", async () => {
@@ -188,16 +287,18 @@ describe("a password reset link to an organization's host", () => {
     expect(w.resets).toHaveLength(0);
   });
 
-  it("is sent to anyone for a listed origin", async () => {
+  it("is sent to anyone for a listed origin, and stays at the API's address", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     expect((await reset(w, "sarah@example.com", ADMIN, ADMIN)).status).toBe(200);
     await w.settled();
     expect(w.resets).toHaveLength(1);
+    expect(w.resets[0]).toMatch(new RegExp(`^${API}/api/auth/reset-password/`));
+    expect(w.asked.reset).toEqual([[ADMIN]]);
   });
 });
 
-describe("a magic link to an organization's host", () => {
+describe("a sign-in link to an app's domain", () => {
   const link = (w: ReturnType<typeof world>, email: string, host: string) =>
     w.post("/sign-in/magic-link", host, { email, callbackURL: `${host}/home` });
 
@@ -208,5 +309,54 @@ describe("a magic link to an organization's host", () => {
     expect(w.magicLinks).toHaveLength(0);
     await link(w, "sarah@example.com", ACME);
     expect(w.magicLinks).toHaveLength(1);
+  });
+
+  it("is written at the app's domain under /api, and names that domain", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await link(w, "sarah@example.com", ACME);
+    expect(w.magicLinks[0]).toMatch(new RegExp(`^${ACME}/api/auth/magic-link/verify\\?token=`));
+    expect(w.asked.magicLink).toEqual([[ACME]]);
+  });
+
+  it("stays at the API's address for a listed origin", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await link(w, "sarah@example.com", ADMIN);
+    expect(w.magicLinks[0]).toMatch(new RegExp(`^${API}/api/auth/magic-link/verify\\?token=`));
+    expect(w.asked.magicLink).toEqual([[ADMIN]]);
+  });
+
+  it("signs the person in when opened, with a session decided by the domain it returns to", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await link(w, "sarah@example.com", ACME);
+    w.asked.session.length = 0;
+    w.sessions.activeOrganizationId = "org_acme";
+
+    const res = await w.auth.handler(w.atApi(w.magicLinks[0]!));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(`${ACME}/home`);
+    expect(w.asked.session).toEqual([[ACME]]);
+    const cookies = res.headers.getSetCookie();
+    expect(cookies.some((cookie) => cookie.includes("session_token"))).toBe(true);
+    for (const cookie of cookies) {
+      expect(cookie).not.toMatch(/domain=/i);
+    }
+  });
+
+  it("signs nobody in when the session is refused", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await link(w, "sarah@example.com", ACME);
+    w.sessions.refuse = true;
+    const res = await w.auth.handler(w.atApi(w.magicLinks[0]!));
+    expect(res.status).toBe(302);
+    expect(res.headers.getSetCookie().some((cookie) => cookie.includes("session_token"))).toBe(
+      false,
+    );
+    const location = new URL(res.headers.get("location")!);
+    expect(location.origin).toBe(ACME);
+    expect(location.searchParams.get("error")).toBeTruthy();
   });
 });

@@ -886,6 +886,10 @@ export async function buildContainer(
         throw err;
       }
     };
+  const requestedOn = async (address: string, domains: readonly string[]) => {
+    const at = await organizations.appOfPerson(address, domains);
+    return at ? { requestedOn: { orgId: at.organization.id, appId: at.app.id } } : {};
+  };
   const mcp = mcpEndpoints(config);
   if (!mcp.oauthEnabled) {
     authLogger.warn(
@@ -910,17 +914,21 @@ export async function buildContainer(
       hasFor: (email, origin) => organizations.isHostOfPerson(email, origin),
     },
     hooks: {
-      sendResetPassword: async ({ user, url }) => {
-        await identity.sendPasswordReset({ email: user.email, url });
-      },
-      onPasswordReset: async ({ user }) => {
-        await identity.sendPasswordChanged({ email: user.email });
-      },
-      sendMagicLink: authHook('sendMagicLink', async ({ email, url }) => {
-        await identity.sendMagicLink({
-          email,
+      sendResetPassword: async ({ user, url }, { domains }) => {
+        await identity.sendPasswordReset({
+          email: user.email,
           url,
+          ...(await requestedOn(user.email, domains)),
         });
+      },
+      onPasswordReset: async ({ user }, { domains }) => {
+        await identity.sendPasswordChanged({
+          email: user.email,
+          ...(await requestedOn(user.email, domains)),
+        });
+      },
+      sendMagicLink: authHook('sendMagicLink', async ({ email, url }, { domains }) => {
+        await identity.sendMagicLink({ email, url, ...(await requestedOn(email, domains)) });
       }),
       beforeUserCreate: authHook('beforeUserCreate', async (user) => {
         const { email, name } = user;
@@ -940,7 +948,7 @@ export async function buildContainer(
           },
         };
       }),
-      beforeCreateSession: authHook('beforeCreateSession', async (session) => {
+      beforeCreateSession: authHook('beforeCreateSession', async (session, { domains }) => {
         const person = await identity.getUserByExternalId(session.userId);
         if (!person) {
           return;
@@ -949,17 +957,14 @@ export async function buildContainer(
           authLogger.warn('sign-in refused for the platform account', { userId: person.id });
           return false;
         }
-        const orgs = await organizations.getOrgUsersForUser(person.id);
-        if (orgs.length !== 1) {
+        const decided = await organizations.sessionOrganization(person, domains);
+        if (decided.refused) {
+          return false;
+        }
+        if (!decided.orgId) {
           return;
         }
-        // TODO - fix, why default to the first?
-        const org = await organizations.getById(orgs[0]!.orgId);
-        if (!org) {
-          return;
-        }
-
-        return { data: { ...session, activeOrganizationId: org.id } };
+        return { data: { ...session, activeOrganizationId: decided.orgId } };
       }),
       /*
        * We're making sure the domain org creates and using the same ID for better-auth org ID.

@@ -19,7 +19,7 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   >;
   beforeCreateSession?: (
     session: Session & Record<string, unknown>,
-    context: GenericEndpointContext | null,
+    from: RequestDomains,
   ) => Promise<
     | boolean
     | void
@@ -30,10 +30,10 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   /** Runs detached from the request; the adapter logs a failure. */
   sendResetPassword: (
     data: { user: User; url: string; token: string },
-    request?: Request,
+    from: RequestDomains,
   ) => Promise<void>;
   /** Runs detached from the request, after the new password is stored; the adapter logs a failure. */
-  onPasswordReset: (data: { user: User }, request?: Request) => Promise<void>;
+  onPasswordReset: (data: { user: User }, from: RequestDomains) => Promise<void>;
   sendMagicLink: (
     data: {
       email: string;
@@ -41,9 +41,16 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
       token: string;
       metadata?: Record<string, unknown>;
     },
-    ctx?: GenericEndpointContext | undefined,
+    from: RequestDomains,
   ) => Promise<void>;
 };
+
+/** The domains a request names, most telling first: for a session, the page it was asked from
+ *  (`Origin`, or else `Referer`) and then the link's return address; for a password reset or
+ *  sign-in link email, the link's return address; for a password changed email, the page. */
+export interface RequestDomains {
+  domains: string[];
+}
 
 export interface McpAuthOptions {
   oauthEnabled: boolean;
@@ -54,9 +61,9 @@ export interface McpAuthOptions {
 }
 
 export interface OrgHosts {
-  /** Whether the origin is a host of any organization. */
+  /** Whether the origin is the domain of an organization's app. */
   has(origin: string): Promise<boolean>;
-  /** Whether the origin is a host of an organization the person with this email is active in. */
+  /** Whether the origin is the domain of an app of an organization the person with this email is active in. */
   hasFor(email: string, origin: string): Promise<boolean>;
 }
 
@@ -65,7 +72,7 @@ export interface CreateAuthOptions {
   baseUrl: string;
   secret: string;
   trustedOrigins: string[];
-  /** Organizations' hosts, trusted beside `trustedOrigins` and asked on every request. Absent → only `trustedOrigins`. */
+  /** The domains of organizations' apps, trusted beside `trustedOrigins` and asked on every request. Absent → only `trustedOrigins`. */
   orgHosts?: OrgHosts;
   /** Logs failures that must not abort an auth flow (e.g. a failed invite email). */
   logger: Logger;

@@ -11,7 +11,13 @@ import type {
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
 import { fromNodeHeaders } from "better-auth/node";
-import { APIError, betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
+import {
+  APIError,
+  betterAuth,
+  type BetterAuthOptions,
+  type BetterAuthPlugin,
+  type GenericEndpointContext,
+} from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import type { CreateAuthOptions } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -109,9 +115,25 @@ function callbackOrigins(url: string): string[] {
   );
 }
 
+function pageOrigin(headers: Headers): string | null {
+  return webOrigin(headers.get("origin") || headers.get("referer"));
+}
+
 function requestOrigins(request: Request): string[] {
-  const page = webOrigin(request.headers.get("origin") || request.headers.get("referer"));
+  const page = pageOrigin(request.headers);
   return [...new Set([...(page ? [page] : []), ...callbackOrigins(request.url)])];
+}
+
+function returnOrigin(link: string): string | null {
+  return URL.canParse(link) ? webOrigin(new URL(link).searchParams.get("callbackURL")) : null;
+}
+
+function sessionDomains(ctx: GenericEndpointContext | null): string[] {
+  if (ctx?.request) {
+    return requestOrigins(ctx.request);
+  }
+  const page = ctx?.headers ? pageOrigin(ctx.headers) : null;
+  return page ? [page] : [];
 }
 
 function activeOrgOf(session: unknown): string | null {
@@ -190,6 +212,17 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     }
     return trusted;
   };
+  const atAppDomain = async (link: string): Promise<{ url: string; domains: string[] }> => {
+    const origin = returnOrigin(link);
+    if (!origin) {
+      return { url: link, domains: [] };
+    }
+    if (!orgHosts || !(await orgHosts.has(origin))) {
+      return { url: link, domains: [origin] };
+    }
+    const { pathname, search } = new URL(link);
+    return { url: `${origin}${pathname}${search}`, domains: [origin] };
+  };
   const linkAllowed = async (email: string, url: string): Promise<boolean> => {
     if (!orgHosts) {
       return true;
@@ -264,20 +297,25 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     emailAndPassword: {
       enabled: true,
       // Detached so send time can't reveal which emails have accounts, and a failed notice can't fail the reset.
-      sendResetPassword: detached("sendResetPassword", async (data, request) => {
+      sendResetPassword: detached("sendResetPassword", async (data) => {
         if (await linkAllowed(data.user.email, data.url)) {
-          await sendResetPassword(data, request);
+          const { url, domains } = await atAppDomain(data.url);
+          await sendResetPassword({ ...data, url }, { domains });
         }
       }),
-      onPasswordReset: detached("onPasswordReset", onPasswordReset),
+      onPasswordReset: detached("onPasswordReset", async (data, request?: Request) => {
+        const page = request ? pageOrigin(request.headers) : null;
+        await onPasswordReset(data, { domains: page ? [page] : [] });
+      }),
       revokeSessionsOnPasswordReset: true,
     },
     plugins: [
       magicLink({
         disableSignUp: true,
-        sendMagicLink: async (data, ctx) => {
+        sendMagicLink: async (data) => {
           if (await linkAllowed(data.email, data.url)) {
-            await sendMagicLink(data, ctx);
+            const { url, domains } = await atAppDomain(data.url);
+            await sendMagicLink({ ...data, url }, { domains });
           }
         },
       }),
@@ -340,7 +378,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       },
       session: {
         create: {
-          before: beforeCreateSession,
+          before: beforeCreateSession
+            ? (session, ctx) => beforeCreateSession(session, { domains: sessionDomains(ctx) })
+            : undefined,
         },
       },
     },
