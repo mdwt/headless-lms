@@ -114,9 +114,9 @@ pnpm db:generate && pnpm db:migrate
 pnpm dev                    # api :8000 · admin :8001 · student :8002
 ```
 
-Create an organization in the admin, then open the student app at
-`http://localhost:8002`. A second organization with the slug `acme` is at
-`http://acme.localhost:8002`.
+The student app answers on the domain of an organization's app: after
+creating an organization in the admin, add an app with the domain
+`http://localhost:8002` in Settings → Apps.
 
 `pnpm build` / `test` / `lint` / `typecheck` run across all workspaces;
 `pnpm gen:sdk` regenerates the OpenAPI spec + SDK (database must be up).

@@ -191,7 +191,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     await app?.close();
   });
 
-  it('starts the first organization at the platform host and the next at its slug under it', async () => {
+  it('starts an organization with one app for both, at its slug under the platform host', async () => {
     const res = await call('GET', '/api/apps', { as: sarah, origin: ADMIN });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([
@@ -199,14 +199,10 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
         id: expect.stringMatching(/^app_/),
         name: 'Acme',
         slug: `acme-${tag}`,
-        domain: PLATFORM,
+        domain: `https://acme-${tag}.p${tag}.test`,
         courses: true,
         community: true,
       },
-    ]);
-    const next = await call('GET', '/api/apps', { as: liam, origin: ADMIN });
-    expect(next.json()).toMatchObject([
-      { name: 'Globex', slug: `globex-${tag}`, domain: GLOBEX, courses: true, community: true },
     ]);
   });
 
@@ -469,18 +465,6 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
       body: { domain: `https://${slug}.p${tag}.test` },
     });
     expect(moved.statusCode).toBe(200);
-
-    const noah = new Person('Noah');
-    expect((await signUp(noah, ADMIN)).statusCode).toBe(200);
-    const free = await call('POST', '/api/organizations', {
-      as: noah,
-      origin: ADMIN,
-      body: { name: 'Initech', slug: `initech-${tag}` },
-    });
-    expect(free.statusCode).toBe(201);
-    expect(await sessionOrg(noah)).toBe((free.json() as { id: string }).id);
-    const held = await call('GET', '/api/apps', { as: noah, origin: ADMIN });
-    expect(held.json()).toMatchObject([{ domain: PLATFORM }]);
 
     const oliver = new Person('Oliver');
     expect((await signUp(oliver, ADMIN)).statusCode).toBe(200);

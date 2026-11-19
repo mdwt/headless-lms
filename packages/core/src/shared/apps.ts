@@ -34,9 +34,8 @@ export type AppsServiceParams = {
   repo: AppsRepository;
   /** The organization an app belongs to. Wired by the app layer. */
   organization: (orgId: string) => Promise<AppOrganization | null>;
-  platformHost: string;
-  /** Every new organization starts at its slug under the platform host. */
-  subdomains?: boolean;
+  /** Unset, a new organization starts with no app. */
+  platformHost?: string;
   reservedDomains?: readonly string[];
   logger?: Logger;
 };
@@ -70,16 +69,14 @@ export function servesCommunity(apps: readonly App[]): App | null {
 export class AppsService {
   private readonly repo: AppsRepository;
   private readonly organization: (orgId: string) => Promise<AppOrganization | null>;
-  private readonly platform: URL;
-  private readonly subdomains: boolean;
+  private readonly platform: URL | null;
   private readonly reservedDomains: ReadonlySet<string>;
   private readonly logger: Logger;
 
   constructor(params: AppsServiceParams) {
     this.repo = params.repo;
     this.organization = params.organization;
-    this.platform = platformOrigin(params.platformHost);
-    this.subdomains = params.subdomains ?? false;
+    this.platform = params.platformHost === undefined ? null : platformOrigin(params.platformHost);
     this.reservedDomains = new Set(params.reservedDomains);
     this.logger = params.logger ?? noopLogger;
   }
@@ -166,14 +163,15 @@ export class AppsService {
   }
 
   /** The app a new organization starts with, written with the organization through `repo`. */
-  async start(org: { id: string; name: string; slug: string }, repo: AppsRepository): Promise<App> {
-    const origin = this.platform.origin;
-    const taken =
-      this.subdomains ||
-      this.reservedDomains.has(origin) ||
-      (await repo.findByDomain(origin)) !== null;
+  async start(
+    org: { id: string; name: string; slug: string },
+    repo: AppsRepository,
+  ): Promise<App | null> {
+    if (!this.platform) {
+      return null;
+    }
     const label = labelOf(org.slug) || labelOf(org.id);
-    const domain = taken ? `${this.platform.protocol}//${label}.${this.platform.host}` : origin;
+    const domain = `${this.platform.protocol}//${label}.${this.platform.host}`;
     this.assertNotReserved(domain, org.id);
     return repo.create({
       orgId: org.id,

@@ -192,8 +192,8 @@ export interface Config {
   trustedProxies?: string[];
   /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
   ipAddressHeaders?: string[];
-  /** Origin a new organization's first app starts at, or under as `<slug>.<platform host>`. */
-  platformHost: string;
+  /** Origin a new organization's first app is made under, as `<slug>.<platform host>`. Unset, a new organization starts with no app. */
+  platformHost?: string;
   /** Admin app origin — invite links for staff. */
   adminAppUrl: string;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
@@ -437,8 +437,7 @@ export async function buildContainer(
   const apps = new AppsService({
     repo: new DrizzleAppsRepository(db),
     organization: (orgId) => organizationsRepo.findById(orgId),
-    platformHost: config.platformHost,
-    subdomains: config.platform !== undefined,
+    ...(config.platformHost !== undefined && { platformHost: config.platformHost }),
     reservedDomains: [new URL(config.adminAppUrl).origin, new URL(config.authBaseURL).origin],
     logger: logger.child({ name: 'apps' }),
   });

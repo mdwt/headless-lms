@@ -10,8 +10,7 @@ An app is a frontend an organization runs on a domain. It serves courses, the co
 A domain is the whole origin the app is reached at, with its scheme and port.
 
 For example, on a platform at `https://example.com` Acme starts with one app at `https://acme.example.com` serving
-both. It later runs a course app at `https://learn.acme.com` and a community app at `https://club.acme.com`. A
-school that hosts the system for itself at `https://learn.school.com` has one app, at that address.
+both. It later runs a course app at `https://learn.acme.com` and a community app at `https://club.acme.com`.
 
 One frontend deployment serves many organizations: each organization's domain points at it, and the domain says
 whose courses or community to show.
@@ -24,7 +23,8 @@ The design has to work for all four.
 own domain.
 
 - It needs its domain on every link the API writes.
-- It has one organization, and its domain is that organization's app.
+- It has one organization, and its domain is that organization's app. It sets no platform host and adds that app
+  itself.
 
 **2. Several organizations, the bundled apps.** An agency hosts the system for five clients. One student app
 deployment serves all five, and each client's domain points at it.
@@ -50,9 +50,11 @@ on each customer's domain and renders its own email templates.
 
 - A domain belongs to one app, and so to one organization, across the whole system.
 - An organization has at most one app that serves courses and at most one that serves the community.
-- A new organization gets one app that serves both. The app takes the organization's name and slug. Its domain is
-  the platform host (`PLATFORM_HOST`). When another app already has the platform host, or the installation has a
-  platform key, its domain is the organization's slug as a subdomain of the platform host.
+- On an installation with a platform host (`PLATFORM_HOST`), a new organization gets one app that serves both. The
+  app takes the organization's name and slug, and its domain is the organization's slug as a subdomain of the
+  platform host.
+- On an installation with no platform host, a new organization has no app. Its apps are added in Settings → Apps or
+  through the API.
 - A session started on an app's domain is for that app's organization.
 - An app's domain reaches the API under `/api`. The browser's calls, the session cookie and the links in the
   sign-in emails all use the app's domain.
@@ -84,21 +86,9 @@ A domain is stored as an origin, normalised the way `hostSchema` normalises a ho
 app has, or a second app that serves courses or the community, is a 409. So is saving the admin app's address or
 the API's.
 
-The first app is created in the same unit of work as its organization. With `PLATFORM_HOST=https://example.com`:
-
-| The installation                                  | A new organization with the slug `acme` starts at |
-| ------------------------------------------------- | ------------------------------------------------- |
-| No app has `https://example.com`, no platform key | `https://example.com`                             |
-| Another app has `https://example.com`             | `https://acme.example.com`                        |
-| It has a platform key                             | `https://acme.example.com`                        |
-
-A platform host that is the admin app's address or the API's counts as taken. When another app already has the
-subdomain, or it is the admin app's address or the API's, creating the organization is a 409 and nothing is created.
-For example, with the admin app at `https://admin.example.com`, a second organization with the slug `admin` is
-refused.
-
-Locally, with the default `PLATFORM_HOST`, the first organization is at `http://localhost:8002` and a second one
-with the slug `globex` at `http://globex.localhost:8002`.
+With a platform host, the first app is created in the same unit of work as its organization. When another app already has the domain, or
+it is the admin app's address or the API's, creating the organization is a 409 and nothing is created. For example,
+with the admin app at `https://admin.example.com`, an organization with the slug `admin` is refused.
 
 ## Who owns it
 

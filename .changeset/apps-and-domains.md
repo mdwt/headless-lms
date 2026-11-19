@@ -5,9 +5,10 @@
 "@headless-lms/adapter-auth": minor
 "@headless-lms/adapter-db": minor
 "@headless-lms/adapter-email-templates": minor
+"create-headless-lms": patch
 ---
 
-An organization's two hosts become apps. An app is a frontend the organization runs on a domain, with a name and a slug, serving courses, the community, or both. A domain belongs to one app across the installation, and an organization has at most one app that serves courses and one that serves the community. A new organization starts with one app that serves both, at `PLATFORM_HOST`. When another app already has that address, or the installation has a platform key, it starts at its slug as a subdomain of `PLATFORM_HOST`; creating it is a `409` when another app already has that domain.
+An organization's two hosts become apps. An app is a frontend the organization runs on a domain, with a name and a slug, serving courses, the community, or both. A domain belongs to one app across the installation, and an organization has at most one app that serves courses and one that serves the community. With `PLATFORM_HOST` set, a new organization starts with one app that serves both, at its slug under `PLATFORM_HOST`; creating it is a `409` when another app already has that domain. With `PLATFORM_HOST` unset, which is now the default, a new organization has no app until one is added.
 
 - `GET`, `POST /api/apps` and `PATCH`, `DELETE /api/apps/:appId` manage them, with the MCP tools `list_apps`, `create_app`, `update_app` and `delete_app`. Listing needs `organizations:read`, the rest `organizations:write`. The SDK has them as `Apps`.
 - Apps belong to no context: `AppsService` in `@headless-lms/core/shared/apps` holds them and the lookup from a domain to its app and organization, and the container has it as `apps`.
@@ -30,4 +31,5 @@ Breaking:
 - `TemplateContext.hosts` is replaced by `organization`, `courseApp`, `communityApp`, `requestedApp` and `recipient`. `Mailer` takes `MailerSources` in place of a hosts function, and `Mailer.send` takes the app id as its fifth argument.
 - `OrgHostSettings`, `OrgHostIndex` and `DrizzleOrgHostIndex` are removed. `OrganizationServiceParams` takes `apps`, an `AppsService`, in place of `hosts`, `OrganizationsWriteScope` gains `apps`, and `MemberReportServiceParams.hosts` is replaced by `communityDomain`.
 - The sign-in adapter's `beforeCreateSession`, `sendResetPassword`, `onPasswordReset` and `sendMagicLink` hooks receive the domains the request names (`{ domains }`) as their second argument.
+- `PLATFORM_HOST` (`Config.platformHost`) is optional and has no default. Set it on an installation that hosts many organizations.
 - Migration `0023_apps` creates the `apps` table and drops the two host indexes on `settings`. An organization created before it has no app until one is added.

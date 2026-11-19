@@ -19,11 +19,7 @@ import type { NewDomainEvent } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import { AppsService, type AppsRepository } from '../shared/apps.js';
 import type { App, ContentType, Permission, RoleAssignment } from '../types/index.js';
-import {
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-} from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
 import { createCapturingLogger } from '../shared/logger.js';
@@ -64,7 +60,7 @@ function store(
     defaultRoles?: readonly RoleDefinition[];
     logger?: Logger;
     platform?: PlatformAccount;
-    platformHost?: string;
+    platformHost?: string | undefined;
   } = {},
 ) {
   const orgs = new Map<string, Organization>();
@@ -601,12 +597,12 @@ function store(
   const send = vi.fn(async () => {});
   const images = { syncPublicImages: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
-  const { platformHost = 'https://platform.test', ...serviceOpts } = opts;
+  const { platformHost: _platformHost, ...serviceOpts } = opts;
+  const platformHost = 'platformHost' in opts ? opts.platformHost : 'https://platform.test';
   const appsService = new AppsService({
     repo: appsRepo,
     organization: (orgId) => repo.findById(orgId),
     platformHost,
-    subdomains: opts.platform !== undefined,
     reservedDomains: ['https://admin.platform.test', 'https://api.platform.test'],
   });
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
@@ -1832,7 +1828,7 @@ describe('Better Auth on role changes', () => {
 });
 
 describe('creating an organization', () => {
-  it('starts the new organization at the platform host', async () => {
+  it('starts the new organization at its slug under the platform host', async () => {
     const p = store();
     const owner = await p.person('Sarah');
     p.orgAdmin.createOrganization.mockImplementationOnce(
@@ -1848,25 +1844,35 @@ describe('creating an organization', () => {
         id: expect.stringMatching(/^app_/),
         name: 'Yoga',
         slug: 'yoga',
-        domain: 'https://platform.test',
+        domain: 'https://yoga.platform.test',
         courses: true,
         community: true,
       },
     ]);
   });
 
+  it('starts the new organization with no app when no platform host is set', async () => {
+    const p = store({ platformHost: undefined });
+    const owner = await p.person('Sarah');
+    const yoga = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Yoga',
+      slug: 'yoga',
+    });
+    expect(await p.appsService.of(yoga.id)).toEqual([]);
+    expect([...p.orgs.keys()]).toEqual([yoga.id]);
+  });
+
   it("creates nothing when the first domain would be one of the installation's own addresses", async () => {
     const p = store();
     const owner = await p.person('Sarah');
-    const other = await p.repo.create({ id: 'org_9', name: 'Other', slug: 'other', ownerId: 'u' });
-    await p.appsRepo.create({ ...LEARN, orgId: other.id, domain: 'https://platform.test' });
     for (const slug of ['admin', 'api']) {
       await expect(
         p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Sneaky', slug }),
       ).rejects.toBeInstanceOf(ConflictError);
     }
-    expect([...p.orgs.keys()]).toEqual(['org_9']);
-    expect([...p.apps.values()].map((app) => app.domain)).toEqual(['https://platform.test']);
+    expect([...p.orgs.keys()]).toEqual([]);
+    expect([...p.apps.keys()]).toEqual([]);
     expect(p.assignments).toEqual([]);
     expect(p.events).toEqual([]);
   });
@@ -1875,16 +1881,7 @@ describe('creating an organization', () => {
     const p = store();
     const owner = await p.person('Sarah');
     const other = await p.repo.create({ id: 'org_9', name: 'Other', slug: 'other', ownerId: 'u' });
-    await p.appsRepo.create({ ...LEARN, orgId: other.id, domain: 'https://platform.test' });
-    await p.appsRepo.create({
-      ...LEARN,
-      id: 'app_club',
-      slug: 'club',
-      orgId: other.id,
-      courses: false,
-      community: true,
-      domain: 'https://yoga.platform.test',
-    });
+    await p.appsRepo.create({ ...LEARN, orgId: other.id, domain: 'https://yoga.platform.test' });
     await expect(
       p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Yoga', slug: 'yoga' }),
     ).rejects.toBeInstanceOf(ConflictError);

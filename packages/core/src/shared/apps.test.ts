@@ -277,69 +277,47 @@ describe('looking a domain up', () => {
 
 describe('the app a new organization starts with', () => {
   const YOGA = { id: 'org_yoga', name: 'Yoga', slug: 'yoga' };
-  const PILATES = { id: 'org_pilates', name: 'Pilates', slug: 'pilates' };
 
-  it('is at the platform host, serving both, with the name and slug of the organization', async () => {
+  it('is at its slug under the platform host, serving both, with the name and slug of the organization', async () => {
     const p = store();
     expect(await p.service.start(YOGA, p.repo)).toEqual({
       orgId: YOGA.id,
       id: expect.stringMatching(/^app_/),
       name: 'Yoga',
       slug: 'yoga',
-      domain: 'https://platform.test',
+      domain: 'https://yoga.platform.test',
       courses: true,
       community: true,
     });
   });
 
-  it('is at the slug under the platform host when another app has the platform host', async () => {
-    const p = store();
-    await p.service.start(YOGA, p.repo);
-    expect((await p.service.start(PILATES, p.repo)).domain).toBe('https://pilates.platform.test');
-  });
-
-  it('is at the platform host again once that is free', async () => {
-    const p = store();
-    const first = await p.service.start(YOGA, p.repo);
-    await p.repo.update(YOGA.id, first.id, { domain: 'https://learn.yoga.test' });
-    expect((await p.service.start(PILATES, p.repo)).domain).toBe('https://platform.test');
-  });
-
-  it('is at the slug for every organization of an installation with a platform key', async () => {
-    const p = store({ subdomains: true });
-    expect((await p.service.start(YOGA, p.repo)).domain).toBe('https://yoga.platform.test');
-    expect((await p.service.start(PILATES, p.repo)).domain).toBe('https://pilates.platform.test');
+  it('is none when no platform host is set', async () => {
+    const p = store({ platformHost: undefined });
+    expect(await p.service.start(YOGA, p.repo)).toBeNull();
+    expect([...p.apps.keys()]).toEqual([]);
   });
 
   it('keeps the scheme and port of the platform host, and uses the id when there is no slug', async () => {
     const p = store({ platformHost: 'http://localhost:8002/' });
-    expect((await p.service.start(YOGA, p.repo)).domain).toBe('http://localhost:8002');
-    expect((await p.service.start(PILATES, p.repo)).domain).toBe('http://pilates.localhost:8002');
+    expect((await p.service.start(YOGA, p.repo))?.domain).toBe('http://yoga.localhost:8002');
     const unnamed = await p.service.start({ id: 'org_3Xy', name: 'My Org', slug: '' }, p.repo);
     expect(unnamed).toMatchObject({ slug: 'org-3xy', domain: 'http://org-3xy.localhost:8002' });
   });
 
-  it("is at the slug when the platform host is one of the installation's own addresses", async () => {
-    const p = store({ platformHost: 'https://admin.platform.test' });
-    expect((await p.service.start(YOGA, p.repo)).domain).toBe('https://yoga.admin.platform.test');
-  });
-
   it("is refused when its domain would be one of the installation's own addresses", async () => {
     const p = store();
-    await p.service.start(YOGA, p.repo);
     for (const slug of ['admin', 'api']) {
       await expect(
         p.service.start({ id: `org_${slug}`, name: 'Sneaky', slug }, p.repo),
       ).rejects.toBeInstanceOf(ConflictError);
     }
-    expect([...p.apps.values()].map((app) => app.domain)).toEqual(['https://platform.test']);
+    expect([...p.apps.keys()]).toEqual([]);
   });
 
   it('is refused when another app already has its domain', async () => {
     const p = store();
-    await p.service.start(YOGA, p.repo);
-    await p.repo.create({ ...CLUB, domain: 'https://pilates.platform.test' });
-    await expect(p.service.start(PILATES, p.repo)).rejects.toBeInstanceOf(ConflictError);
+    await p.repo.create({ ...CLUB, domain: 'https://yoga.platform.test' });
+    await expect(p.service.start(YOGA, p.repo)).rejects.toBeInstanceOf(ConflictError);
   });
 
   it.each(['example.com', 'https://example.com/app', 'ftp://example.com'])(

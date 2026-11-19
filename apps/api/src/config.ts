@@ -214,7 +214,7 @@ function loadContainerConfig(): ContainerConfig {
     secureCookies: process.env.NODE_ENV === "production",
     trustedProxies: parseList("AUTH_TRUSTED_PROXIES"),
     ipAddressHeaders: parseList("AUTH_IP_ADDRESS_HEADERS"),
-    platformHost: process.env.PLATFORM_HOST ?? "http://localhost:8002",
+    ...(process.env.PLATFORM_HOST && { platformHost: process.env.PLATFORM_HOST }),
     adminAppUrl,
     outbox: {
       enabled: (process.env.OUTBOX_ENABLED ?? "true") !== "false",
