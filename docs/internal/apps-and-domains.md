@@ -17,7 +17,7 @@ whose courses or community to show.
 
 ## Use cases
 
-The design has to work for all five.
+The design has to work for all four.
 
 **1. One organization, the bundled apps.** A school hosts the system for itself and serves the student app at its
 own domain.
@@ -32,18 +32,12 @@ deployment serves all five, and each client's domain points at it.
   name and to answer a domain nobody registered with a 404.
 - A person who signs in on a client's domain gets that client's courses.
 
-**3. Someone's own frontend, running only in the browser.** A developer builds a single-page app on the API and
-serves it as static files.
-
-- It needs the same as use case 2.
-- It cannot keep a secret: everything sent to a browser can be read. So looking a domain up needs no key.
-
-**4. Someone's own frontend, rendered on a server.** A developer builds a server-rendered site on the API.
+**3. Someone's own frontend.** A developer builds a site on the API in place of the bundled apps.
 
 - It needs the same as use case 2.
 - Its server calls the API on the visitor's behalf, so it passes the visitor's domain along.
 
-**5. A platform.** A product creates one organization per customer with the platform key, runs its own frontends
+**4. A platform.** A product creates one organization per customer with the platform key, runs its own frontends
 on each customer's domain and renders its own email templates.
 
 - It needs every email to say which organization it is for, including the three sign-in emails (#41).
@@ -114,17 +108,17 @@ A request carries its domain in its `Origin` header, or else its `Referer`.
 A frontend asks which app and organization the domain it is serving is. It asks before anyone has signed in, so the
 call needs no session and no key.
 
-Sarah opens `https://learn.acme.com`. The page asks:
+Sarah opens `https://learn.acme.com`. The frontend's server asks the API, sending her domain as `Origin`:
 
 ```
-GET https://learn.acme.com/api/app
+GET /api/app
+Origin: https://learn.acme.com
 
 200  { "organization": { "name": "Acme" },
        "app": { "name": "Acme Academy", "courses": true, "community": false } }
 ```
 
 - The API answers for the domain of the request. The call takes no domain as a parameter.
-- A frontend rendered on a server makes the same call and sends the visitor's domain as `Origin`.
 - A request that carries no domain, or a domain that is no app's, is a 404.
 - It returns the organization's name, the app's name and what the app serves, and nothing else. A sign-in page on
   that domain shows the same.
