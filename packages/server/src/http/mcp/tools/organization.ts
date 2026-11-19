@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import {
+  App,
+  AppIdParam,
+  AppList,
   AssignmentList,
   ContentIdParam,
+  CreateApp,
   CreateInvite,
   CreateRole,
   Invite,
@@ -15,17 +19,29 @@ import {
   ResendInvite,
   RoleKeyParam,
   SetRole,
+  UpdateApp,
   UpdateOrganization,
   UpdateRole,
 } from '../../schemas/index.js';
+import type { App as OrganizationApp } from '@headless-lms/core/types';
 import { defineTool, noInput, type Tool } from '../tool.js';
+
+function appView(app: OrganizationApp) {
+  return {
+    id: app.id,
+    name: app.name,
+    slug: app.slug,
+    domain: app.domain,
+    courses: app.courses,
+    community: app.community,
+  };
+}
 
 export const organizationTools: Tool[] = [
   defineTool({
     name: 'update_organization',
     title: 'Update organization',
-    description:
-      "Change the organization's name or slug, or the hosts its member apps are reached at.",
+    description: "Change the organization's name or slug.",
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -38,9 +54,59 @@ export const organizationTools: Tool[] = [
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
-        hosts: org.hosts,
       };
     },
+  }),
+  defineTool({
+    name: 'list_apps',
+    title: 'List apps',
+    description:
+      "The organization's apps: the frontends it runs, each with its domain and whether it serves courses, the community, or both.",
+    kind: 'read',
+    idempotent: true,
+    openWorld: false,
+    input: noInput,
+    output: z.object({ apps: AppList }),
+    call: async (_input, { container, caller }) => ({
+      apps: (await container.organizations.listApps(caller.actor)).map(appView),
+    }),
+  }),
+  defineTool({
+    name: 'create_app',
+    title: 'Create app',
+    description:
+      'Add an app on a domain no other app has. An organization has at most one app that serves courses and one that serves the community.',
+    kind: 'write',
+    idempotent: false,
+    openWorld: false,
+    input: CreateApp,
+    output: App,
+    call: async (input, { container, caller }) =>
+      appView(await container.organizations.createApp(input, caller.actor)),
+  }),
+  defineTool({
+    name: 'update_app',
+    title: 'Update app',
+    description:
+      "Change an app's name, slug, domain or what it serves. Links use the new domain from then on.",
+    kind: 'write',
+    idempotent: true,
+    openWorld: false,
+    input: UpdateApp.extend(AppIdParam.shape),
+    output: App,
+    call: async ({ appId, ...input }, { container, caller }) =>
+      appView(await container.organizations.updateApp(appId, input, caller.actor)),
+  }),
+  defineTool({
+    name: 'delete_app',
+    title: 'Delete app',
+    description: 'Delete an app. Its domain stops reaching the organization.',
+    kind: 'destructive',
+    idempotent: false,
+    openWorld: false,
+    input: AppIdParam,
+    call: ({ appId }, { container, caller }) =>
+      container.organizations.deleteApp(appId, caller.actor),
   }),
   defineTool({
     name: 'list_roles',
@@ -221,8 +287,8 @@ export const organizationTools: Tool[] = [
     idempotent: false,
     openWorld: true,
     input: OrgUserIdParam.extend(ResendInvite.shape),
-    call: ({ orgUserId, host }, { container, caller }) =>
-      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId, host),
+    call: ({ orgUserId, domain }, { container, caller }) =>
+      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId, domain),
   }),
   defineTool({
     name: 'cancel_invite',

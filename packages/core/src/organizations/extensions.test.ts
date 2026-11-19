@@ -3,7 +3,12 @@ import type { ContentType, Level, Permission } from '../types/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { AssignmentRow } from './effective-permissions.js';
 import type { StoredOrgRole } from './org-roles.js';
-import type { OrganizationsRepository, OrganizationsUnitOfWork, RolesRepository } from './ports.js';
+import type {
+  AppsRepository,
+  OrganizationsRepository,
+  OrganizationsUnitOfWork,
+  RolesRepository,
+} from './ports.js';
 import type { IdentityService } from '../identity/index.js';
 import { OrganizationServiceImpl } from './service.js';
 import { DEFAULT_ROLES, validateRoleSet, type RoleDefinition } from './default-roles.js';
@@ -101,11 +106,13 @@ function service(storedRoles: StoredOrgRole[] = []) {
     findOrgUserById: async (_orgId: string, id: string) =>
       assignments.has(id) ? { id, orgId: ORG, userId: `usr_${id}`, status: 'active' } : null,
   } as unknown as OrganizationsRepository;
+  const apps = {} as AppsRepository;
   const uow: OrganizationsUnitOfWork = {
     run: (fn) =>
       fn({
         organizations: repo,
         roles,
+        apps,
         outbox: {
           append: async (e) => {
             events.push(...e);
@@ -116,6 +123,8 @@ function service(storedRoles: StoredOrgRole[] = []) {
   const svc = new OrganizationServiceImpl({
     repo,
     roles,
+    apps,
+    platformHost: 'https://platform.test',
     membersRepo: { teamRows: async () => [] },
     people: {} as IdentityService,
     images: { syncPublicImages: async () => {} },

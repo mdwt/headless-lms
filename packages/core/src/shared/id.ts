@@ -16,6 +16,7 @@ export const ID_PREFIXES = {
   orgRole: 'orl',
   roleAssignment: 'ras',
   invite: 'ivt',
+  app: 'app',
   bundle: 'bun',
   course: 'crs',
   module: 'mod',

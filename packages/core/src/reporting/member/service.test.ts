@@ -138,9 +138,9 @@ const readers: Pick<
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
-  | 'hosts'
+  | 'communityDomain'
 > = {
-  hosts: async () => ({ courses: 'https://learn.test', community: 'https://app.test' }),
+  communityDomain: async () => 'https://app.test',
   notifications: {
     list: async () => ({ items: [], total: 0, unreadCount: 0 }),
     get: async () => null,
@@ -170,7 +170,7 @@ const deps: Pick<
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
-  | 'hosts'
+  | 'communityDomain'
 > = {
   fileUrls,
   access: {

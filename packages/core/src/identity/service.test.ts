@@ -96,6 +96,22 @@ describe('password reset emails', () => {
 
     expect(mailer.send).toHaveBeenCalledWith('ada@example.com', 'passwordChanged', {});
   });
+
+  it('sends the three sign-in emails with the organization and app they were requested on', async () => {
+    const { service, mailer } = build();
+    const requestedOn = { orgId: 'org_acme', appId: 'app_club' };
+    const url = 'https://club.acme.test/api/auth/magic-link/verify?token=t';
+
+    await service.sendPasswordReset({ email: 'ada@example.com', url, requestedOn });
+    await service.sendPasswordChanged({ email: 'ada@example.com', requestedOn });
+    await service.sendMagicLink({ email: 'ada@example.com', url, requestedOn });
+
+    expect(vi.mocked(mailer.send).mock.calls).toEqual([
+      ['ada@example.com', 'passwordReset', { resetUrl: url }, 'org_acme', 'app_club'],
+      ['ada@example.com', 'passwordChanged', {}, 'org_acme', 'app_club'],
+      ['ada@example.com', 'magicLink', { url }, 'org_acme', 'app_club'],
+    ]);
+  });
 });
 
 describe('linkOrCreateUser', () => {

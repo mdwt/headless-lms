@@ -4,7 +4,7 @@ import type {
   TemplateContext,
 } from "@headless-lms/core/types";
 import { Link, Section } from "@react-email/components";
-import { communityApp, defineEmail } from "./community.js";
+import { communityUrl, defineEmail } from "./community.js";
 import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
 const PREVIEW_EVENT: EventEmailParams = {
@@ -16,7 +16,7 @@ const PREVIEW_EVENT: EventEmailParams = {
 };
 
 export function eventPage(ctx: TemplateContext, eventId: string): string {
-  return communityApp(ctx, `/events/${eventId}`);
+  return communityUrl(ctx, `/events/${eventId}`);
 }
 
 function formatIn(value: string, timeZone: string, options: Intl.DateTimeFormatOptions): string {

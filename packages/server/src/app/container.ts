@@ -9,6 +9,7 @@ import {
   DrizzleContentRepository,
   DrizzleCredentialStore,
   DrizzleAdminRepository,
+  DrizzleAppsRepository,
   DrizzleDigestRunRepository,
   DrizzleDevicesRepository,
   DrizzleDiscussionRepository,
@@ -27,7 +28,6 @@ import {
   DrizzleOutboxStore,
   DrizzleProgressRepository,
   DrizzleSettingsRepository,
-  DrizzleOrgHostIndex,
   DrizzleSubscriptionsRepository,
   DrizzleUnitOfWork,
 } from '@headless-lms/adapter-db';
@@ -88,7 +88,6 @@ import {
   type OrgAdmin,
   NotificationCatalog,
   OrganizationServiceImpl,
-  OrgHostSettings,
   OrgNotificationCategories,
   type RoleDefinition,
 } from '@headless-lms/core/organizations';
@@ -119,7 +118,7 @@ import { communityMail } from './community-mail.js';
 import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
-import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
+import { Mailer, type MailerLookups, type MailerSources } from '@headless-lms/core/shared/mailer';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 import { platformKeyCheck, type PlatformConfig, type PlatformKeyCheck } from './platform.js';
 
@@ -127,6 +126,7 @@ import type {
   BodyParser,
   ChannelRegistry,
   CredentialStore,
+  EmailBranding,
   EmailSender,
   EventBus,
   Logger,
@@ -137,7 +137,6 @@ import type {
   PubSub,
   PushSender,
   Scheduler,
-  TemplateContext,
   TemplateRenderer,
 } from '@headless-lms/core/shared/ports';
 import type { AutomationEngine, PushConfig, WebhookSender } from '@headless-lms/core/types';
@@ -180,9 +179,8 @@ export interface Config {
   authBaseURL: string;
   authSecret: string;
   trustedOrigins: string[];
-  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl.
-   *  (hosts are composed in per organization.) */
-  emailBranding?: Omit<TemplateContext, 'hosts'>;
+  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl. */
+  emailBranding?: EmailBranding;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. */
@@ -193,7 +191,7 @@ export interface Config {
   trustedProxies?: string[];
   /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
   ipAddressHeaders?: string[];
-  /** Origin a new organization's first host is made under, as `<slug>.<platform host>`. */
+  /** Origin a new organization's first app is made under, as `<slug>.<platform host>`. */
   platformHost: string;
   /** Admin app origin — invite links for staff. */
   adminAppUrl: string;
@@ -360,17 +358,36 @@ export async function buildContainer(
   const settings = new SettingsService(
     new DrizzleSettingsRepository(db, logger.child({ name: 'settings' })),
   );
-  const hosts = new OrgHostSettings({
-    settings,
-    index: new DrizzleOrgHostIndex(db),
-    platformHost: config.platformHost,
-    logger: logger.child({ name: 'org' }),
-  });
+  const mailerSources: MailerSources = {
+    organization: async (orgId) => {
+      const [organization, apps] = await Promise.all([
+        organizations.getById(orgId),
+        organizations.appsOf(orgId),
+      ]);
+      return organization
+        ? {
+            organization: {
+              id: organization.id,
+              name: organization.name,
+              slug: organization.slug,
+              metadata: organization.metadata,
+            },
+            apps,
+          }
+        : null;
+    },
+    recipient: async (address) => {
+      const person = await identity.getUserByEmail(address);
+      return person
+        ? { id: person.id, firstName: person.firstName, lastName: person.lastName }
+        : null;
+    },
+  };
   const mailer = new Mailer(
     templates,
     email,
     config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl },
-    (orgId) => hosts.resolve(orgId),
+    mailerSources,
   );
 
   const fileUrls = createFileUrls((key) => storage.publicUrl(key));
@@ -410,6 +427,7 @@ export async function buildContainer(
   const organizationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
     roles: new DrizzleRolesRepository(tx),
+    apps: new DrizzleAppsRepository(tx),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
@@ -417,6 +435,8 @@ export async function buildContainer(
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
+    apps: new DrizzleAppsRepository(db),
+    platformHost: config.platformHost,
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {
@@ -455,7 +475,6 @@ export async function buildContainer(
     logger: logger.child({ name: 'org' }),
     mailer,
     inviteUrls: { adminAppUrl: config.adminAppUrl },
-    hosts,
     grants: (): GrantReader => entitlements,
   });
 
@@ -689,7 +708,8 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
-      hosts: (orgId) => hosts.resolve(orgId),
+      communityDomain: async (orgId) =>
+        (await organizations.appsOf(orgId)).find((app) => app.community)?.domain ?? null,
     }),
   };
 

@@ -200,7 +200,7 @@ function originOf(value: string): string | null {
   return web && url.pathname === '/' && url.search === '' && url.hash === '' ? url.origin : null;
 }
 
-export const hostSchema = z
+export const domainSchema = z
   .string()
   .trim()
   .refine((value) => originOf(value) !== null, {
@@ -208,11 +208,47 @@ export const hostSchema = z
   })
   .transform((value) => originOf(value) ?? value);
 
-export const hostsSchema = z.object({
-  courses: hostSchema,
-  community: hostSchema,
-});
-export type Hosts = z.infer<typeof hostsSchema>;
+export const appSchema = z
+  .object({
+    orgId: idSchema,
+    id: idSchema,
+    name: z.string(),
+    slug: z.string(),
+    domain: z.string(),
+    courses: z.boolean(),
+    community: z.boolean(),
+  })
+  .strict();
+export type App = z.infer<typeof appSchema>;
+
+export const appNameSchema = z.string().trim().min(1).max(100);
+export const appSlugSchema = z
+  .string()
+  .min(1)
+  .max(50)
+  .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only');
+
+export const createAppInputSchema = z
+  .object({
+    name: appNameSchema,
+    slug: appSlugSchema,
+    domain: domainSchema,
+    courses: z.boolean(),
+    community: z.boolean(),
+  })
+  .strict();
+export type CreateAppInput = z.infer<typeof createAppInputSchema>;
+
+export const updateAppInputSchema = z
+  .object({
+    name: appNameSchema.optional(),
+    slug: appSlugSchema.optional(),
+    domain: domainSchema.optional(),
+    courses: z.boolean().optional(),
+    community: z.boolean().optional(),
+  })
+  .strict();
+export type UpdateAppInput = z.infer<typeof updateAppInputSchema>;
 
 export const createInviteInputSchema = z
   .object({
@@ -221,7 +257,7 @@ export const createInviteInputSchema = z
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     sendEmail: z.boolean().optional(),
-    host: hostSchema.optional(),
+    domain: domainSchema.optional(),
   })
   .strict();
 export type CreateInviteInput = z.input<typeof createInviteInputSchema>;

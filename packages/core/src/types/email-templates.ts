@@ -2,16 +2,49 @@
 // The closed EmailTemplateId union is the guarantee that templates exist: a
 // TemplateRenderer implementation must answer every member or fail typecheck.
 import type { ContentType } from './schemas/content.js';
-import type { Hosts } from './schemas/organizations.js';
 
 /** Branding threaded into every template. */
-export interface TemplateContext {
+export interface EmailBranding {
   /** Product or organization name shown in the email. */
   brandName: string;
   /** Origin links resolve against (e.g. the admin app URL). */
   baseUrl: string;
-  /** The organization's course app and community app origins; null for an email sent outside an organization. */
-  hosts: Hosts | null;
+}
+
+export interface TemplateOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  /** What the platform stored with the organization when it created it. */
+  metadata: Record<string, string>;
+}
+
+export interface TemplateApp {
+  id: string;
+  name: string;
+  slug: string;
+  /** The origin the app is reached at, such as https://learn.example.com. */
+  domain: string;
+}
+
+export interface TemplateRecipient {
+  email: string;
+  /** Null when no person has this address. */
+  id: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+export interface TemplateContext extends EmailBranding {
+  /** Null for an email sent outside an organization. */
+  organization: TemplateOrganization | null;
+  /** The organization's app that serves courses. */
+  courseApp: TemplateApp | null;
+  /** The organization's app that serves the community. */
+  communityApp: TemplateApp | null;
+  /** The app a password reset, password changed or sign-in link email was requested on. */
+  requestedApp: TemplateApp | null;
+  recipient: TemplateRecipient;
 }
 
 /** A fully rendered email, ready for an EmailSender. */

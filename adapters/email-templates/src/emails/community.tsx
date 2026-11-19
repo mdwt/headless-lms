@@ -3,19 +3,20 @@ import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/ty
 import { Link, Section, Text } from "@react-email/components";
 import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
 
-function hostsOf(ctx: TemplateContext) {
-  if (!ctx.hosts) {
-    throw new Error("This email links to an organization's apps and was sent without one");
+export function communityUrl(ctx: TemplateContext, path: string): string {
+  if (!ctx.communityApp) {
+    throw new Error(
+      "This email links to the organization's community app and was sent without one",
+    );
   }
-  return ctx.hosts;
+  return `${ctx.communityApp.domain}${path}`;
 }
 
-export function communityApp(ctx: TemplateContext, path: string): string {
-  return `${hostsOf(ctx).community}${path}`;
-}
-
-export function courseApp(ctx: TemplateContext, path: string): string {
-  return `${hostsOf(ctx).courses}${path}`;
+export function courseUrl(ctx: TemplateContext, path: string): string {
+  if (!ctx.courseApp) {
+    throw new Error("This email links to the organization's course app and was sent without one");
+  }
+  return `${ctx.courseApp.domain}${path}`;
 }
 
 export function defineEmail<K extends keyof EmailTemplateParams>(opts: {
@@ -46,15 +47,15 @@ export function defineEmail<K extends keyof EmailTemplateParams>(opts: {
   return { subject: opts.subject, Component };
 }
 
-const community = (ctx: TemplateContext, id: string) => communityApp(ctx, `/communities/${id}`);
+const community = (ctx: TemplateContext, id: string) => communityUrl(ctx, `/communities/${id}`);
 const space = (ctx: TemplateContext, communityId: string, spaceId: string) =>
-  communityApp(ctx, `/communities/${communityId}/spaces/${spaceId}`);
+  communityUrl(ctx, `/communities/${communityId}/spaces/${spaceId}`);
 const post = (ctx: TemplateContext, communityId: string, postId: string) =>
-  communityApp(ctx, `/communities/${communityId}/posts/${postId}`);
+  communityUrl(ctx, `/communities/${communityId}/posts/${postId}`);
 const comment = (ctx: TemplateContext, communityId: string, postId: string, commentId: string) =>
   `${post(ctx, communityId, postId)}#${commentId}`;
 const chat = (ctx: TemplateContext, communityId: string, chatId: string) =>
-  communityApp(ctx, `/communities/${communityId}/chats/${chatId}`);
+  communityUrl(ctx, `/communities/${communityId}/chats/${chatId}`);
 
 function accessEnds(value: string): string {
   const date = new Date(value);
@@ -109,7 +110,7 @@ export const membershipEnded = defineEmail<"membershipEnded">({
     const [only] = params.communities;
     return params.communities.length === 1 && only
       ? { href: community(ctx, only.communityId), label: "Renew" }
-      : { href: communityApp(ctx, "/communities"), label: "Open communities" };
+      : { href: communityUrl(ctx, "/communities"), label: "Open communities" };
   },
   preview: { communities: [{ communityId: "cmy_1", communityTitle: "Founders" }] },
 });

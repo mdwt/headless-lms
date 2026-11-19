@@ -79,6 +79,8 @@ import type {
   CreateActivityResponses,
   CreateApiKeyErrors,
   CreateApiKeyResponses,
+  CreateAppErrors,
+  CreateAppResponses,
   CreateAutomationErrors,
   CreateAutomationResponses,
   CreateBundleErrors,
@@ -121,6 +123,8 @@ import type {
   DeleteActivityResponses,
   DeleteApiKeyErrors,
   DeleteApiKeyResponses,
+  DeleteAppErrors,
+  DeleteAppResponses,
   DeleteAssetErrors,
   DeleteAssetResponses,
   DeleteAutomationErrors,
@@ -292,6 +296,8 @@ import type {
   ListApiKeyRolesResponses,
   ListApiKeysErrors,
   ListApiKeysResponses,
+  ListAppsErrors,
+  ListAppsResponses,
   ListAssetsErrors,
   ListAssetsResponses,
   ListAutomationActionsErrors,
@@ -577,6 +583,8 @@ import type {
   UnschedulePostResponses,
   UpdateActivityErrors,
   UpdateActivityResponses,
+  UpdateAppErrors,
+  UpdateAppResponses,
   UpdateAutomationErrors,
   UpdateAutomationResponses,
   UpdateBundleErrors,
@@ -631,22 +639,12 @@ export class Organizations {
   /**
    * Update the active organization
    *
-   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. `hosts` replaces both hosts, and the next link uses the new value: links to courses and downloads use `courses`, links to communities and events use `community`. Changing the slug does not change the hosts.
+   * Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. Changing the slug does not change its apps.
    */
   public static updateOrganization<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
       slug: string;
-      hosts?: {
-        /**
-         * Origin of the app that shows courses and downloads, such as https://learn.example.com
-         */
-        courses: string;
-        /**
-         * Origin of the app that shows communities and events, such as https://club.example.com
-         */
-        community: string;
-      };
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<UpdateOrganizationResponses, UpdateOrganizationErrors, ThrowOnError, "data"> {
@@ -657,7 +655,6 @@ export class Organizations {
           args: [
             { in: "body", key: "name" },
             { in: "body", key: "slug" },
-            { in: "body", key: "hosts" },
           ],
         },
       ],
@@ -683,7 +680,7 @@ export class Organizations {
   /**
    * Create an organization and make it active
    *
-   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.
+   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host. 409 when another app already has that domain.
    */
   public static createOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -711,6 +708,144 @@ export class Organizations {
     >({
       responseStyle: "data",
       url: "/api/organizations",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * The organization's apps
+   *
+   * Requires `organizations:read`. An app is a frontend the organization runs on a domain; it serves courses, the community, or both. Links in emails, invites and calendar files use the domain of the app that serves what the link is about.
+   */
+  public static listApps<ThrowOnError extends boolean = false>(
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<ListAppsResponses, ListAppsErrors, ThrowOnError, "data"> {
+    return (options?.client ?? client).get<ListAppsResponses, ListAppsErrors, ThrowOnError, "data">(
+      {
+        responseStyle: "data",
+        url: "/api/organizations/apps",
+        ...options,
+      },
+    );
+  }
+
+  /**
+   * Add an app
+   *
+   * Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).
+   */
+  public static createApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      name: string;
+      slug: string;
+      domain: string;
+      courses: boolean;
+      community: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<CreateAppResponses, CreateAppErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "name" },
+            { in: "body", key: "slug" },
+            { in: "body", key: "domain" },
+            { in: "body", key: "courses" },
+            { in: "body", key: "community" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).post<
+      CreateAppResponses,
+      CreateAppErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/apps",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete an app
+   *
+   * Requires `organizations:write`. Its domain stops reaching the organization, and frees up for another app.
+   */
+  public static deleteApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<DeleteAppResponses, DeleteAppErrors, ThrowOnError, "data"> {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "appId" }] }]);
+    return (options?.client ?? client).delete<
+      DeleteAppResponses,
+      DeleteAppErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/apps/{appId}",
+      ...options,
+      ...params,
+    });
+  }
+
+  /**
+   * Change an app
+   *
+   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.
+   */
+  public static updateApp<ThrowOnError extends boolean = false>(
+    parameters: {
+      appId: string;
+      name?: string;
+      slug?: string;
+      domain?: string;
+      courses?: boolean;
+      community?: boolean;
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<UpdateAppResponses, UpdateAppErrors, ThrowOnError, "data"> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "appId" },
+            { in: "body", key: "name" },
+            { in: "body", key: "slug" },
+            { in: "body", key: "domain" },
+            { in: "body", key: "courses" },
+            { in: "body", key: "community" },
+          ],
+        },
+      ],
+    );
+    return (options?.client ?? client).patch<
+      UpdateAppResponses,
+      UpdateAppErrors,
+      ThrowOnError,
+      "data"
+    >({
+      responseStyle: "data",
+      url: "/api/organizations/apps/{appId}",
       ...options,
       ...params,
       headers: {
@@ -1237,7 +1372,7 @@ export class People {
   /**
    * Invite a person with an org role
    *
-   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `host` is the app the invite link opens and must be one of the organization's hosts (409).
+   * Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `domain` is the domain the invite link opens and must be one of the organization's apps (409). An emailed invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).
    */
   public static createInvite<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1246,7 +1381,7 @@ export class People {
       firstName?: string;
       lastName?: string;
       sendEmail?: boolean;
-      host?: string;
+      domain?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<CreateInviteResponses, CreateInviteErrors, ThrowOnError, "data"> {
@@ -1260,7 +1395,7 @@ export class People {
             { in: "body", key: "firstName" },
             { in: "body", key: "lastName" },
             { in: "body", key: "sendEmail" },
-            { in: "body", key: "host" },
+            { in: "body", key: "domain" },
           ],
         },
       ],
@@ -1286,12 +1421,12 @@ export class People {
   /**
    * Resend a person's pending invite
    *
-   * Requires `people:write`. Issues a new link; the resender becomes the inviter. `host` is the app the invite link opens and must be one of the organization's hosts (409).
+   * Requires `people:write`. Issues a new link; the resender becomes the inviter. `domain` is the domain the invite link opens and must be one of the organization's apps (409). An invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).
    */
   public static resendInvite<ThrowOnError extends boolean = false>(
     parameters: {
       orgUserId: string;
-      host?: string;
+      domain?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ResendInviteResponses, ResendInviteErrors, ThrowOnError, "data"> {
@@ -1301,7 +1436,7 @@ export class People {
         {
           args: [
             { in: "path", key: "orgUserId" },
-            { in: "query", key: "host" },
+            { in: "query", key: "domain" },
           ],
         },
       ],

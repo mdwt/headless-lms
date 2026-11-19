@@ -28,19 +28,6 @@ export type UpdateOrganizationData = {
   body: {
     name: string;
     slug: string;
-    /**
-     * Both hosts, replacing the current ones. Left out, the hosts stay as they are.
-     */
-    hosts?: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
   };
   path?: never;
   query?: never;
@@ -108,19 +95,6 @@ export type UpdateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
-    /**
-     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-     */
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
   };
 };
 
@@ -131,7 +105,7 @@ export type CreateOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. The organization's first host is this slug under the platform host.
+     * Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.
      */
     slug: string;
   };
@@ -167,6 +141,14 @@ export type CreateOrganizationErrors = {
   /**
    * Default Response
    */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
   500: {
     error: string;
     message?: string;
@@ -185,24 +167,351 @@ export type CreateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
-    /**
-     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-     */
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
   };
 };
 
 export type CreateOrganizationResponse =
   CreateOrganizationResponses[keyof CreateOrganizationResponses];
+
+export type ListAppsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/organizations/apps";
+};
+
+export type ListAppsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListAppsError = ListAppsErrors[keyof ListAppsErrors];
+
+export type ListAppsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  }>;
+};
+
+export type ListAppsResponse = ListAppsResponses[keyof ListAppsResponses];
+
+export type CreateAppData = {
+  body: {
+    name: string;
+    /**
+     * Unique among the organization's apps
+     */
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/organizations/apps";
+};
+
+export type CreateAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreateAppError = CreateAppErrors[keyof CreateAppErrors];
+
+export type CreateAppResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    name: string;
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+};
+
+export type CreateAppResponse = CreateAppResponses[keyof CreateAppResponses];
+
+export type DeleteAppData = {
+  body?: never;
+  path: {
+    appId: string;
+  };
+  query?: never;
+  url: "/api/organizations/apps/{appId}";
+};
+
+export type DeleteAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeleteAppError = DeleteAppErrors[keyof DeleteAppErrors];
+
+export type DeleteAppResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type UpdateAppData = {
+  body: {
+    name?: string;
+    slug?: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain?: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses?: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community?: boolean;
+  };
+  path: {
+    appId: string;
+  };
+  query?: never;
+  url: "/api/organizations/apps/{appId}";
+};
+
+export type UpdateAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type UpdateAppError = UpdateAppErrors[keyof UpdateAppErrors];
+
+export type UpdateAppResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    name: string;
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+};
+
+export type UpdateAppResponse = UpdateAppResponses[keyof UpdateAppResponses];
 
 export type TransferOwnershipData = {
   body: {
@@ -1575,9 +1884,9 @@ export type CreateInviteData = {
     lastName?: string;
     sendEmail?: boolean;
     /**
-     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     * The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.
      */
-    host?: string;
+    domain?: string;
   };
   path?: never;
   query?: never;
@@ -1671,9 +1980,9 @@ export type ResendInviteData = {
   };
   query?: {
     /**
-     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     * The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.
      */
-    host?: string;
+    domain?: string;
   };
   url: "/api/organizations/people/{orgUserId}/invite/resend";
 };
@@ -28998,19 +29307,6 @@ export type GetPlatformOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
-    /**
-     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-     */
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
     metadata: {
       [key: string]: string;
     };
@@ -29024,7 +29320,7 @@ export type CreatePlatformOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. The organization's first host is this slug under the platform host.
+     * Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.
      */
     slug: string;
     /**
@@ -29094,19 +29390,6 @@ export type CreatePlatformOrganizationResponses = {
       name: string;
       slug: string;
       createdAt: string;
-      /**
-       * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-       */
-      hosts: {
-        /**
-         * Origin of the app that shows courses and downloads, such as https://learn.example.com
-         */
-        courses: string;
-        /**
-         * Origin of the app that shows communities and events, such as https://club.example.com
-         */
-        community: string;
-      };
       metadata: {
         [key: string]: string;
       };

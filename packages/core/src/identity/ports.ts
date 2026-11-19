@@ -30,9 +30,19 @@ export interface UserProvisioner {
    *  stamping `externalId`; creates the person when the email is unknown.
    *  Throws ConflictError when the email is already linked to an account. */
   linkOrCreateUser(input: CreateUserInput): Promise<User>;
-  sendPasswordReset(input: { email: string; url: string }): Promise<void>;
-  sendPasswordChanged(input: { email: string }): Promise<void>;
-  sendMagicLink(input: { email: string; url: string }): Promise<void>;
+  sendPasswordReset(input: {
+    email: string;
+    url: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void>;
+  sendPasswordChanged(input: { email: string; requestedOn?: RequestedOn }): Promise<void>;
+  sendMagicLink(input: { email: string; url: string; requestedOn?: RequestedOn }): Promise<void>;
+}
+
+/** The organization and app a sign-in email was requested on. */
+export interface RequestedOn {
+  orgId: string;
+  appId: string;
 }
 
 /** Resolves an auth account to the domain person. Used by the organizations

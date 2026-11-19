@@ -9,7 +9,9 @@ export const CreatePlatformOrganization = z.object({
     .min(1)
     .max(50)
     .regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers, and hyphens only')
-    .describe("Unique. The organization's first host is this slug under the platform host."),
+    .describe(
+      "Unique. The organization's first app takes this slug, and its domain is the slug under the platform host.",
+    ),
   metadata: z
     .record(z.string().min(1).max(40), z.string().max(500))
     .refine((metadata) => Object.keys(metadata).length <= 50, 'At most 50 metadata keys')

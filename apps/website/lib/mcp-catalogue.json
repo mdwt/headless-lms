@@ -1944,10 +1944,10 @@
           "description": null
         },
         {
-          "name": "host",
+          "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
+          "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
         }
       ]
     },
@@ -2202,7 +2202,7 @@
     {
       "name": "update_organization",
       "title": "Update organization",
-      "description": "Change the organization's name or slug, or the hosts its member apps are reached at.",
+      "description": "Change the organization's name or slug.",
       "group": "Organization, roles and team",
       "kind": "write",
       "idempotent": true,
@@ -2219,12 +2219,121 @@
           "type": "string",
           "required": true,
           "description": null
+        }
+      ]
+    },
+    {
+      "name": "list_apps",
+      "title": "List apps",
+      "description": "The organization's apps: the frontends it runs, each with its domain and whether it serves courses, the community, or both.",
+      "group": "Organization, roles and team",
+      "kind": "read",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": []
+    },
+    {
+      "name": "create_app",
+      "title": "Create app",
+      "description": "Add an app on a domain no other app has. An organization has at most one app that serves courses and one that serves the community.",
+      "group": "Organization, roles and team",
+      "kind": "write",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": null
         },
         {
-          "name": "hosts",
-          "type": "object",
+          "name": "slug",
+          "type": "string",
+          "required": true,
+          "description": "Unique among the organization's apps"
+        },
+        {
+          "name": "domain",
+          "type": "string",
+          "required": true,
+          "description": "The origin the app is reached at, such as https://learn.example.com"
+        },
+        {
+          "name": "courses",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether the app serves courses and downloads"
+        },
+        {
+          "name": "community",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether the app serves communities and events"
+        }
+      ]
+    },
+    {
+      "name": "update_app",
+      "title": "Update app",
+      "description": "Change an app's name, slug, domain or what it serves. Links use the new domain from then on.",
+      "group": "Organization, roles and team",
+      "kind": "write",
+      "idempotent": true,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "appId",
+          "type": "string",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "string",
           "required": false,
-          "description": "Both hosts, replacing the current ones. Left out, the hosts stay as they are."
+          "description": null
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "domain",
+          "type": "string",
+          "required": false,
+          "description": "The origin the app is reached at, such as https://learn.example.com"
+        },
+        {
+          "name": "courses",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the app serves courses and downloads"
+        },
+        {
+          "name": "community",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether the app serves communities and events"
+        }
+      ]
+    },
+    {
+      "name": "delete_app",
+      "title": "Delete app",
+      "description": "Delete an app. Its domain stops reaching the organization.",
+      "group": "Organization, roles and team",
+      "kind": "destructive",
+      "idempotent": false,
+      "openWorld": false,
+      "fields": [
+        {
+          "name": "appId",
+          "type": "string",
+          "required": true,
+          "description": null
         }
       ]
     },
@@ -2579,10 +2688,10 @@
           "description": null
         },
         {
-          "name": "host",
+          "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
+          "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
         }
       ]
     },
@@ -2602,10 +2711,10 @@
           "description": null
         },
         {
-          "name": "host",
+          "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
+          "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
         }
       ]
     },

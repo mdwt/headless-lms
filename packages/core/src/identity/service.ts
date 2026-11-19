@@ -1,6 +1,6 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
 import type { User, UserProfile, UserProfileView } from './model.js';
-import type { MemberActor, UpdateProfileInput } from './ports.js';
+import type { MemberActor, RequestedOn, UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
@@ -11,6 +11,10 @@ import type { AssetFiles, FileUrls, MemberImageReader } from '../assets/index.js
 import { identityEvents } from './events.js';
 
 export const UNNAMED_MEMBER = 'A member';
+
+function requestedArgs(requestedOn: RequestedOn | undefined): [] | [string, string] {
+  return requestedOn ? [requestedOn.orgId, requestedOn.appId] : [];
+}
 
 export class IdentityServiceImpl implements IdentityService {
   private readonly repo: IdentityRepository;
@@ -97,16 +101,34 @@ export class IdentityServiceImpl implements IdentityService {
     return this.repo.findUserById(id);
   }
 
-  async sendPasswordReset(input: { email: string; url: string }): Promise<void> {
-    await this.mailer.send(input.email, 'passwordReset', { resetUrl: input.url });
+  async sendPasswordReset(input: {
+    email: string;
+    url: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void> {
+    await this.mailer.send(
+      input.email,
+      'passwordReset',
+      { resetUrl: input.url },
+      ...requestedArgs(input.requestedOn),
+    );
   }
 
-  async sendPasswordChanged(input: { email: string }): Promise<void> {
-    await this.mailer.send(input.email, 'passwordChanged', {});
+  async sendPasswordChanged(input: { email: string; requestedOn?: RequestedOn }): Promise<void> {
+    await this.mailer.send(input.email, 'passwordChanged', {}, ...requestedArgs(input.requestedOn));
   }
 
-  async sendMagicLink(input: { email: string; url: string }): Promise<void> {
-    await this.mailer.send(input.email, 'magicLink', { url: input.url });
+  async sendMagicLink(input: {
+    email: string;
+    url: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void> {
+    await this.mailer.send(
+      input.email,
+      'magicLink',
+      { url: input.url },
+      ...requestedArgs(input.requestedOn),
+    );
   }
 
   async profileOf(actor: MemberActor): Promise<UserProfileView> {

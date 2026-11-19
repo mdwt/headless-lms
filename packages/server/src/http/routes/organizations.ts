@@ -4,8 +4,12 @@ import { z } from 'zod';
 import {
   AcceptInvite,
   AcceptInviteResult,
+  App,
+  AppIdParam,
+  AppList,
   AssignmentList,
   ContentIdParam,
+  CreateApp,
   CreateInvite,
   CreateOrganization,
   CreateRole,
@@ -29,11 +33,13 @@ import {
   RoleKeyParam,
   SetRole,
   TransferOwnership,
+  UpdateApp,
   UpdateOrganization,
   UpdateRole,
   refusals,
 } from '../schemas/index.js';
 import type { CreatedInvite } from '@headless-lms/core/organizations';
+import type { App as OrganizationApp } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
 
@@ -46,6 +52,17 @@ function inviteView(invite: CreatedInvite) {
     status: invite.status,
     expiresAt: invite.expiresAt,
     createdAt: invite.createdAt,
+  };
+}
+
+function appView(app: OrganizationApp) {
+  return {
+    id: app.id,
+    name: app.name,
+    slug: app.slug,
+    domain: app.domain,
+    courses: app.courses,
+    community: app.community,
   };
 }
 
@@ -68,9 +85,9 @@ export async function organizationsRoutes(
       tags,
       summary: 'Create an organization and make it active',
       description:
-        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.',
+        "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host. 409 when another app already has that domain.",
       body: CreateOrganization,
-      response: { 201: Organization, ...refusals(400) },
+      response: { 201: Organization, ...refusals(400, 409) },
     },
     handler: async (req, reply) => {
       const org = await organizations.createOrganization(req.body, req.headers);
@@ -79,7 +96,6 @@ export async function organizationsRoutes(
         slug: org.slug,
         id: org.id,
         createdAt: org.createdAt.toISOString(),
-        hosts: org.hosts,
       });
     },
   });
@@ -92,7 +108,7 @@ export async function organizationsRoutes(
       operationId: 'updateOrganization',
       tags,
       summary: 'Update the active organization',
-      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken. \`hosts\` replaces both hosts, and the next link uses the new value: links to courses and downloads use \`courses\`, links to communities and events use \`community\`. Changing the slug does not change the hosts.`,
+      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken. Changing the slug does not change its apps.`,
       body: UpdateOrganization,
       response: { 200: Organization, ...refusals(403, 409) },
     },
@@ -104,8 +120,81 @@ export async function organizationsRoutes(
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
-        hosts: org.hosts,
       };
+    },
+  });
+
+  r.route({
+    method: 'GET',
+    url: '/api/organizations/apps',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'listApps',
+      tags,
+      summary: "The organization's apps",
+      description: `Requires \`organizations:read\`. An app is a frontend the organization runs on a domain; it serves courses, the community, or both. Links in emails, invites and calendar files use the domain of the app that serves what the link is about.`,
+      response: { 200: AppList, ...refusals(403) },
+    },
+    handler: async (req) =>
+      (await organizations.listApps(await resolveActor(container, req))).map(appView),
+  });
+
+  r.route({
+    method: 'POST',
+    url: '/api/organizations/apps',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'createApp',
+      tags,
+      summary: 'Add an app',
+      description: `Requires \`organizations:write\`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).`,
+      body: CreateApp,
+      response: { 201: App, ...refusals(400, 403, 409) },
+    },
+    handler: async (req, reply) =>
+      reply
+        .code(201)
+        .send(appView(await organizations.createApp(req.body, await resolveActor(container, req)))),
+  });
+
+  r.route({
+    method: 'PATCH',
+    url: '/api/organizations/apps/:appId',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'updateApp',
+      tags,
+      summary: 'Change an app',
+      description: `Requires \`organizations:write\`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.`,
+      params: AppIdParam,
+      body: UpdateApp,
+      response: { 200: App, ...refusals(400, 403, 404, 409) },
+    },
+    handler: async (req) =>
+      appView(
+        await organizations.updateApp(
+          req.params.appId,
+          req.body,
+          await resolveActor(container, req),
+        ),
+      ),
+  });
+
+  r.route({
+    method: 'DELETE',
+    url: '/api/organizations/apps/:appId',
+    preHandler: app.requireOrgSession,
+    schema: {
+      operationId: 'deleteApp',
+      tags,
+      summary: 'Delete an app',
+      description: `Requires \`organizations:write\`. Its domain stops reaching the organization, and frees up for another app.`,
+      params: AppIdParam,
+      response: { 204: z.void(), ...refusals(403, 404) },
+    },
+    handler: async (req, reply) => {
+      await organizations.deleteApp(req.params.appId, await resolveActor(container, req));
+      return reply.code(204).send();
     },
   });
 
@@ -364,7 +453,7 @@ export async function organizationsRoutes(
       operationId: 'createInvite',
       tags: peopleTags,
       summary: 'Invite a person with an org role',
-      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409). \`host\` is the app the invite link opens and must be one of the organization's hosts (409).`,
+      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409). \`domain\` is the domain the invite link opens and must be one of the organization's apps (409). An emailed invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).`,
       body: CreateInvite,
       response: { 201: Invite, ...refusals(403, 404, 409) },
     },
@@ -383,7 +472,7 @@ export async function organizationsRoutes(
       operationId: 'resendInvite',
       tags: peopleTags,
       summary: "Resend a person's pending invite",
-      description: `Requires \`people:write\`. Issues a new link; the resender becomes the inviter. \`host\` is the app the invite link opens and must be one of the organization's hosts (409).`,
+      description: `Requires \`people:write\`. Issues a new link; the resender becomes the inviter. \`domain\` is the domain the invite link opens and must be one of the organization's apps (409). An invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).`,
       params: OrgUserIdParam,
       querystring: ResendInvite,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
@@ -394,7 +483,7 @@ export async function organizationsRoutes(
         req.params.orgUserId,
         caller.actor,
         caller.userId,
-        req.query.host,
+        req.query.domain,
       );
       return reply.code(204).send();
     },

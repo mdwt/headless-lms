@@ -1,8 +1,8 @@
 import type { TemplateContext } from "@headless-lms/core/types";
-import { courseApp, defineEmail } from "./community.js";
+import { courseUrl, defineEmail } from "./community.js";
 
 const activity = (ctx: TemplateContext, courseId: string, activityId: string) =>
-  courseApp(ctx, `/courses/${courseId}?activity=${activityId}`);
+  courseUrl(ctx, `/courses/${courseId}?activity=${activityId}`);
 
 export const courseActivityAdded = defineEmail<"courseActivityAdded">({
   subject: (_ctx, params) => `New in ${params.courseTitle}: ${params.activityTitle}`,

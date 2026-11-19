@@ -75,8 +75,19 @@ export function Paragraph({ children }: { children: ReactNode }) {
   return <Text className="my-[15px] text-[15px] leading-[1.4] text-[#3c4149]">{children}</Text>;
 }
 
+const PREVIEW_APP = {
+  id: "app_1",
+  name: "Acme",
+  slug: "acme",
+  domain: "http://localhost:8002",
+};
+
 export const PREVIEW_CTX: TemplateContext = {
   brandName: "Acme LMS",
   baseUrl: "http://localhost:8001",
-  hosts: { courses: "http://localhost:8002", community: "http://localhost:8002" },
+  organization: { id: "org_1", name: "Acme", slug: "acme", metadata: {} },
+  courseApp: PREVIEW_APP,
+  communityApp: PREVIEW_APP,
+  requestedApp: null,
+  recipient: { email: "sarah@example.com", id: "usr_1", firstName: "Sarah", lastName: "Lee" },
 };

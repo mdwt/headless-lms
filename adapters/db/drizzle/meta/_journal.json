@@ -162,6 +162,13 @@
       "when": 1794461667874,
       "tag": "0022_org_host_index",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795111783659,
+      "tag": "0023_apps",
+      "breakpoints": true
     }
   ]
 }
