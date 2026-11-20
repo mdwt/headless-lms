@@ -420,6 +420,7 @@ export async function buildContainer(
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
+    apps,
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {

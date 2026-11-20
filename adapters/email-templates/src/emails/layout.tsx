@@ -82,6 +82,10 @@ const PREVIEW_APP = {
   domain: "http://localhost:8002",
 };
 
+export function senderName(ctx: TemplateContext): string {
+  return ctx.organization?.name ?? ctx.brandName;
+}
+
 export const PREVIEW_CTX: TemplateContext = {
   brandName: "Acme LMS",
   baseUrl: "http://localhost:8001",

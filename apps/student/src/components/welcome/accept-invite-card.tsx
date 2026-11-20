@@ -75,7 +75,7 @@ export function AcceptInviteCard({
 
       <button
         type="button"
-        onClick={() => void signOut()}
+        onClick={() => void signOut().then(() => router.refresh())}
         className="text-center text-sm text-ink-3 underline-offset-4 hover:text-ink hover:underline"
       >
         Use a different account

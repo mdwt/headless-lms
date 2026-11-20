@@ -95,15 +95,16 @@ export class OrgApps {
     return this.repo.listApps(orgId);
   }
 
+  async find(domain: string): Promise<App | null> {
+    return this.reserved(domain) ? null : this.repo.findAppByDomain(domain);
+  }
+
   async has(domain: string): Promise<boolean> {
-    return !this.reserved(domain) && (await this.repo.findAppByDomain(domain)) !== null;
+    return (await this.find(domain)) !== null;
   }
 
   async at(domain: string): Promise<AppAt | null> {
-    if (this.reserved(domain)) {
-      return null;
-    }
-    const app = await this.repo.findAppByDomain(domain);
+    const app = await this.find(domain);
     const organization = app ? await this.repo.findById(app.orgId) : null;
     return app && organization
       ? {

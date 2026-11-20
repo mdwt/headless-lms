@@ -27,6 +27,8 @@ const SESSION_READS = [
   '/api/auth/organization/',
 ];
 
+const SET_ACTIVE = '/api/auth/organization/set-active';
+
 function readsSession(url: string): boolean {
   return SESSION_READS.some((path) => url.startsWith(path));
 }
@@ -55,9 +57,23 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
       if (request.method === 'GET' && readsSession(request.url)) {
         await refuseSessionOfAnotherOrganization(request);
       }
+      if (request.method === 'POST' && request.url.startsWith(SET_ACTIVE)) {
+        await refuseSwitchToAnotherOrganization(request);
+      }
       await bridgeWebResponse(await auth.handler(toWebRequest(request, origin)), reply);
     },
   });
+
+  async function refuseSwitchToAnotherOrganization(request: FastifyRequest): Promise<void> {
+    const at = await requestApp(appServer, request);
+    const to = (request.body ?? {}) as {
+      organizationId?: string | null;
+      organizationSlug?: string;
+    };
+    if (at && !appServer.organizations.acceptsSwitch(at, to)) {
+      throw new UnauthorizedError('This session is for another organization');
+    }
+  }
 
   async function refuseSessionOfAnotherOrganization(request: FastifyRequest): Promise<void> {
     if (!(await requestApp(appServer, request))) {

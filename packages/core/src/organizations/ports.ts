@@ -116,6 +116,10 @@ export interface OrganizationService {
     domains: readonly string[],
   ): Promise<SessionOrganization>;
   acceptsSession(at: AppAt, authOrgId: string): boolean;
+  acceptsSwitch(
+    at: AppAt,
+    to: { organizationId?: string | null; organizationSlug?: string },
+  ): boolean;
   linkDomain(email: string, returnTo: string | null, named: readonly string[]): Promise<LinkDomain>;
 
   actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null>;

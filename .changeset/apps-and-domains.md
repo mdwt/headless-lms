@@ -15,10 +15,11 @@ An organization's two hosts become apps. An app is a frontend the organization r
 - `GET /api/app` tells a frontend which organization and app the domain of the request is, with no session and no key. It answers for the `Origin` header, or else the `Referer`, and is limited to 100 requests in 10 seconds per client IP address.
 - A session started on an app's domain is for that app's organization. A person with an open invite there gets a session with no organization, and anyone else is refused: a sign-in answers `401`. On an origin in `CLIENT_ORIGIN`, or with no origin, a person in exactly one organization gets a session for it, as before.
 - A request with a session from an app's domain is logged with the app's id, and is a `401` when the session is for another organization.
-- The session reads under `/api/auth` (`get-session`, `list-sessions`, `organization/*`) answer `401` too when the session is for another organization than the app's.
+- The session reads under `/api/auth` (`GET get-session`, `list-sessions` and `organization/*`) answer `401` too when the session is for another organization than the app's, and `POST organization/set-active` is a `401` there for any organization but the app's.
 - A sign-in link's session is decided by the address the link returns to; the page it was opened from counts only when it names none.
 - The sign-in link email is sent after the request is answered, like the password reset email.
 - Accepting an invite and resetting a password mark the person's email as verified, so a sign-in link opened later leaves their password in place. `SessionAdmin` gains `confirmEmail`.
+- The bundled sign-in and invite emails name the organization, and the brand only for an email sent outside one.
 - The student sign-in page tells a person with an invitation they have not accepted to open the link in their invitation email, instead of signing them in and out again.
 - With `AUTH_COOKIE_DOMAIN` set, a sign-in from a domain outside it gets a host-only cookie, so an organization's own domain works beside the shared one.
 - The admin app's address, the API's and every origin in `CLIENT_ORIGIN` are refused as an app's domain, under either scheme. A domain is a bare `http` or `https` origin: a path, a query, a username or password, a wildcard or a trailing dot is refused.

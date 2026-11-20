@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrganizationServiceImpl } from './service.js';
+import { OrgApps } from './apps.js';
 import type {
   Accounts,
   ApiKeys,
@@ -605,6 +606,7 @@ function store(
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
     roles,
+    apps: new OrgApps({ repo, reservedDomains: ['https://admin.platform.test'] }),
     membersRepo,
     people: guardedPeople,
     images,
@@ -2110,6 +2112,31 @@ describe('people on a domain', () => {
       expect(w.service.acceptsSession(at({ id: ORG, externalId: 'ba_1' }), 'ba_1')).toBe(true);
       expect(w.service.acceptsSession(at({ id: ORG, externalId: 'ba_1' }), ORG)).toBe(false);
       expect(w.service.acceptsSession(at({ id: ORG, externalId: null }), GLOBEX)).toBe(false);
+    });
+
+    it("lets a session on an app's domain switch only to that app's organization", () => {
+      const at = {
+        app: CLUB,
+        organization: { id: ORG, externalId: 'ba_1', name: 'Acme', slug: 'acme' },
+      };
+      expect(w.service.acceptsSwitch(at, { organizationId: 'ba_1' })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { organizationId: GLOBEX })).toBe(false);
+      expect(w.service.acceptsSwitch(at, { organizationSlug: 'acme' })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { organizationSlug: 'globex' })).toBe(false);
+      expect(w.service.acceptsSwitch(at, { organizationId: null })).toBe(true);
+      expect(w.service.acceptsSwitch(at, {})).toBe(true);
+    });
+
+    it("treats one of the installation's own addresses as no app's, even when an app has it", async () => {
+      await w.repo.createApp({ ...GLOBEX_APP, domain: 'https://admin.platform.test' });
+      expect(
+        await w.service.sessionOrganization(s.james.person, ['https://admin.platform.test']),
+      ).toEqual({ refused: false, orgId: ORG });
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://admin.platform.test', [
+          'https://admin.platform.test',
+        ]),
+      ).toEqual({ refused: false, domain: null });
     });
 
     it('logs a refused sign-in with the organization and the app', async () => {

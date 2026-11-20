@@ -51,7 +51,6 @@ flowchart TD
 - **Invite** — a pending invite to join an org, carrying the org role the invitee will hold. Domain-owned.
 - **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings.
 
-
 ## Roles
 
 Roles are defined in the data. There is a default set; but a deployment can replace it with its own, and an org can rename its roles or change them.
@@ -71,7 +70,6 @@ Instructor on the org covers every course; on one course, that course. Moderator
 - **A deployment's set** must include Owner and Member unchanged, use each key once, name only permissions in the list and levels that exist, and give every role at least one level and only permissions that fit its levels. The server refuses to start otherwise.
 - **An org's changes.** Renaming a role changes only its name; holders keep it, because assignments refer to the key. Changing a role's permissions, levels or team flag stores the org's version of that role, which applies from then on. Resetting returns it to the default set's version. An org can add roles of its own, each starting from a default role, and delete them while nobody holds them. Names are unique within an org, ignoring case.
 - **A permission added in a later release** reaches every role the org hasn't changed with its default, and every changed role with the default of the role it started from, until the role is saved with an explicit choice.
-
 
 ## Effective permissions
 
@@ -126,11 +124,11 @@ A domain tells which org a person is signing in to, because it belongs to one of
 - A session started on an app's domain is for that app's org, when the person is active in it.
 - A person who holds an open invite to that org gets a session with no org. Accepting the invite sets it.
 - Anyone else is refused there.
-- A session started on an address the installation lists as its own, such as the admin app, is for the person's org when they are in exactly one. A sign-in from any other address is refused.
+- A session started anywhere else, such as on the admin app, is for the person's org when they are in exactly one. The installation takes sign-ins only from its own addresses and from apps' domains.
 - On an app's domain, a session for another org is not accepted.
 - A link that signs a person in or resets their password, and returns to an app's domain, is sent only to a person who is active in that app's org. The email says which org and which app it was asked for on, as does the email that confirms a changed password.
 
-For example, Sarah is in Acme and Globex, and James is only in Globex. Sarah signs in on `learn.acme.com` and gets an Acme session; on Globex's domain she gets a Globex one. James is refused on `learn.acme.com`. Emma was invited to Acme: she signs in on `learn.acme.com`, accepts the invite, and her session is for Acme.
+For example, Sarah is in Acme and Globex, and James is only in Globex. Sarah signs in on `learn.acme.com` and gets an Acme session; on Globex's domain she gets a Globex one. James is refused on `learn.acme.com`. Emma was invited to Acme: she opens the link in her invitation on `learn.acme.com`, signs in there and accepts, and her session is for Acme.
 
 ## Membership
 

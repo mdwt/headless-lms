@@ -434,6 +434,22 @@ describe("ReactEmailTemplateRenderer", () => {
     expect(content.html).toContain("http://localhost:8002/courses/crs_1?activity=act_1");
   });
 
+  it("names the organization in the sign-in and invite emails, and the brand outside one", async () => {
+    const reset = await renderer.render("passwordReset", CTX, SAMPLE_PARAMS.passwordReset);
+    expect(reset.subject).toBe("Reset your Acme password");
+    const link = await renderer.render("magicLink", CTX, SAMPLE_PARAMS.magicLink);
+    expect(link.subject).toBe("Sign in to Acme");
+    const changed = await renderer.render("passwordChanged", CTX, {});
+    expect(changed.subject).toBe("Your Acme password was changed");
+    const invite = await renderer.render("studentInvite", CTX, SAMPLE_PARAMS.studentInvite);
+    expect(invite.subject).toBe("You're invited to Acme");
+    const staff = await renderer.render("memberInvite", CTX, SAMPLE_PARAMS.memberInvite);
+    expect(staff.subject).toBe("You've been invited to join Acme");
+
+    const outside = await renderer.render("passwordReset", OUTSIDE, SAMPLE_PARAMS.passwordReset);
+    expect(outside.subject).toBe("Reset your Acme LMS password");
+  });
+
   it("brands every email with the context brand name", async () => {
     const content = await renderer.render("magicLink", CTX, SAMPLE_PARAMS.magicLink);
     expect(content.html).toContain("Acme LMS");

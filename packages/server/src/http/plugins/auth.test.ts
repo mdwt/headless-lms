@@ -224,6 +224,8 @@ describe("a request from an app's domain", () => {
         ...container.organizations,
         acceptsSession: (at: { organization: typeof ORG }, authOrgId: string) =>
           at.organization.externalId === authOrgId,
+        acceptsSwitch: (at: { organization: typeof ORG }, to: { organizationId?: string }) =>
+          to.organizationId === undefined || to.organizationId === at.organization.externalId,
       },
     } as unknown as Container;
     registerAuth(scoped, world);
@@ -322,6 +324,21 @@ describe("a request from an app's domain", () => {
     expect(signOut.statusCode).toBe(200);
     activeOrganizationId = null;
     expect((await get('/api/auth/get-session', elsewhere)).statusCode).toBe(200);
+  });
+
+  it("refuses switching to another organization on an app's domain", async () => {
+    const switchTo = (organizationId: string, origin?: string) =>
+      scoped.inject({
+        method: 'POST',
+        url: '/api/auth/organization/set-active',
+        headers: origin ? { origin } : {},
+        payload: { organizationId },
+      });
+    const refused = await switchTo(GLOBEX.externalId, 'https://learn.acme.test');
+    expect(refused.statusCode).toBe(401);
+    expect((await switchTo(ORG.externalId, 'https://learn.acme.test')).statusCode).toBe(200);
+    expect((await switchTo(GLOBEX.externalId, 'https://admin.example.com')).statusCode).toBe(200);
+    expect((await switchTo(GLOBEX.externalId)).statusCode).toBe(200);
   });
 
   it('is told by the Referer when the Origin is `null`', async () => {

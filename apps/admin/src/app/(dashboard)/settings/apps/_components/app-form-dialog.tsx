@@ -75,7 +75,7 @@ const REFUSED: Record<string, { field: FieldName; message: string }> = {
   slug_taken: { field: "slug", message: SLUG_TAKEN },
   courses_taken: { field: "courses", message: "Another app already has courses and downloads" },
   community_taken: {
-    field: "courses",
+    field: "community",
     message: "Another app already has communities and events",
   },
 };
@@ -216,7 +216,7 @@ export function AppFormDialog({
           id="app-content"
           label="Content"
           required
-          error={errors.courses?.message}
+          error={errors.courses?.message ?? errors.community?.message}
           hint="What members find in this app."
         >
           <div id="app-content" role="group" aria-label="Content" className="flex flex-col gap-2.5">
