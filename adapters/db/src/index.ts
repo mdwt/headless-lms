@@ -24,6 +24,5 @@ export * from "./repositories/roles.js";
 export * from "./repositories/outbox.js";
 export * from "./repositories/progress.js";
 export * from "./repositories/settings.js";
-export * from "./repositories/apps.js";
 export * from "./repositories/subscriptions.js";
 export * from "./repositories/admin.js";

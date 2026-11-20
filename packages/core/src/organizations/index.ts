@@ -2,7 +2,7 @@
 export { OrganizationServiceImpl } from './service.js';
 export type { OrganizationServiceParams, InviteUrls } from './service.js';
 export { OrgNotificationCategories } from './notification-categories.js';
-export { OrgApps } from './apps.js';
+export { OrgApps, servesCommunity, servesCourses } from './apps.js';
 export type { OrgAppsParams } from './apps.js';
 export { NotificationCatalog } from './notification-catalog.js';
 export type {

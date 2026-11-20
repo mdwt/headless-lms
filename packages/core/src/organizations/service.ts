@@ -27,7 +27,7 @@ import type {
   TransferOwnershipInput,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
-import { servesCourses, type AppsService } from '../shared/apps.js';
+import { servesCourses } from './apps.js';
 import {
   InviteError,
   OrganizationRuleError,
@@ -110,7 +110,6 @@ export interface InviteUrls {
 export type OrganizationServiceParams = {
   repo: OrganizationsRepository;
   roles: RolesRepository;
-  apps: AppsService;
   membersRepo: MembersRepository;
   people: IdentityService;
   images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -198,7 +197,6 @@ function limitScopes(
 export class OrganizationServiceImpl implements OrganizationService {
   private readonly repo: OrganizationsRepository;
   private readonly roles: RolesRepository;
-  private readonly apps: AppsService;
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
   private readonly images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -217,7 +215,6 @@ export class OrganizationServiceImpl implements OrganizationService {
   constructor(params: OrganizationServiceParams) {
     this.repo = params.repo;
     this.roles = params.roles;
-    this.apps = params.apps;
     this.membersRepo = params.membersRepo;
     this.people = params.people;
     this.images = params.images;
@@ -391,7 +388,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   async appOfPerson(email: string, domains: readonly string[]): Promise<App | null> {
-    const app = await this.apps.firstAt(domains);
+    const app = await this.firstApp(domains);
     return app && (await this.isActiveIn(email, app.orgId)) ? app : null;
   }
 
@@ -405,7 +402,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     named: readonly string[],
   ): Promise<LinkDomain> {
     for (const domain of new Set(named)) {
-      const app = await this.apps.at(domain);
+      const app = await this.repo.findAppByDomain(domain);
       if (app && !(await this.isActiveIn(email, app.orgId))) {
         this.logger.warn('link not sent: the person is not in the organization of its domain', {
           orgId: app.orgId,
@@ -414,8 +411,18 @@ export class OrganizationServiceImpl implements OrganizationService {
         return { refused: true };
       }
     }
-    const home = returnTo ? await this.apps.at(returnTo) : null;
+    const home = returnTo ? await this.repo.findAppByDomain(returnTo) : null;
     return { refused: false, domain: home?.domain ?? null };
+  }
+
+  private async firstApp(domains: readonly string[]): Promise<App | null> {
+    for (const domain of new Set(domains)) {
+      const app = await this.repo.findAppByDomain(domain);
+      if (app) {
+        return app;
+      }
+    }
+    return null;
   }
 
   private async isActiveIn(email: string, orgId: string): Promise<boolean> {
@@ -428,7 +435,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     person: { id: string; email: string },
     domains: readonly string[],
   ): Promise<SessionOrganization> {
-    const app = await this.apps.firstAt(domains);
+    const app = await this.firstApp(domains);
     const orgUsers = await this.repo.findOrgUsersByUser(person.id);
     if (!app) {
       const [only] = orgUsers;
@@ -1846,7 +1853,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     role: OrgRole,
     sendEmail: boolean,
   ): Promise<string | null> {
-    const apps = await this.apps.of(orgId);
+    const apps = await this.repo.listApps(orgId);
     if (domain !== undefined && !apps.some((app) => app.domain === domain)) {
       this.logger.warn('invite refused: domain is not one of the organization', { orgId, domain });
       throw new OrganizationRuleError("That domain is not one of the organization's apps");

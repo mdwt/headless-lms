@@ -1,5 +1,5 @@
 // organizations — Drizzle repository (implements the core outbound port).
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type {
   CreateOrgUserInput,
@@ -13,11 +13,36 @@ import type {
   UpdateOrganizationInput,
   UpdateOrgUserInput,
 } from "@headless-lms/core/organizations";
-import { invites, organizations, orgUsers } from "../schema/organizations.js";
+import type { App, UpdateAppInput } from "@headless-lms/core/types";
+import { apps, invites, organizations, orgUsers } from "../schema/organizations.js";
 import type { Logger } from "@headless-lms/core/shared/ports";
 import { noopLogger } from "@headless-lms/core/shared/logger";
-import { ConflictError } from "@headless-lms/core/shared/errors";
+import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/errors";
 import { isUniqueViolation, pgErrorFields, translateDbErrors } from "./pg-errors.js";
+
+const APP_TAKEN: Record<string, { code: string; message: string }> = {
+  apps_domain_uq: { code: "domain_taken", message: "That domain is already in use" },
+  apps_org_slug_uq: { code: "slug_taken", message: "That slug is already in use" },
+  apps_courses_uq: {
+    code: "courses_taken",
+    message: "The organization already has an app that serves courses",
+  },
+  apps_community_uq: {
+    code: "community_taken",
+    message: "The organization already has an app that serves the community",
+  },
+};
+
+function refusedApp(err: unknown): unknown {
+  const pg = pgErrorFields(err);
+  if (pg?.code === "23514" && pg.constraint === "apps_serves_ck") {
+    return Object.assign(new InvalidInputError("An app serves courses, the community, or both"), {
+      cause: err,
+    });
+  }
+  const taken = pg?.code === "23505" && pg.constraint ? APP_TAKEN[pg.constraint] : undefined;
+  return taken ? Object.assign(new ConflictError(taken.message, taken.code), { cause: err }) : err;
+}
 
 const INVITE_STATUSES = ["pending", "accepted", "rejected", "canceled"] as const;
 type InviteStatus = (typeof INVITE_STATUSES)[number];
@@ -307,6 +332,67 @@ export class DrizzleOrganizationsRepository implements OrganizationsRepository {
       }
       throw err;
     }
+  }
+
+  async createApp(app: App): Promise<App> {
+    try {
+      const [row] = await this.db.insert(apps).values(app).returning();
+      if (!row) {
+        throw new Error("failed to insert app");
+      }
+      return row;
+    } catch (err) {
+      throw refusedApp(err);
+    }
+  }
+
+  async listApps(orgId: string): Promise<App[]> {
+    return this.db
+      .select()
+      .from(apps)
+      .where(eq(apps.orgId, orgId))
+      .orderBy(desc(apps.courses), asc(apps.id));
+  }
+
+  async findAppByDomain(domain: string): Promise<App | null> {
+    const [row] = await this.db.select().from(apps).where(eq(apps.domain, domain)).limit(1);
+    return row ?? null;
+  }
+
+  async updateApp(orgId: string, id: string, patch: UpdateAppInput): Promise<App | null> {
+    const changes = {
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.slug !== undefined && { slug: patch.slug }),
+      ...(patch.domain !== undefined && { domain: patch.domain }),
+      ...(patch.courses !== undefined && { courses: patch.courses }),
+      ...(patch.community !== undefined && { community: patch.community }),
+    };
+    if (Object.keys(changes).length === 0) {
+      const [row] = await this.db
+        .select()
+        .from(apps)
+        .where(and(eq(apps.orgId, orgId), eq(apps.id, id)))
+        .limit(1);
+      return row ?? null;
+    }
+    try {
+      const [row] = await this.db
+        .update(apps)
+        .set(changes)
+        .where(and(eq(apps.orgId, orgId), eq(apps.id, id)))
+        .returning();
+      return row ?? null;
+    } catch (err) {
+      throw refusedApp(err);
+    }
+  }
+
+  async deleteApp(orgId: string, id: string): Promise<App | null> {
+    const [row] = await this.db
+      .delete(apps)
+      .where(and(eq(apps.orgId, orgId), eq(apps.id, id)))
+      .returning();
+    return row ?? null;
   }
 }
 translateDbErrors(DrizzleOrganizationsRepository);

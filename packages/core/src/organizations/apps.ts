@@ -1,15 +1,16 @@
 import type { App, CreateAppInput, UpdateAppInput } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
-import { AppClash, type AppClashKind, type AppsRepository } from '../shared/apps.js';
-import { ConflictError, InvalidInputError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, NotFoundError } from '../shared/errors.js';
 import { genId } from '../shared/id.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Logger } from '../shared/ports.js';
 import type { AppAt, OrganizationsRepository } from './ports.js';
 
 export type OrgAppsParams = {
-  repo: AppsRepository;
-  organizations: Pick<OrganizationsRepository, 'findById'>;
+  repo: Pick<
+    OrganizationsRepository,
+    'findById' | 'createApp' | 'listApps' | 'findAppByDomain' | 'updateApp' | 'deleteApp'
+  >;
   reservedDomains?: readonly string[];
   logger?: Logger;
 };
@@ -18,36 +19,21 @@ function hostOf(domain: string): string | null {
   return URL.canParse(domain) ? new URL(domain).host : null;
 }
 
-function refusal(kind: AppClashKind): Error {
-  switch (kind) {
-    case 'domain':
-      return new ConflictError('That domain is already in use', 'domain_taken');
-    case 'slug':
-      return new ConflictError('That slug is already in use', 'slug_taken');
-    case 'courses':
-      return new ConflictError(
-        'The organization already has an app that serves courses',
-        'courses_taken',
-      );
-    case 'community':
-      return new ConflictError(
-        'The organization already has an app that serves the community',
-        'community_taken',
-      );
-    case 'serves':
-      return new InvalidInputError('An app serves courses, the community, or both');
-  }
+export function servesCourses(apps: readonly App[]): App | null {
+  return apps.find((app) => app.courses) ?? null;
+}
+
+export function servesCommunity(apps: readonly App[]): App | null {
+  return apps.find((app) => app.community) ?? null;
 }
 
 export class OrgApps {
-  private readonly repo: AppsRepository;
-  private readonly organizations: Pick<OrganizationsRepository, 'findById'>;
+  private readonly repo: OrgAppsParams['repo'];
   private readonly reservedHosts: ReadonlySet<string>;
   private readonly logger: Logger;
 
   constructor(params: OrgAppsParams) {
     this.repo = params.repo;
-    this.organizations = params.organizations;
     this.reservedHosts = new Set(
       (params.reservedDomains ?? []).map(hostOf).filter((host) => host !== null),
     );
@@ -56,15 +42,13 @@ export class OrgApps {
 
   async list(actor: Actor): Promise<App[]> {
     actor.permissions.require('organizations:read');
-    return this.repo.list(actor.orgId);
+    return this.repo.listApps(actor.orgId);
   }
 
   async create(input: CreateAppInput, actor: Actor): Promise<App> {
     actor.permissions.require('organizations:write');
     this.assertNotReserved(input.domain, actor.orgId);
-    const app = await this.saved(actor.orgId, () =>
-      this.repo.create({ ...input, orgId: actor.orgId, id: genId('app') }),
-    );
+    const app = await this.repo.createApp({ ...input, orgId: actor.orgId, id: genId('app') });
     this.logger.info('app created', {
       orgId: actor.orgId,
       appId: app.id,
@@ -80,7 +64,7 @@ export class OrgApps {
     if (input.domain !== undefined) {
       this.assertNotReserved(input.domain, orgId);
     }
-    const updated = await this.saved(orgId, () => this.repo.update(orgId, appId, input));
+    const updated = await this.repo.updateApp(orgId, appId, input);
     if (!updated) {
       throw new NotFoundError('App', appId);
     }
@@ -95,7 +79,7 @@ export class OrgApps {
 
   async delete(appId: string, actor: Actor): Promise<void> {
     actor.permissions.require('organizations:write');
-    const deleted = await this.repo.delete(actor.orgId, appId);
+    const deleted = await this.repo.deleteApp(actor.orgId, appId);
     if (!deleted) {
       throw new NotFoundError('App', appId);
     }
@@ -107,12 +91,20 @@ export class OrgApps {
     });
   }
 
+  of(orgId: string): Promise<App[]> {
+    return this.repo.listApps(orgId);
+  }
+
+  async has(domain: string): Promise<boolean> {
+    return !this.reserved(domain) && (await this.repo.findAppByDomain(domain)) !== null;
+  }
+
   async at(domain: string): Promise<AppAt | null> {
     if (this.reserved(domain)) {
       return null;
     }
-    const app = await this.repo.findByDomain(domain);
-    const organization = app ? await this.organizations.findById(app.orgId) : null;
+    const app = await this.repo.findAppByDomain(domain);
+    const organization = app ? await this.repo.findById(app.orgId) : null;
     return app && organization
       ? {
           app,
@@ -124,18 +116,6 @@ export class OrgApps {
           },
         }
       : null;
-  }
-
-  private async saved<T>(orgId: string, write: () => Promise<T>): Promise<T> {
-    try {
-      return await write();
-    } catch (err) {
-      if (err instanceof AppClash) {
-        this.logger.warn('app refused', { orgId, reason: err.kind });
-        throw refusal(err.kind);
-      }
-      throw err;
-    }
   }
 
   private reserved(domain: string): boolean {

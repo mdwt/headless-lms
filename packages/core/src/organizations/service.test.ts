@@ -17,9 +17,13 @@ import type { AssignmentRow } from './effective-permissions.js';
 import type { IdentityService } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
-import { AppClash, type AppClashKind, AppsService, type AppsRepository } from '../shared/apps.js';
 import type { App, ContentType, Permission, RoleAssignment } from '../types/index.js';
-import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  InvalidInputError,
+  NotFoundError,
+} from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
 import { createCapturingLogger } from '../shared/logger.js';
@@ -82,6 +86,28 @@ function store(
   const now = new Date('2026-01-01T00:00:00Z');
 
   const repo: OrganizationsRepository = {
+    createApp: async (app) => save(app),
+    listApps: async (orgId) => [...apps.values()].filter((app) => app.orgId === orgId),
+    findAppByDomain: async (domain) =>
+      [...apps.values()].find((app) => app.domain === domain) ?? null,
+    updateApp: async (orgId, id, patch) => {
+      const app = apps.get(id);
+      if (!app || app.orgId !== orgId) {
+        return null;
+      }
+      const defined = Object.fromEntries(
+        Object.entries(patch).filter(([, value]) => value !== undefined),
+      );
+      return save({ ...app, ...defined });
+    },
+    deleteApp: async (orgId, id) => {
+      const app = apps.get(id);
+      if (!app || app.orgId !== orgId) {
+        return null;
+      }
+      apps.delete(id);
+      return app;
+    },
     create: async (input) => {
       const org: Organization = {
         id: input.id,
@@ -229,59 +255,39 @@ function store(
     },
   };
 
-  const clashOf = (app: App): AppClashKind | null => {
+  const refusedOf = (app: App): Error | null => {
     const others = [...apps.values()].filter((other) => other.id !== app.id);
     const mine = others.filter((other) => other.orgId === app.orgId);
     if (others.some((other) => other.domain === app.domain)) {
-      return 'domain';
+      return new ConflictError('That domain is already in use', 'domain_taken');
     }
     if (mine.some((other) => other.slug === app.slug)) {
-      return 'slug';
+      return new ConflictError('That slug is already in use', 'slug_taken');
     }
     if (app.courses && mine.some((other) => other.courses)) {
-      return 'courses';
+      return new ConflictError(
+        'The organization already has an app that serves courses',
+        'courses_taken',
+      );
     }
     if (app.community && mine.some((other) => other.community)) {
-      return 'community';
+      return new ConflictError(
+        'The organization already has an app that serves the community',
+        'community_taken',
+      );
     }
-    return app.courses || app.community ? null : 'serves';
+    return app.courses || app.community
+      ? null
+      : new InvalidInputError('An app serves courses, the community, or both');
   };
   const save = (app: App): App => {
-    const clash = clashOf(app);
-    if (clash) {
-      throw new AppClash(clash);
+    const refused = refusedOf(app);
+    if (refused) {
+      throw refused;
     }
     apps.set(app.id, app);
     return app;
   };
-  const appsRepo: AppsRepository = {
-    create: async (app) => save(app),
-    list: async (orgId) => [...apps.values()].filter((app) => app.orgId === orgId),
-    find: async (orgId, id) => {
-      const app = apps.get(id);
-      return app && app.orgId === orgId ? app : null;
-    },
-    findByDomain: async (domain) => [...apps.values()].find((app) => app.domain === domain) ?? null,
-    update: async (orgId, id, patch) => {
-      const app = apps.get(id);
-      if (!app || app.orgId !== orgId) {
-        return null;
-      }
-      const defined = Object.fromEntries(
-        Object.entries(patch).filter(([, value]) => value !== undefined),
-      );
-      return save({ ...app, ...defined });
-    },
-    delete: async (orgId, id) => {
-      const app = apps.get(id);
-      if (!app || app.orgId !== orgId) {
-        return null;
-      }
-      apps.delete(id);
-      return app;
-    },
-  };
-
   const toRow = (a: RoleAssignment): AssignmentRow => ({
     roleKey: a.roleKey,
     contentId: a.contentId,
@@ -593,11 +599,9 @@ function store(
   const send = vi.fn(async () => {});
   const images = { syncPublicImages: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
-  const appsService = new AppsService(appsRepo);
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
     roles,
-    apps: appsService,
     membersRepo,
     people: guardedPeople,
     images,
@@ -663,8 +667,6 @@ function store(
     accounts,
     send,
     apps,
-    appsRepo,
-    appsService,
     blocked,
     holdsGrant,
     person,
@@ -678,8 +680,8 @@ type World = ReturnType<typeof store>;
 async function world(opts: Parameters<typeof store>[0] = {}) {
   const w = store(opts);
   await w.repo.create({ id: ORG, name: 'Spanish in 90 Days', slug: 'spanish', ownerId: 'usr_0' });
-  await w.appsRepo.create(LEARN);
-  await w.appsRepo.create(CLUB);
+  await w.repo.createApp(LEARN);
+  await w.repo.createApp(CLUB);
   const sarah = await w.person('Sarah');
   await w.roles.setOrgRole(ORG, sarah.orgUser.id, 'owner', 'system');
   const liam = await w.person('Liam');
@@ -1826,7 +1828,7 @@ describe('creating an organization', () => {
       name: 'Yoga',
       slug: 'yoga',
     });
-    expect(await p.appsService.of(yoga.id)).toEqual([]);
+    expect(await p.repo.listApps(yoga.id)).toEqual([]);
     expect([...p.orgs.keys()]).toEqual([yoga.id]);
   });
 
@@ -1857,7 +1859,7 @@ describe('platform', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
     });
-    expect(await p.appsService.of(first.organization.id)).toEqual([]);
+    expect(await p.repo.listApps(first.organization.id)).toEqual([]);
     expect(p.accounts.createAccount).toHaveBeenCalledWith({
       email: 'platform@example.test',
       name: 'Shop',
@@ -1950,7 +1952,7 @@ describe('people on a domain', () => {
 
   async function globex() {
     await w.repo.create({ id: GLOBEX, name: 'Globex', slug: 'globex', ownerId: 'usr_0' });
-    await w.appsRepo.create(GLOBEX_APP);
+    await w.repo.createApp(GLOBEX_APP);
   }
 
   describe('a sign-in or reset link', () => {
@@ -2110,7 +2112,7 @@ describe('people on a domain', () => {
       const { logger, entries } = createCapturingLogger();
       const logged = await world({ logger });
       await logged.w.repo.create({ id: GLOBEX, name: 'Globex', slug: 'globex', ownerId: 'usr_0' });
-      await logged.w.appsRepo.create(GLOBEX_APP);
+      await logged.w.repo.createApp(GLOBEX_APP);
       await logged.w.service.sessionOrganization(logged.james.person, [GLOBEX_APP.domain]);
       expect(entries).toContainEqual(
         expect.objectContaining({

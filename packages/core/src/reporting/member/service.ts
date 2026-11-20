@@ -10,7 +10,8 @@ import { NotFoundError } from '../../shared/errors.js';
 import { seesSpace, type EntitlementsService, type SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { FileUrls } from '../../assets/index.js';
-import type { OrganizationService } from '../../organizations/index.js';
+import { servesCommunity } from '../../organizations/index.js';
+import type { OrgApps, OrganizationService } from '../../organizations/index.js';
 import { PERMISSION_KEYS } from '../../types/schemas/organizations.js';
 import type {
   ItemTitles as DiscussionItemTitles,
@@ -33,7 +34,6 @@ import type {
   SubjectRef,
 } from '../../types/index.js';
 import type { Actor } from '../../shared/actor.js';
-import { servesCommunity, type AppsService } from '../../shared/apps.js';
 import type { EventFile, Page, Permission } from '../../types/index.js';
 import type {
   ActivityView,
@@ -149,7 +149,7 @@ export type MemberReportServiceParams = {
   };
   notificationSettings: Pick<NotificationSettingsService, 'get'>;
   channels: Pick<ChannelRegistry, 'list'>;
-  apps: Pick<AppsService, 'of'>;
+  apps: Pick<OrgApps, 'of'>;
   now?: () => Date;
 };
 
@@ -166,7 +166,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
   private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
   private readonly channels: Pick<ChannelRegistry, 'list'>;
-  private readonly apps: Pick<AppsService, 'of'>;
+  private readonly apps: Pick<OrgApps, 'of'>;
   private readonly now: () => Date;
 
   constructor(params: MemberReportServiceParams) {

@@ -72,8 +72,8 @@ one app across the whole system, so a domain tells which organization a request,
 domain is some app's domain or it is not: nothing is derived from it and nothing falls back.
 
 Organizations owns an organization's apps: who may create, change and delete them, and what is allowed
-([organizations](domain/organizations.md)). Which app a domain is, and which apps an organization has, is a lookup
-any context may use. A link the system sends, in an email, an invite or a calendar file, uses the domain of the app
+([organizations](domain/organizations.md)). Other contexts ask it which app a domain is, and which apps an
+organization has. A link the system sends, in an email, an invite or a calendar file, uses the domain of the app
 that serves what the link is about.
 
 For example, Acme runs a course app at `learn.acme.com` and a community app at `club.acme.com`. Sarah signs in on

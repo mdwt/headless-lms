@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { OrgApps, type OrgAppsParams } from './apps.js';
-import { AppClash, type AppClashKind, type AppsRepository } from '../shared/apps.js';
+import { OrgApps, servesCommunity, servesCourses, type OrgAppsParams } from './apps.js';
 import type { Actor } from '../shared/actor.js';
 import {
   ConflictError,
@@ -71,40 +70,46 @@ const member = actor(ACME, []);
 
 function store(opts: Partial<OrgAppsParams> = {}) {
   const apps = new Map<string, App>();
-  const clashOf = (app: App): AppClashKind | null => {
+  const refusedOf = (app: App): Error | null => {
     const others = [...apps.values()].filter((other) => other.id !== app.id);
     const mine = others.filter((other) => other.orgId === app.orgId);
     if (others.some((other) => other.domain === app.domain)) {
-      return 'domain';
+      return new ConflictError('That domain is already in use', 'domain_taken');
     }
     if (mine.some((other) => other.slug === app.slug)) {
-      return 'slug';
+      return new ConflictError('That slug is already in use', 'slug_taken');
     }
     if (app.courses && mine.some((other) => other.courses)) {
-      return 'courses';
+      return new ConflictError(
+        'The organization already has an app that serves courses',
+        'courses_taken',
+      );
     }
     if (app.community && mine.some((other) => other.community)) {
-      return 'community';
+      return new ConflictError(
+        'The organization already has an app that serves the community',
+        'community_taken',
+      );
     }
-    return app.courses || app.community ? null : 'serves';
+    return app.courses || app.community
+      ? null
+      : new InvalidInputError('An app serves courses, the community, or both');
   };
   const save = (app: App): App => {
-    const clash = clashOf(app);
-    if (clash) {
-      throw new AppClash(clash);
+    const refused = refusedOf(app);
+    if (refused) {
+      throw refused;
     }
     apps.set(app.id, app);
     return app;
   };
-  const repo: AppsRepository = {
-    create: async (app) => save(app),
-    list: async (orgId) => [...apps.values()].filter((app) => app.orgId === orgId),
-    find: async (orgId, id) => {
-      const app = apps.get(id);
-      return app && app.orgId === orgId ? app : null;
-    },
-    findByDomain: async (domain) => [...apps.values()].find((app) => app.domain === domain) ?? null,
-    update: async (orgId, id, patch) => {
+  const repo: OrgAppsParams['repo'] = {
+    findById: async (orgId) => (ORGS.find((org) => org.id === orgId) as never) ?? null,
+    createApp: async (app) => save(app),
+    listApps: async (orgId) => [...apps.values()].filter((app) => app.orgId === orgId),
+    findAppByDomain: async (domain) =>
+      [...apps.values()].find((app) => app.domain === domain) ?? null,
+    updateApp: async (orgId, id, patch) => {
       const app = apps.get(id);
       if (!app || app.orgId !== orgId) {
         return null;
@@ -114,7 +119,7 @@ function store(opts: Partial<OrgAppsParams> = {}) {
       );
       return save({ ...app, ...defined });
     },
-    delete: async (orgId, id) => {
+    deleteApp: async (orgId, id) => {
       const app = apps.get(id);
       if (!app || app.orgId !== orgId) {
         return null;
@@ -125,9 +130,6 @@ function store(opts: Partial<OrgAppsParams> = {}) {
   };
   const service = new OrgApps({
     repo,
-    organizations: {
-      findById: async (orgId) => (ORGS.find((org) => org.id === orgId) as never) ?? null,
-    },
     reservedDomains: ['https://admin.platform.test', 'https://api.platform.test'],
     ...opts,
   });
@@ -137,9 +139,9 @@ function store(opts: Partial<OrgAppsParams> = {}) {
 let w: ReturnType<typeof store>;
 beforeEach(async () => {
   w = store();
-  await w.repo.create(LEARN);
-  await w.repo.create(CLUB);
-  await w.repo.create(GLOBEX_APP);
+  await w.repo.createApp(LEARN);
+  await w.repo.createApp(CLUB);
+  await w.repo.createApp(GLOBEX_APP);
 });
 
 describe('managing apps', () => {
@@ -169,7 +171,7 @@ describe('managing apps', () => {
 
     await expect(w.service.delete(created.id, reader)).rejects.toBeInstanceOf(ForbiddenError);
     await w.service.delete(created.id, admin);
-    expect(await w.repo.list(ACME)).toEqual([LEARN]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN]);
   });
 
   it('refuses a domain another app has, in this organization or another', async () => {
@@ -184,7 +186,7 @@ describe('managing apps', () => {
     await expect(
       w.service.update(LEARN.id, { domain: GLOBEX_APP.domain }, admin),
     ).rejects.toBeInstanceOf(ConflictError);
-    expect(await w.repo.list(ACME)).toEqual([LEARN]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN]);
   });
 
   it("refuses the installation's own addresses as a domain", async () => {
@@ -203,7 +205,7 @@ describe('managing apps', () => {
         ConflictError,
       );
     }
-    expect(await w.repo.list(ACME)).toEqual([LEARN]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN]);
   });
 
   it('keeps a domain with another port apart from a reserved one', async () => {
@@ -232,7 +234,7 @@ describe('managing apps', () => {
     await expect(w.service.update(LEARN.id, { community: true }, admin)).rejects.toBeInstanceOf(
       ConflictError,
     );
-    expect(await w.repo.list(ACME)).toEqual([LEARN, CLUB]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN, CLUB]);
   });
 
   it('refuses an app that serves neither courses nor the community', async () => {
@@ -251,7 +253,7 @@ describe('managing apps', () => {
     await expect(w.service.update(LEARN.id, { courses: false }, admin)).rejects.toBeInstanceOf(
       InvalidInputError,
     );
-    expect(await w.repo.list(ACME)).toEqual([LEARN, CLUB]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN, CLUB]);
   });
 
   it('names the rule a refused app breaks', async () => {
@@ -289,7 +291,7 @@ describe('managing apps', () => {
       'courses_taken',
       'InvalidInputError',
     ]);
-    expect(await w.repo.list(ACME)).toEqual([LEARN, CLUB]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN, CLUB]);
   });
 
   it('keeps an app that is saved again as it is', async () => {
@@ -299,38 +301,6 @@ describe('managing apps', () => {
       admin,
     );
     expect(same).toEqual(CLUB);
-  });
-
-  it('turns each rule the store reports into its own answer', async () => {
-    const kinds: [AppClashKind, string][] = [
-      ['domain', 'domain_taken'],
-      ['slug', 'slug_taken'],
-      ['courses', 'courses_taken'],
-      ['community', 'community_taken'],
-    ];
-    await w.service.delete(CLUB.id, admin);
-    const input = {
-      name: 'Circle',
-      slug: 'circle',
-      domain: 'https://circle.test',
-      courses: false,
-      community: true,
-    };
-    for (const [kind, code] of kinds) {
-      w.repo.create = async () => {
-        throw new AppClash(kind);
-      };
-      await expect(w.service.create(input, admin)).rejects.toMatchObject({
-        name: 'ConflictError',
-        code,
-      });
-    }
-    w.repo.update = async () => {
-      throw new AppClash('serves');
-    };
-    await expect(w.service.update(LEARN.id, { name: 'Again' }, admin)).rejects.toBeInstanceOf(
-      InvalidInputError,
-    );
   });
 
   it('lets one app take over both once the other is gone', async () => {
@@ -363,8 +333,8 @@ describe('looking a domain up', () => {
 
   it("gives nothing for the installation's own addresses, without reading", async () => {
     const reads: string[] = [];
-    const find = w.repo.findByDomain;
-    w.repo.findByDomain = async (domain) => {
+    const find = w.repo.findAppByDomain;
+    w.repo.findAppByDomain = async (domain) => {
       reads.push(domain);
       return find(domain);
     };
@@ -378,5 +348,22 @@ describe('looking a domain up', () => {
     await w.service.update(CLUB.id, { domain: 'https://circle.test' }, admin);
     expect(await w.service.at('https://club.acme.test')).toBeNull();
     expect((await w.service.at('https://circle.test'))?.app.id).toBe(CLUB.id);
+  });
+});
+
+describe('what an app serves', () => {
+  it('tells which app serves courses and which the community', () => {
+    expect(servesCourses([LEARN, CLUB])).toEqual(LEARN);
+    expect(servesCommunity([LEARN, CLUB])).toEqual(CLUB);
+    expect(servesCommunity([LEARN])).toBeNull();
+    expect(servesCourses([])).toBeNull();
+  });
+
+  it("gives an organization's apps and whether a domain is an app's", async () => {
+    expect(await w.service.of(ACME)).toEqual([LEARN, CLUB]);
+    expect(await w.service.has(CLUB.domain)).toBe(true);
+    expect(await w.service.has('https://elsewhere.test')).toBe(false);
+    expect(await w.service.has('https://admin.platform.test')).toBe(false);
+    expect(await w.service.has('https://*')).toBe(false);
   });
 });

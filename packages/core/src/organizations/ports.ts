@@ -15,6 +15,7 @@ import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type {
   ApiKeySummary,
   App,
+  UpdateAppInput,
   ConnectedApp,
   ContentType,
   CreatedApiKey,
@@ -293,6 +294,11 @@ export interface OrganizationsRepository {
   ): Promise<Invite | null>;
   findOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   findOrgUsersByUser(userId: string): Promise<OrgUser[]>;
+  createApp(app: App): Promise<App>;
+  listApps(orgId: string): Promise<App[]>;
+  findAppByDomain(domain: string): Promise<App | null>;
+  updateApp(orgId: string, id: string, patch: UpdateAppInput): Promise<App | null>;
+  deleteApp(orgId: string, id: string): Promise<App | null>;
   findOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
   createOrgUser(input: CreateOrgUserInput): Promise<OrgUser>;

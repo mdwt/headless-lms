@@ -9,7 +9,6 @@ import {
   DrizzleContentRepository,
   DrizzleCredentialStore,
   DrizzleAdminRepository,
-  DrizzleAppsRepository,
   DrizzleDigestRunRepository,
   DrizzleDevicesRepository,
   DrizzleDiscussionRepository,
@@ -122,7 +121,6 @@ import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
 import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
-import { AppsService } from '@headless-lms/core/shared/apps';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 import { platformKeyCheck, type PlatformConfig, type PlatformKeyCheck } from './platform.js';
 
@@ -363,7 +361,7 @@ export async function buildContainer(
   );
   const mailerSources = createMailerSources({
     organization: (orgId) => organizations.getById(orgId),
-    apps: (orgId) => appLookup.of(orgId),
+    apps: (orgId) => apps.of(orgId),
     person: (address) => identity.getUserByEmail(address),
   });
   const mailer = new Mailer(
@@ -414,18 +412,14 @@ export async function buildContainer(
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
   const platform = config.platform ? platformKeyCheck(config.platform) : null;
-  const appsRepo = new DrizzleAppsRepository(db);
-  const appLookup = new AppsService(appsRepo);
   const apps = new OrgApps({
-    repo: appsRepo,
-    organizations: organizationsRepo,
+    repo: organizationsRepo,
     reservedDomains: installationOrigins(config),
     logger: logger.child({ name: 'apps' }),
   });
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
-    apps: appLookup,
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {
@@ -697,7 +691,7 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
-      apps: appLookup,
+      apps,
     }),
   };
 
@@ -898,7 +892,7 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     appDomains: {
-      has: async (origin) => (await appLookup.at(origin)) !== null,
+      has: (origin) => apps.has(origin),
       linkDomain: (email, returnTo, named) => organizations.linkDomain(email, returnTo, named),
     },
     hooks: {
