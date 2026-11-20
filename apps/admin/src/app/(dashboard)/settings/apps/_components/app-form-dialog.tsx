@@ -32,6 +32,14 @@ function isOrigin(value: string): boolean {
   return web && bare && plain && named;
 }
 
+function withScheme(value: string): string {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function shown(domain: string): string {
+  return domain.startsWith("https://") ? domain.slice("https://".length) : domain;
+}
+
 const schema = z
   .object({
     name: z.string().trim().min(1, "Name is required").max(100, "Keep it under 100 characters"),
@@ -43,10 +51,8 @@ const schema = z
     domain: z
       .string()
       .trim()
-      .refine(
-        isOrigin,
-        "Enter the address with https:// and nothing after the domain, like https://learn.example.com",
-      ),
+      .transform(withScheme)
+      .refine(isOrigin, "Enter a domain like learn.example.com, with nothing after it"),
     courses: z.boolean(),
     community: z.boolean(),
   })
@@ -118,7 +124,7 @@ export function AppFormDialog({
           ? {
               name: app.name,
               slug: app.slug,
-              domain: app.domain,
+              domain: shown(app.domain),
               courses: app.courses,
               community: app.community,
             }
@@ -193,14 +199,14 @@ export function AppFormDialog({
           label="Domain"
           required
           error={errors.domain?.message}
-          hint="The full address members open. A domain belongs to one app."
+          hint="The address members open, like learn.example.com. A domain belongs to one app."
         >
           <Input
             id="app-domain"
             inputMode="url"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="https://learn.example.com"
+            placeholder="learn.example.com"
             aria-invalid={!!errors.domain}
             {...register("domain")}
           />
