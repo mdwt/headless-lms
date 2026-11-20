@@ -7,7 +7,9 @@ function originOf(value: string): string | null {
   }
   const url = new URL(value);
   const web = url.protocol === 'https:' || url.protocol === 'http:';
-  return web && url.pathname === '/' && url.search === '' && url.hash === '' ? url.origin : null;
+  const bare = url.pathname === '/' && url.search === '' && url.hash === '';
+  const plain = url.username === '' && url.password === '' && !url.hostname.endsWith('.');
+  return web && bare && plain ? url.origin : null;
 }
 
 export const domainSchema = z

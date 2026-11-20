@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Container } from '../../app/container.js';
 import { mcpEndpoints } from '../../app/mcp-endpoints.js';
-import { registerAppDomain } from './app-domain.js';
 import { registerAuth } from './auth.js';
 import { errorHandler } from './error-handler.js';
 
@@ -196,6 +195,7 @@ describe("a request from an app's domain", () => {
     limit: { roleKey: 'owner' },
   };
   let activeOrganizationId: string | null = ORG.id;
+  let lookups: string[] = [];
   let scoped: FastifyInstance;
 
   beforeAll(async () => {
@@ -210,12 +210,12 @@ describe("a request from an app's domain", () => {
       },
       apps: {
         at: async (domain: string) => {
+          lookups.push(domain);
           const organization = DOMAINS[domain];
           return organization ? { app: { id: `app_${organization.slug}` }, organization } : null;
         },
       },
     } as unknown as Container;
-    registerAppDomain(scoped, world);
     registerAuth(scoped, world);
     const seen = (req: { orgId?: string }) => ({ orgId: req.orgId ?? null });
     scoped.get('/org-scoped', { preHandler: scoped.requireOrgSession }, async (req) => seen(req));
@@ -229,6 +229,7 @@ describe("a request from an app's domain", () => {
 
   beforeEach(() => {
     activeOrganizationId = ORG.id;
+    lookups = [];
   });
 
   const get = (url: string, headers: Record<string, string>) =>
@@ -272,13 +273,22 @@ describe("a request from an app's domain", () => {
     expect(scopedRoute.json().message).toBe('Choose an organization to continue');
   });
 
-  it('does not apply to an API key', async () => {
+  it('does not apply to an API key, and looks nothing up for one', async () => {
     const res = await get('/org-scoped', {
       origin: 'https://globex.platform.test',
       'x-api-key': 'hlms_good',
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ orgId: 'org_1' });
+    expect(lookups).toEqual([]);
+  });
+
+  it('is told by the Referer when the Origin is `null`', async () => {
+    const res = await get('/org-scoped', {
+      origin: 'null',
+      referer: 'https://globex.platform.test/courses',
+    });
+    expect(res.statusCode).toBe(401);
   });
 });
 

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import type { Container } from '../../app/container.js';
-import { registerAppDomain } from '../plugins/app-domain.js';
 import { errorHandler } from '../plugins/error-handler.js';
 import { appsRoutes } from './apps.js';
 
@@ -42,7 +41,6 @@ beforeEach(async () => {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.setErrorHandler(errorHandler);
-  registerAppDomain(app, container);
   await appsRoutes(app, container);
   await app.ready();
 });
@@ -107,6 +105,7 @@ describe('GET /api/app', () => {
     const limited = await lookup(sarah);
     expect(limited.statusCode).toBe(429);
     expect(limited.json()).toMatchObject({ error: 'too_many_requests' });
+    expect(lookups).toHaveLength(100);
     expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
     expect(Number(limited.headers['retry-after'])).toBeLessThanOrEqual(10);
     expect((await lookup(james)).statusCode).toBe(404);

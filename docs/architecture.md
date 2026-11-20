@@ -79,9 +79,9 @@ For example, Acme runs a course app at `learn.acme.com` and a community app at `
 `learn.acme.com` and her session is for Acme. An email about a completed course links to `learn.acme.com`, and one
 about a new post to `club.acme.com`.
 
-An organization's apps are added by the organization. A school that hosts the system only for itself adds one app,
-at its own address. A deployment that hosts many organizations can name an address of its own, and each new
-organization then starts with one app under it.
+An organization creates its apps itself, and starts with none. A school that hosts the system only for itself
+creates one app, at its own address. A platform that hosts many organizations creates each organization and then its
+app, at the address the platform gives it.
 
 ### Adapters, Plugins, Integrations
 

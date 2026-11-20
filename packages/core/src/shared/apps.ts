@@ -1,7 +1,3 @@
-// Apps: the frontends an organization runs, each on a domain, and the lookup from a
-// domain to its app. Not a bounded context: it is a leaf every context may import, and it
-// imports no context.
-
 import type { App, CreateAppInput, UpdateAppInput } from '../types/index.js';
 import type { Actor } from './actor.js';
 import { ConflictError, InvalidInputError, NotFoundError } from './errors.js';
@@ -32,30 +28,13 @@ export interface AppAt {
 
 export type AppsServiceParams = {
   repo: AppsRepository;
-  /** The organization an app belongs to. Wired by the app layer. */
   organization: (orgId: string) => Promise<AppOrganization | null>;
-  /** Unset, a new organization starts with no app. */
-  platformHost?: string;
   reservedDomains?: readonly string[];
   logger?: Logger;
 };
 
-export function platformOrigin(value: string): URL {
-  const url = URL.canParse(value) ? new URL(value) : null;
-  const web = url?.protocol === 'https:' || url?.protocol === 'http:';
-  if (!url || !web || url.pathname !== '/' || url.search !== '' || url.hash !== '') {
-    throw new Error(
-      `The platform host must be an origin such as https://example.com, got "${value}"`,
-    );
-  }
-  return url;
-}
-
-function labelOf(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+function hostOf(domain: string): string | null {
+  return URL.canParse(domain) ? new URL(domain).host : null;
 }
 
 export function servesCourses(apps: readonly App[]): App | null {
@@ -69,15 +48,15 @@ export function servesCommunity(apps: readonly App[]): App | null {
 export class AppsService {
   private readonly repo: AppsRepository;
   private readonly organization: (orgId: string) => Promise<AppOrganization | null>;
-  private readonly platform: URL | null;
-  private readonly reservedDomains: ReadonlySet<string>;
+  private readonly reservedHosts: ReadonlySet<string>;
   private readonly logger: Logger;
 
   constructor(params: AppsServiceParams) {
     this.repo = params.repo;
     this.organization = params.organization;
-    this.platform = params.platformHost === undefined ? null : platformOrigin(params.platformHost);
-    this.reservedDomains = new Set(params.reservedDomains);
+    this.reservedHosts = new Set(
+      (params.reservedDomains ?? []).map((domain) => new URL(domain).host),
+    );
     this.logger = params.logger ?? noopLogger;
   }
 
@@ -147,6 +126,9 @@ export class AppsService {
   }
 
   async at(domain: string): Promise<AppAt | null> {
+    if (this.reserved(domain)) {
+      return null;
+    }
     const app = await this.repo.findByDomain(domain);
     const organization = app ? await this.organization(app.orgId) : null;
     return app && organization ? { app, organization } : null;
@@ -162,32 +144,15 @@ export class AppsService {
     return null;
   }
 
-  /** The app a new organization starts with, written with the organization through `repo`. */
-  async start(
-    org: { id: string; name: string; slug: string },
-    repo: AppsRepository,
-  ): Promise<App | null> {
-    if (!this.platform) {
-      return null;
-    }
-    const label = labelOf(org.slug) || labelOf(org.id);
-    const domain = `${this.platform.protocol}//${label}.${this.platform.host}`;
-    this.assertNotReserved(domain, org.id);
-    return repo.create({
-      orgId: org.id,
-      id: genId('app'),
-      name: org.name,
-      slug: label,
-      domain,
-      courses: true,
-      community: true,
-    });
+  private reserved(domain: string): boolean {
+    const host = hostOf(domain);
+    return host === null || this.reservedHosts.has(host);
   }
 
   private assertNotReserved(domain: string, orgId: string): void {
-    if (this.reservedDomains.has(domain)) {
+    if (this.reserved(domain)) {
       this.logger.warn('app refused: the domain is one of the installation', { orgId, domain });
-      throw new ConflictError('That domain is already in use');
+      throw new ConflictError('That domain belongs to this installation');
     }
   }
 }

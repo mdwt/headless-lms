@@ -19,7 +19,7 @@ import {
   type GenericEndpointContext,
 } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
-import type { CreateAuthOptions } from "./types.js";
+import type { AppDomains, CreateAuthOptions } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
@@ -116,12 +116,7 @@ function callbackOrigins(url: string): string[] {
 }
 
 function pageOrigin(headers: Headers): string | null {
-  return webOrigin(headers.get("origin") || headers.get("referer"));
-}
-
-function requestOrigins(request: Request): string[] {
-  const page = pageOrigin(request.headers);
-  return [...new Set([...(page ? [page] : []), ...callbackOrigins(request.url)])];
+  return webOrigin(headers.get("origin")) ?? webOrigin(headers.get("referer"));
 }
 
 function returnOrigin(link: string): string | null {
@@ -224,14 +219,14 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       );
     };
 
-  const orgHosts = opts.orgHosts;
-  const orgHostsOf = async (request: Request | undefined): Promise<string[]> => {
-    if (!orgHosts || !request) {
+  const appDomains = opts.appDomains;
+  const appDomainsOf = async (request: Request | undefined): Promise<string[]> => {
+    if (!appDomains || !request) {
       return [];
     }
     const trusted: string[] = [];
-    for (const origin of requestOrigins(request)) {
-      if (!opts.trustedOrigins.includes(origin) && (await orgHosts.has(origin))) {
+    for (const origin of requestDomains(request.headers, request.url)) {
+      if (!opts.trustedOrigins.includes(origin) && (await appDomains.has(origin))) {
         trusted.push(origin);
       }
     }
@@ -242,21 +237,18 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     if (!origin) {
       return { url: link, domains: [] };
     }
-    if (!orgHosts || !(await orgHosts.has(origin))) {
+    if (!appDomains || !(await appDomains.has(origin))) {
       return { url: link, domains: [origin] };
     }
     const { pathname, search } = new URL(link);
     return { url: `${origin}${pathname}${search}`, domains: [origin] };
   };
   const linkAllowed = async (email: string, url: string): Promise<boolean> => {
-    if (!orgHosts) {
+    if (!appDomains) {
       return true;
     }
     for (const origin of callbackOrigins(url)) {
-      if (opts.trustedOrigins.includes(origin) || !(await orgHosts.has(origin))) {
-        continue;
-      }
-      if (!(await orgHosts.hasFor(email, origin))) {
+      if ((await appDomains.has(origin)) && !(await appDomains.hasFor(email, origin))) {
         opts.logger.warn(
           "auth link not sent: its domain is no app of an organization the person is in",
           {
@@ -272,8 +264,8 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
   return {
     baseURL: opts.baseUrl,
     secret: opts.secret,
-    trustedOrigins: orgHosts
-      ? async (request?: Request) => [...opts.trustedOrigins, ...(await orgHostsOf(request))]
+    trustedOrigins: appDomains
+      ? async (request?: Request) => [...opts.trustedOrigins, ...(await appDomainsOf(request))]
       : opts.trustedOrigins,
     logger: {
       log: (level, message, ...args) => {
@@ -482,6 +474,7 @@ export class BetterAuth
   protected mcp: CreateAuthOptions["mcp"];
   protected issuer: string;
   protected cookieDomain: string | undefined;
+  protected appDomains: AppDomains | undefined;
   protected jwksCacheKey = {};
 
   constructor(opts: CreateAuthOptions, auth?: Auth) {
@@ -491,6 +484,7 @@ export class BetterAuth
     this.mcp = opts.mcp;
     this.issuer = `${opts.baseUrl.replace(/\/+$/, "")}/api/auth`;
     this.cookieDomain = opts.cookieDomain;
+    this.appDomains = opts.appDomains;
   }
 
   protected get pluginApi(): PluginApi {
@@ -499,10 +493,22 @@ export class BetterAuth
 
   async handler(request: Request): Promise<Response> {
     const response = await this.auth.handler(request);
-    const [domain] = requestDomains(request.headers, request.url);
-    return this.cookieDomain && domain && !within(domain, this.cookieDomain)
-      ? hostOnlyCookies(response)
-      : response;
+    return (await this.outsideCookieDomain(request)) ? hostOnlyCookies(response) : response;
+  }
+
+  private async outsideCookieDomain(request: Request): Promise<boolean> {
+    if (!this.cookieDomain || !this.appDomains) {
+      return false;
+    }
+    for (const domain of requestDomains(request.headers, request.url)) {
+      if (within(domain, this.cookieDomain)) {
+        return false;
+      }
+      if (await this.appDomains.has(domain)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   clientIp(headers: IncomingHttpHeaders): string | null {

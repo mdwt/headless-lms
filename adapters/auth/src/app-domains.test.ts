@@ -21,7 +21,7 @@ const logger = {
   child: () => logger,
 };
 
-function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: boolean } = {}) {
+function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: boolean } = {}) {
   const hosts = new Map<string, string[]>([
     [ACME, ["sarah@example.com"]],
     [OTHER, ["james@example.com"]],
@@ -38,17 +38,16 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: bool
     refuse: false,
     activeOrganizationId: null,
   };
+  const appDomains: NonNullable<CreateAuthOptions["appDomains"]> = {
+    has: async (origin) => hosts.has(origin),
+    hasFor: async (email, origin) => hosts.get(origin)?.includes(email) ?? false,
+  };
   const options = buildAuthOptions({
     db: {} as NodePgDatabase,
     baseUrl: API,
     secret: "a".repeat(32),
     trustedOrigins: [ADMIN],
-    ...(opts.orgHosts !== false && {
-      orgHosts: {
-        has: async (origin) => hosts.has(origin),
-        hasFor: async (email, origin) => hosts.get(origin)?.includes(email) ?? false,
-      },
-    }),
+    ...(opts.appDomains !== false && { appDomains }),
     logger: logger as unknown as CreateAuthOptions["logger"],
     hooks: {
       beforeUserCreate: async () => undefined,
@@ -131,6 +130,7 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { orgHosts?: bool
       logger: logger as unknown as CreateAuthOptions["logger"],
       mcp: { oauthEnabled: false },
       cookieDomain: opts.cookieDomain,
+      ...(opts.appDomains !== false && { appDomains }),
     } as unknown as CreateAuthOptions,
     auth as unknown as ConstructorParameters<typeof BetterAuth>[1],
   );
@@ -176,7 +176,7 @@ describe("sign-in from an app's domain", () => {
   });
 
   it("is refused from an app's domain when no domains are wired", async () => {
-    const w = world({ orgHosts: false });
+    const w = world({ appDomains: false });
     await w.signUp("sarah@example.com");
     expect((await w.signIn("sarah@example.com", ACME)).status).toBe(403);
   });
@@ -309,6 +309,22 @@ describe("the session cookie", () => {
         expect(cookie).toMatch(/domain=\.platform\.test/i);
       }
     });
+
+    it("stays shared when the only domain a request names is no app's", async () => {
+      const w = world({ cookieDomain: ".platform.test" });
+      await w.signUp("sarah@example.com");
+      await w.post("/sign-in/magic-link", ADMIN, {
+        email: "sarah@example.com",
+        callbackURL: "/dashboard",
+      });
+      const opened = await w.adapter.handler(
+        w.atApi(w.magicLinks[0]!, { referer: "https://mail.example.org/inbox" }),
+      );
+      expect(opened.headers.getSetCookie().length).toBeGreaterThan(0);
+      for (const cookie of opened.headers.getSetCookie()) {
+        expect(cookie).toMatch(/domain=\.platform\.test/i);
+      }
+    });
   });
 });
 
@@ -365,6 +381,19 @@ describe("a password reset link to an app's domain", () => {
     expect((await reset(w, "sarah@example.com", ACME, STRANGER)).status).toBe(403);
     await w.settled();
     expect(w.resets).toHaveLength(0);
+  });
+
+  it("is not sent to a person outside the organization when an app's domain is also listed", async () => {
+    const w = world();
+    w.hosts.set(ADMIN, ["sarah@example.com"]);
+    await w.signUp("james@example.com");
+    await reset(w, "james@example.com", ADMIN, ADMIN);
+    await w.post("/sign-in/magic-link", ADMIN, {
+      email: "james@example.com",
+      callbackURL: `${ADMIN}/`,
+    });
+    expect(w.resets).toEqual([]);
+    expect(w.magicLinks).toEqual([]);
   });
 
   it("is sent to anyone for a listed origin, and stays at the API's address", async () => {

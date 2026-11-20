@@ -73,7 +73,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. On an installation with a platform host, the organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host; 409 when another app already has that domain. With no platform host it starts with no app.",
+        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -86,16 +86,15 @@
                     "minLength": 1
                   },
                   "slug": {
+                    "description": "Unique. Left out, one is generated from the name.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
-                    "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique. On an installation with a platform host, the organization's first app takes this slug, and its domain is the slug under the platform host."
+                    "pattern": "^[a-z0-9-]+$"
                   }
                 },
                 "required": [
-                  "name",
-                  "slug"
+                  "name"
                 ]
               }
             }
@@ -179,31 +178,6 @@
             }
           },
           "401": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requestId": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "409": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -6502,14 +6476,16 @@
                         "type": "string"
                       },
                       "name": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
                       },
                       "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "A short identifier, unique among the organization's apps"
                       },
                       "domain": {
                         "type": "string",
-                        "description": "The origin the app is reached at, such as https://learn.example.com"
+                        "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
                       },
                       "courses": {
                         "type": "boolean",
@@ -6613,11 +6589,11 @@
       },
       "post": {
         "operationId": "createApp",
-        "summary": "Add an app",
+        "summary": "Create an app",
         "tags": [
           "Apps"
         ],
-        "description": "Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).",
+        "description": "Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the domain is the admin app's, the API's or another listed origin of the installation, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).",
         "requestBody": {
           "required": true,
           "content": {
@@ -6628,17 +6604,18 @@
                   "name": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 100
+                    "maxLength": 100,
+                    "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
                   },
                   "slug": {
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique among the organization's apps"
+                    "description": "A short identifier, unique among the organization's apps"
                   },
                   "domain": {
-                    "description": "The origin the app is reached at, such as https://learn.example.com",
+                    "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path",
                     "type": "string"
                   },
                   "courses": {
@@ -6673,14 +6650,16 @@
                       "type": "string"
                     },
                     "name": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
                     },
                     "slug": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "A short identifier, unique among the organization's apps"
                     },
                     "domain": {
                       "type": "string",
-                      "description": "The origin the app is reached at, such as https://learn.example.com"
+                      "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
                     },
                     "courses": {
                       "type": "boolean",
@@ -6859,7 +6838,7 @@
         "tags": [
           "Apps"
         ],
-        "description": "Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.",
+        "description": "Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as creating an app.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6868,18 +6847,20 @@
                 "type": "object",
                 "properties": {
                   "name": {
+                    "description": "The app's name; `GET /api/app` returns it to the frontend on its domain",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 100
                   },
                   "slug": {
+                    "description": "A short identifier, unique among the organization's apps",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$"
                   },
                   "domain": {
-                    "description": "The origin the app is reached at, such as https://learn.example.com",
+                    "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path",
                     "type": "string"
                   },
                   "courses": {
@@ -6902,7 +6883,8 @@
             },
             "in": "path",
             "name": "appId",
-            "required": true
+            "required": true,
+            "description": "The app's id"
           }
         ],
         "responses": {
@@ -6917,14 +6899,16 @@
                       "type": "string"
                     },
                     "name": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
                     },
                     "slug": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "A short identifier, unique among the organization's apps"
                     },
                     "domain": {
                       "type": "string",
-                      "description": "The origin the app is reached at, such as https://learn.example.com"
+                      "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
                     },
                     "courses": {
                       "type": "boolean",
@@ -7134,7 +7118,8 @@
             },
             "in": "path",
             "name": "appId",
-            "required": true
+            "required": true,
+            "description": "The app's id"
           }
         ],
         "responses": {
@@ -87832,7 +87817,7 @@
         "tags": [
           "Platform"
         ],
-        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.",
+        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. The organization starts with no app; create one with `POST /api/apps` and the returned key. 409 when the slug is in use.",
         "requestBody": {
           "required": true,
           "content": {
@@ -87846,11 +87831,11 @@
                     "maxLength": 100
                   },
                   "slug": {
+                    "description": "Unique. Left out, one is generated from the name.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
-                    "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique. On an installation with a platform host, the organization's first app takes this slug, and its domain is the slug under the platform host."
+                    "pattern": "^[a-z0-9-]+$"
                   },
                   "metadata": {
                     "description": "Key-value pairs stored with the organization",
@@ -87862,8 +87847,7 @@
                   }
                 },
                 "required": [
-                  "name",
-                  "slug"
+                  "name"
                 ]
               }
             }

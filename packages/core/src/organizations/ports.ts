@@ -12,7 +12,7 @@ import type {
 } from './members.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
-import type { AppAt, AppsRepository } from '../shared/apps.js';
+import type { AppAt } from '../shared/apps.js';
 import type {
   ApiKeySummary,
   ConnectedApp,
@@ -63,7 +63,7 @@ export type CallerLimit = { scopes: readonly Permission[] } | { roleKey: string 
 
 export interface PlatformOrganizationInput {
   name: string;
-  slug: string;
+  slug?: string | undefined;
   metadata?: OrganizationMetadata | undefined;
 }
 
@@ -84,7 +84,10 @@ export interface PlatformAccount {
 }
 
 export interface OrganizationService {
-  createOrganization(input: NewOrganizationInput, headers: AuthHeaders): Promise<AuthOrganization>;
+  createOrganization(
+    input: { name: string; slug?: string | undefined },
+    headers: AuthHeaders,
+  ): Promise<AuthOrganization>;
   provisionOrganization(input: CreateOrganizationInput): Promise<Organization>;
   updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization>;
   deleteOrganization(id: string): Promise<Organization>;
@@ -97,9 +100,7 @@ export interface OrganizationService {
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
-  getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   orgIds(): Promise<string[]>;
-  isHostOfPerson(email: string, origin: string): Promise<boolean>;
 
   appOfPerson(email: string, domains: readonly string[]): Promise<AppAt | null>;
   sessionOrganization(
@@ -235,7 +236,6 @@ export interface RolesRepository {
 export interface OrganizationsWriteScope {
   organizations: OrganizationsRepository;
   roles: RolesRepository;
-  apps: AppsRepository;
   outbox: OutboxAppender;
 }
 export type OrganizationsUnitOfWork = UnitOfWork<OrganizationsWriteScope>;

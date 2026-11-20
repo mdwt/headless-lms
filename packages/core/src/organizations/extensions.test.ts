@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ContentType, Level, Permission } from '../types/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
-import type { AppsRepository, AppsService } from '../shared/apps.js';
+import type { AppsService } from '../shared/apps.js';
 import type { AssignmentRow } from './effective-permissions.js';
 import type { StoredOrgRole } from './org-roles.js';
 import type { OrganizationsRepository, OrganizationsUnitOfWork, RolesRepository } from './ports.js';
@@ -102,13 +102,11 @@ function service(storedRoles: StoredOrgRole[] = []) {
     findOrgUserById: async (_orgId: string, id: string) =>
       assignments.has(id) ? { id, orgId: ORG, userId: `usr_${id}`, status: 'active' } : null,
   } as unknown as OrganizationsRepository;
-  const apps = {} as AppsRepository;
   const uow: OrganizationsUnitOfWork = {
     run: (fn) =>
       fn({
         organizations: repo,
         roles,
-        apps,
         outbox: {
           append: async (e) => {
             events.push(...e);

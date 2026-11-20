@@ -105,9 +105,9 @@ export type CreateOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. On an installation with a platform host, the organization's first app takes this slug, and its domain is the slug under the platform host.
+     * Unique. Left out, one is generated from the name.
      */
-    slug: string;
+    slug?: string;
   };
   path?: never;
   query?: never;
@@ -134,14 +134,6 @@ export type CreateOrganizationErrors = {
    * Default Response
    */
   401: {
-    error: string;
-    message?: string;
-    requestId?: string;
-  };
-  /**
-   * Default Response
-   */
-  409: {
     error: string;
     message?: string;
     requestId?: string;
@@ -2516,10 +2508,16 @@ export type ListAppsResponses = {
    */
   200: Array<{
     id: string;
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
     name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com
+     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
      */
     domain: string;
     /**
@@ -2537,13 +2535,16 @@ export type ListAppsResponse = ListAppsResponses[keyof ListAppsResponses];
 
 export type CreateAppData = {
   body: {
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
     name: string;
     /**
-     * Unique among the organization's apps
+     * A short identifier, unique among the organization's apps
      */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com
+     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
      */
     domain: string;
     /**
@@ -2618,10 +2619,16 @@ export type CreateAppResponses = {
    */
   201: {
     id: string;
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
     name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com
+     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
      */
     domain: string;
     /**
@@ -2640,6 +2647,9 @@ export type CreateAppResponse = CreateAppResponses[keyof CreateAppResponses];
 export type DeleteAppData = {
   body?: never;
   path: {
+    /**
+     * The app's id
+     */
     appId: string;
   };
   query?: never;
@@ -2707,10 +2717,16 @@ export type DeleteAppResponses = {
 
 export type UpdateAppData = {
   body: {
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
     name?: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
     slug?: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com
+     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
      */
     domain?: string;
     /**
@@ -2723,6 +2739,9 @@ export type UpdateAppData = {
     community?: boolean;
   };
   path: {
+    /**
+     * The app's id
+     */
     appId: string;
   };
   query?: never;
@@ -2795,10 +2814,16 @@ export type UpdateAppResponses = {
    */
   200: {
     id: string;
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
     name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com
+     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
      */
     domain: string;
     /**
@@ -29380,9 +29405,9 @@ export type CreatePlatformOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. On an installation with a platform host, the organization's first app takes this slug, and its domain is the slug under the platform host.
+     * Unique. Left out, one is generated from the name.
      */
-    slug: string;
+    slug?: string;
     /**
      * Key-value pairs stored with the organization
      */

@@ -2,7 +2,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { AppsRepository } from "@headless-lms/core/shared/apps";
 import type { App, UpdateAppInput } from "@headless-lms/core/types";
-import { ConflictError } from "@headless-lms/core/shared/errors";
+import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/errors";
 import { apps } from "../schema/apps.js";
 import { pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
@@ -13,8 +13,13 @@ const TAKEN: Record<string, string> = {
   apps_community_uq: "The organization already has an app that serves the community",
 };
 
-function taken(err: unknown): unknown {
+function refused(err: unknown): unknown {
   const pg = pgErrorFields(err);
+  if (pg?.code === "23514" && pg.constraint === "apps_serves_ck") {
+    return Object.assign(new InvalidInputError("An app serves courses, the community, or both"), {
+      cause: err,
+    });
+  }
   const message = pg?.code === "23505" && pg.constraint ? TAKEN[pg.constraint] : undefined;
   return message ? Object.assign(new ConflictError(message), { cause: err }) : err;
 }
@@ -30,7 +35,7 @@ export class DrizzleAppsRepository implements AppsRepository {
       }
       return row;
     } catch (err) {
-      throw taken(err);
+      throw refused(err);
     }
   }
 
@@ -75,7 +80,7 @@ export class DrizzleAppsRepository implements AppsRepository {
         .returning();
       return row ?? null;
     } catch (err) {
-      throw taken(err);
+      throw refused(err);
     }
   }
 

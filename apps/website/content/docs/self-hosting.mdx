@@ -26,7 +26,7 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 `.env.example` documents every variable and the command that mints a Hatchet token for the local `hatchet` container.
 
-Sign up in the admin at `http://localhost:8001`, create an organization, and add an app with the domain `http://localhost:8002` in **Settings → Apps**. The student app then answers at `http://localhost:8002`.
+Sign up in the admin at `http://localhost:8001`, create an organization, and create an app with the domain `http://localhost:8002` in **Settings → Apps**. The student app then answers at `http://localhost:8002`.
 
 ### Files
 
@@ -48,20 +48,15 @@ An app is a frontend an organization runs on a domain. It serves courses, the co
 
 A domain is some app's domain or it is not. Nothing is derived from a domain and nothing falls back: on a domain that is no app's, [`GET /api/app`](/docs/api/apps/getApp) and the student app answer `404`, and a sign-in answers `403`.
 
-| Variable        | Required | Default | Notes                                                                                                                                                                                                                              |
-| --------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_HOST` | no       | unset   | For an installation that hosts many organizations: the origin a new organization's first app is made under. Scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
+A new organization starts with no app. It creates one in **Settings → Apps**, or with [`POST /api/apps`](/docs/api/apps/createApp), at the address its frontend is served at, such as `https://learn.school.com`, or `http://localhost:8002` locally.
 
-Where an organization's apps come from depends on `PLATFORM_HOST` only:
+An organization with no app has no domain its members can reach it on. An emailed invite for a role with no permissions answers `409`, and an email that links to an app the organization does not have is not sent.
 
-- **Set.** A new organization starts with one app that serves both, with the organization's name and slug, at its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Creating an organization answers `409` when another app already has that domain, or when it is the admin app's address or the API's: with the admin app at `https://admin.example.com`, the slug `admin` is refused.
-- **Unset.** A new organization starts with no app. Add one with the address the student app is served at, such as `https://learn.school.com`, or `http://localhost:8002` locally.
+An organization manages its apps in **Settings → Apps**, or under [`/api/apps`](/docs/api/apps/listApps): it creates an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain.
 
-An organization with no app has no domain its members can reach it on. An emailed invite for a role with no permissions answers `409` unless it names a domain, and an email that links to an app the organization does not have is not sent.
+The installation's own addresses are refused as an app's domain (`409`), under either scheme: the admin app's, the API's and every origin in `CLIENT_ORIGIN`. A domain is an origin and nothing more: a path, a query, a username or a trailing dot is refused (`400`).
 
-An organization manages its apps in **Settings → Apps**, or under [`/api/apps`](/docs/api/apps/listApps): it adds an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain. Changing the organization's slug later does not change its apps.
-
-For example, Acme starts at `https://acme.example.com` for both. It changes that app to serve courses at `https://learn.acme.com` and adds a community app at `https://club.acme.com`. From then on an email about a completed course links to the first and an email about a new post to the second.
+For example, Acme creates one app at `https://acme.example.com` for both. It later changes that app to serve courses at `https://learn.acme.com` and creates a community app at `https://club.acme.com`. From then on an email about a completed course links to the first and an email about a new post to the second.
 
 #### Serving a domain
 
@@ -78,7 +73,9 @@ The student app does this itself. One deployment serves every organization's cou
 - It keeps the answer for a domain for a minute, so a change to an organization's apps shows in the student app within that minute. Sign-in and every API request follow the change at once.
 - It has pages to sign in, ask for a password reset, set the new password and ask for a sign-in link.
 
-Locally, an app with the domain `http://localhost:8002` puts its organization there. With `PLATFORM_HOST=http://localhost:8002`, a new organization with the slug `acme` is at `http://acme.localhost:8002`.
+Locally, an app with the domain `http://localhost:8002` puts its organization there. A second organization can use `http://acme.localhost:8002`, which browsers resolve to the same machine.
+
+Behind a reverse proxy, the student app reads its visitor's domain from the request: the proxy must pass the `Host` header on unchanged and set `X-Forwarded-Proto` to the scheme the visitor used. Without them every domain looks unknown and the app answers `404`.
 
 #### Signing in on a domain
 
@@ -87,7 +84,7 @@ People sign in on an app's domain: the API trusts the domain of every app, besid
 - A session started on an app's domain is for that app's organization.
 - A person who holds an open invite to that organization gets a session with no organization; accepting the invite sets it.
 - Anyone else is refused there, whatever other organization they are in.
-- On any other origin, such as the admin app, a person in exactly one organization gets a session for it.
+- On an origin in `CLIENT_ORIGIN`, such as the admin app, or with no origin at all, a person in exactly one organization gets a session for it. A sign-in from any other origin answers `403`.
 - A session for another organization is answered `401` on an app's domain.
 - A password reset link or sign-in link that returns to an app's domain is sent only to a person who is active in that app's organization. The link opens at that domain under `/api`, so the cookie of a sign-in link belongs to the domain the person lands on.
 

@@ -117,7 +117,7 @@ if (!args.yes) {
   const clientOrigins = got(
     await p.text({
       message: "Client origins (comma-separated, for CORS + auth)",
-      initialValue: "http://localhost:8001,http://localhost:8002",
+      initialValue: "http://localhost:8001",
     }),
   );
 

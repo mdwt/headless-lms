@@ -192,8 +192,6 @@ export interface Config {
   trustedProxies?: string[];
   /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
   ipAddressHeaders?: string[];
-  /** Origin a new organization's first app is made under, as `<slug>.<platform host>`. Unset, a new organization starts with no app. */
-  platformHost?: string;
   /** Admin app origin — invite links for staff. */
   adminAppUrl: string;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
@@ -228,6 +226,24 @@ export const OUTBOX_DEFAULTS: PollingOutboxRelayConfig = {
   batchSize: 100,
   concurrency: 16,
 };
+
+function webOrigin(name: string, value: string): string {
+  const url = URL.canParse(value) ? new URL(value) : null;
+  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) {
+    throw new Error(`${name} must be an address such as https://example.com, got "${value}"`);
+  }
+  return url.origin;
+}
+
+export function installationOrigins(
+  config: Pick<Config, 'adminAppUrl' | 'authBaseURL' | 'trustedOrigins'>,
+): string[] {
+  return [
+    webOrigin('adminAppUrl', config.adminAppUrl),
+    webOrigin('authBaseURL', config.authBaseURL),
+    ...config.trustedOrigins.map((origin) => webOrigin('trustedOrigins', origin)),
+  ];
+}
 
 export function resolveOutboxConfig(config: OutboxConfig = {}): PollingOutboxRelayConfig {
   const overrides = Object.fromEntries(
@@ -429,7 +445,6 @@ export async function buildContainer(
   const organizationsUow = new DrizzleUnitOfWork(db, (tx) => ({
     organizations: new DrizzleOrganizationsRepository(tx, logger.child({ name: 'org' })),
     roles: new DrizzleRolesRepository(tx),
-    apps: new DrizzleAppsRepository(tx),
     outbox: new DrizzleOutboxAppender(tx, logger.child({ name: 'org' })),
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
@@ -437,8 +452,7 @@ export async function buildContainer(
   const apps = new AppsService({
     repo: new DrizzleAppsRepository(db),
     organization: (orgId) => organizationsRepo.findById(orgId),
-    ...(config.platformHost !== undefined && { platformHost: config.platformHost }),
-    reservedDomains: [new URL(config.adminAppUrl).origin, new URL(config.authBaseURL).origin],
+    reservedDomains: installationOrigins(config),
     logger: logger.child({ name: 'apps' }),
   });
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
@@ -916,9 +930,9 @@ export async function buildContainer(
     },
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
-    orgHosts: {
+    appDomains: {
       has: async (origin) => (await apps.at(origin)) !== null,
-      hasFor: (email, origin) => organizations.isHostOfPerson(email, origin),
+      hasFor: async (email, origin) => (await organizations.appOfPerson(email, [origin])) !== null,
     },
     hooks: {
       sendResetPassword: async ({ user, url }, { domains }) => {

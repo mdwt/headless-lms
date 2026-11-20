@@ -151,7 +151,7 @@ export function parseList(name: string): string[] | undefined {
 
 /** Browser app origins from CLIENT_ORIGIN (comma-separated). */
 export function parseClientOrigins(): string[] {
-  return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001,http://localhost:8002")
+  return (process.env.CLIENT_ORIGIN ?? "http://localhost:8001")
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
@@ -214,7 +214,6 @@ function loadContainerConfig(): ContainerConfig {
     secureCookies: process.env.NODE_ENV === "production",
     trustedProxies: parseList("AUTH_TRUSTED_PROXIES"),
     ipAddressHeaders: parseList("AUTH_IP_ADDRESS_HEADERS"),
-    ...(process.env.PLATFORM_HOST && { platformHost: process.env.PLATFORM_HOST }),
     adminAppUrl,
     outbox: {
       enabled: (process.env.OUTBOX_ENABLED ?? "true") !== "false",

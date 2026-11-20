@@ -1,6 +1,3 @@
-// apps — the frontends an organization runs, one row per app, each on a
-// domain no other app has. Cross-cutting like settings: every context reads
-// it through the apps utility, and no context owns it.
 import { sql } from "drizzle-orm";
 import {
   boolean,

@@ -682,12 +682,12 @@ export class Organizations {
   /**
    * Create an organization and make it active
    *
-   * For any signed-in person, including one with no organization yet. The caller becomes its owner. On an installation with a platform host, the organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host; 409 when another app already has that domain. With no platform host it starts with no app.
+   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`.
    */
   public static createOrganization<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
-      slug: string;
+      slug?: string;
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<CreateOrganizationResponses, CreateOrganizationErrors, ThrowOnError, "data"> {
@@ -2318,9 +2318,9 @@ export class Apps {
   }
 
   /**
-   * Add an app
+   * Create an app
    *
-   * Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).
+   * Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the domain is the admin app's, the API's or another listed origin of the installation, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).
    */
   public static createApp<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2392,7 +2392,7 @@ export class Apps {
   /**
    * Change an app
    *
-   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.
+   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as creating an app.
    */
   public static updateApp<ThrowOnError extends boolean = false>(
     parameters: {
@@ -11627,12 +11627,12 @@ export class Platform {
   /**
    * Create an organization and its first API key
    *
-   * Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.
+   * Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. The organization starts with no app; create one with `POST /api/apps` and the returned key. 409 when the slug is in use.
    */
   public static createPlatformOrganization<ThrowOnError extends boolean = false>(
     parameters: {
       name: string;
-      slug: string;
+      slug?: string;
       metadata?: {
         [key: string]: string;
       };

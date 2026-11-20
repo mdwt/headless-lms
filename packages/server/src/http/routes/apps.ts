@@ -2,7 +2,6 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { NotFoundError } from '@headless-lms/core/shared/errors';
-import type { App as StoredApp } from '@headless-lms/core/types';
 import type { Container } from '../../app/container.js';
 import {
   App,
@@ -11,25 +10,15 @@ import {
   AppLookup,
   CreateApp,
   UpdateApp,
+  appView,
   refusals,
 } from '../schemas/index.js';
 import { resolveActor } from '../scope.js';
 import { fixedWindowLimit, limitByClientIp } from '../rate-limit.js';
-import { requestDomain } from '../request-domain.js';
+import { requestApp, requestDomain } from '../request-domain.js';
 
 const LOOKUP_WINDOW_SECONDS = 10;
 const LOOKUP_MAX = 100;
-
-function appView(app: StoredApp) {
-  return {
-    id: app.id,
-    name: app.name,
-    slug: app.slug,
-    domain: app.domain,
-    courses: app.courses,
-    community: app.community,
-  };
-}
 
 export async function appsRoutes(app: FastifyInstance, container: Container): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -49,7 +38,7 @@ export async function appsRoutes(app: FastifyInstance, container: Container): Pr
       response: { 200: AppLookup, ...refusals(404, 429) },
     },
     handler: async (req) => {
-      const at = req.appAt;
+      const at = await requestApp(container, req);
       if (!at) {
         throw new NotFoundError('App', requestDomain(req) ?? 'no domain');
       }
@@ -81,8 +70,8 @@ export async function appsRoutes(app: FastifyInstance, container: Container): Pr
     schema: {
       operationId: 'createApp',
       tags,
-      summary: 'Add an app',
-      description: `Requires \`organizations:write\`. 409 when another app has the domain, in this organization or any other, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).`,
+      summary: 'Create an app',
+      description: `Requires \`organizations:write\`. 409 when another app has the domain, in this organization or any other, when the domain is the admin app's, the API's or another listed origin of the installation, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).`,
       body: CreateApp,
       response: { 201: App, ...refusals(400, 403, 409) },
     },
@@ -100,7 +89,7 @@ export async function appsRoutes(app: FastifyInstance, container: Container): Pr
       operationId: 'updateApp',
       tags,
       summary: 'Change an app',
-      description: `Requires \`organizations:write\`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as adding an app.`,
+      description: `Requires \`organizations:write\`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as creating an app.`,
       params: AppIdParam,
       body: UpdateApp,
       response: { 200: App, ...refusals(400, 403, 404, 409) },

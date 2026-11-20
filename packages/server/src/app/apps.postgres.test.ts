@@ -14,11 +14,12 @@ const url = process.env.TEST_DATABASE_URL;
 const tag = Math.random().toString(36).slice(2, 10);
 const API = 'https://api.platform.test';
 const ADMIN = 'https://admin.platform.test';
-const PLATFORM = `https://p${tag}.test`;
+const LISTED = `https://listed-${tag}.test`;
 const PASSWORD = 'correct horse battery';
 const LEARN = `https://learn.acme-${tag}.test`;
 const CLUB = `https://club.acme-${tag}.test`;
-const GLOBEX = `https://globex-${tag}.p${tag}.test`;
+const GLOBEX = `https://globex-${tag}.test`;
+const FIRST = `https://acme-${tag}.test`;
 
 type Sent = { to: string; id: EmailTemplateId; ctx: TemplateContext; params: unknown };
 
@@ -59,6 +60,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
   const acmeAdmin = new Person('Sarah', sarah.email);
   let acmeId = '';
   let globexId = '';
+  let learnAppId = '';
   let clubAppId = '';
 
   async function call(
@@ -130,9 +132,9 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
       databaseUrl: url!,
       authBaseURL: API,
       authSecret: 'a'.repeat(32),
-      trustedOrigins: [ADMIN, API],
+      trustedOrigins: [ADMIN, API, LISTED],
       credentialStoreKey: Buffer.alloc(32, 1).toString('base64'),
-      platformHost: PLATFORM,
+      cookieDomain: '.platform.test',
       adminAppUrl: ADMIN,
       deliveryExpirySeconds: 3600,
       memberImageMaxBytes: 1_000_000,
@@ -185,32 +187,53 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(globex.statusCode).toBe(201);
     globexId = (globex.json() as { id: string }).id;
     expect(await sessionOrg(liam)).toBe(globexId);
+    const globexApp = await call('POST', '/api/apps', {
+      as: liam,
+      origin: ADMIN,
+      body: { name: 'Globex', slug: 'globex', domain: GLOBEX, courses: true, community: true },
+    });
+    expect(globexApp.statusCode).toBe(201);
   });
 
   afterAll(async () => {
     await app?.close();
   });
 
-  it('starts an organization with one app for both, at its slug under the platform host', async () => {
+  it('starts an organization with no app, and generates its slug when none is sent', async () => {
     const res = await call('GET', '/api/apps', { as: sarah, origin: ADMIN });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual([
-      {
-        id: expect.stringMatching(/^app_/),
-        name: 'Acme',
-        slug: `acme-${tag}`,
-        domain: `https://acme-${tag}.p${tag}.test`,
-        courses: true,
-        community: true,
-      },
-    ]);
+    expect(res.json()).toEqual([]);
+
+    const oliver = new Person('Oliver');
+    expect((await signUp(oliver, ADMIN)).statusCode).toBe(200);
+    const created = await call('POST', '/api/organizations', {
+      as: oliver,
+      origin: ADMIN,
+      body: { name: `Oliver's Studio ${tag}` },
+    });
+    expect(created.statusCode).toBe(201);
+    expect((created.json() as { slug: string }).slug).toMatch(
+      new RegExp(`^oliver-s-studio-${tag}-[a-z0-9]{6}$`),
+    );
   });
 
-  it('lets the organization move courses to its own domain and add a community app', async () => {
-    const [first] = (await call('GET', '/api/apps', { as: sarah, origin: ADMIN })).json() as {
-      id: string;
-    }[];
-    const course = await call('PATCH', `/api/apps/${first!.id}`, {
+  it('lets the organization create an app, move it to another domain and create a community app', async () => {
+    const first = await call('POST', '/api/apps', {
+      as: sarah,
+      origin: ADMIN,
+      body: { name: 'Acme', slug: 'acme', domain: FIRST, courses: true, community: true },
+    });
+    expect(first.statusCode).toBe(201);
+    expect(first.json()).toEqual({
+      id: expect.stringMatching(/^app_/),
+      name: 'Acme',
+      slug: 'acme',
+      domain: FIRST,
+      courses: true,
+      community: true,
+    });
+    learnAppId = (first.json() as { id: string }).id;
+    const course = await call('PATCH', `/api/apps/${learnAppId}`, {
       as: sarah,
       origin: ADMIN,
       body: { name: 'Acme Academy', domain: `${LEARN}/`, community: false },
@@ -241,16 +264,91 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(taken.json()).toMatchObject({ message: 'That domain is already in use' });
   });
 
-  it("refuses the admin app's address and the API's as a domain", async () => {
-    for (const domain of [ADMIN, API]) {
+  it("refuses the installation's own addresses as a domain, whatever the scheme", async () => {
+    const own = [ADMIN, API, LISTED, ADMIN.replace('https:', 'http:')];
+    for (const domain of own) {
       const changed = await call('PATCH', `/api/apps/${clubAppId}`, {
         as: sarah,
         origin: ADMIN,
         body: { domain },
       });
       expect(changed.statusCode).toBe(409);
+      expect(changed.json()).toMatchObject({ message: 'That domain belongs to this installation' });
     }
+    await call('DELETE', `/api/apps/${clubAppId}`, { as: sarah, origin: ADMIN });
+    for (const domain of own) {
+      const created = await call('POST', '/api/apps', {
+        as: sarah,
+        origin: ADMIN,
+        body: { name: 'Acme Club', slug: 'club', domain, courses: false, community: true },
+      });
+      expect(created.statusCode).toBe(409);
+    }
+    const club = await call('POST', '/api/apps', {
+      as: sarah,
+      origin: ADMIN,
+      body: { name: 'Acme Club', slug: 'club', domain: CLUB, courses: false, community: true },
+    });
+    expect(club.statusCode).toBe(201);
+    clubAppId = (club.json() as { id: string }).id;
     expect((await call('GET', '/api/app', { origin: ADMIN })).statusCode).toBe(404);
+  });
+
+  it('refuses a domain that is not a bare origin', async () => {
+    for (const domain of [
+      `https://user:secret@circle-${tag}.test`,
+      `https://club.acme-${tag}.test.`,
+      `https://circle-${tag}.test/path`,
+      `circle-${tag}.test`,
+    ]) {
+      const changed = await call('PATCH', `/api/apps/${clubAppId}`, {
+        as: sarah,
+        origin: ADMIN,
+        body: { domain },
+      });
+      expect(changed.statusCode).toBe(400);
+    }
+  });
+
+  it('answers 400, never 500, when two changes at once would leave an app serving nothing', async () => {
+    await call('DELETE', `/api/apps/${clubAppId}`, { as: sarah, origin: ADMIN });
+    await call('PATCH', `/api/apps/${learnAppId}`, {
+      as: sarah,
+      origin: ADMIN,
+      body: { community: true },
+    });
+    for (let round = 0; round < 5; round++) {
+      const answers = await Promise.all([
+        call('PATCH', `/api/apps/${learnAppId}`, {
+          as: sarah,
+          origin: ADMIN,
+          body: { courses: false },
+        }),
+        call('PATCH', `/api/apps/${learnAppId}`, {
+          as: sarah,
+          origin: ADMIN,
+          body: { community: false },
+        }),
+      ]);
+      expect(answers.map((res) => res.statusCode).sort()).toEqual([200, 400]);
+      await call('PATCH', `/api/apps/${learnAppId}`, {
+        as: sarah,
+        origin: ADMIN,
+        body: { courses: true, community: true },
+      });
+    }
+    await call('PATCH', `/api/apps/${learnAppId}`, {
+      as: sarah,
+      origin: ADMIN,
+      body: { community: false },
+    });
+    const club = await call('POST', '/api/apps', {
+      as: sarah,
+      origin: ADMIN,
+      body: { name: 'Acme Club', slug: 'club', domain: CLUB, courses: false, community: true },
+    });
+    expect(club.statusCode).toBe(201);
+    clubAppId = (club.json() as { id: string }).id;
   });
 
   it("refuses another organization's app, and an app that would serve nothing", async () => {
@@ -328,7 +426,12 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect(refused.statusCode).toBeGreaterThanOrEqual(400);
     expect(refused.statusCode).toBeLessThan(500);
     expect(await sessionOrg(stranger)).toBeUndefined();
-    expect((await signIn(stranger, LEARN)).statusCode).toBe(401);
+    const again = await signIn(stranger, LEARN);
+    expect(again.statusCode).toBe(401);
+    expect(again.json()).toMatchObject({ code: 'FAILED_TO_CREATE_SESSION' });
+    const wrong = await signIn(stranger, LEARN, 'not the password');
+    expect(wrong.statusCode).toBe(401);
+    expect(wrong.json()).toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' });
   });
 
   it('lets an invited person sign up on the domain, accept, and then holds their session to the organization', async () => {
@@ -450,33 +553,28 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     const opened = await call('GET', `${link.pathname}${link.search}`, { as: sarah });
     expect(opened.statusCode).toBe(302);
     expect(opened.headers.location).toBe(`${CLUB}/`);
+    expect([opened.headers['set-cookie']].flat().join(';')).toMatch(/session_token/);
     expect([opened.headers['set-cookie']].flat().join(';')).not.toMatch(/domain=/i);
     expect(await sessionOrg(sarah)).toBe(acmeId);
     expect((await call('GET', '/api/member/org', { as: sarah, origin: CLUB })).statusCode).toBe(
       200,
     );
+
+    const admin = await call('POST', '/api/auth/sign-in/email', {
+      origin: ADMIN,
+      body: { email: liam.email, password: PASSWORD },
+    });
+    expect([admin.headers['set-cookie']].flat().join(';')).toMatch(/domain=\.?platform\.test/i);
   });
 
-  it("creates nothing when the first domain of a new organization is already an app's", async () => {
-    const slug = `taken-${tag}`;
-    const moved = await call('PATCH', `/api/apps/${clubAppId}`, {
-      as: acmeAdmin,
-      origin: ADMIN,
-      body: { domain: `https://${slug}.p${tag}.test` },
+  it('sends no sign-in link that returns to the domain of an organization the person is not in', async () => {
+    const before = sent.length;
+    const asked = await call('POST', '/api/auth/sign-in/magic-link', {
+      origin: LEARN,
+      body: { email: james.email, callbackURL: `${LEARN}/` },
     });
-    expect(moved.statusCode).toBe(200);
-
-    const oliver = new Person('Oliver');
-    expect((await signUp(oliver, ADMIN)).statusCode).toBe(200);
-    const created = await call('POST', '/api/organizations', {
-      as: oliver,
-      origin: ADMIN,
-      body: { name: 'Taken', slug },
-    });
-    expect(created.statusCode).toBe(409);
-    expect(await container.organizations.getBySlug(slug)).toBeNull();
-    const listed = await call('GET', '/api/auth/organization/list', { as: oliver, origin: ADMIN });
-    expect(listed.json()).toEqual([]);
-    expect(await sessionOrg(oliver)).toBeNull();
+    expect(asked.statusCode).toBe(200);
+    await settled();
+    expect(sent.slice(before).filter((email) => email.to === james.email)).toEqual([]);
   });
 });

@@ -60,7 +60,6 @@ function store(
     defaultRoles?: readonly RoleDefinition[];
     logger?: Logger;
     platform?: PlatformAccount;
-    platformHost?: string | undefined;
   } = {},
 ) {
   const orgs = new Map<string, Organization>();
@@ -546,7 +545,6 @@ function store(
       const before = {
         orgs: new Map(orgs),
         orgUsers: new Map(orgUsers),
-        apps: new Map(apps),
         assignments: [...assignments],
         events: events.length,
       };
@@ -554,7 +552,6 @@ function store(
         return await fn({
           organizations: repo,
           roles,
-          apps: appsRepo,
           outbox: {
             append: async (e) => {
               events.push(...e);
@@ -565,7 +562,6 @@ function store(
         for (const [map, kept] of [
           [orgs, before.orgs],
           [orgUsers, before.orgUsers],
-          [apps, before.apps],
         ] as [Map<string, unknown>, Map<string, unknown>][]) {
           map.clear();
           for (const [key, value] of kept) {
@@ -597,12 +593,9 @@ function store(
   const send = vi.fn(async () => {});
   const images = { syncPublicImages: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
-  const { platformHost: _platformHost, ...serviceOpts } = opts;
-  const platformHost = 'platformHost' in opts ? opts.platformHost : 'https://platform.test';
   const appsService = new AppsService({
     repo: appsRepo,
     organization: (orgId) => repo.findById(orgId),
-    platformHost,
     reservedDomains: ['https://admin.platform.test', 'https://api.platform.test'],
   });
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
@@ -620,7 +613,7 @@ function store(
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
     inviteUrls: { adminAppUrl: 'https://admin.test' },
-    ...serviceOpts,
+    ...opts,
   });
 
   async function person(
@@ -1122,6 +1115,15 @@ describe('invites', () => {
       expect(w.send).not.toHaveBeenCalled();
     });
 
+    it('says to create an app when the organization has none', async () => {
+      const liam = await w.actor(s.liam.orgUser.id);
+      const invite = () =>
+        w.service.createInvite({ email: 'ivy@example.com' }, liam, s.liam.person.id);
+      await expect(invite()).rejects.toThrow(/Name the domain the invite opens/);
+      w.apps.clear();
+      await expect(invite()).rejects.toThrow(/Create an app first/);
+    });
+
     it('sends a Member invite to the domain it names', async () => {
       await w.service.createInvite(
         { email: 'ivy@example.com', domain: 'https://club.test' },
@@ -1556,14 +1558,6 @@ describe('api keys and the organization', () => {
     });
   });
 
-  it("counts a domain as a person's only where they are an active org user", async () => {
-    const invited = await w.person('Noah', { status: 'invited' });
-    expect(await w.service.isHostOfPerson(s.james.person.email, 'https://learn.test')).toBe(true);
-    expect(await w.service.isHostOfPerson(invited.person.email, 'https://learn.test')).toBe(false);
-    expect(await w.service.isHostOfPerson('nobody@example.com', 'https://learn.test')).toBe(false);
-    expect(await w.service.isHostOfPerson(s.james.person.email, 'https://other.test')).toBe(false);
-  });
-
   it('refuses a taken slug before writing anything', async () => {
     await w.repo.create({ id: 'org_2', name: 'Other', slug: 'taken', ownerId: 'usr_x' });
     await expect(
@@ -1828,31 +1822,8 @@ describe('Better Auth on role changes', () => {
 });
 
 describe('creating an organization', () => {
-  it('starts the new organization at its slug under the platform host', async () => {
+  it('starts the new organization with no app', async () => {
     const p = store();
-    const owner = await p.person('Sarah');
-    p.orgAdmin.createOrganization.mockImplementationOnce(
-      async (_headers: unknown, input: { name: string; slug: string }) => {
-        const org = await p.service.provisionOrganization({ ownerId: owner.person.id, ...input });
-        return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt };
-      },
-    );
-    const created = await p.service.createOrganization({ name: 'Yoga', slug: 'yoga' }, {});
-    expect(await p.appsService.of(created.id)).toEqual([
-      {
-        orgId: created.id,
-        id: expect.stringMatching(/^app_/),
-        name: 'Yoga',
-        slug: 'yoga',
-        domain: 'https://yoga.platform.test',
-        courses: true,
-        community: true,
-      },
-    ]);
-  });
-
-  it('starts the new organization with no app when no platform host is set', async () => {
-    const p = store({ platformHost: undefined });
     const owner = await p.person('Sarah');
     const yoga = await p.service.provisionOrganization({
       ownerId: owner.person.id,
@@ -1863,32 +1834,20 @@ describe('creating an organization', () => {
     expect([...p.orgs.keys()]).toEqual([yoga.id]);
   });
 
-  it("creates nothing when the first domain would be one of the installation's own addresses", async () => {
+  it('keeps the slug it is given, and generates one from the name when given none', async () => {
     const p = store();
-    const owner = await p.person('Sarah');
-    for (const slug of ['admin', 'api']) {
-      await expect(
-        p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Sneaky', slug }),
-      ).rejects.toBeInstanceOf(ConflictError);
-    }
-    expect([...p.orgs.keys()]).toEqual([]);
-    expect([...p.apps.keys()]).toEqual([]);
-    expect(p.assignments).toEqual([]);
-    expect(p.events).toEqual([]);
-  });
-
-  it('creates nothing when another app already has the first domain', async () => {
-    const p = store();
-    const owner = await p.person('Sarah');
-    const other = await p.repo.create({ id: 'org_9', name: 'Other', slug: 'other', ownerId: 'u' });
-    await p.appsRepo.create({ ...LEARN, orgId: other.id, domain: 'https://yoga.platform.test' });
-    await expect(
-      p.service.provisionOrganization({ ownerId: owner.person.id, name: 'Yoga', slug: 'yoga' }),
-    ).rejects.toBeInstanceOf(ConflictError);
-    expect([...p.orgs.keys()]).toEqual(['org_9']);
-    expect([...p.orgUsers.values()].filter((u) => u.orgId !== ORG)).toEqual([]);
-    expect(p.assignments).toEqual([]);
-    expect(p.events).toEqual([]);
+    await p.service.createOrganization({ name: 'Yoga', slug: 'yoga' }, {});
+    await p.service.createOrganization({ name: "Sarah's Yoga!" }, {});
+    await p.service.createOrganization({ name: "Sarah's Yoga!" }, {});
+    await p.service.createOrganization({ name: '!!!' }, {});
+    const slugs = p.orgAdmin.createOrganization.mock.calls.map(
+      (call) => (call[1] as { slug: string }).slug,
+    );
+    expect(slugs[0]).toBe('yoga');
+    expect(slugs[1]).toMatch(/^sarah-s-yoga-[a-z0-9]{6}$/);
+    expect(slugs[2]).toMatch(/^sarah-s-yoga-[a-z0-9]{6}$/);
+    expect(slugs[2]).not.toBe(slugs[1]);
+    expect(slugs[3]).toMatch(/^[a-z0-9]{6}$/);
   });
 });
 
@@ -1902,9 +1861,7 @@ describe('platform', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
     });
-    expect((await p.appsService.of(first.organization.id)).map((app) => app.domain)).toEqual([
-      'https://sarahs-yoga.platform.test',
-    ]);
+    expect(await p.appsService.of(first.organization.id)).toEqual([]);
     expect(p.accounts.createAccount).toHaveBeenCalledWith({
       email: 'platform@example.test',
       name: 'Shop',
@@ -1932,10 +1889,8 @@ describe('platform', () => {
     );
     expect(owner?.permissions.isOwner()).toBe(true);
 
-    const second = await p.service.createPlatformOrganization({
-      name: 'Emma Art',
-      slug: 'emma',
-    });
+    const second = await p.service.createPlatformOrganization({ name: 'Emma Art' });
+    expect(second.organization.slug).toMatch(/^emma-art-[a-z0-9]{6}$/);
     expect(p.accounts.createAccount).toHaveBeenCalledTimes(1);
     expect(second.apiKey.name).toBe('Platform');
     expect(second.organization.metadata).toEqual({});

@@ -45,9 +45,9 @@ curl https://<your-api-host>/api/platform/organizations \
   -d '{"name":"Sarah'\''s Yoga","slug":"sarahs-yoga","keyName":"Storefront"}'
 ```
 
-The response carries the organization and the key. Store the organization and the key against your customer; every later call for that customer uses the key. A slug in use gets `409`.
+The response carries the organization and the key. Store the organization and the key against your customer; every later call for that customer uses the key. A slug in use gets `409`. Leave `slug` out and one is generated from the name.
 
-Set `PLATFORM_HOST`, and the organization starts with one [app](/docs/self-hosting#apps-and-domains) at its slug as a subdomain of it: with `PLATFORM_HOST=https://example.com`, `sarahs-yoga` starts at `https://sarahs-yoga.example.com`. When a customer connects their own domain, read the organization's apps with [`GET /api/apps`](/docs/api/apps/listApps) and send the domain to [`PATCH /api/apps/:appId`](/docs/api/apps/updateApp), both with their key. A domain another app already has gets `409`.
+The organization starts with no [app](/docs/self-hosting#apps-and-domains). Create one with [`POST /api/apps`](/docs/api/apps/createApp) and the customer's key, at the address their frontend is served at, such as `https://sarahs-yoga.example.com`. When a customer connects their own domain, send it to [`PATCH /api/apps/:appId`](/docs/api/apps/updateApp) with their key. A domain another app already has gets `409`.
 
 Every email about that organization reaches your [email templates](/docs/adapters/email/react-email#what-a-template-receives) with the organization and the metadata you stored with it, the password reset, password changed and sign-in link emails included when they are asked for on one of its domains.
 

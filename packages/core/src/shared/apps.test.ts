@@ -120,7 +120,6 @@ function store(opts: Partial<AppsServiceParams> = {}) {
   const service = new AppsService({
     repo,
     organization: async (orgId) => ORGS.find((org) => org.id === orgId) ?? null,
-    platformHost: 'https://platform.test',
     reservedDomains: ['https://admin.platform.test', 'https://api.platform.test'],
     ...opts,
   });
@@ -183,7 +182,11 @@ describe('managing apps', () => {
   it("refuses the installation's own addresses as a domain", async () => {
     await w.service.delete(CLUB.id, admin);
     const input = { name: 'Circle', slug: 'circle', courses: false, community: true };
-    for (const domain of ['https://admin.platform.test', 'https://api.platform.test']) {
+    for (const domain of [
+      'https://admin.platform.test',
+      'https://api.platform.test',
+      'http://admin.platform.test',
+    ]) {
       await expect(w.service.create({ ...input, domain }, admin)).rejects.toBeInstanceOf(
         ConflictError,
       );
@@ -192,7 +195,21 @@ describe('managing apps', () => {
       );
     }
     expect(await w.service.of(ACME)).toEqual([LEARN]);
-    expect(await w.service.at('https://admin.platform.test')).toBeNull();
+  });
+
+  it('keeps a domain with another port apart from a reserved one', async () => {
+    await w.service.delete(CLUB.id, admin);
+    const created = await w.service.create(
+      {
+        name: 'Circle',
+        slug: 'circle',
+        domain: 'https://admin.platform.test:8443',
+        courses: false,
+        community: true,
+      },
+      admin,
+    );
+    expect(created.domain).toBe('https://admin.platform.test:8443');
   });
 
   it('refuses a second app that serves courses or the community', async () => {
@@ -256,6 +273,19 @@ describe('looking a domain up', () => {
     expect(await w.service.at('club.acme.test')).toBeNull();
   });
 
+  it("gives nothing for the installation's own addresses, without reading", async () => {
+    const reads: string[] = [];
+    const find = w.repo.findByDomain;
+    w.repo.findByDomain = async (domain) => {
+      reads.push(domain);
+      return find(domain);
+    };
+    expect(await w.service.at('https://admin.platform.test')).toBeNull();
+    expect(await w.service.at('http://api.platform.test')).toBeNull();
+    expect(await w.service.at('not a domain')).toBeNull();
+    expect(reads).toEqual([]);
+  });
+
   it('follows a change of domain from the next read', async () => {
     await w.service.update(CLUB.id, { domain: 'https://circle.test' }, admin);
     expect(await w.service.at('https://club.acme.test')).toBeNull();
@@ -273,57 +303,4 @@ describe('looking a domain up', () => {
     expect(await w.service.firstAt(['https://mail.test'])).toBeNull();
     expect(await w.service.firstAt([])).toBeNull();
   });
-});
-
-describe('the app a new organization starts with', () => {
-  const YOGA = { id: 'org_yoga', name: 'Yoga', slug: 'yoga' };
-
-  it('is at its slug under the platform host, serving both, with the name and slug of the organization', async () => {
-    const p = store();
-    expect(await p.service.start(YOGA, p.repo)).toEqual({
-      orgId: YOGA.id,
-      id: expect.stringMatching(/^app_/),
-      name: 'Yoga',
-      slug: 'yoga',
-      domain: 'https://yoga.platform.test',
-      courses: true,
-      community: true,
-    });
-  });
-
-  it('is none when no platform host is set', async () => {
-    const p = store({ platformHost: undefined });
-    expect(await p.service.start(YOGA, p.repo)).toBeNull();
-    expect([...p.apps.keys()]).toEqual([]);
-  });
-
-  it('keeps the scheme and port of the platform host, and uses the id when there is no slug', async () => {
-    const p = store({ platformHost: 'http://localhost:8002/' });
-    expect((await p.service.start(YOGA, p.repo))?.domain).toBe('http://yoga.localhost:8002');
-    const unnamed = await p.service.start({ id: 'org_3Xy', name: 'My Org', slug: '' }, p.repo);
-    expect(unnamed).toMatchObject({ slug: 'org-3xy', domain: 'http://org-3xy.localhost:8002' });
-  });
-
-  it("is refused when its domain would be one of the installation's own addresses", async () => {
-    const p = store();
-    for (const slug of ['admin', 'api']) {
-      await expect(
-        p.service.start({ id: `org_${slug}`, name: 'Sneaky', slug }, p.repo),
-      ).rejects.toBeInstanceOf(ConflictError);
-    }
-    expect([...p.apps.keys()]).toEqual([]);
-  });
-
-  it('is refused when another app already has its domain', async () => {
-    const p = store();
-    await p.repo.create({ ...CLUB, domain: 'https://yoga.platform.test' });
-    await expect(p.service.start(YOGA, p.repo)).rejects.toBeInstanceOf(ConflictError);
-  });
-
-  it.each(['example.com', 'https://example.com/app', 'ftp://example.com'])(
-    'refuses %s as the platform host',
-    (platformHost) => {
-      expect(() => store({ platformHost })).toThrow(/platform host/);
-    },
-  );
 });

@@ -44,7 +44,6 @@ import type {
   AddOrgUserInput,
   CreateInviteInput,
   CreateOrganizationInput,
-  NewOrganizationInput,
   UpdateOrganizationInput,
 } from './types.js';
 import { organizationEvents, type OrganizationEvent } from './events.js';
@@ -52,10 +51,7 @@ import type { Logger, NewDomainEvent } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
 import type { Mailer } from '../shared/mailer.js';
 import { generateInviteToken, hashInviteToken } from '../shared/invite-token.js';
-import {
-  ForbiddenError,
-  NotFoundError,
-} from '../shared/errors.js';
+import { ForbiddenError, NotFoundError } from '../shared/errors.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type { AuthHeaders, IdentityService, SessionAdmin } from '../identity/index.js';
 import type { AssetFiles } from '../assets/index.js';
@@ -147,6 +143,16 @@ function lockKeys(orgId: string, roleKeys: string[], orgUserIds: string[]): stri
   ];
 }
 
+function generatedSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, 40)
+    .replace(/(^-|-$)/g, '');
+  const ending = genId('organization').slice(-6).toLowerCase();
+  return base ? `${base}-${ending}` : ending;
+}
+
 function platformDetails(org: Organization): PlatformOrganizationDetails {
   return {
     id: org.id,
@@ -198,7 +204,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly sessions: () => SessionAdmin;
   private readonly apiKeysPort?: () => ApiKeys;
   private readonly accountsPort?: () => Accounts;
-  private readonly platformPerson?: PlatformAccount;
+  private readonly platform?: PlatformAccount;
   private readonly grants?: () => GrantReader;
   private readonly catalog: RoleCatalog;
   private readonly logger: Logger;
@@ -217,7 +223,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.sessions = params.sessions;
     this.apiKeysPort = params.apiKeys;
     this.accountsPort = params.accounts;
-    this.platformPerson = params.platform && {
+    this.platform = params.platform && {
       ...params.platform,
       email: params.platform.email.toLowerCase(),
     };
@@ -230,12 +236,18 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.inviteUrls = params.inviteUrls;
   }
 
-  createOrganization(input: NewOrganizationInput, headers: AuthHeaders): Promise<AuthOrganization> {
-    return this.orgAdmin().createOrganization(headers, input);
+  createOrganization(
+    input: { name: string; slug?: string | undefined },
+    headers: AuthHeaders,
+  ): Promise<AuthOrganization> {
+    return this.orgAdmin().createOrganization(headers, {
+      name: input.name,
+      slug: input.slug ?? generatedSlug(input.name),
+    });
   }
 
   async provisionOrganization(input: CreateOrganizationInput): Promise<Organization> {
-    const created = await this.uow.run(async ({ organizations, roles, apps, outbox }) => {
+    const created = await this.uow.run(async ({ organizations, roles, outbox }) => {
       const id = genId('organization');
       const org = await organizations.create({
         id,
@@ -250,7 +262,6 @@ export class OrganizationServiceImpl implements OrganizationService {
         status: 'active',
       });
       await roles.setOrgRole(org.id, owner.id, OWNER_ROLE_KEY, SYSTEM_ID);
-      await this.apps.start(org, apps);
       await outbox.append([
         organizationEvents.organizationCreated.make({ orgId: org.id, data: org }),
         organizationEvents.orgUserLinked.make({
@@ -372,16 +383,8 @@ export class OrganizationServiceImpl implements OrganizationService {
     return unique.length > 0 ? this.repo.findOrgUsersByIds(orgId, unique) : [];
   }
 
-  getOrgUsersForUser(userId: string): Promise<OrgUser[]> {
-    return this.repo.findOrgUsersByUser(userId);
-  }
-
   orgIds(): Promise<string[]> {
     return this.repo.listIds();
-  }
-
-  async isHostOfPerson(email: string, origin: string): Promise<boolean> {
-    return (await this.appOfPerson(email, [origin])) !== null;
   }
 
   async appOfPerson(email: string, domains: readonly string[]): Promise<AppAt | null> {
@@ -1589,7 +1592,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     const ownerExternalId = await this.platformAccountId();
     const created = await this.orgAdmin().createOrganizationFor(ownerExternalId, {
       name: input.name,
-      slug: input.slug,
+      slug: input.slug ?? generatedSlug(input.name),
     });
     const found = await this.repo.findByExternalId(created.id);
     if (!found) {
@@ -1634,7 +1637,7 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   isPlatformAccount(email: string): boolean {
-    return this.platformPerson !== undefined && email.toLowerCase() === this.platformPerson.email;
+    return this.platform !== undefined && email.toLowerCase() === this.platform.email;
   }
 
   private async platformKey(
@@ -1664,10 +1667,10 @@ export class OrganizationServiceImpl implements OrganizationService {
   }
 
   private platformAccount(): PlatformAccount {
-    if (!this.platformPerson) {
+    if (!this.platform) {
       throw new Error('the platform account is not configured');
     }
-    return this.platformPerson;
+    return this.platform;
   }
 
   private accounts(): Accounts {
@@ -1830,7 +1833,9 @@ export class OrganizationServiceImpl implements OrganizationService {
         orgId,
       });
       throw new OrganizationRuleError(
-        'The organization has no app that serves courses. Name the domain the invite opens.',
+        apps.length === 0
+          ? 'The organization has no app for the invite link to open. Create an app first.'
+          : 'The organization has no app that serves courses. Name the domain the invite opens.',
       );
     }
     return link;

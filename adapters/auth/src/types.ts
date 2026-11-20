@@ -45,10 +45,6 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   ) => Promise<void>;
 };
 
-/** The domains a request names, most telling first: for a session, the return address of the
- *  link that was opened and then the page it was asked from (`Origin`, or else `Referer`); for
- *  a password reset or sign-in link email, the link's return address; for a password changed
- *  email, the page. */
 export interface RequestDomains {
   domains: string[];
 }
@@ -61,8 +57,7 @@ export interface McpAuthOptions {
   orgPickerPage: string;
 }
 
-export interface OrgHosts {
-  /** Whether the origin is the domain of an organization's app. */
+export interface AppDomains {
   has(origin: string): Promise<boolean>;
   /** Whether the origin is the domain of an app of an organization the person with this email is active in. */
   hasFor(email: string, origin: string): Promise<boolean>;
@@ -73,8 +68,7 @@ export interface CreateAuthOptions {
   baseUrl: string;
   secret: string;
   trustedOrigins: string[];
-  /** The domains of organizations' apps, trusted beside `trustedOrigins` and asked on every request. Absent → only `trustedOrigins`. */
-  orgHosts?: OrgHosts;
+  appDomains?: AppDomains;
   /** Logs failures that must not abort an auth flow (e.g. a failed invite email). */
   logger: Logger;
   /** Handlers for what the engine reports. The adapter owns no rules. */

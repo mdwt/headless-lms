@@ -6,6 +6,7 @@ import type { Container } from '../../app/container.js';
 import { isPermission } from '@headless-lms/core/organizations';
 import type { CallerLimit } from '@headless-lms/core/organizations';
 import type { CredentialLimit } from '@headless-lms/core/types';
+import { requestApp } from '../request-domain.js';
 import { bridgeWebResponse, toWebRequest } from '../web-bridge.js';
 
 /** The request carries no session. The central error handler maps this to 401. */
@@ -18,13 +19,6 @@ export class UnauthorizedError extends Error {
 
 function carriesKey(request: FastifyRequest): boolean {
   return request.headers['x-api-key'] !== undefined || request.headers.authorization !== undefined;
-}
-
-function refuseAnotherOrganization(request: FastifyRequest, authOrgId: string): void {
-  const organization = request.appAt?.organization;
-  if (organization && (organization.externalId ?? organization.id) !== authOrgId) {
-    throw new UnauthorizedError('This session is for another organization');
-  }
 }
 
 function callerLimit(limit: CredentialLimit): CallerLimit {
@@ -51,6 +45,16 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
       await bridgeWebResponse(await auth.handler(toWebRequest(request, origin)), reply);
     },
   });
+
+  async function refuseAnotherOrganization(
+    request: FastifyRequest,
+    authOrgId: string,
+  ): Promise<void> {
+    const organization = (await requestApp(appServer, request))?.organization;
+    if (organization && (organization.externalId ?? organization.id) !== authOrgId) {
+      throw new UnauthorizedError('This session is for another organization');
+    }
+  }
 
   async function requireKey(request: FastifyRequest): Promise<void> {
     const grant = await appServer.auth.verifyApiKey(request.headers);
@@ -90,7 +94,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
 
     const authOrgId = session.session.activeOrganizationId;
     if (authOrgId) {
-      refuseAnotherOrganization(request, authOrgId);
+      await refuseAnotherOrganization(request, authOrgId);
       request.authOrgId = authOrgId;
       const caller = await appServer.organizations.resolveCaller(authOrgId, session.user.id);
       if (caller) {
@@ -118,7 +122,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     if (!authOrgId) {
       throw new UnauthorizedError('Choose an organization to continue');
     }
-    refuseAnotherOrganization(request, authOrgId);
+    await refuseAnotherOrganization(request, authOrgId);
 
     const caller = await appServer.organizations.resolveCaller(authOrgId, session.user.id);
     if (!caller) {

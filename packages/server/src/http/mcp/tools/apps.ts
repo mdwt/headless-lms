@@ -1,18 +1,6 @@
 import { z } from 'zod';
-import type { App as StoredApp } from '@headless-lms/core/types';
-import { App, AppIdParam, AppList, CreateApp, UpdateApp } from '../../schemas/index.js';
+import { App, AppIdParam, AppList, CreateApp, UpdateApp, appView } from '../../schemas/index.js';
 import { defineTool, noInput, type Tool } from '../tool.js';
-
-function appView(app: StoredApp) {
-  return {
-    id: app.id,
-    name: app.name,
-    slug: app.slug,
-    domain: app.domain,
-    courses: app.courses,
-    community: app.community,
-  };
-}
 
 export const appTools: Tool[] = [
   defineTool({
@@ -33,7 +21,7 @@ export const appTools: Tool[] = [
     name: 'create_app',
     title: 'Create app',
     description:
-      'Add an app on a domain no other app has. An organization has at most one app that serves courses and one that serves the community.',
+      'Create an app on a domain no other app has. An organization has at most one app that serves courses and one that serves the community.',
     kind: 'write',
     idempotent: false,
     openWorld: false,

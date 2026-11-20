@@ -15,7 +15,6 @@ export interface TemplateOrganization {
   id: string;
   name: string;
   slug: string;
-  /** What the platform stored with the organization when it created it. */
   metadata: Record<string, string>;
 }
 
@@ -23,26 +22,20 @@ export interface TemplateApp {
   id: string;
   name: string;
   slug: string;
-  /** The origin the app is reached at, such as https://learn.example.com. */
   domain: string;
 }
 
 export interface TemplateRecipient {
   email: string;
-  /** Null when no person has this address. */
   id: string | null;
   firstName: string | null;
   lastName: string | null;
 }
 
 export interface TemplateContext extends EmailBranding {
-  /** Null for an email sent outside an organization. */
   organization: TemplateOrganization | null;
-  /** The organization's app that serves courses. */
   courseApp: TemplateApp | null;
-  /** The organization's app that serves the community. */
   communityApp: TemplateApp | null;
-  /** The app a password reset, password changed or sign-in link email was requested on. */
   requestedApp: TemplateApp | null;
   recipient: TemplateRecipient;
 }

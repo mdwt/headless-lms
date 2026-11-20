@@ -15,7 +15,6 @@ address; the SDK ships TS source, so it's listed in `transpilePackages`.
 pnpm --filter student dev   # api must be up on :8000
 ```
 
-It answers on the domain of an organization's app. In the admin, add an app
-with the domain `http://localhost:8002` in Settings → Apps, then open that
-address. With `PLATFORM_HOST=http://localhost:8002` set on the API, a new
-organization with the slug `acme` is at `http://acme.localhost:8002`.
+It answers on the domain of an organization's app. In the admin, create an
+app with the domain `http://localhost:8002` in Settings → Apps, then open that
+address.

@@ -68,9 +68,9 @@ export async function organizationsRoutes(
       tags,
       summary: 'Create an organization and make it active',
       description:
-        "For any signed-in person, including one with no organization yet. The caller becomes its owner. On an installation with a platform host, the organization starts with one app that serves courses and the community, with the organization's name and slug, at its slug under the platform host; 409 when another app already has that domain. With no platform host it starts with no app.",
+        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`.',
       body: CreateOrganization,
-      response: { 201: Organization, ...refusals(400, 409) },
+      response: { 201: Organization, ...refusals(400) },
     },
     handler: async (req, reply) => {
       const org = await organizations.createOrganization(req.body, req.headers);

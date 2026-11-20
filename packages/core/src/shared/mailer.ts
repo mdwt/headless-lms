@@ -13,9 +13,8 @@ import type {
 } from './ports.js';
 import type { ContentType } from '../types/schemas/content.js';
 
-export type MailerApp = TemplateApp & { courses: boolean; community: boolean };
+type MailerApp = TemplateApp & { courses: boolean; community: boolean };
 
-/** What a template receives about an organization and a recipient. Wired by the app layer. */
 export interface MailerSources {
   organization(
     orgId: string,

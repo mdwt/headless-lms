@@ -39,7 +39,6 @@ export interface UserProvisioner {
   sendMagicLink(input: { email: string; url: string; requestedOn?: RequestedOn }): Promise<void>;
 }
 
-/** The organization and app a sign-in email was requested on. */
 export interface RequestedOn {
   orgId: string;
   appId: string;
