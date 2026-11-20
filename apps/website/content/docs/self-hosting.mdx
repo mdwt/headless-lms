@@ -54,7 +54,7 @@ An organization with no app has no domain its members can reach it on. An emaile
 
 An organization manages its apps in **Settings → Apps**, or under [`/api/apps`](/docs/api/apps/listApps): it creates an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain.
 
-The installation's own addresses are refused as an app's domain (`409`), under either scheme: the admin app's, the API's and every origin in `CLIENT_ORIGIN`. A domain is an origin and nothing more: a path, a query, a username or a trailing dot is refused (`400`).
+The installation's own addresses are refused as an app's domain (`409`), under either scheme: the admin app's, the API's and every origin in `CLIENT_ORIGIN`. A domain is an origin and nothing more: a path, a query, a username, a wildcard or a trailing dot is refused (`400`).
 
 For example, Acme creates one app at `https://acme.example.com` for both. It later changes that app to serve courses at `https://learn.acme.com` and creates a community app at `https://club.acme.com`. From then on an email about a completed course links to the first and an email about a new post to the second.
 

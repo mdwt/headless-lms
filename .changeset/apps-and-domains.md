@@ -16,7 +16,8 @@ An organization's two hosts become apps. An app is a frontend the organization r
 - A session started on an app's domain is for that app's organization. A person with an open invite there gets a session with no organization, and anyone else is refused: a sign-in answers `401`. On an origin in `CLIENT_ORIGIN`, or with no origin, a person in exactly one organization gets a session for it, as before.
 - A request with a session from an app's domain is logged with the app's id, and is a `401` when the session is for another organization.
 - With `AUTH_COOKIE_DOMAIN` set, a sign-in from a domain outside it gets a host-only cookie, so an organization's own domain works beside the shared one.
-- The admin app's address, the API's and every origin in `CLIENT_ORIGIN` are refused as an app's domain, under either scheme. A domain is a bare `http` or `https` origin: a path, a query, a username or password, or a trailing dot is refused.
+- The admin app's address, the API's and every origin in `CLIENT_ORIGIN` are refused as an app's domain, under either scheme. A domain is a bare `http` or `https` origin: a path, a query, a username or password, a wildcard or a trailing dot is refused.
+- A refused app answers `409` with the reason as `error`: `domain_taken`, `domain_reserved`, `slug_taken`, `courses_taken` or `community_taken`.
 - `POST /api/organizations` and `POST /api/platform/organizations` generate the slug from the name when none is sent.
 - A password reset link and a sign-in link that return to an app's domain open at that domain under `/api`, so a sign-in link's cookie belongs to the domain the person lands on.
 - The password reset, password changed and sign-in link emails are sent with the organization and the app they were asked for on.
