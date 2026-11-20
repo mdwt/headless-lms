@@ -46,13 +46,18 @@ These commands run across all workspaces:
 
 An app is a frontend an organization runs on a domain. It serves courses, the community, or both. An organization has at most one app that serves courses and one that serves the community, and a domain belongs to one app across the whole installation. Links the API writes, in emails, member invites and event calendar files, use the domain of the app that serves what the link is about: courses and downloads open the course app, communities and events the community app.
 
+A domain is some app's domain or it is not. Nothing is derived from a domain and nothing falls back: on a domain that is no app's, [`GET /api/app`](/docs/api/apps/getApp) and the student app answer `404`, and a sign-in answers `403`.
+
 | Variable        | Required | Default | Notes                                                                                                                                                                                                                              |
 | --------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PLATFORM_HOST` | no       | unset   | For an installation that hosts many organizations: the origin a new organization's first app is made under. Scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
 
-With `PLATFORM_HOST` set, a new organization starts with one app that serves both, with the organization's name and slug, at its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Creating an organization answers `409` when another app already has that domain, or when it is the admin app's address or the API's: with the admin app at `https://admin.example.com`, the slug `admin` is refused.
+Where an organization's apps come from depends on `PLATFORM_HOST` only:
 
-With `PLATFORM_HOST` unset, a new organization has no app. An installation with one organization adds one app with the address its student app is served at, such as `https://learn.school.com`.
+- **Set.** A new organization starts with one app that serves both, with the organization's name and slug, at its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Creating an organization answers `409` when another app already has that domain, or when it is the admin app's address or the API's: with the admin app at `https://admin.example.com`, the slug `admin` is refused.
+- **Unset.** A new organization starts with no app. Add one with the address the student app is served at, such as `https://learn.school.com`, or `http://localhost:8002` locally.
+
+An organization with no app has no domain its members can reach it on. An emailed invite for a role with no permissions answers `409` unless it names a domain, and an email that links to an app the organization does not have is not sent.
 
 An organization manages its apps in **Settings → Apps**, or under [`/api/apps`](/docs/api/apps/listApps): it adds an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain. Changing the organization's slug later does not change its apps.
 

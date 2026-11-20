@@ -68,7 +68,8 @@ signed link that works for some hours.
 ### Apps and domains
 
 An app is a frontend an organization runs on a domain. It serves courses, the community, or both. A domain belongs to
-one app across the whole system, so a domain tells which organization a request, a sign-in or a link is for.
+one app across the whole system, so a domain tells which organization a request, a sign-in or a link is for. A
+domain is some app's domain or it is not: nothing is derived from it and nothing falls back.
 
 Apps are a setting of the organization and belong to no context. Any context may ask which app a domain is, or which
 domains an organization has. A link the system sends, in an email, an invite or a calendar file, uses the domain of
@@ -76,7 +77,11 @@ the app that serves what the link is about.
 
 For example, Acme runs a course app at `learn.acme.com` and a community app at `club.acme.com`. Sarah signs in on
 `learn.acme.com` and her session is for Acme. An email about a completed course links to `learn.acme.com`, and one
-about a new post to `club.acme.com`. A school that hosts the system only for itself has one app, at its own address.
+about a new post to `club.acme.com`.
+
+An organization's apps are added by the organization. A school that hosts the system only for itself adds one app,
+at its own address. A deployment that hosts many organizations can name an address of its own, and each new
+organization then starts with one app under it.
 
 ### Adapters, Plugins, Integrations
 

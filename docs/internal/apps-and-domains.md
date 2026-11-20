@@ -50,16 +50,45 @@ on each customer's domain and renders its own email templates.
 
 - A domain belongs to one app, and so to one organization, across the whole system.
 - An organization has at most one app that serves courses and at most one that serves the community.
-- On an installation with a platform host (`PLATFORM_HOST`), a new organization gets one app that serves both. The
-  app takes the organization's name and slug, and its domain is the organization's slug as a subdomain of the
-  platform host.
-- On an installation with no platform host, a new organization has no app. Its apps are added in Settings → Apps or
-  through the API.
+- A domain is some app's domain or it is not. Nothing is derived from a domain and nothing falls back.
+- With a platform host set, a new organization starts with one app at its slug under the platform host. With none
+  set, it starts with no app.
 - A session started on an app's domain is for that app's organization.
 - An app's domain reaches the API under `/api`. The browser's calls, the session cookie and the links in the
   sign-in emails all use the app's domain.
 - The API reads a request's domain to know its app and organization.
 - A frontend asks the API which app and organization its own domain is, with no key.
+
+## Where an organization's apps come from
+
+The platform host (`PLATFORM_HOST`) is a setting of the installation. It has no default.
+
+| `PLATFORM_HOST` | A new organization                                                        |
+| --------------- | ------------------------------------------------------------------------- |
+| Set             | Starts with one app that serves both, at its slug under the platform host |
+| Unset           | Starts with no app. Its apps are added in Settings → Apps or with the API |
+
+- **Set**, on an installation that hosts many organizations. The app takes the organization's name and slug. With
+  `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`.
+  The app is created in the same unit of work as its organization. When another app already has that domain, or it
+  is the admin app's address or the API's, creating the organization is a 409 and nothing is created. For example,
+  with the admin app at `https://admin.example.com`, an organization with the slug `admin` is refused.
+- **Unset**, on any other installation. A school that hosts the system for itself creates its organization and adds
+  one app with the address its student app is served at, such as `https://learn.school.com`. Locally that address is
+  `http://localhost:8002`.
+
+Either way an app's domain is changed, and apps are added and deleted, the same way afterwards.
+
+A request's domain is matched against the domains of the apps as they are stored:
+
+| The domain  | The lookup      | The student app          | Sign-in                                                    |
+| ----------- | --------------- | ------------------------ | ---------------------------------------------------------- |
+| Is an app's | Answers with it | Serves that organization | Decided for that organization                              |
+| Is no app's | 404             | 404                      | 403, unless it is an origin in `CLIENT_ORIGIN`, like admin |
+
+An organization with no app has no domain a member can reach it on. An emailed invite for a role with no
+permissions is a 409 unless it names a domain, an email that links to an app the organization does not have is not
+sent, and the calendar file of an event leaves the event page link out.
 
 ## The table
 
@@ -85,10 +114,6 @@ apps
 A domain is stored as an origin, normalised the way `hostSchema` normalises a host today. Saving a domain another
 app has, or a second app that serves courses or the community, is a 409. So is saving the admin app's address or
 the API's.
-
-With a platform host, the first app is created in the same unit of work as its organization. When another app already has the domain, or
-it is the admin app's address or the API's, creating the organization is a 409 and nothing is created. For example,
-with the admin app at `https://admin.example.com`, an organization with the slug `admin` is refused.
 
 ## Who owns it
 
@@ -309,14 +334,18 @@ email is sent without an organization.
 - The sign-in routes are rate limited in production, per visitor IP address read from `X-Forwarded-For`
   (`AUTH_TRUSTED_PROXIES`, `AUTH_IP_ADDRESS_HEADERS`): three sign-ins in ten seconds. The student app's server
   calls send only the session cookie (`authHeaders` in `apps/student/src/lib/api/server-call.ts`).
+- `PLATFORM_HOST` defaults to `http://localhost:8002` (`apps/api/src/config.ts`), so every installation gives a new
+  organization hosts under it.
 - "App" also names a connected app (`/api/access/apps`).
 
 ## What changes
 
 - The `apps` table replaces the two host settings and their indexes. `OrgHostSettings`, `OrgHostIndex` and
   `DrizzleOrgHostIndex` go.
-- A shared apps utility creates, lists, updates and deletes apps and looks a domain up. Creating an organization
-  creates its first app in the same unit of work.
+- A shared apps utility creates, lists, updates and deletes apps and looks a domain up. With a platform host set,
+  creating an organization creates its first app in the same unit of work.
+- `PLATFORM_HOST` becomes optional and loses its default, in `apps/api` and in the `create-headless-lms` template.
+  `.env.example` leaves it unset.
 - The API gets the app routes and their MCP tools. `hosts` leaves the organization, platform and MCP organization
   payloads.
 - The admin app gets its Apps screen.
