@@ -69,7 +69,7 @@ function build(options: {
     } as unknown as ContentServicePort,
     progress: {} as never,
     fileUrls: createFileUrls((key) => `https://cdn.test/${key}`),
-    communityDomain: async () => 'https://app.test',
+    apps: { of: async () => [] },
     access: {
       isCommunityMember: async () => options.member ?? true,
       openSpaceIds: async () => options.openSpaces ?? ['spc_announcements', 'spc_practice'],

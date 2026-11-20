@@ -59,8 +59,11 @@ export interface McpAuthOptions {
 
 export interface AppDomains {
   has(origin: string): Promise<boolean>;
-  /** Whether the origin is the domain of an app of an organization the person with this email is active in. */
-  hasFor(email: string, origin: string): Promise<boolean>;
+  linkDomain(
+    email: string,
+    returnTo: string | null,
+    named: readonly string[],
+  ): Promise<{ refused: true } | { refused: false; domain: string | null }>;
 }
 
 export interface CreateAuthOptions {

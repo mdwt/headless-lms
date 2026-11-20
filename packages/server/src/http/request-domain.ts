@@ -1,5 +1,5 @@
 import type { FastifyRequest } from 'fastify';
-import type { AppAt } from '@headless-lms/core/shared/apps';
+import type { AppAt } from '@headless-lms/core/organizations';
 import type { Container } from '../app/container.js';
 
 function webOrigin(value: unknown): string | null {

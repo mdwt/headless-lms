@@ -92,7 +92,7 @@ type World = {
   direct?: string[];
   attendees?: EventAttendeeRow[];
   ids?: string[];
-  communityDomain?: string | null;
+  communityApp?: boolean;
 };
 
 function build(world: World = {}) {
@@ -151,8 +151,22 @@ function build(world: World = {}) {
     notificationCategories: {} as never,
     notificationSettings: {} as never,
     channels: {} as never,
-    communityDomain: async () =>
-      world.communityDomain === undefined ? 'https://app.test' : world.communityDomain,
+    apps: {
+      of: async () =>
+        world.communityApp === false
+          ? []
+          : [
+              {
+                orgId: 'org_1',
+                id: 'app_1',
+                name: 'Club',
+                slug: 'club',
+                domain: 'https://app.test',
+                courses: false,
+                community: true,
+              },
+            ],
+    },
     now: () => NOW,
   });
   return { svc, repo, content };
@@ -401,7 +415,7 @@ describe('the event calendar file', () => {
   });
 
   it('leaves the event page link out when no app serves the community', async () => {
-    const { svc } = build({ communityDomain: null });
+    const { svc } = build({ communityApp: false });
     const ics = await svc.eventCalendar('evn_1', james);
     expect(ics).toContain('SUMMARY:Conversation practice');
     expect(ics).not.toContain('URL:');

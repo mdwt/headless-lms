@@ -33,6 +33,7 @@ import type {
   SubjectRef,
 } from '../../types/index.js';
 import type { Actor } from '../../shared/actor.js';
+import { servesCommunity, type AppsService } from '../../shared/apps.js';
 import type { EventFile, Page, Permission } from '../../types/index.js';
 import type {
   ActivityView,
@@ -148,7 +149,7 @@ export type MemberReportServiceParams = {
   };
   notificationSettings: Pick<NotificationSettingsService, 'get'>;
   channels: Pick<ChannelRegistry, 'list'>;
-  communityDomain: (orgId: string) => Promise<string | null>;
+  apps: Pick<AppsService, 'of'>;
   now?: () => Date;
 };
 
@@ -165,7 +166,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
   private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
   private readonly channels: Pick<ChannelRegistry, 'list'>;
-  private readonly communityDomain: (orgId: string) => Promise<string | null>;
+  private readonly apps: Pick<AppsService, 'of'>;
   private readonly now: () => Date;
 
   constructor(params: MemberReportServiceParams) {
@@ -181,7 +182,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.notificationCategories = params.notificationCategories;
     this.notificationSettings = params.notificationSettings;
     this.channels = params.channels;
-    this.communityDomain = params.communityDomain;
+    this.apps = params.apps;
     this.now = params.now ?? (() => new Date());
   }
 
@@ -614,7 +615,7 @@ export class MemberReportServiceImpl implements MemberReportService {
 
   async eventCalendar(eventId: string, actor: Actor): Promise<string> {
     const { event, sight } = await this.requireEvent(eventId, actor);
-    const domain = await this.communityDomain(actor.orgId);
+    const domain = servesCommunity(await this.apps.of(actor.orgId))?.domain;
     return eventCalendar(event, {
       ...(domain && { pageUrl: `${domain}/events/${encodeURIComponent(event.id)}` }),
       withLocation: sight !== 'public',

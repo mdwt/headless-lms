@@ -215,6 +215,11 @@ describe("a request from an app's domain", () => {
           return organization ? { app: { id: `app_${organization.slug}` }, organization } : null;
         },
       },
+      organizations: {
+        ...container.organizations,
+        acceptsSession: (at: { organization: typeof ORG }, authOrgId: string) =>
+          at.organization.externalId === authOrgId,
+      },
     } as unknown as Container;
     registerAuth(scoped, world);
     const seen = (req: { orgId?: string }) => ({ orgId: req.orgId ?? null });

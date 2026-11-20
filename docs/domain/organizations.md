@@ -25,7 +25,8 @@ A permission names one thing a person may do, such as editing a course. A role i
 - Owns the **organization (tenant)**, the **org user** (person ↔ org), the **invite**, the **roles** and the **assignments**.
 - Owns the **permission list** and **authorization**: every permission check in the system is answered from what organizations holds.
 - Owns **people management**: inviting, giving and removing roles, removing people, and transferring ownership.
-- Does **not** own the person record (identity), access to content (entitlements), content (content), or completion (progress). The org's apps and their domains belong to no context ([Apps and domains](../architecture.md#apps-and-domains)).
+- Owns the org's **apps**: the frontends it runs and their domains ([Apps and domains](../architecture.md#apps-and-domains)).
+- Does **not** own the person record (identity), access to content (entitlements), content (content), or completion (progress).
 
 ## System of record
 
@@ -187,6 +188,17 @@ A person is team on a content item when the role given to them there, or their o
 5. **Ownership** moves only by transfer, which the owner alone starts. The new owner must be an active org user; the previous owner takes the org role the owner names, Member by default. The owner can't be removed.
 6. **Removing a person** deletes their org user and their assignments, removes their Better Auth membership, and revokes their API keys, connected apps and tokens for the org. A refusal, such as for someone whose posts must be kept, changes nothing.
 7. **Deleting a content item** deletes the roles given on it.
+
+## Apps
+
+An org runs its frontends as apps, each on its own domain. An app serves courses, the community, or both.
+
+- Listing an org's apps needs `organizations:read`. Creating, changing and deleting one needs `organizations:write`.
+- An org has at most one app that serves courses and one that serves the community, and an app serves at least one of the two.
+- A domain belongs to one app across every org. The installation's own addresses, such as the admin app's, cannot be an app's domain.
+- A new org has no app.
+
+For example, Acme creates one app at `acme.example.com` for both. Later it changes that app to serve courses at `learn.acme.com` and creates a community app at `club.acme.com`.
 
 ## Signing in on a domain
 

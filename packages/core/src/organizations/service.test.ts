@@ -593,11 +593,7 @@ function store(
   const send = vi.fn(async () => {});
   const images = { syncPublicImages: vi.fn(async () => {}) };
   const sessions = { stampActiveOrganization: vi.fn(async () => true) };
-  const appsService = new AppsService({
-    repo: appsRepo,
-    organization: (orgId) => repo.findById(orgId),
-    reservedDomains: ['https://admin.platform.test', 'https://api.platform.test'],
-  });
+  const appsService = new AppsService(appsRepo);
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
     roles,
@@ -1957,6 +1953,52 @@ describe('people on a domain', () => {
     await w.appsRepo.create(GLOBEX_APP);
   }
 
+  describe('a sign-in or reset link', () => {
+    it("is written at the app's domain it returns to, for a person active in that organization", async () => {
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://club.test', [
+          'https://club.test',
+        ]),
+      ).toEqual({ refused: false, domain: 'https://club.test' });
+    });
+
+    it("keeps its address when it returns to a domain that is no app's", async () => {
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://admin.test', [
+          'https://admin.test',
+        ]),
+      ).toEqual({ refused: false, domain: null });
+      expect(await w.service.linkDomain('nobody@example.com', null, [])).toEqual({
+        refused: false,
+        domain: null,
+      });
+    });
+
+    it('is refused when any domain it names is an app of an organization the person is not active in', async () => {
+      await globex();
+      const invited = await w.person('Noah', { status: 'invited' });
+      expect(
+        await w.service.linkDomain(s.james.person.email, GLOBEX_APP.domain, [GLOBEX_APP.domain]),
+      ).toEqual({ refused: true });
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://club.test', [
+          'https://club.test',
+          GLOBEX_APP.domain,
+        ]),
+      ).toEqual({ refused: true });
+      expect(
+        await w.service.linkDomain(invited.person.email, 'https://club.test', [
+          'https://club.test',
+        ]),
+      ).toEqual({ refused: true });
+      expect(
+        await w.service.linkDomain('nobody@example.com', 'https://club.test', [
+          'https://club.test',
+        ]),
+      ).toEqual({ refused: true });
+    });
+  });
+
   describe('the app of a person', () => {
     it('is the app of the first domain that is one, when the person is active there', async () => {
       const at = await w.service.appOfPerson(s.james.person.email, [
@@ -1964,8 +2006,7 @@ describe('people on a domain', () => {
         'https://club.test',
         'https://learn.test',
       ]);
-      expect(at?.app).toEqual(CLUB);
-      expect(at?.organization.id).toBe(ORG);
+      expect(at).toEqual(CLUB);
     });
 
     it("is nothing for an invited person, an unknown address or a domain that is no app's", async () => {
@@ -2052,6 +2093,17 @@ describe('people on a domain', () => {
       expect(
         await w.service.sessionOrganization({ id: 'usr_none', email: 'none@example.com' }, []),
       ).toEqual({ refused: false, orgId: null });
+    });
+
+    it("accepts on an app's domain only a session for that app's organization", () => {
+      const at = (organization: { id: string; externalId: string | null }) => ({
+        app: CLUB,
+        organization: { ...organization, name: 'Acme', slug: 'acme' },
+      });
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: null }), ORG)).toBe(true);
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: 'ba_1' }), 'ba_1')).toBe(true);
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: 'ba_1' }), ORG)).toBe(false);
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: null }), GLOBEX)).toBe(false);
     });
 
     it('logs a refused sign-in with the organization and the app', async () => {

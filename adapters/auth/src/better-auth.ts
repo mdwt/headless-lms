@@ -233,33 +233,24 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     }
     return trusted;
   };
-  const atAppDomain = async (link: string): Promise<{ url: string; domains: string[] }> => {
-    const origin = returnOrigin(link);
-    if (!origin) {
-      return { url: link, domains: [] };
+  const written = async (
+    email: string,
+    link: string,
+  ): Promise<{ url: string; domains: string[] } | null> => {
+    const returnTo = returnOrigin(link);
+    const domains = returnTo ? [returnTo] : [];
+    if (!appDomains) {
+      return { url: link, domains };
     }
-    if (!appDomains || !(await appDomains.has(origin))) {
-      return { url: link, domains: [origin] };
+    const decided = await appDomains.linkDomain(email, returnTo, callbackOrigins(link));
+    if (decided.refused) {
+      return null;
+    }
+    if (!decided.domain) {
+      return { url: link, domains };
     }
     const { pathname, search } = new URL(link);
-    return { url: `${origin}${pathname}${search}`, domains: [origin] };
-  };
-  const linkAllowed = async (email: string, url: string): Promise<boolean> => {
-    if (!appDomains) {
-      return true;
-    }
-    for (const origin of callbackOrigins(url)) {
-      if ((await appDomains.has(origin)) && !(await appDomains.hasFor(email, origin))) {
-        opts.logger.warn(
-          "auth link not sent: its domain is no app of an organization the person is in",
-          {
-            origin,
-          },
-        );
-        return false;
-      }
-    }
-    return true;
+    return { url: `${decided.domain}${pathname}${search}`, domains };
   };
 
   return {
@@ -319,9 +310,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       enabled: true,
       // Detached so send time can't reveal which emails have accounts, and a failed notice can't fail the reset.
       sendResetPassword: detached("sendResetPassword", async (data) => {
-        if (await linkAllowed(data.user.email, data.url)) {
-          const { url, domains } = await atAppDomain(data.url);
-          await sendResetPassword({ ...data, url }, { domains });
+        const link = await written(data.user.email, data.url);
+        if (link) {
+          await sendResetPassword({ ...data, url: link.url }, { domains: link.domains });
         }
       }),
       onPasswordReset: detached("onPasswordReset", async (data, request?: Request) => {
@@ -334,9 +325,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       magicLink({
         disableSignUp: true,
         sendMagicLink: async (data) => {
-          if (await linkAllowed(data.email, data.url)) {
-            const { url, domains } = await atAppDomain(data.url);
-            await sendMagicLink({ ...data, url }, { domains });
+          const link = await written(data.email, data.url);
+          if (link) {
+            await sendMagicLink({ ...data, url: link.url }, { domains: link.domains });
           }
         },
       }),

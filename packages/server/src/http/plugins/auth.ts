@@ -50,8 +50,8 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     request: FastifyRequest,
     authOrgId: string,
   ): Promise<void> {
-    const organization = (await requestApp(appServer, request))?.organization;
-    if (organization && (organization.externalId ?? organization.id) !== authOrgId) {
+    const at = await requestApp(appServer, request);
+    if (at && !appServer.organizations.acceptsSession(at, authOrgId)) {
       throw new UnauthorizedError('This session is for another organization');
     }
   }

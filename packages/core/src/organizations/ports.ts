@@ -12,9 +12,9 @@ import type {
 } from './members.js';
 import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
-import type { AppAt } from '../shared/apps.js';
 import type {
   ApiKeySummary,
+  App,
   ConnectedApp,
   ContentType,
   CreatedApiKey,
@@ -73,6 +73,13 @@ export type PlatformOrganizationDetails = AuthOrganization & {
 
 export type SessionOrganization = { refused: true } | { refused: false; orgId: string | null };
 
+export interface AppAt {
+  app: App;
+  organization: Pick<Organization, 'id' | 'externalId' | 'name' | 'slug'>;
+}
+
+export type LinkDomain = { refused: true } | { refused: false; domain: string | null };
+
 export interface PlatformOrganization {
   organization: PlatformOrganizationDetails;
   apiKey: CreatedApiKey;
@@ -102,11 +109,13 @@ export interface OrganizationService {
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
   orgIds(): Promise<string[]>;
 
-  appOfPerson(email: string, domains: readonly string[]): Promise<AppAt | null>;
+  appOfPerson(email: string, domains: readonly string[]): Promise<App | null>;
   sessionOrganization(
     person: { id: string; email: string },
     domains: readonly string[],
   ): Promise<SessionOrganization>;
+  acceptsSession(at: AppAt, authOrgId: string): boolean;
+  linkDomain(email: string, returnTo: string | null, named: readonly string[]): Promise<LinkDomain>;
 
   actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null>;
   resolveCaller(

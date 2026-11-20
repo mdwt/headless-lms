@@ -129,6 +129,15 @@ function fakeContent(
 }
 
 const fileUrls = createFileUrls((key) => `https://cdn.test/${key}`);
+const COMMUNITY_APP = {
+  orgId: 'org_1',
+  id: 'app_1',
+  name: 'Club',
+  slug: 'club',
+  domain: 'https://app.test',
+  courses: true,
+  community: true,
+};
 
 const readers: Pick<
   MemberReportServiceParams,
@@ -138,9 +147,9 @@ const readers: Pick<
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
-  | 'communityDomain'
+  | 'apps'
 > = {
-  communityDomain: async () => 'https://app.test',
+  apps: { of: async () => [COMMUNITY_APP] },
   notifications: {
     list: async () => ({ items: [], total: 0, unreadCount: 0 }),
     get: async () => null,
@@ -170,7 +179,7 @@ const deps: Pick<
   | 'notificationCategories'
   | 'notificationSettings'
   | 'channels'
-  | 'communityDomain'
+  | 'apps'
 > = {
   fileUrls,
   access: {

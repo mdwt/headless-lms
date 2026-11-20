@@ -40,7 +40,10 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: bo
   };
   const appDomains: NonNullable<CreateAuthOptions["appDomains"]> = {
     has: async (origin) => hosts.has(origin),
-    hasFor: async (email, origin) => hosts.get(origin)?.includes(email) ?? false,
+    linkDomain: async (email, returnTo, named) =>
+      named.some((origin) => hosts.has(origin) && !hosts.get(origin)!.includes(email))
+        ? { refused: true }
+        : { refused: false, domain: returnTo && hosts.has(returnTo) ? returnTo : null },
   };
   const options = buildAuthOptions({
     db: {} as NodePgDatabase,

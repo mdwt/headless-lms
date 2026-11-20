@@ -88,6 +88,7 @@ import {
   type OrgAdmin,
   NotificationCatalog,
   OrganizationServiceImpl,
+  OrgApps,
   OrgNotificationCategories,
   type RoleDefinition,
 } from '@headless-lms/core/organizations';
@@ -116,11 +117,12 @@ import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { communityMail } from './community-mail.js';
 import { installationOrigins } from './installation-origins.js';
+import { createMailerSources } from './mailer-sources.js';
 import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
-import { Mailer, type MailerLookups, type MailerSources } from '@headless-lms/core/shared/mailer';
-import { AppsService, servesCommunity } from '@headless-lms/core/shared/apps';
+import { Mailer, type MailerLookups } from '@headless-lms/core/shared/mailer';
+import { AppsService } from '@headless-lms/core/shared/apps';
 import { SettingsService } from '@headless-lms/core/shared/settings';
 import { platformKeyCheck, type PlatformConfig, type PlatformKeyCheck } from './platform.js';
 
@@ -257,7 +259,7 @@ export interface Container {
   // Domains
   identity: IdentityServiceImpl;
   organizations: OrganizationServiceImpl;
-  apps: AppsService;
+  apps: OrgApps;
   content: ContentService;
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
@@ -359,31 +361,11 @@ export async function buildContainer(
   const settings = new SettingsService(
     new DrizzleSettingsRepository(db, logger.child({ name: 'settings' })),
   );
-  const mailerSources: MailerSources = {
-    organization: async (orgId) => {
-      const [organization, orgApps] = await Promise.all([
-        organizations.getById(orgId),
-        apps.of(orgId),
-      ]);
-      return organization
-        ? {
-            organization: {
-              id: organization.id,
-              name: organization.name,
-              slug: organization.slug,
-              metadata: organization.metadata,
-            },
-            apps: orgApps,
-          }
-        : null;
-    },
-    recipient: async (address) => {
-      const person = await identity.getUserByEmail(address);
-      return person
-        ? { id: person.id, firstName: person.firstName, lastName: person.lastName }
-        : null;
-    },
-  };
+  const mailerSources = createMailerSources({
+    organization: (orgId) => organizations.getById(orgId),
+    apps: (orgId) => appLookup.of(orgId),
+    person: (address) => identity.getUserByEmail(address),
+  });
   const mailer = new Mailer(
     templates,
     email,
@@ -432,16 +414,18 @@ export async function buildContainer(
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
   const platform = config.platform ? platformKeyCheck(config.platform) : null;
-  const apps = new AppsService({
-    repo: new DrizzleAppsRepository(db),
-    organization: (orgId) => organizationsRepo.findById(orgId),
+  const appsRepo = new DrizzleAppsRepository(db);
+  const appLookup = new AppsService(appsRepo);
+  const apps = new OrgApps({
+    repo: appsRepo,
+    organizations: organizationsRepo,
     reservedDomains: installationOrigins(config),
     logger: logger.child({ name: 'apps' }),
   });
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
-    apps,
+    apps: appLookup,
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {
@@ -713,7 +697,7 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
-      communityDomain: async (orgId) => servesCommunity(await apps.of(orgId))?.domain ?? null,
+      apps: appLookup,
     }),
   };
 
@@ -891,8 +875,8 @@ export async function buildContainer(
       }
     };
   const requestedOn = async (address: string, domains: readonly string[]) => {
-    const at = await organizations.appOfPerson(address, domains);
-    return at ? { requestedOn: { orgId: at.organization.id, appId: at.app.id } } : {};
+    const app = await organizations.appOfPerson(address, domains);
+    return app ? { requestedOn: { orgId: app.orgId, appId: app.id } } : {};
   };
   const mcp = mcpEndpoints(config);
   if (!mcp.oauthEnabled) {
@@ -914,8 +898,8 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     appDomains: {
-      has: async (origin) => (await apps.at(origin)) !== null,
-      hasFor: async (email, origin) => (await organizations.appOfPerson(email, [origin])) !== null,
+      has: async (origin) => (await appLookup.at(origin)) !== null,
+      linkDomain: (email, returnTo, named) => organizations.linkDomain(email, returnTo, named),
     },
     hooks: {
       sendResetPassword: async ({ user, url }, { domains }) => {

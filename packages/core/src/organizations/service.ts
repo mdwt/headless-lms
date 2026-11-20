@@ -7,6 +7,8 @@ import type {
   CreateApiKeyInput,
   GrantReader,
   MembersRepository,
+  AppAt,
+  LinkDomain,
   OrgAdmin,
   CreatedInvite,
   OrganizationService,
@@ -25,7 +27,7 @@ import type {
   TransferOwnershipInput,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
-import { servesCourses, type AppAt, type AppsService } from '../shared/apps.js';
+import { servesCourses, type AppsService } from '../shared/apps.js';
 import {
   InviteError,
   OrganizationRuleError,
@@ -59,6 +61,7 @@ import { genId, prefixId } from '../shared/id.js';
 import { levelSchema } from '../types/schemas/organizations.js';
 import type {
   ApiKeySummary,
+  App,
   ConnectedApp,
   ContentType,
   CreatedApiKey,
@@ -387,28 +390,52 @@ export class OrganizationServiceImpl implements OrganizationService {
     return this.repo.listIds();
   }
 
-  async appOfPerson(email: string, domains: readonly string[]): Promise<AppAt | null> {
-    const at = await this.apps.firstAt(domains);
-    const person = at ? await this.people.getUserByEmail(email) : null;
-    if (!at || !person) {
-      return null;
+  async appOfPerson(email: string, domains: readonly string[]): Promise<App | null> {
+    const app = await this.apps.firstAt(domains);
+    return app && (await this.isActiveIn(email, app.orgId)) ? app : null;
+  }
+
+  acceptsSession(at: AppAt, authOrgId: string): boolean {
+    return (at.organization.externalId ?? at.organization.id) === authOrgId;
+  }
+
+  async linkDomain(
+    email: string,
+    returnTo: string | null,
+    named: readonly string[],
+  ): Promise<LinkDomain> {
+    for (const domain of new Set(named)) {
+      const app = await this.apps.at(domain);
+      if (app && !(await this.isActiveIn(email, app.orgId))) {
+        this.logger.warn('link not sent: the person is not in the organization of its domain', {
+          orgId: app.orgId,
+          appId: app.id,
+        });
+        return { refused: true };
+      }
     }
-    const orgUser = await this.repo.findOrgUser(at.organization.id, person.id);
-    return orgUser?.status === 'active' ? at : null;
+    const home = returnTo ? await this.apps.at(returnTo) : null;
+    return { refused: false, domain: home?.domain ?? null };
+  }
+
+  private async isActiveIn(email: string, orgId: string): Promise<boolean> {
+    const person = await this.people.getUserByEmail(email);
+    const orgUser = person ? await this.repo.findOrgUser(orgId, person.id) : null;
+    return orgUser?.status === 'active';
   }
 
   async sessionOrganization(
     person: { id: string; email: string },
     domains: readonly string[],
   ): Promise<SessionOrganization> {
-    const at = await this.apps.firstAt(domains);
+    const app = await this.apps.firstAt(domains);
     const orgUsers = await this.repo.findOrgUsersByUser(person.id);
-    if (!at) {
+    if (!app) {
       const [only] = orgUsers;
       const org = orgUsers.length === 1 && only ? await this.repo.findById(only.orgId) : null;
       return { refused: false, orgId: org?.id ?? null };
     }
-    const orgId = at.organization.id;
+    const orgId = app.orgId;
     const here = orgUsers.find((orgUser) => orgUser.orgId === orgId);
     if (here?.status === 'active') {
       return { refused: false, orgId };
@@ -419,7 +446,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     }
     this.logger.warn('sign-in refused: the person is not in the organization of this domain', {
       orgId,
-      appId: at.app.id,
+      appId: app.id,
       userId: person.id,
     });
     return { refused: true };
