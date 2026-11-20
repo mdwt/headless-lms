@@ -10,7 +10,8 @@
 import type { Metadata } from "next";
 import { People, type GetInviteResponse } from "@headless-lms/sdk";
 
-import { AuthShell, AuthHeading } from "@/components/auth/auth-shell";
+import { AuthHeading } from "@/components/auth/auth-heading";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { InviteProblem } from "@/components/welcome/invite-problem";
 import { InviteAuthForm } from "@/components/welcome/invite-auth-form";
 import { AcceptInviteCard } from "@/components/welcome/accept-invite-card";
@@ -18,8 +19,12 @@ import { getServerSession } from "@/lib/auth/server-session";
 import { authHeaders } from "@/lib/api/server-call";
 import { ApiError } from "@/lib/api/shared";
 import { fullName } from "@/lib/format";
+import { requireCourseApp } from "@/lib/app";
 
-export const metadata: Metadata = { title: "Welcome — Headless LMS" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { organization } = await requireCourseApp();
+  return { title: `Welcome — ${organization.name}` };
+}
 
 // The link carries a one-time token, so there is nothing cacheable here.
 export const dynamic = "force-dynamic";
@@ -29,6 +34,7 @@ export default async function WelcomePage({
 }: {
   searchParams: Promise<{ token?: string }>;
 }) {
+  await requireCourseApp();
   const { token = "" } = await searchParams;
 
   let invite: GetInviteResponse | undefined;

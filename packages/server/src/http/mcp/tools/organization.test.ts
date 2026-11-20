@@ -3,16 +3,14 @@ import { runCase, OWNER, toolSpecs, type ToolCase } from '../test-support.js';
 import { organizationTools } from './organization.js';
 
 const NOW = new Date('2026-11-11T10:00:00.000Z');
-const HOSTS = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
-
 const cases: ToolCase[] = [
   {
     tool: 'update_organization',
-    args: { name: 'Acme', slug: 'acme', hosts: { ...HOSTS, courses: 'https://learn.acme.test/' } },
+    args: { name: 'Acme', slug: 'acme' },
     service: 'organizations.updateOrganization',
-    expected: [{ name: 'Acme', slug: 'acme', hosts: HOSTS }, OWNER],
-    returns: { id: 'org_1', name: 'Acme', slug: 'acme', createdAt: NOW, hosts: HOSTS },
-    shown: { id: 'org_1', name: 'Acme', slug: 'acme', createdAt: NOW.toISOString(), hosts: HOSTS },
+    expected: [{ name: 'Acme', slug: 'acme' }, OWNER],
+    returns: { id: 'org_1', name: 'Acme', slug: 'acme', createdAt: NOW },
+    shown: { id: 'org_1', name: 'Acme', slug: 'acme', createdAt: NOW.toISOString() },
   },
   {
     tool: 'list_roles',
@@ -71,7 +69,7 @@ const cases: ToolCase[] = [
   },
   {
     tool: 'resend_invite',
-    args: { orgUserId: 'ou_9', host: 'https://club.acme.test/' },
+    args: { orgUserId: 'ou_9', domain: 'https://club.acme.test/' },
     service: 'organizations.resendInvite',
     expected: ['ou_9', OWNER, 'usr_1', 'https://club.acme.test'],
     returns: undefined,

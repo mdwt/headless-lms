@@ -10,6 +10,7 @@ export { client } from "./generated/client.gen";
 import { client } from "./generated/client.gen";
 import {
   Access as AccessGen,
+  Apps as AppsGen,
   Assets as AssetsGen,
   Automations as AutomationsGen,
   Chats as ChatsGen,
@@ -44,6 +45,7 @@ type Throwing<S> = {
 };
 
 export const Access = AccessGen as Throwing<typeof AccessGen>;
+export const Apps = AppsGen as Throwing<typeof AppsGen>;
 export const Assets = AssetsGen as Throwing<typeof AssetsGen>;
 export const Automations = AutomationsGen as Throwing<typeof AutomationsGen>;
 export const Chats = ChatsGen as Throwing<typeof ChatsGen>;

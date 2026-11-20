@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrganizationServiceImpl } from './service.js';
+import { OrgApps } from './apps.js';
 import type {
   Accounts,
   ApiKeys,
@@ -17,7 +18,7 @@ import type { AssignmentRow } from './effective-permissions.js';
 import type { IdentityService } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
-import type { ContentType, Permission, RoleAssignment } from '../types/index.js';
+import type { App, ContentType, Permission, RoleAssignment } from '../types/index.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
@@ -27,6 +28,24 @@ import { DEFAULT_ROLES, RoleSetError, type RoleDefinition } from './default-role
 
 const ORG = 'org_1';
 const OWNER_KEY = 'owner';
+const LEARN: App = {
+  orgId: ORG,
+  id: 'app_learn',
+  name: 'Spanish Academy',
+  slug: 'academy',
+  domain: 'https://learn.test',
+  courses: true,
+  community: false,
+};
+const CLUB: App = {
+  orgId: ORG,
+  id: 'app_club',
+  name: 'Spanish Club',
+  slug: 'club',
+  domain: 'https://club.test',
+  courses: false,
+  community: true,
+};
 
 interface Person {
   id: string;
@@ -47,6 +66,7 @@ function store(
   const orgUsers = new Map<string, OrgUser>();
   const people = new Map<string, Person>();
   const invites = new Map<string, Invite>();
+  const apps = new Map<string, App>();
   const assignments: RoleAssignment[] = [];
   const storedRoles: StoredOrgRole[] = [];
   const content = new Map<string, ContentType>([
@@ -62,6 +82,28 @@ function store(
   const now = new Date('2026-01-01T00:00:00Z');
 
   const repo: OrganizationsRepository = {
+    createApp: async (app) => save(app),
+    listApps: async (orgId) => [...apps.values()].filter((app) => app.orgId === orgId),
+    findAppByDomain: async (domain) =>
+      [...apps.values()].find((app) => app.domain === domain) ?? null,
+    updateApp: async (orgId, id, patch) => {
+      const app = apps.get(id);
+      if (!app || app.orgId !== orgId) {
+        return null;
+      }
+      const defined = Object.fromEntries(
+        Object.entries(patch).filter(([, value]) => value !== undefined),
+      );
+      return save({ ...app, ...defined });
+    },
+    deleteApp: async (orgId, id) => {
+      const app = apps.get(id);
+      if (!app || app.orgId !== orgId) {
+        return null;
+      }
+      apps.delete(id);
+      return app;
+    },
     create: async (input) => {
       const org: Organization = {
         id: input.id,
@@ -209,6 +251,10 @@ function store(
     },
   };
 
+  const save = (app: App): App => {
+    apps.set(app.id, app);
+    return app;
+  };
   const toRow = (a: RoleAssignment): AssignmentRow => ({
     roleKey: a.roleKey,
     contentId: a.contentId,
@@ -445,8 +491,8 @@ function store(
         keys.filter((k) => k.orgId === orgId && k.roleKey === roleKey).length,
     ),
     revoke: vi.fn(async () => {}),
-    listApps: vi.fn(async () => []),
-    revokeApp: vi.fn(async () => {}),
+    listConnectedApps: vi.fn(async () => []),
+    revokeConnectedApp: vi.fn(async () => {}),
     revokeAllFor: vi.fn(async () => {}),
   } satisfies ApiKeys;
   const accounts = {
@@ -499,18 +545,15 @@ function store(
     },
   });
   const send = vi.fn(async () => {});
-  const HOSTS = { courses: 'https://learn.test', community: 'https://club.test' };
-  const assigned = new Map<string, typeof HOSTS>();
-  const assign = vi.fn(async (orgId: string, slug: string) => {
-    const host = `https://${slug}.platform.test`;
-    assigned.set(orgId, { courses: host, community: host });
-    return assigned.get(orgId)!;
-  });
   const images = { syncPublicImages: vi.fn(async () => {}) };
-  const sessions = { stampActiveOrganization: vi.fn(async () => true) };
+  const sessions = {
+    stampActiveOrganization: vi.fn(async () => true),
+    confirmEmail: vi.fn(async () => {}),
+  };
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
     roles,
+    apps: new OrgApps({ repo, reservedDomains: ['https://admin.platform.test'] }),
     membersRepo,
     people: guardedPeople,
     images,
@@ -522,19 +565,6 @@ function store(
     grants: () => ({ holdsAnyGrant: async (_o, id) => holdsGrant.has(id) }),
     mailer: { send },
     inviteUrls: { adminAppUrl: 'https://admin.test' },
-    hosts: {
-      resolve: async (orgId: string) => assigned.get(orgId) ?? HOSTS,
-      orgsAt: async (host: string) =>
-        [...new Set([ORG, ...assigned.keys()])].filter((orgId) =>
-          Object.values(assigned.get(orgId) ?? HOSTS).includes(host),
-        ),
-      assign,
-      replace: async (hosts: typeof HOSTS, actor: Actor) => {
-        actor.permissions.require('organizations:write');
-        assigned.set(actor.orgId, hosts);
-        return hosts;
-      },
-    },
     ...opts,
   });
 
@@ -588,7 +618,7 @@ function store(
     keys,
     accounts,
     send,
-    assign,
+    apps,
     blocked,
     holdsGrant,
     person,
@@ -602,6 +632,8 @@ type World = ReturnType<typeof store>;
 async function world(opts: Parameters<typeof store>[0] = {}) {
   const w = store(opts);
   await w.repo.create({ id: ORG, name: 'Spanish in 90 Days', slug: 'spanish', ownerId: 'usr_0' });
+  await w.repo.createApp(LEARN);
+  await w.repo.createApp(CLUB);
   const sarah = await w.person('Sarah');
   await w.roles.setOrgRole(ORG, sarah.orgUser.id, 'owner', 'system');
   const liam = await w.person('Liam');
@@ -977,9 +1009,9 @@ describe('transferOwnership', () => {
 });
 
 describe('invites', () => {
-  it("links a Member invite to the host the inviting app names, when it is one of the organization's", async () => {
+  it("links a Member invite to the domain the invite names, when it is one of the organization's apps", async () => {
     await w.service.createInvite(
-      { email: 'ivy@example.com', host: 'https://club.test' },
+      { email: 'ivy@example.com', domain: 'https://club.test' },
       await w.actor(s.liam.orgUser.id),
       s.liam.person.id,
     );
@@ -1007,16 +1039,86 @@ describe('invites', () => {
     );
   });
 
-  it('refuses an invite to a host that is not one of the organization, and invites no one', async () => {
+  it('refuses an invite to a domain that is no app of the organization, and invites no one', async () => {
     await expect(
       w.service.createInvite(
-        { email: 'ivy@example.com', host: 'https://elsewhere.test' },
+        { email: 'ivy@example.com', domain: 'https://elsewhere.test' },
         await w.actor(s.liam.orgUser.id),
         s.liam.person.id,
       ),
     ).rejects.toBeInstanceOf(OrganizationRuleError);
     expect(w.findByEmail('ivy@example.com')).toBeUndefined();
     expect(w.send).not.toHaveBeenCalled();
+  });
+
+  describe('with no app that serves courses', () => {
+    beforeEach(() => {
+      w.apps.delete(LEARN.id);
+    });
+
+    it('refuses an emailed Member invite that names no domain, and invites no one', async () => {
+      const liam = await w.actor(s.liam.orgUser.id);
+      await expect(
+        w.service.createInvite({ email: 'ivy@example.com' }, liam, s.liam.person.id),
+      ).rejects.toBeInstanceOf(OrganizationRuleError);
+      expect(w.findByEmail('ivy@example.com')).toBeUndefined();
+      expect(w.send).not.toHaveBeenCalled();
+    });
+
+    it('says to create an app when the organization has none', async () => {
+      const liam = await w.actor(s.liam.orgUser.id);
+      const invite = () =>
+        w.service.createInvite({ email: 'ivy@example.com' }, liam, s.liam.person.id);
+      await expect(invite()).rejects.toThrow(/Name the domain the invite opens/);
+      w.apps.clear();
+      await expect(invite()).rejects.toThrow(/Create an app first/);
+    });
+
+    it('sends a Member invite to the domain it names', async () => {
+      await w.service.createInvite(
+        { email: 'ivy@example.com', domain: 'https://club.test' },
+        await w.actor(s.liam.orgUser.id),
+        s.liam.person.id,
+      );
+      expect(w.send).toHaveBeenCalledWith(
+        'ivy@example.com',
+        'studentInvite',
+        expect.objectContaining({
+          inviteUrl: expect.stringContaining('https://club.test/welcome?token='),
+        }),
+        ORG,
+      );
+    });
+
+    it('creates a Member invite that is not emailed, and refuses to resend it without a domain', async () => {
+      const liam = await w.actor(s.liam.orgUser.id);
+      const invite = await w.service.createInvite(
+        { email: 'ivy@example.com', sendEmail: false },
+        liam,
+        s.liam.person.id,
+      );
+      expect(invite.status).toBe('pending');
+      await expect(
+        w.service.resendInvite(invite.orgUserId, liam, s.liam.person.id),
+      ).rejects.toBeInstanceOf(OrganizationRuleError);
+      expect(w.send).not.toHaveBeenCalled();
+    });
+
+    it('sends an invite for a role with permissions to the admin app', async () => {
+      await w.service.createInvite(
+        { email: 'ivy@example.com', roleKey: 'admin' },
+        await w.actor(s.sarah.orgUser.id),
+        s.sarah.person.id,
+      );
+      expect(w.send).toHaveBeenCalledWith(
+        'ivy@example.com',
+        'memberInvite',
+        expect.objectContaining({
+          inviteUrl: expect.stringContaining('https://admin.test/invite?token='),
+        }),
+        ORG,
+      );
+    });
   });
 
   it('creates the invited person at once and links a Member invite to the learner portal', async () => {
@@ -1105,6 +1207,7 @@ describe('invites', () => {
     );
     expect(w.orgUsers.get(ivy.orgUser.id)!.status).toBe('active');
     expect(w.sessions.stampActiveOrganization).toHaveBeenCalledWith(HEADERS, ORG);
+    expect(w.sessions.confirmEmail).toHaveBeenCalledTimes(1);
     expect(
       w.assignments.filter((a) => a.orgUserId === ivy.orgUser.id).map((a) => a.roleKey),
     ).toEqual(['instructor']);
@@ -1396,36 +1499,14 @@ describe('api keys and the organization', () => {
     await expect(w.service.deleteRole(host.key, owner)).resolves.toBeUndefined();
   });
 
-  it('returns the hosts with the organization and replaces them when they are sent', async () => {
+  it('renames the organization', async () => {
     const admin = await w.actor(s.liam.orgUser.id);
     const renamed = await w.service.updateOrganization({ name: 'Acme Two' }, admin);
-    expect(renamed.hosts).toEqual({
-      courses: 'https://learn.test',
-      community: 'https://club.test',
+    expect(renamed).toMatchObject({ id: ORG, name: 'Acme Two', slug: 'spanish' });
+    expect(w.orgAdmin.updateOrganization).toHaveBeenCalledWith(ORG, {
+      name: 'Acme Two',
+      slug: undefined,
     });
-    const hosts = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
-    const moved = await w.service.updateOrganization({ hosts }, admin);
-    expect(moved).toMatchObject({ name: 'Acme Two', hosts });
-    expect((await w.service.updateOrganization({ name: 'Acme' }, admin)).hosts).toEqual(hosts);
-  });
-
-  it("knows an organization's hosts from any other origin", async () => {
-    expect(await w.service.isOrgHost('https://learn.test')).toBe(true);
-    expect(await w.service.isOrgHost('https://club.test')).toBe(true);
-    expect(await w.service.isOrgHost('https://elsewhere.test')).toBe(false);
-    const admin = await w.actor(s.liam.orgUser.id);
-    const hosts = { courses: 'https://learn.acme.test', community: 'https://club.acme.test' };
-    await w.service.updateOrganization({ hosts }, admin);
-    expect(await w.service.isOrgHost('https://learn.acme.test')).toBe(true);
-    expect(await w.service.isOrgHost('https://learn.test')).toBe(false);
-  });
-
-  it("counts a host as a person's only where they are an active org user", async () => {
-    const invited = await w.person('Noah', { status: 'invited' });
-    expect(await w.service.isHostOfPerson(s.james.person.email, 'https://learn.test')).toBe(true);
-    expect(await w.service.isHostOfPerson(invited.person.email, 'https://learn.test')).toBe(false);
-    expect(await w.service.isHostOfPerson('nobody@example.com', 'https://learn.test')).toBe(false);
-    expect(await w.service.isHostOfPerson(s.james.person.email, 'https://other.test')).toBe(false);
   });
 
   it('refuses a taken slug before writing anything', async () => {
@@ -1692,21 +1773,32 @@ describe('Better Auth on role changes', () => {
 });
 
 describe('creating an organization', () => {
-  it('starts the new organization at its slug under the platform host', async () => {
+  it('starts the new organization with no app', async () => {
     const p = store();
     const owner = await p.person('Sarah');
-    p.orgAdmin.createOrganization.mockImplementationOnce(
-      async (_headers: unknown, input: { name: string; slug: string }) => {
-        const org = await p.service.provisionOrganization({ ownerId: owner.person.id, ...input });
-        return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt };
-      },
-    );
-    const created = await p.service.createOrganization({ name: 'Yoga', slug: 'yoga' }, {});
-    expect(p.assign).toHaveBeenCalledWith(created.id, 'yoga');
-    expect(created.hosts).toEqual({
-      courses: 'https://yoga.platform.test',
-      community: 'https://yoga.platform.test',
+    const yoga = await p.service.provisionOrganization({
+      ownerId: owner.person.id,
+      name: 'Yoga',
+      slug: 'yoga',
     });
+    expect(await p.repo.listApps(yoga.id)).toEqual([]);
+    expect([...p.orgs.keys()]).toEqual([yoga.id]);
+  });
+
+  it('keeps the slug it is given, and generates one from the name when given none', async () => {
+    const p = store();
+    await p.service.createOrganization({ name: 'Yoga', slug: 'yoga' }, {});
+    await p.service.createOrganization({ name: "Sarah's Yoga!" }, {});
+    await p.service.createOrganization({ name: "Sarah's Yoga!" }, {});
+    await p.service.createOrganization({ name: '!!!' }, {});
+    const slugs = p.orgAdmin.createOrganization.mock.calls.map(
+      (call) => (call[1] as { slug: string }).slug,
+    );
+    expect(slugs[0]).toBe('yoga');
+    expect(slugs[1]).toMatch(/^sarah-s-yoga-[a-z0-9]{6}$/);
+    expect(slugs[2]).toMatch(/^sarah-s-yoga-[a-z0-9]{6}$/);
+    expect(slugs[2]).not.toBe(slugs[1]);
+    expect(slugs[3]).toMatch(/^[a-z0-9]{6}$/);
   });
 });
 
@@ -1720,10 +1812,7 @@ describe('platform', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
     });
-    expect(first.organization.hosts).toEqual({
-      courses: 'https://sarahs-yoga.platform.test',
-      community: 'https://sarahs-yoga.platform.test',
-    });
+    expect(await p.repo.listApps(first.organization.id)).toEqual([]);
     expect(p.accounts.createAccount).toHaveBeenCalledWith({
       email: 'platform@example.test',
       name: 'Shop',
@@ -1751,10 +1840,8 @@ describe('platform', () => {
     );
     expect(owner?.permissions.isOwner()).toBe(true);
 
-    const second = await p.service.createPlatformOrganization({
-      name: 'Emma Art',
-      slug: 'emma',
-    });
+    const second = await p.service.createPlatformOrganization({ name: 'Emma Art' });
+    expect(second.organization.slug).toMatch(/^emma-art-[a-z0-9]{6}$/);
     expect(p.accounts.createAccount).toHaveBeenCalledTimes(1);
     expect(second.apiKey.name).toBe('Platform');
     expect(second.organization.metadata).toEqual({});
@@ -1801,5 +1888,243 @@ describe('platform', () => {
     expect(p.service.isPlatformAccount('PLATFORM@example.test')).toBe(true);
     expect(p.service.isPlatformAccount('sarah@example.com')).toBe(false);
     expect(store().service.isPlatformAccount('platform@example.test')).toBe(false);
+  });
+});
+
+describe('people on a domain', () => {
+  const GLOBEX = 'org_globex';
+  const GLOBEX_APP: App = {
+    orgId: GLOBEX,
+    id: 'app_globex',
+    name: 'Globex',
+    slug: 'globex',
+    domain: 'https://globex.platform.test',
+    courses: true,
+    community: true,
+  };
+
+  async function globex() {
+    await w.repo.create({ id: GLOBEX, name: 'Globex', slug: 'globex', ownerId: 'usr_0' });
+    await w.repo.createApp(GLOBEX_APP);
+  }
+
+  describe('a sign-in or reset link', () => {
+    it("is written at the app's domain it returns to, for a person active in that organization", async () => {
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://club.test', [
+          'https://club.test',
+        ]),
+      ).toEqual({ refused: false, domain: 'https://club.test' });
+    });
+
+    it("keeps its address when it returns to a domain that is no app's", async () => {
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://admin.test', [
+          'https://admin.test',
+        ]),
+      ).toEqual({ refused: false, domain: null });
+      expect(await w.service.linkDomain('nobody@example.com', null, [])).toEqual({
+        refused: false,
+        domain: null,
+      });
+    });
+
+    it('is refused when any domain it names is an app of an organization the person is not active in', async () => {
+      await globex();
+      const invited = await w.person('Noah', { status: 'invited' });
+      expect(
+        await w.service.linkDomain(s.james.person.email, GLOBEX_APP.domain, [GLOBEX_APP.domain]),
+      ).toEqual({ refused: true });
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://club.test', [
+          'https://club.test',
+          GLOBEX_APP.domain,
+        ]),
+      ).toEqual({ refused: true });
+      expect(
+        await w.service.linkDomain(invited.person.email, 'https://club.test', [
+          'https://club.test',
+        ]),
+      ).toEqual({ refused: true });
+      expect(
+        await w.service.linkDomain('nobody@example.com', 'https://club.test', [
+          'https://club.test',
+        ]),
+      ).toEqual({ refused: true });
+    });
+  });
+
+  describe('the app of a person', () => {
+    it('is the app of the first domain that is one, when the person is active there', async () => {
+      const at = await w.service.appOfPerson(s.james.person.email, [
+        'https://mail.test',
+        'https://club.test',
+        'https://learn.test',
+      ]);
+      expect(at).toEqual(CLUB);
+    });
+
+    it("is nothing for an invited person, an unknown address or a domain that is no app's", async () => {
+      const invited = await w.person('Noah', { status: 'invited' });
+      expect(await w.service.appOfPerson(invited.person.email, ['https://club.test'])).toBeNull();
+      expect(await w.service.appOfPerson('nobody@example.com', ['https://club.test'])).toBeNull();
+      expect(await w.service.appOfPerson(s.james.person.email, ['https://x.test'])).toBeNull();
+      expect(await w.service.appOfPerson(s.james.person.email, [])).toBeNull();
+    });
+  });
+
+  describe('the organization of a session', () => {
+    async function inGlobex(name: string, status: OrgUser['status'] = 'active') {
+      const person = [...w.people.values()].find((p) => p.firstName === name)!;
+      return w.repo.createOrgUser({ orgId: GLOBEX, userId: person.id, status });
+    }
+
+    it("is the organization of the app's domain for a person active in it", async () => {
+      await globex();
+      await inGlobex('Sarah');
+      expect(await w.service.sessionOrganization(s.sarah.person, ['https://learn.test'])).toEqual({
+        refused: false,
+        orgId: ORG,
+      });
+      expect(await w.service.sessionOrganization(s.sarah.person, [GLOBEX_APP.domain])).toEqual({
+        refused: false,
+        orgId: GLOBEX,
+      });
+    });
+
+    it('is refused for a person who is not in that organization', async () => {
+      await globex();
+      expect(await w.service.sessionOrganization(s.james.person, [GLOBEX_APP.domain])).toEqual({
+        refused: true,
+      });
+    });
+
+    it('has no organization for a person with an open invite there, and is refused once it lapsed', async () => {
+      const liam = await w.actor(s.liam.orgUser.id);
+      await w.service.createInvite({ email: 'emma.new@example.com' }, liam, s.liam.person.id);
+      const emma = [...w.people.values()].find((p) => p.email === 'emma.new@example.com')!;
+      expect(await w.service.sessionOrganization(emma, ['https://learn.test'])).toEqual({
+        refused: false,
+        orgId: null,
+      });
+      const invite = [...w.invites.values()].find((i) => i.email === emma.email)!;
+      w.invites.set(invite.id, { ...invite, expiresAt: new Date(Date.now() - 1000) });
+      expect(await w.service.sessionOrganization(emma, ['https://learn.test'])).toEqual({
+        refused: true,
+      });
+      w.invites.set(invite.id, { ...invite, status: 'canceled' });
+      expect(await w.service.sessionOrganization(emma, ['https://learn.test'])).toEqual({
+        refused: true,
+      });
+    });
+
+    it("takes the first domain that is an app's", async () => {
+      await globex();
+      await inGlobex('Sarah');
+      expect(
+        await w.service.sessionOrganization(s.sarah.person, [
+          'https://mail.test',
+          GLOBEX_APP.domain,
+          'https://learn.test',
+        ]),
+      ).toEqual({ refused: false, orgId: GLOBEX });
+    });
+
+    it('on any other domain is the organization of a person in exactly one, and none otherwise', async () => {
+      await globex();
+      expect(await w.service.sessionOrganization(s.james.person, ['https://admin.test'])).toEqual({
+        refused: false,
+        orgId: ORG,
+      });
+      expect(await w.service.sessionOrganization(s.james.person, [])).toEqual({
+        refused: false,
+        orgId: ORG,
+      });
+      await inGlobex('Sarah');
+      expect(await w.service.sessionOrganization(s.sarah.person, ['https://admin.test'])).toEqual({
+        refused: false,
+        orgId: null,
+      });
+      expect(
+        await w.service.sessionOrganization({ id: 'usr_none', email: 'none@example.com' }, []),
+      ).toEqual({ refused: false, orgId: null });
+    });
+
+    it("accepts on an app's domain only a session for that app's organization", () => {
+      const at = (organization: { id: string; externalId: string | null }) => ({
+        app: CLUB,
+        organization: { ...organization, name: 'Acme', slug: 'acme' },
+      });
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: null }), ORG)).toBe(true);
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: 'ba_1' }), 'ba_1')).toBe(true);
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: 'ba_1' }), ORG)).toBe(false);
+      expect(w.service.acceptsSession(at({ id: ORG, externalId: null }), GLOBEX)).toBe(false);
+    });
+
+    it("describes on an app's domain only an invite to that app's organization", async () => {
+      await w.repo.upsertPendingInvite(ORG, {
+        email: 'ivy@example.com',
+        roleKey: 'member',
+        invitedBy: s.liam.person.id,
+        tokenHash: hashInviteToken('tok'),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const at = (id: string) => ({
+        app: CLUB,
+        organization: { id, externalId: null, name: 'Acme', slug: 'acme' },
+      });
+      expect(await w.service.describeInvite('tok', at(ORG))).toMatchObject({
+        email: 'ivy@example.com',
+      });
+      expect(await w.service.describeInvite('tok', null)).toMatchObject({
+        email: 'ivy@example.com',
+      });
+      await expect(w.service.describeInvite('tok', at(GLOBEX))).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+    });
+
+    it("lets a session on an app's domain switch only to that app's organization", () => {
+      const at = {
+        app: CLUB,
+        organization: { id: ORG, externalId: 'ba_1', name: 'Acme', slug: 'acme' },
+      };
+      expect(w.service.acceptsSwitch(at, { id: 'ba_1' })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { id: GLOBEX })).toBe(false);
+      expect(w.service.acceptsSwitch(at, { slug: 'acme' })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { slug: 'globex' })).toBe(false);
+      expect(w.service.acceptsSwitch(at, { id: null })).toBe(true);
+      expect(w.service.acceptsSwitch(at, {})).toBe(true);
+    });
+
+    it("treats one of the installation's own addresses as no app's, even when an app has it", async () => {
+      await w.repo.createApp({ ...GLOBEX_APP, domain: 'https://admin.platform.test' });
+      expect(
+        await w.service.sessionOrganization(s.james.person, ['https://admin.platform.test']),
+      ).toEqual({ refused: false, orgId: ORG });
+      expect(
+        await w.service.linkDomain(s.james.person.email, 'https://admin.platform.test', [
+          'https://admin.platform.test',
+        ]),
+      ).toEqual({ refused: false, domain: null });
+    });
+
+    it('logs a refused sign-in with the organization and the app', async () => {
+      const { logger, entries } = createCapturingLogger();
+      const logged = await world({ logger });
+      await logged.w.repo.create({ id: GLOBEX, name: 'Globex', slug: 'globex', ownerId: 'usr_0' });
+      await logged.w.repo.createApp(GLOBEX_APP);
+      await logged.w.service.sessionOrganization(logged.james.person, [GLOBEX_APP.domain]);
+      expect(entries).toContainEqual(
+        expect.objectContaining({
+          level: 'warn',
+          meta: expect.objectContaining({
+            orgId: GLOBEX,
+            appId: GLOBEX_APP.id,
+            userId: logged.james.person.id,
+          }),
+        }),
+      );
+    });
   });
 });

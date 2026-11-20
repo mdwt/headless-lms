@@ -11,7 +11,7 @@ let configured = false;
 export function ensureClientSdk(): void {
   if (configured) return;
   configureSdk({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+    baseUrl: "",
     onError: (error, response) =>
       new ApiError(responseStatus(response), responseMessage(error, response)),
   });

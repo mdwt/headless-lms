@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { People } from "@headless-lms/sdk";
 
+import { refusable, type Refusal } from "@/lib/api/refusal";
 import { authHeaders } from "@/lib/api/server-call";
 
 export interface AddStudentInput {
@@ -19,16 +20,18 @@ export interface AddStudentInput {
 // Adding a student IS inviting one with the Member org role: the invite
 // provisions the person and their org user up front, so the row exists here
 // whether or not an email goes out.
-export async function addStudentAction(input: AddStudentInput): Promise<void> {
-  await People.createInvite(
-    {
-      email: input.email,
-      roleKey: "member",
-      firstName: input.firstName,
-      lastName: input.lastName,
-      sendEmail: input.sendEmail,
-    },
-    await authHeaders(),
-  );
-  revalidatePath("/students");
+export async function addStudentAction(input: AddStudentInput): Promise<Refusal | null> {
+  return refusable(async () => {
+    await People.createInvite(
+      {
+        email: input.email,
+        roleKey: "member",
+        firstName: input.firstName,
+        lastName: input.lastName,
+        sendEmail: input.sendEmail,
+      },
+      await authHeaders(),
+    );
+    revalidatePath("/students");
+  });
 }

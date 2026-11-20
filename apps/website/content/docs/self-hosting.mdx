@@ -26,6 +26,8 @@ pnpm dev                    # api :8000 · admin :8001 · student :8002
 
 `.env.example` documents every variable and the command that mints a Hatchet token for the local `hatchet` container.
 
+Sign up in the admin at `http://localhost:8001`, create an organization, and create an app with the domain `http://localhost:8002` in **Settings → Apps**. The student app then answers at `http://localhost:8002`.
+
 ### Files
 
 | Variable                 | Required | Default     | Notes                                                                                                                                                                                                      |
@@ -40,25 +42,55 @@ These commands run across all workspaces:
 - `pnpm build` · `pnpm test` · `pnpm lint` · `pnpm typecheck`
 - `pnpm gen:sdk` regenerates the OpenAPI spec and SDK (the database must be running).
 
-### Hosts
+### Apps and domains
 
-Every organization holds two hosts: where its course app is reached and where its community app is reached. Links the API writes, in emails, member invites and event calendar files, use them. Links to courses and downloads use the course host; links to communities and events use the community host.
+An app is a frontend an organization runs on a domain. It serves courses, the community, or both. An organization has at most one app that serves courses and one that serves the community, and a domain belongs to one app across the whole installation. Links the API writes, in emails, member invites and event calendar files, use the domain of the app that serves what the link is about: courses and downloads open the course app, communities and events the community app.
 
-| Variable        | Required | Default                 | Notes                                                                                                                                                                            |
-| --------------- | -------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_HOST` | no       | `http://localhost:8002` | The origin a new organization's first host is made under: scheme, domain and optional port, with no path. Must be an `http` or `https` origin; the API does not start otherwise. |
+A domain is some app's domain or it is not. Nothing is derived from a domain and nothing falls back: on a domain that is no app's, [`GET /api/app`](/docs/api/apps/getApp) and the student app answer `404`, and a sign-in answers `403` unless the origin is listed in `CLIENT_ORIGIN`.
 
-A new organization starts with one host for both apps: its slug as a subdomain of `PLATFORM_HOST`. With `PLATFORM_HOST=https://example.com`, an organization with the slug `acme` starts at `https://acme.example.com`. Slugs are unique, so no two organizations start at the same host. The organization carries its `hosts` wherever it is returned.
+A new organization starts with no app. It creates one in **Settings → Apps**, or with [`POST /api/apps`](/docs/api/apps/createApp), at the address its frontend is served at, such as `https://learn.school.com`, or `http://localhost:8002` locally.
 
-An organization changes its hosts by sending `hosts` to [`PATCH /api/organizations`](/docs/api/organizations/updateOrganization), for example when it connects its own domain or moves its community to a separate one. Both hosts are always set, and the next link uses the new value. Changing the slug later does not change the hosts.
+An organization with no app has no domain its members can reach it on. An emailed invite for a role with no permissions answers `409`, and an email that links to an app the organization does not have is not sent.
 
-People can sign in from a page on any organization's host: the API trusts an origin that is one of an organization's hosts, beside the origins in `CLIENT_ORIGIN`, and a change of hosts applies from the next request. A password reset link or magic link that returns to an organization's host is sent only to a person who is active in that organization. A browser that calls the API from another origin still needs that origin in `CLIENT_ORIGIN`.
+An organization manages its apps in **Settings → Apps**, or under [`/api/apps`](/docs/api/apps/listApps): it creates an app when it moves its community to a separate domain, changes an app's domain when it connects its own, and deletes an app it no longer runs. The next link uses the new domain.
 
-| Variable             | Required | Default | Notes                                                                                                                                                                                                                                                                            |
-| -------------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AUTH_COOKIE_DOMAIN` | no       | unset   | The parent domain the session cookie is shared across, such as `.example.com`. Unset, the cookie is host-only: it belongs to whichever host served the request. Leave it unset when the API is served on each organization's host under `/api`, on domains that share no parent. |
+The installation's own addresses are refused as an app's domain (`409`), under either scheme: the admin app's, the API's and every origin in `CLIENT_ORIGIN`. A domain is an origin and nothing more: a path, a query, a username, a wildcard or a trailing dot is refused (`400`).
 
-Point each host at the frontend that serves it. An installation with one organization sets `PLATFORM_HOST` to its domain and serves the member app at the organization's host, or stores the address it already uses with the same call.
+For example, Acme creates one app at `https://acme.example.com` for both. It later changes that app to serve courses at `https://learn.acme.com` and creates a community app at `https://club.acme.com`. From then on an email about a completed course links to the first and an email about a new post to the second.
+
+#### Serving a domain
+
+Point each domain at the frontend that serves it, and have that frontend forward `/api` to the API. The browser then calls the API on the domain it is on, and the session cookie belongs to that domain.
+
+The student app does this itself. One deployment serves every organization's course domain, with no setting per organization:
+
+| Variable  | Required | Default                 | Notes                                                                                |
+| --------- | -------- | ----------------------- | ------------------------------------------------------------------------------------ |
+| `API_URL` | no       | `http://localhost:8000` | Where the student app's server reaches the API. It forwards `/api` there, unchanged. |
+
+- It asks the API which organization its domain is, with [`GET /api/app`](/docs/api/apps/getApp), and shows that organization's name on its sign-in pages.
+- It answers `404` on a domain that is no app's, or whose app does not serve courses.
+- It keeps the answer for a domain for a minute, so a change to an organization's apps shows in the student app within that minute. Sign-in and every API request follow the change at once.
+- It has pages to sign in, ask for a password reset, set the new password and ask for a sign-in link.
+
+Locally, an app with the domain `http://localhost:8002` puts its organization there. A second organization can use `http://acme.localhost:8002`, which browsers resolve to the same machine.
+
+Behind a reverse proxy, the student app reads its visitor's domain from the request: the proxy must pass the `Host` header on unchanged, or set `X-Forwarded-Host` to it, and set `X-Forwarded-Proto` to the scheme the visitor used. Without them every domain looks unknown and the app answers `404`.
+
+#### Signing in on a domain
+
+People sign in on an app's domain: the API trusts the domain of every app, beside the origins in `CLIENT_ORIGIN`, and a change of domain applies from the next request.
+
+- A session started on an app's domain is for that app's organization.
+- A person who holds an open invite to that organization gets a session with no organization; accepting the invite sets it.
+- Anyone else is refused there, whatever other organization they are in.
+- On an origin in `CLIENT_ORIGIN`, such as the admin app, or with no origin at all, a person in exactly one organization gets a session for it. A sign-in from any other origin answers `403`.
+- A session for another organization is answered `401` on an app's domain.
+- A password reset link or sign-in link that returns to an app's domain is sent only to a person who is active in that app's organization. The link opens at that domain under `/api`, so the cookie of a sign-in link belongs to the domain the person lands on.
+
+| Variable             | Required | Default | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_COOKIE_DOMAIN` | no       | unset   | The parent domain the session cookie is shared across, such as `.example.com`, for an admin app and an API on separate hosts under it. Unset, the cookie is host-only: it belongs to whichever host served the request. Set, an app on a domain under it shares the cookie with every other organization there, and a person who opens another organization's domain signs in again; an app on a domain outside it, such as `learn.acme.com`, gets a host-only cookie. |
 
 ### Default ports
 
@@ -70,7 +102,7 @@ Point each host at the frontend that serves it. An installation with one organiz
 
 ## Behind a proxy
 
-Sign-in rate limits count requests per client IP, read from `X-Forwarded-For`. With more than one proxy in front of the API, such as a CDN and a load balancer, that header holds a chain of addresses, and the API can't tell which one is the client until it knows which are the proxies. Until then every request through the chain counts as one client, and all members share one sign-in limit.
+The sign-in rate limits and the limit on [`GET /api/app`](/docs/api/apps/getApp) count requests per client IP, read from `X-Forwarded-For`. With more than one proxy in front of the API, such as a CDN and a load balancer, that header holds a chain of addresses, and the API can't tell which one is the client until it knows which are the proxies. Until then every request through the chain counts as one client, and all members share one sign-in limit.
 
 | Variable                  | Required | Default           | Notes                                                                                                                                                                            |
 | ------------------------- | -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -78,6 +110,8 @@ Sign-in rate limits count requests per client IP, read from `X-Forwarded-For`. W
 | `AUTH_IP_ADDRESS_HEADERS` | no       | `x-forwarded-for` | Comma-separated headers read for the client IP, in order. Name a header only when a proxy sets it itself and drops any copy the client sent.                                     |
 
 List the proxies' own addresses, not a range that also covers clients. The API must be reachable only through these proxies: a client that reaches it directly can send any forwarded header it likes. An installation that builds its own config sets `trustedProxies` and `ipAddressHeaders` on the container config.
+
+A frontend that forwards `/api` to the API is in front of it too. The student app passes on the `X-Forwarded-For` it received, on the calls it forwards and on the calls its own server makes, or the address of the connection when it received none. Run it behind a proxy that sets the header itself, or a client can name any address.
 
 ## Live chat
 

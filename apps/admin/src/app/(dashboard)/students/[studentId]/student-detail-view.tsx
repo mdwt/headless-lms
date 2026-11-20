@@ -26,6 +26,7 @@ import type {
 import { GrantAccessDialog, type LiteContent } from "../_components/grant-access-dialog";
 import { grantEntitlementAction, revokeEntitlementAction } from "../../entitlements/actions";
 import { removePersonAction, resendInviteAction } from "../../settings/team/actions";
+import { UNREACHABLE } from "@/lib/api/refusal";
 
 /**
  * Student detail client view (option 2). The student and their entitlements
@@ -58,11 +59,15 @@ export function StudentDetailView({
   const onResendInvite = () =>
     startResend(async () => {
       try {
-        await resendInviteAction(student.id);
+        const refusal = await resendInviteAction(student.id);
+        if (refusal) {
+          toast.error("Couldn't send the invite", { description: refusal.refused });
+          return;
+        }
         toast.success("Invite sent", { description: student.email });
         router.refresh();
-      } catch (err) {
-        toast.error("Couldn't send the invite", { description: (err as Error).message });
+      } catch {
+        toast.error("Couldn't send the invite", { description: UNREACHABLE });
       }
     });
 

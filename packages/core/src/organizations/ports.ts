@@ -14,10 +14,11 @@ import type { OutboxAppender, UnitOfWork } from '../shared/ports.js';
 import type { Actor, EffectivePermissions } from '../shared/actor.js';
 import type {
   ApiKeySummary,
+  App,
+  UpdateAppInput,
   ConnectedApp,
   ContentType,
   CreatedApiKey,
-  Hosts,
   OrgUserProfile,
   Permission,
   RoleAssignment,
@@ -63,14 +64,27 @@ export type CallerLimit = { scopes: readonly Permission[] } | { roleKey: string 
 
 export interface PlatformOrganizationInput {
   name: string;
-  slug: string;
+  slug?: string | undefined;
   metadata?: OrganizationMetadata | undefined;
 }
 
 export type PlatformOrganizationDetails = AuthOrganization & {
   metadata: OrganizationMetadata;
-  hosts: Hosts;
 };
+
+export type SessionOrganization = { refused: true } | { refused: false; orgId: string | null };
+
+export interface AppAt {
+  app: App;
+  organization: Pick<Organization, 'id' | 'externalId' | 'name' | 'slug'>;
+}
+
+export interface AppLookup {
+  organization: Pick<Organization, 'name'>;
+  app: Pick<App, 'name' | 'courses' | 'community'>;
+}
+
+export type LinkDomain = { refused: true } | { refused: false; domain: string | null };
 
 export interface PlatformOrganization {
   organization: PlatformOrganizationDetails;
@@ -84,14 +98,11 @@ export interface PlatformAccount {
 
 export interface OrganizationService {
   createOrganization(
-    input: NewOrganizationInput,
+    input: { name: string; slug?: string | undefined },
     headers: AuthHeaders,
-  ): Promise<AuthOrganization & { hosts: Hosts }>;
+  ): Promise<AuthOrganization>;
   provisionOrganization(input: CreateOrganizationInput): Promise<Organization>;
-  updateOrganization(
-    input: UpdateOrganizationInput,
-    actor: Actor,
-  ): Promise<Organization & { hosts: Hosts }>;
+  updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization>;
   deleteOrganization(id: string): Promise<Organization>;
   addOrgUser(input: AddOrgUserInput): Promise<OrgUser>;
   removeOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
@@ -102,10 +113,16 @@ export interface OrganizationService {
   getOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   getOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   getOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
-  getOrgUsersForUser(userId: string): Promise<OrgUser[]>;
   orgIds(): Promise<string[]>;
-  isOrgHost(origin: string): Promise<boolean>;
-  isHostOfPerson(email: string, origin: string): Promise<boolean>;
+
+  appOfPerson(email: string, domains: readonly string[]): Promise<App | null>;
+  sessionOrganization(
+    person: { id: string; email: string },
+    domains: readonly string[],
+  ): Promise<SessionOrganization>;
+  acceptsSession(at: AppAt, authOrgId: string): boolean;
+  acceptsSwitch(at: AppAt, to: { id?: string | null; slug?: string }): boolean;
+  linkDomain(email: string, returnTo: string | null, named: readonly string[]): Promise<LinkDomain>;
 
   actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null>;
   resolveCaller(
@@ -153,11 +170,11 @@ export interface OrganizationService {
     orgUserId: string,
     actor: Actor,
     inviterUserId: string,
-    host?: string,
+    domain?: string,
   ): Promise<void>;
   cancelInvite(orgUserId: string, actor: Actor): Promise<void>;
   peekInvite(token: string): Promise<Invite | null>;
-  describeInvite(token: string): Promise<InviteDetails>;
+  describeInvite(token: string, at: AppAt | null): Promise<InviteDetails>;
   acceptInvite(input: AcceptInviteInput, headers: AuthHeaders): Promise<OrgUser>;
 
   listApiKeys(actor: Actor): Promise<ApiKeySummary[]>;
@@ -283,6 +300,11 @@ export interface OrganizationsRepository {
   ): Promise<Invite | null>;
   findOrgUser(orgId: string, userId: string): Promise<OrgUser | null>;
   findOrgUsersByUser(userId: string): Promise<OrgUser[]>;
+  createApp(app: App): Promise<App>;
+  listApps(orgId: string): Promise<App[]>;
+  findAppByDomain(domain: string): Promise<App | null>;
+  updateApp(orgId: string, id: string, patch: UpdateAppInput): Promise<App | null>;
+  deleteApp(orgId: string, id: string): Promise<App | null>;
   findOrgUserById(orgId: string, id: string): Promise<OrgUser | null>;
   findOrgUsersByIds(orgId: string, ids: string[]): Promise<OrgUser[]>;
   createOrgUser(input: CreateOrgUserInput): Promise<OrgUser>;
@@ -352,7 +374,7 @@ export interface ApiKeys {
   ): Promise<StoredApiKey & { key: string }>;
   countWithRole(orgId: string, roleKey: string): Promise<number>;
   revoke(orgId: string, userExternalId: string, keyId: string): Promise<void>;
-  listApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]>;
-  revokeApp(orgId: string, userExternalId: string, clientId: string): Promise<void>;
+  listConnectedApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]>;
+  revokeConnectedApp(orgId: string, userExternalId: string, clientId: string): Promise<void>;
   revokeAllFor(orgId: string, userExternalId: string): Promise<void>;
 }

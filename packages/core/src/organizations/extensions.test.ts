@@ -116,6 +116,7 @@ function service(storedRoles: StoredOrgRole[] = []) {
   const svc = new OrganizationServiceImpl({
     repo,
     roles,
+    apps: { find: async () => null },
     membersRepo: { teamRows: async () => [] },
     people: {} as IdentityService,
     images: { syncPublicImages: async () => {} },

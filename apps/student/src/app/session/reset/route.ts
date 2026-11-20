@@ -15,25 +15,26 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 
-import { API_URL } from "@/lib/api/server-call";
+import { API_URL } from "@/lib/api/api-url";
+import { visitorHeaders, visitorOrigin } from "@/lib/api/visitor";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const response = NextResponse.redirect(new URL("/login", req.nextUrl), {
+  const response = NextResponse.redirect(new URL("/login", visitorOrigin(req.headers)), {
     // 303: whatever the browser was doing, what follows is a plain GET.
     status: 303,
   });
 
   const cookie = req.headers.get("cookie");
   if (cookie) {
-    // better-auth rejects a cross-origin POST whose Origin it doesn't trust, so
-    // send the portal's own — it is already a trusted origin for this API.
+    // better-auth rejects a POST whose Origin it doesn't trust, so send the
+    // domain the visitor is on — an app's domain is trusted by the API.
     const signedOut = await fetch(`${API_URL}/api/auth/sign-out`, {
       method: "POST",
       headers: {
         cookie,
-        origin: req.nextUrl.origin,
+        ...visitorHeaders(req.headers),
         "content-type": "application/json",
       },
       body: "{}",

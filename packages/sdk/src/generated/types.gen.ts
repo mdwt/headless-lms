@@ -28,19 +28,6 @@ export type UpdateOrganizationData = {
   body: {
     name: string;
     slug: string;
-    /**
-     * Both hosts, replacing the current ones. Left out, the hosts stay as they are.
-     */
-    hosts?: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
   };
   path?: never;
   query?: never;
@@ -108,19 +95,6 @@ export type UpdateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
-    /**
-     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-     */
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
   };
 };
 
@@ -131,9 +105,9 @@ export type CreateOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. The organization's first host is this slug under the platform host.
+     * Unique. Left out, one is generated from the name.
      */
-    slug: string;
+    slug?: string;
   };
   path?: never;
   query?: never;
@@ -185,19 +159,6 @@ export type CreateOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
-    /**
-     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-     */
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
   };
 };
 
@@ -1575,9 +1536,9 @@ export type CreateInviteData = {
     lastName?: string;
     sendEmail?: boolean;
     /**
-     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     * The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.
      */
-    host?: string;
+    domain?: string;
   };
   path?: never;
   query?: never;
@@ -1671,9 +1632,9 @@ export type ResendInviteData = {
   };
   query?: {
     /**
-     * The app the invited person lands on: one of the organization's hosts. Absent → the course host.
+     * The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.
      */
-    host?: string;
+    domain?: string;
   };
   url: "/api/organizations/people/{orgUserId}/invite/resend";
 };
@@ -2444,6 +2405,445 @@ export type GetDefaultNotificationCategoriesResponses = {
 
 export type GetDefaultNotificationCategoriesResponse =
   GetDefaultNotificationCategoriesResponses[keyof GetDefaultNotificationCategoriesResponses];
+
+export type GetAppData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/app";
+};
+
+export type GetAppErrors = {
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  429: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type GetAppError = GetAppErrors[keyof GetAppErrors];
+
+export type GetAppResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    organization: {
+      /**
+       * The organization's name
+       */
+      name: string;
+    };
+    app: {
+      /**
+       * The app's name
+       */
+      name: string;
+      /**
+       * Whether the app serves courses and downloads
+       */
+      courses: boolean;
+      /**
+       * Whether the app serves communities and events
+       */
+      community: boolean;
+    };
+  };
+};
+
+export type GetAppResponse = GetAppResponses[keyof GetAppResponses];
+
+export type ListAppsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/apps";
+};
+
+export type ListAppsErrors = {
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type ListAppsError = ListAppsErrors[keyof ListAppsErrors];
+
+export type ListAppsResponses = {
+  /**
+   * Default Response
+   */
+  200: Array<{
+    id: string;
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
+    name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  }>;
+};
+
+export type ListAppsResponse = ListAppsResponses[keyof ListAppsResponses];
+
+export type CreateAppData = {
+  body: {
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
+    name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+  path?: never;
+  query?: never;
+  url: "/api/apps";
+};
+
+export type CreateAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type CreateAppError = CreateAppErrors[keyof CreateAppErrors];
+
+export type CreateAppResponses = {
+  /**
+   * Default Response
+   */
+  201: {
+    id: string;
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
+    name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+};
+
+export type CreateAppResponse = CreateAppResponses[keyof CreateAppResponses];
+
+export type DeleteAppData = {
+  body?: never;
+  path: {
+    /**
+     * The app's id
+     */
+    appId: string;
+  };
+  query?: never;
+  url: "/api/apps/{appId}";
+};
+
+export type DeleteAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type DeleteAppError = DeleteAppErrors[keyof DeleteAppErrors];
+
+export type DeleteAppResponses = {
+  /**
+   * Default Response
+   */
+  204: unknown;
+};
+
+export type UpdateAppData = {
+  body: {
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
+    name?: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
+    slug?: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
+     */
+    domain?: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses?: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community?: boolean;
+  };
+  path: {
+    /**
+     * The app's id
+     */
+    appId: string;
+  };
+  query?: never;
+  url: "/api/apps/{appId}";
+};
+
+export type UpdateAppErrors = {
+  /**
+   * Default Response
+   */
+  400: {
+    error: string;
+    message?: string;
+    requestId?: string;
+    issues?: Array<{
+      /**
+       * Where in the request, such as `body.topics[1].name`
+       */
+      path: string;
+      message: string;
+    }>;
+  };
+  /**
+   * Default Response
+   */
+  401: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  403: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  404: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  409: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+  /**
+   * Default Response
+   */
+  500: {
+    error: string;
+    message?: string;
+    requestId?: string;
+  };
+};
+
+export type UpdateAppError = UpdateAppErrors[keyof UpdateAppErrors];
+
+export type UpdateAppResponses = {
+  /**
+   * Default Response
+   */
+  200: {
+    id: string;
+    /**
+     * The app's name; `GET /api/app` returns it to the frontend on its domain
+     */
+    name: string;
+    /**
+     * A short identifier, unique among the organization's apps
+     */
+    slug: string;
+    /**
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
+     */
+    domain: string;
+    /**
+     * Whether the app serves courses and downloads
+     */
+    courses: boolean;
+    /**
+     * Whether the app serves communities and events
+     */
+    community: boolean;
+  };
+};
+
+export type UpdateAppResponse = UpdateAppResponses[keyof UpdateAppResponses];
 
 export type ListCoursesData = {
   body?: never;
@@ -28534,7 +28934,7 @@ export type ListConnectedAppsData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/access/apps";
+  url: "/api/access/connected-apps";
 };
 
 export type ListConnectedAppsErrors = {
@@ -28588,7 +28988,7 @@ export type RevokeConnectedAppData = {
     clientId: string;
   };
   query?: never;
-  url: "/api/access/apps/{clientId}";
+  url: "/api/access/connected-apps/{clientId}";
 };
 
 export type RevokeConnectedAppErrors = {
@@ -28998,19 +29398,6 @@ export type GetPlatformOrganizationResponses = {
     name: string;
     slug: string;
     createdAt: string;
-    /**
-     * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-     */
-    hosts: {
-      /**
-       * Origin of the app that shows courses and downloads, such as https://learn.example.com
-       */
-      courses: string;
-      /**
-       * Origin of the app that shows communities and events, such as https://club.example.com
-       */
-      community: string;
-    };
     metadata: {
       [key: string]: string;
     };
@@ -29024,9 +29411,9 @@ export type CreatePlatformOrganizationData = {
   body: {
     name: string;
     /**
-     * Unique. The organization's first host is this slug under the platform host.
+     * Unique. Left out, one is generated from the name.
      */
-    slug: string;
+    slug?: string;
     /**
      * Key-value pairs stored with the organization
      */
@@ -29094,19 +29481,6 @@ export type CreatePlatformOrganizationResponses = {
       name: string;
       slug: string;
       createdAt: string;
-      /**
-       * Where the organization's member apps are reached. Links in emails, invites and calendar files use them.
-       */
-      hosts: {
-        /**
-         * Origin of the app that shows courses and downloads, such as https://learn.example.com
-         */
-        courses: string;
-        /**
-         * Origin of the app that shows communities and events, such as https://club.example.com
-         */
-        community: string;
-      };
       metadata: {
         [key: string]: string;
       };

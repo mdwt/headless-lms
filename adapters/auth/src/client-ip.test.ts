@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { getSchema } from "better-auth/db";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { buildAuthOptions } from "./better-auth.js";
+import { BetterAuth, buildAuthOptions } from "./better-auth.js";
 import type { CreateAuthOptions } from "./types.js";
 
 const noop = async () => undefined;
@@ -91,5 +91,42 @@ describe("sign-in rate limit behind proxies", () => {
     const auth = memoryAuth({ trustedProxies: ["198.51.100.0/24"] });
     await untilLimited(auth, sarah);
     expect(await signIn(auth, { "x-forwarded-for": `192.0.2.99, 203.0.113.7, ${CDN}` })).toBe(429);
+  });
+});
+
+describe("the client IP the adapter reports", () => {
+  const adapter = (ip: Pick<CreateAuthOptions, "trustedProxies" | "ipAddressHeaders">) => {
+    const auth = memoryAuth(ip);
+    return new BetterAuth(
+      {
+        db: {} as NodePgDatabase,
+        baseUrl: "http://localhost:8100",
+        logger: logger as unknown as CreateAuthOptions["logger"],
+        mcp: { oauthEnabled: false },
+      } as unknown as CreateAuthOptions,
+      auth as unknown as ConstructorParameters<typeof BetterAuth>[1],
+    );
+  };
+
+  it("is the one forwarded address when no proxy is named", () => {
+    expect(adapter({}).clientIp({ "x-forwarded-for": "203.0.113.7" })).toBe("203.0.113.7");
+  });
+
+  it("is the first address from the right that is not a named proxy", () => {
+    const behindCdn = adapter({ trustedProxies: ["198.51.100.0/24"] });
+    expect(behindCdn.clientIp(sarah)).toBe("203.0.113.7");
+    expect(behindCdn.clientIp({ "x-forwarded-for": `192.0.2.99, 203.0.113.8, ${CDN}` })).toBe(
+      "203.0.113.8",
+    );
+  });
+
+  it("is read from a named header", () => {
+    const named = adapter({ ipAddressHeaders: ["x-client-ip"] });
+    expect(named.clientIp({ ...sarah, "x-client-ip": "203.0.113.9" })).toBe("203.0.113.9");
+  });
+
+  it("is the same for everyone behind a chain whose proxies are not named", () => {
+    const unnamed = adapter({});
+    expect(unnamed.clientIp(sarah)).toBe(unnamed.clientIp(james));
   });
 });

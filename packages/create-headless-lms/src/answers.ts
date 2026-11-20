@@ -27,7 +27,7 @@ export function defaultAnswers(name: string): Answers {
     db: { mode: "docker" },
     storage: { mode: "minio" },
     port: 8000,
-    clientOrigins: "http://localhost:8001,http://localhost:8002",
+    clientOrigins: "http://localhost:8001",
   };
 }
 

@@ -30,9 +30,22 @@ export interface UserProvisioner {
    *  stamping `externalId`; creates the person when the email is unknown.
    *  Throws ConflictError when the email is already linked to an account. */
   linkOrCreateUser(input: CreateUserInput): Promise<User>;
-  sendPasswordReset(input: { email: string; url: string }): Promise<void>;
-  sendPasswordChanged(input: { email: string }): Promise<void>;
-  sendMagicLink(input: { email: string; url: string }): Promise<void>;
+  sendPasswordReset(input: {
+    email: string;
+    url: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void>;
+  passwordReset(input: {
+    authUserId: string;
+    email: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void>;
+  sendMagicLink(input: { email: string; url: string; requestedOn?: RequestedOn }): Promise<void>;
+}
+
+export interface RequestedOn {
+  orgId: string;
+  appId: string;
 }
 
 /** Resolves an auth account to the domain person. Used by the organizations
@@ -58,6 +71,7 @@ export type AuthHeaders = Record<string, string | string[] | undefined>;
 export interface SessionAdmin {
   /** Points the caller's current session at `orgId`.  */
   stampActiveOrganization(headers: AuthHeaders, orgId: string): Promise<boolean>;
+  confirmEmail(authUserId: string): Promise<void>;
 }
 
 // Inbound port (use cases the service exposes).

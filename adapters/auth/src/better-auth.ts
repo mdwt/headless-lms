@@ -11,9 +11,16 @@ import type {
 } from "@headless-lms/core/types";
 import type { IncomingHttpHeaders } from "node:http";
 import { fromNodeHeaders } from "better-auth/node";
-import { APIError, betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
+import {
+  APIError,
+  betterAuth,
+  type BetterAuthOptions,
+  type BetterAuthPlugin,
+  type GenericEndpointContext,
+} from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
-import type { CreateAuthOptions } from "./types.js";
+import { webOrigin } from "@headless-lms/core/shared/network";
+import type { AppDomains, CreateAuthOptions, SessionUse } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
@@ -32,6 +39,7 @@ import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
 import { fetchClientMetadataResource } from "@better-auth/cimd/node";
 import { apiKey } from "@better-auth/api-key";
+import { getIP } from "@better-auth/core/utils/ip";
 import { and, count, eq, sql } from "drizzle-orm";
 import { ac, OWNER_MEMBERSHIP, PARTICIPANT_MEMBERSHIP, roles } from "./access.js";
 import {
@@ -90,13 +98,12 @@ const OAUTH_CLIENT_WRITES = new Set([
 
 const CALLBACK_PARAMS = ["callbackURL", "errorCallbackURL", "newUserCallbackURL"];
 
-function webOrigin(value: string | null): string | null {
-  if (!value || !URL.canParse(value)) {
-    return null;
-  }
-  const url = new URL(value);
-  return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null;
-}
+const SESSION_READS = [
+  "/api/auth/get-session",
+  "/api/auth/list-sessions",
+  "/api/auth/organization/",
+];
+const SET_ACTIVE = "/api/auth/organization/set-active";
 
 function callbackOrigins(url: string): string[] {
   if (!URL.canParse(url)) {
@@ -108,9 +115,46 @@ function callbackOrigins(url: string): string[] {
   );
 }
 
-function requestOrigins(request: Request): string[] {
-  const page = webOrigin(request.headers.get("origin") || request.headers.get("referer"));
-  return [...new Set([...(page ? [page] : []), ...callbackOrigins(request.url)])];
+function pageOrigin(headers: Headers): string | null {
+  return webOrigin(headers.get("origin")) ?? webOrigin(headers.get("referer"));
+}
+
+function requestDomains(headers: Headers, url: string): string[] {
+  const page = pageOrigin(headers);
+  return [...new Set([...callbackOrigins(url), ...(page ? [page] : [])])];
+}
+
+function decidingDomains(headers: Headers, url?: string): string[] {
+  const returned = url ? callbackOrigins(url) : [];
+  if (returned.length > 0) {
+    return [...new Set(returned)];
+  }
+  const page = pageOrigin(headers);
+  return page ? [page] : [];
+}
+
+function sessionDomains(ctx: GenericEndpointContext | null): string[] {
+  const headers = ctx?.request?.headers ?? ctx?.headers;
+  return headers ? decidingDomains(headers, ctx?.request?.url) : [];
+}
+
+function within(origin: string, cookieDomain: string): boolean {
+  const host = new URL(origin).hostname.toLowerCase();
+  const parent = cookieDomain.replace(/^\./, "").toLowerCase();
+  return host === parent || host.endsWith(`.${parent}`);
+}
+
+function hostOnlyCookies(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.delete("set-cookie");
+  for (const cookie of response.headers.getSetCookie()) {
+    headers.append("set-cookie", cookie.replace(/;\s*domain=[^;]*/i, ""));
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function activeOrgOf(session: unknown): string | null {
@@ -176,42 +220,44 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       );
     };
 
-  const orgHosts = opts.orgHosts;
-  const orgHostsOf = async (request: Request | undefined): Promise<string[]> => {
-    if (!orgHosts || !request) {
+  const appDomains = opts.appDomains;
+  const appDomainsOf = async (request: Request | undefined): Promise<string[]> => {
+    if (!appDomains || !request) {
       return [];
     }
     const trusted: string[] = [];
-    for (const origin of requestOrigins(request)) {
-      if (!opts.trustedOrigins.includes(origin) && (await orgHosts.has(origin))) {
+    for (const origin of requestDomains(request.headers, request.url)) {
+      if (!opts.trustedOrigins.includes(origin) && (await appDomains.has(origin))) {
         trusted.push(origin);
       }
     }
     return trusted;
   };
-  const linkAllowed = async (email: string, url: string): Promise<boolean> => {
-    if (!orgHosts) {
-      return true;
+  const written = async (
+    email: string,
+    link: string,
+  ): Promise<{ url: string; domains: string[] } | null> => {
+    const returnTo = webOrigin(new URL(link).searchParams.get("callbackURL"));
+    const domains = returnTo ? [returnTo] : [];
+    if (!appDomains) {
+      return { url: link, domains };
     }
-    for (const origin of callbackOrigins(url)) {
-      if (opts.trustedOrigins.includes(origin) || !(await orgHosts.has(origin))) {
-        continue;
-      }
-      if (!(await orgHosts.hasFor(email, origin))) {
-        opts.logger.warn("auth link not sent: its host is not one of the person's organizations", {
-          origin,
-        });
-        return false;
-      }
+    const decided = await appDomains.linkDomain(email, returnTo, callbackOrigins(link));
+    if (decided.refused) {
+      return null;
     }
-    return true;
+    if (!decided.domain) {
+      return { url: link, domains };
+    }
+    const { pathname, search } = new URL(link);
+    return { url: `${decided.domain}${pathname}${search}`, domains };
   };
 
   return {
     baseURL: opts.baseUrl,
     secret: opts.secret,
-    trustedOrigins: orgHosts
-      ? async (request?: Request) => [...opts.trustedOrigins, ...(await orgHostsOf(request))]
+    trustedOrigins: appDomains
+      ? async (request?: Request) => [...opts.trustedOrigins, ...(await appDomainsOf(request))]
       : opts.trustedOrigins,
     logger: {
       log: (level, message, ...args) => {
@@ -263,22 +309,27 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     emailAndPassword: {
       enabled: true,
       // Detached so send time can't reveal which emails have accounts, and a failed notice can't fail the reset.
-      sendResetPassword: detached("sendResetPassword", async (data, request) => {
-        if (await linkAllowed(data.user.email, data.url)) {
-          await sendResetPassword(data, request);
+      sendResetPassword: detached("sendResetPassword", async (data) => {
+        const link = await written(data.user.email, data.url);
+        if (link) {
+          await sendResetPassword({ ...data, url: link.url }, { domains: link.domains });
         }
       }),
-      onPasswordReset: detached("onPasswordReset", onPasswordReset),
+      onPasswordReset: detached("onPasswordReset", async (data, request?: Request) => {
+        const page = request ? pageOrigin(request.headers) : null;
+        await onPasswordReset(data, { domains: page ? [page] : [] });
+      }),
       revokeSessionsOnPasswordReset: true,
     },
     plugins: [
       magicLink({
         disableSignUp: true,
-        sendMagicLink: async (data, ctx) => {
-          if (await linkAllowed(data.email, data.url)) {
-            await sendMagicLink(data, ctx);
+        sendMagicLink: detached("sendMagicLink", async (data) => {
+          const link = await written(data.email, data.url);
+          if (link) {
+            await sendMagicLink({ ...data, url: link.url }, { domains: link.domains });
           }
-        },
+        }),
       }),
       organization({
         ac,
@@ -339,7 +390,9 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
       },
       session: {
         create: {
-          before: beforeCreateSession,
+          before: beforeCreateSession
+            ? (session, ctx) => beforeCreateSession(session, { domains: sessionDomains(ctx) })
+            : undefined,
         },
       },
     },
@@ -412,6 +465,8 @@ export class BetterAuth
   protected logger: Logger;
   protected mcp: CreateAuthOptions["mcp"];
   protected issuer: string;
+  protected cookieDomain: string | undefined;
+  protected appDomains: AppDomains | undefined;
   protected jwksCacheKey = {};
 
   constructor(opts: CreateAuthOptions, auth?: Auth) {
@@ -420,6 +475,8 @@ export class BetterAuth
     this.logger = opts.logger;
     this.mcp = opts.mcp;
     this.issuer = `${opts.baseUrl.replace(/\/+$/, "")}/api/auth`;
+    this.cookieDomain = opts.cookieDomain;
+    this.appDomains = opts.appDomains;
   }
 
   protected get pluginApi(): PluginApi {
@@ -427,7 +484,49 @@ export class BetterAuth
   }
 
   async handler(request: Request): Promise<Response> {
-    return this.auth.handler(request);
+    const response = await this.auth.handler(request);
+    if (response.headers.getSetCookie().length === 0) {
+      return response;
+    }
+    return (await this.outsideCookieDomain(request)) ? hostOnlyCookies(response) : response;
+  }
+
+  private async outsideCookieDomain(request: Request): Promise<boolean> {
+    if (!this.cookieDomain || !this.appDomains) {
+      return false;
+    }
+    try {
+      for (const domain of decidingDomains(request.headers, request.url)) {
+        if (within(domain, this.cookieDomain)) {
+          return false;
+        }
+        if (await this.appDomains.has(domain)) {
+          return true;
+        }
+      }
+    } catch (err) {
+      this.logger.error("could not tell whether the request is from an app's domain", { err });
+    }
+    return false;
+  }
+
+  sessionUse(method: string, url: string, body: unknown): SessionUse | null {
+    const { pathname } = new URL(url, this.issuer);
+    if (method === "GET" && SESSION_READS.some((path) => pathname.startsWith(path))) {
+      return { kind: "read" };
+    }
+    if (method === "POST" && pathname === SET_ACTIVE) {
+      const sent = (typeof body === "object" && body !== null ? body : {}) as {
+        organizationId?: string | null;
+        organizationSlug?: string;
+      };
+      return { kind: "switch", to: { id: sent.organizationId, slug: sent.organizationSlug } };
+    }
+    return null;
+  }
+
+  clientIp(headers: IncomingHttpHeaders): string | null {
+    return getIP(fromNodeHeaders(headers), this.auth.options);
   }
 
   async authorizationServerMetadata(request: Request): Promise<Response> {
@@ -590,7 +689,7 @@ export class BetterAuth
     await ctx.adapter.delete({ model: "apikey", where: [{ field: "id", value: keyId }] });
   }
 
-  async listApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]> {
+  async listConnectedApps(orgId: string, userExternalId: string): Promise<ConnectedApp[]> {
     if (!this.mcp.oauthEnabled) {
       return [];
     }
@@ -623,7 +722,7 @@ export class BetterAuth
     );
   }
 
-  async revokeApp(orgId: string, userExternalId: string, clientId: string): Promise<void> {
+  async revokeConnectedApp(orgId: string, userExternalId: string, clientId: string): Promise<void> {
     if (!this.mcp.oauthEnabled) {
       return;
     }
@@ -693,6 +792,11 @@ export class BetterAuth
     const ctx = await this.auth.$context;
     await ctx.internalAdapter.updateSession(token, { activeOrganizationId: orgId });
     return true;
+  }
+
+  async confirmEmail(authUserId: string): Promise<void> {
+    const ctx = await this.auth.$context;
+    await ctx.internalAdapter.updateUser(authUserId, { emailVerified: true });
   }
 
   async createOrganization(

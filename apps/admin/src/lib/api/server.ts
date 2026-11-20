@@ -25,6 +25,7 @@ import "server-only";
 
 import {
   Access,
+  Apps,
   Assets,
   Automations,
   Communities,
@@ -50,6 +51,7 @@ import type {
   ApiKeySummary,
   Asset,
   ConnectedApp,
+  OrgApp,
   Automation,
   AutomationKind,
   AutomationRunsPage,
@@ -733,6 +735,9 @@ export const serverApi = {
     return triggers;
   },
 
+  async listApps(): Promise<OrgApp[]> {
+    return await Apps.listApps(await authHeaders());
+  },
   async listConnectedApps(): Promise<ConnectedApp[]> {
     return await Access.listConnectedApps(await authHeaders());
   },

@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Headless LMS API",
-    "version": "0.8.0",
+    "version": "0.10.0",
     "description": "API documentation for the Headless LMS platform. Every route under /api takes a signed-in session or an API key, sent in the `x-api-key` header or as `Authorization: Bearer <key>`. The platform routes take the platform key as `Authorization: Bearer <platform key>`.",
     "license": {
       "name": "MIT",
@@ -73,7 +73,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.",
+        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`. 400 when the slug is in use.",
         "requestBody": {
           "required": true,
           "content": {
@@ -86,16 +86,15 @@
                     "minLength": 1
                   },
                   "slug": {
+                    "description": "Unique. Left out, one is generated from the name.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
-                    "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique. The organization's first host is this slug under the platform host."
+                    "pattern": "^[a-z0-9-]+$"
                   }
                 },
                 "required": [
-                  "name",
-                  "slug"
+                  "name"
                 ]
               }
             }
@@ -120,33 +119,13 @@
                     },
                     "createdAt": {
                       "type": "string"
-                    },
-                    "hosts": {
-                      "type": "object",
-                      "properties": {
-                        "courses": {
-                          "type": "string",
-                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                        },
-                        "community": {
-                          "type": "string",
-                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                        }
-                      },
-                      "required": [
-                        "courses",
-                        "community"
-                      ],
-                      "additionalProperties": false,
-                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "slug",
-                    "createdAt",
-                    "hosts"
+                    "createdAt"
                   ],
                   "additionalProperties": false
                 }
@@ -256,7 +235,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. `hosts` replaces both hosts, and the next link uses the new value: links to courses and downloads use `courses`, links to communities and events use `community`. Changing the slug does not change the hosts.",
+        "description": "Requires `organizations:write`. Changes its name or slug; 409 when the slug is taken. Changing the slug does not change its apps.",
         "requestBody": {
           "required": true,
           "content": {
@@ -274,24 +253,6 @@
                     "minLength": 1,
                     "maxLength": 50,
                     "pattern": "^[a-z0-9-]+$"
-                  },
-                  "hosts": {
-                    "description": "Both hosts, replacing the current ones. Left out, the hosts stay as they are.",
-                    "type": "object",
-                    "properties": {
-                      "courses": {
-                        "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com",
-                        "type": "string"
-                      },
-                      "community": {
-                        "description": "Origin of the app that shows communities and events, such as https://club.example.com",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "courses",
-                      "community"
-                    ]
                   }
                 },
                 "required": [
@@ -321,33 +282,13 @@
                     },
                     "createdAt": {
                       "type": "string"
-                    },
-                    "hosts": {
-                      "type": "object",
-                      "properties": {
-                        "courses": {
-                          "type": "string",
-                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                        },
-                        "community": {
-                          "type": "string",
-                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                        }
-                      },
-                      "required": [
-                        "courses",
-                        "community"
-                      ],
-                      "additionalProperties": false,
-                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "slug",
-                    "createdAt",
-                    "hosts"
+                    "createdAt"
                   ],
                   "additionalProperties": false
                 }
@@ -4155,7 +4096,7 @@
         "tags": [
           "People"
         ],
-        "description": "Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `host` is the app the invite link opens and must be one of the organization's hosts (409).",
+        "description": "Requires `people:write`. The person is created by this call and returned as `orgUserId`, so access and item roles can be given before they accept. Needs every permission the role holds; never `owner` (409). `domain` is the domain the invite link opens and must be one of the organization's apps (409). An emailed invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).",
         "requestBody": {
           "required": true,
           "content": {
@@ -4187,8 +4128,8 @@
                     "default": true,
                     "type": "boolean"
                   },
-                  "host": {
-                    "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host.",
+                  "domain": {
+                    "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.",
                     "type": "string"
                   }
                 },
@@ -4427,16 +4368,16 @@
         "tags": [
           "People"
         ],
-        "description": "Requires `people:write`. Issues a new link; the resender becomes the inviter. `host` is the app the invite link opens and must be one of the organization's hosts (409).",
+        "description": "Requires `people:write`. Issues a new link; the resender becomes the inviter. `domain` is the domain the invite link opens and must be one of the organization's apps (409). An invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).",
         "parameters": [
           {
             "schema": {
               "type": "string"
             },
             "in": "query",
-            "name": "host",
+            "name": "domain",
             "required": false,
-            "description": "The app the invited person lands on: one of the organization's hosts. Absent → the course host."
+            "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app."
           },
           {
             "schema": {
@@ -4811,7 +4752,7 @@
         "tags": [
           "People"
         ],
-        "description": "Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.",
+        "description": "Public: no session needed. The same 404 answers forged, expired and accepted tokens, and a token of another organization when the request comes from an app's domain, so a probe learns nothing.",
         "parameters": [
           {
             "schema": {
@@ -6323,6 +6264,971 @@
             }
           },
           "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/app": {
+      "get": {
+        "operationId": "getApp",
+        "summary": "The app and organization of the domain the request comes from",
+        "tags": [
+          "Apps"
+        ],
+        "description": "Public: no session and no key. Answers for the domain in the `Origin` header, or else the `Referer`; it takes no domain as a parameter. A frontend's server sends its visitor's domain as `Origin` and the visitor's IP address as `X-Forwarded-For`. 404 when the request carries no domain or the domain is no app's. Limited to 100 requests in 10 seconds per client IP address (429, with `Retry-After`).",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "The organization's name"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "app": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "The app's name"
+                        },
+                        "courses": {
+                          "type": "boolean",
+                          "description": "Whether the app serves courses and downloads"
+                        },
+                        "community": {
+                          "type": "boolean",
+                          "description": "Whether the app serves communities and events"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "courses",
+                        "community"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "organization",
+                    "app"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/apps": {
+      "get": {
+        "operationId": "listApps",
+        "summary": "The organization's apps",
+        "tags": [
+          "Apps"
+        ],
+        "description": "Requires `organizations:read`. An app is a frontend the organization runs on a domain; it serves courses, the community, or both. Links in emails, invites and calendar files use the domain of the app that serves what the link is about.",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
+                      },
+                      "slug": {
+                        "type": "string",
+                        "description": "A short identifier, unique among the organization's apps"
+                      },
+                      "domain": {
+                        "type": "string",
+                        "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
+                      },
+                      "courses": {
+                        "type": "boolean",
+                        "description": "Whether the app serves courses and downloads"
+                      },
+                      "community": {
+                        "type": "boolean",
+                        "description": "Whether the app serves communities and events"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "slug",
+                      "domain",
+                      "courses",
+                      "community"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApp",
+        "summary": "Create an app",
+        "tags": [
+          "Apps"
+        ],
+        "description": "Requires `organizations:write`. 409, with the reason as `error`: `domain_taken` when another app has the domain, in this organization or any other; `domain_reserved` when the domain is the admin app's, the API's or another listed origin of the installation; `slug_taken`; `courses_taken` or `community_taken` when the organization already has an app that serves it. 400 when the app would serve neither, or the domain is not a bare origin: a path, a query, a username or password, a wildcard or a trailing dot is refused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[a-z0-9-]+$",
+                    "description": "A short identifier, unique among the organization's apps"
+                  },
+                  "domain": {
+                    "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped",
+                    "type": "string"
+                  },
+                  "courses": {
+                    "type": "boolean",
+                    "description": "Whether the app serves courses and downloads"
+                  },
+                  "community": {
+                    "type": "boolean",
+                    "description": "Whether the app serves communities and events"
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug",
+                  "domain",
+                  "courses",
+                  "community"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "description": "A short identifier, unique among the organization's apps"
+                    },
+                    "domain": {
+                      "type": "string",
+                      "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
+                    },
+                    "courses": {
+                      "type": "boolean",
+                      "description": "Whether the app serves courses and downloads"
+                    },
+                    "community": {
+                      "type": "boolean",
+                      "description": "Whether the app serves communities and events"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "domain",
+                    "courses",
+                    "community"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/apps/{appId}": {
+      "patch": {
+        "operationId": "updateApp",
+        "summary": "Change an app",
+        "tags": [
+          "Apps"
+        ],
+        "description": "Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 and 400 for the same reasons as creating an app, 400 also when the change would leave the app serving neither.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "description": "The app's name; `GET /api/app` returns it to the frontend on its domain",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "slug": {
+                    "description": "A short identifier, unique among the organization's apps",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "domain": {
+                    "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped",
+                    "type": "string"
+                  },
+                  "courses": {
+                    "description": "Whether the app serves courses and downloads",
+                    "type": "boolean"
+                  },
+                  "community": {
+                    "description": "Whether the app serves communities and events",
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "description": "The app's id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "The app's name; `GET /api/app` returns it to the frontend on its domain"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "description": "A short identifier, unique among the organization's apps"
+                    },
+                    "domain": {
+                      "type": "string",
+                      "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
+                    },
+                    "courses": {
+                      "type": "boolean",
+                      "description": "Whether the app serves courses and downloads"
+                    },
+                    "community": {
+                      "type": "boolean",
+                      "description": "Whether the app serves communities and events"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "domain",
+                    "courses",
+                    "community"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteApp",
+        "summary": "Delete an app",
+        "tags": [
+          "Apps"
+        ],
+        "description": "Requires `organizations:write`. Its domain stops reaching the organization, and frees up for another app.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "appId",
+            "required": true,
+            "description": "The app's id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    },
+                    "issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Where in the request, such as `body.topics[1].name`"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "path",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -85914,7 +86820,7 @@
         }
       }
     },
-    "/api/access/apps": {
+    "/api/access/connected-apps": {
       "get": {
         "operationId": "listConnectedApps",
         "summary": "Apps connected to this organization as you",
@@ -86044,7 +86950,7 @@
         }
       }
     },
-    "/api/access/apps/{clientId}": {
+    "/api/access/connected-apps/{clientId}": {
       "delete": {
         "operationId": "revokeConnectedApp",
         "summary": "Disconnect an app",
@@ -86913,7 +87819,7 @@
         "tags": [
           "Platform"
         ],
-        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. 409 when the slug is in use.",
+        "description": "Requires the platform key as `Authorization: Bearer <platform key>`. Creates the organization, owned by the platform account, with its metadata, and an API key for the platform account with the Owner role and no expiry. The key is returned once. The organization starts with no app; create one with `POST /api/apps` and the returned key. 409 when the slug is in use.",
         "requestBody": {
           "required": true,
           "content": {
@@ -86927,11 +87833,11 @@
                     "maxLength": 100
                   },
                   "slug": {
+                    "description": "Unique. Left out, one is generated from the name.",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50,
-                    "pattern": "^[a-z0-9-]+$",
-                    "description": "Unique. The organization's first host is this slug under the platform host."
+                    "pattern": "^[a-z0-9-]+$"
                   },
                   "metadata": {
                     "description": "Key-value pairs stored with the organization",
@@ -86943,8 +87849,7 @@
                   }
                 },
                 "required": [
-                  "name",
-                  "slug"
+                  "name"
                 ]
               }
             }
@@ -86973,25 +87878,6 @@
                         "createdAt": {
                           "type": "string"
                         },
-                        "hosts": {
-                          "type": "object",
-                          "properties": {
-                            "courses": {
-                              "type": "string",
-                              "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                            },
-                            "community": {
-                              "type": "string",
-                              "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                            }
-                          },
-                          "required": [
-                            "courses",
-                            "community"
-                          ],
-                          "additionalProperties": false,
-                          "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
-                        },
                         "metadata": {
                           "type": "object",
                           "additionalProperties": {
@@ -87004,7 +87890,6 @@
                         "name",
                         "slug",
                         "createdAt",
-                        "hosts",
                         "metadata"
                       ],
                       "additionalProperties": false
@@ -87248,25 +88133,6 @@
                     "createdAt": {
                       "type": "string"
                     },
-                    "hosts": {
-                      "type": "object",
-                      "properties": {
-                        "courses": {
-                          "type": "string",
-                          "description": "Origin of the app that shows courses and downloads, such as https://learn.example.com"
-                        },
-                        "community": {
-                          "type": "string",
-                          "description": "Origin of the app that shows communities and events, such as https://club.example.com"
-                        }
-                      },
-                      "required": [
-                        "courses",
-                        "community"
-                      ],
-                      "additionalProperties": false,
-                      "description": "Where the organization's member apps are reached. Links in emails, invites and calendar files use them."
-                    },
                     "metadata": {
                       "type": "object",
                       "additionalProperties": {
@@ -87279,7 +88145,6 @@
                     "name",
                     "slug",
                     "createdAt",
-                    "hosts",
                     "metadata"
                   ],
                   "additionalProperties": false
@@ -87656,6 +88521,10 @@
     {
       "name": "Organizations",
       "description": "The tenant: its members, roles, invites and students"
+    },
+    {
+      "name": "Apps",
+      "description": "The frontends an organization runs, and the domain each is reached at"
     },
     {
       "name": "Content",

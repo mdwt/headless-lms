@@ -24,6 +24,7 @@ type Document = {
 
 const STAFFLESS = new Set([
   'createOrganization',
+  'getApp',
   'getInvite',
   'acceptInvite',
   'getMemberOrg',

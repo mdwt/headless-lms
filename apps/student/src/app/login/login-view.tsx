@@ -1,28 +1,40 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
-import { signIn, useSession } from "@/lib/auth/client";
+import { authClient, signIn, signOut, useSession } from "@/lib/auth/client";
+import { sameSitePath, withNext } from "@/lib/next-path";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function LoginView() {
+const NOT_A_MEMBER = "FAILED_TO_CREATE_SESSION";
+const UNREACHABLE = "We couldn't reach the server. Try again in a moment.";
+
+function inOrganization(session: unknown): boolean {
+  const held = (session as { session?: { activeOrganizationId?: string | null } } | null)?.session;
+  return Boolean(held?.activeOrganizationId);
+}
+
+export function LoginView({ orgName }: { orgName: string }) {
   const router = useRouter();
   const params = useSearchParams();
   // Where the proxy wanted the user to land before it bounced them here.
   // Only accept in-app absolute paths to avoid an open-redirect.
-  const nextParam = params.get("next");
-  const next =
-    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
+  const requested = sameSitePath(params.get("next"));
+  const next = requested ?? "/";
+  const linkFailed = params.has("error");
+  const passwordReset = params.has("reset");
   const { data: session } = useSession();
 
   // A session that reaches this page is one worth honouring. Anything the API
   // rejected was revoked at `/session/reset` before the browser got here, so
   // there is no stale-but-truthy case to second-guess.
   useEffect(() => {
-    if (session) router.replace(next);
+    if (inOrganization(session)) router.replace(next);
   }, [session, router, next]);
 
   return (
@@ -30,7 +42,7 @@ export function LoginView() {
       {/* Form column */}
       <div className="flex flex-col bg-surface">
         <div className="flex h-16 items-center px-6 sm:px-10">
-          <span className="text-lg font-semibold tracking-tight text-ink">Headless LMS</span>
+          <span className="text-lg font-semibold tracking-tight text-ink">{orgName}</span>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
           <div className="w-full max-w-xs">
@@ -42,7 +54,37 @@ export function LoginView() {
                 Welcome back. Enter your credentials to continue your courses.
               </p>
             </div>
-            <SignInForm onDone={() => router.replace(next)} />
+            {passwordReset && (
+              <Alert className="mt-6">
+                <CheckCircle2 />
+                <AlertDescription>
+                  Your password was changed. Sign in with the new one.
+                </AlertDescription>
+              </Alert>
+            )}
+            {linkFailed && (
+              <Alert variant="destructive" className="mt-6">
+                <AlertTriangle />
+                <AlertDescription>
+                  That sign-in link didn&apos;t work. It may have expired or been used already.
+                </AlertDescription>
+              </Alert>
+            )}
+            <SignInForm orgName={orgName} onDone={() => router.replace(next)} />
+            <p className="mt-6 flex flex-col gap-2 text-center text-sm text-ink-3">
+              <Link
+                href={withNext("/forgot-password", requested)}
+                className="font-medium text-brand underline-offset-4 hover:underline"
+              >
+                Forgot your password?
+              </Link>
+              <Link
+                href={withNext("/sign-in-link", requested)}
+                className="font-medium text-brand underline-offset-4 hover:underline"
+              >
+                Email me a sign-in link
+              </Link>
+            </p>
           </div>
         </div>
       </div>
@@ -55,7 +97,7 @@ export function LoginView() {
             <p className="text-2xl font-medium tracking-tight text-surface text-balance">
               Your courses, in one calm place. Pick up right where you left off.
             </p>
-            <footer className="mt-4 text-sm text-surface/60">Headless LMS · Course platform</footer>
+            <footer className="mt-4 text-sm text-surface/60">{orgName}</footer>
           </blockquote>
         </div>
       </div>
@@ -63,7 +105,7 @@ export function LoginView() {
   );
 }
 
-function SignInForm({ onDone }: { onDone: () => void }) {
+function SignInForm({ orgName, onDone }: { orgName: string; onDone: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -73,22 +115,45 @@ function SignInForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error } = await signIn.email({ email, password });
-    if (error) {
-      setError(error.message ?? "Invalid email or password");
+    const failure = await signedIn().catch(() => UNREACHABLE);
+    if (failure) {
+      setError(failure);
       setSubmitting(false);
       return;
     }
     onDone();
   }
 
+  async function signedIn(): Promise<string | null> {
+    const { error } = await signIn.email({ email, password });
+    if (error) {
+      if (error.code === NOT_A_MEMBER) {
+        return `This account is not a member of ${orgName}. If you were invited, ask ${orgName} to send the invitation again.`;
+      }
+      if (!error.status || error.status >= 500) {
+        return UNREACHABLE;
+      }
+      return error.status === 401
+        ? "Invalid email or password."
+        : (error.message ?? "Invalid email or password.");
+    }
+    const { data: session } = await authClient.getSession({
+      query: { disableCookieCache: true },
+    });
+    if (!inOrganization(session)) {
+      await signOut();
+      return `You have an invitation to ${orgName} that you haven't accepted yet. Open the link in your invitation email to accept it. Can't find it? Ask ${orgName} to send it again.`;
+    }
+    return null;
+  }
+
   return (
     <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4" noValidate>
       {error && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-quiz-wrong-border bg-quiz-wrong-bg px-3 py-2.5 text-sm text-quiz-wrong-fg">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <p>{error}</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium text-ink">

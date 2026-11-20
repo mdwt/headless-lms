@@ -10,7 +10,7 @@ import type { ServerConfig } from '../config.js';
 import { ErrorBody, ValidationErrorBody } from '../schemas/shared.js';
 import pkg from '../../../package.json' with { type: 'json' };
 
-const PUBLIC_ROUTES = new Set(['GET /api/organizations/invites/:token']);
+const PUBLIC_ROUTES = new Set(['GET /api/organizations/invites/:token', 'GET /api/app']);
 
 type RouteSchema = {
   body?: unknown;
@@ -58,6 +58,10 @@ export function registerOpenApi(app: FastifyInstance, config: ServerConfig): voi
         {
           name: 'Organizations',
           description: 'The tenant: its members, roles, invites and students',
+        },
+        {
+          name: 'Apps',
+          description: 'The frontends an organization runs, and the domain each is reached at',
         },
         {
           name: 'Content',

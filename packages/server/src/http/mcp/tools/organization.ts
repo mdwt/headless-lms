@@ -24,8 +24,7 @@ export const organizationTools: Tool[] = [
   defineTool({
     name: 'update_organization',
     title: 'Update organization',
-    description:
-      "Change the organization's name or slug, or the hosts its member apps are reached at.",
+    description: "Change the organization's name or slug.",
     kind: 'write',
     idempotent: true,
     openWorld: false,
@@ -38,7 +37,6 @@ export const organizationTools: Tool[] = [
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
-        hosts: org.hosts,
       };
     },
   }),
@@ -221,8 +219,8 @@ export const organizationTools: Tool[] = [
     idempotent: false,
     openWorld: true,
     input: OrgUserIdParam.extend(ResendInvite.shape),
-    call: ({ orgUserId, host }, { container, caller }) =>
-      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId, host),
+    call: ({ orgUserId, domain }, { container, caller }) =>
+      container.organizations.resendInvite(orgUserId, caller.actor, caller.userId, domain),
   }),
   defineTool({
     name: 'cancel_invite',

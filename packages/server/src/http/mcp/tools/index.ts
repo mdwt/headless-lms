@@ -1,4 +1,5 @@
 import type { Tool } from '../tool.js';
+import { appTools } from './apps.js';
 import { automationTools } from './automations.js';
 import { catalogTools } from './catalog.js';
 import { commentTools } from './comments.js';
@@ -16,6 +17,7 @@ export const TOOL_GROUPS: { title: string; tools: Tool[] }[] = [
   { title: 'Events', tools: eventTools },
   { title: 'Students, access and analytics', tools: peopleTools },
   { title: 'Organization, roles and team', tools: organizationTools },
+  { title: 'Apps and domains', tools: appTools },
   { title: 'Workflows and webhooks', tools: automationTools },
   { title: 'Comments', tools: commentTools },
   { title: 'Communities', tools: communityTools },

@@ -23,7 +23,11 @@ const container = {
     adminAppUrl: 'https://admin.example.com',
   }),
   requestContext: { set: (fields: Record<string, unknown>) => logContext.push(fields) },
-  auth: { verify: async () => SESSION, handler: async () => new Response(null) },
+  auth: {
+    verify: async () => SESSION,
+    handler: async () => new Response(null),
+    sessionUse: () => null,
+  },
   organizations: {
     resolveCaller: async (authOrgId: string, authUserId: string) => {
       resolved.push({ authOrgId, authUserId });
@@ -179,6 +183,199 @@ describe('api keys', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(keyChecks).toBe(0);
+  });
+});
+
+describe("a request from an app's domain", () => {
+  const GLOBEX = { id: 'org_2', name: 'Globex', slug: 'globex', externalId: 'org_2' };
+  const DOMAINS: Record<string, typeof ORG> = {
+    'https://learn.acme.test': ORG,
+    'https://globex.platform.test': GLOBEX,
+  };
+  const GRANT = {
+    userId: 'usr_k',
+    orgId: ORG.id,
+    clientId: 'api-key:key_1',
+    limit: { roleKey: 'owner' },
+  };
+  let activeOrganizationId: string | null = ORG.id;
+  let lookups: string[] = [];
+  let removed = false;
+  let scoped: FastifyInstance;
+
+  beforeAll(async () => {
+    scoped = Fastify();
+    scoped.setErrorHandler(errorHandler);
+    const world = {
+      ...container,
+      auth: {
+        ...container.auth,
+        verify: async () => ({ ...SESSION, session: { activeOrganizationId } }),
+        verifyApiKey: async () => GRANT,
+        sessionUse: (method: string, url: string, body: { organizationId?: string }) => {
+          if (method === 'GET' && /get-session|organization\/list/.test(url)) {
+            return { kind: 'read' };
+          }
+          return method === 'POST' && url.includes('set-active')
+            ? { kind: 'switch', to: { id: body.organizationId } }
+            : null;
+        },
+        handler: async () =>
+          new Response(JSON.stringify({ answered: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      },
+      apps: {
+        at: async (domain: string) => {
+          lookups.push(domain);
+          const organization = DOMAINS[domain];
+          return organization ? { app: { id: `app_${organization.slug}` }, organization } : null;
+        },
+      },
+      organizations: {
+        ...container.organizations,
+        resolveCaller: async (authOrgId: string, authUserId: string) =>
+          removed
+            ? { orgId: ORG.id, userId: authUserId, orgUserId: null, actor: null }
+            : container.organizations.resolveCaller(authOrgId, authUserId),
+        acceptsSession: (at: { organization: typeof ORG }, authOrgId: string) =>
+          at.organization.externalId === authOrgId,
+        acceptsSwitch: (at: { organization: typeof ORG }, to: { id?: string }) =>
+          to.id === undefined || to.id === at.organization.externalId,
+      },
+    } as unknown as Container;
+    registerAuth(scoped, world);
+    const seen = (req: { orgId?: string }) => ({ orgId: req.orgId ?? null });
+    scoped.get('/org-scoped', { preHandler: scoped.requireOrgSession }, async (req) => seen(req));
+    scoped.get('/session-only', { preHandler: scoped.requireSession }, async (req) => seen(req));
+    scoped.get('/open', async () => ({ ok: true }));
+    await scoped.ready();
+  });
+
+  afterAll(async () => {
+    await scoped.close();
+  });
+
+  beforeEach(() => {
+    activeOrganizationId = ORG.id;
+    lookups = [];
+    removed = false;
+  });
+
+  const get = (url: string, headers: Record<string, string>) =>
+    scoped.inject({ method: 'GET', url, headers });
+
+  it("is answered with a session for that app's organization", async () => {
+    for (const url of ['/org-scoped', '/session-only']) {
+      const res = await get(url, { origin: 'https://learn.acme.test' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ orgId: 'org_1' });
+    }
+  });
+
+  it('is a 401 with a session of a person who is no longer in the organization', async () => {
+    removed = true;
+    const res = await get('/org-scoped', { origin: 'https://learn.acme.test' });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toEqual({
+      error: 'unauthorized',
+      message: 'You are not a member of this organization',
+    });
+  });
+
+  it('is a 401 with a session for another organization', async () => {
+    for (const url of ['/org-scoped', '/session-only']) {
+      const res = await get(url, { origin: 'https://globex.platform.test' });
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toEqual({
+        error: 'unauthorized',
+        message: 'This session is for another organization',
+      });
+    }
+    const referred = await get('/org-scoped', { referer: 'https://globex.platform.test/courses' });
+    expect(referred.statusCode).toBe(401);
+  });
+
+  it('is answered from any other domain, whatever organization the session is for', async () => {
+    const others: Record<string, string>[] = [{}, { origin: 'https://admin.example.com' }];
+    for (const headers of others) {
+      expect((await get('/org-scoped', headers)).statusCode).toBe(200);
+    }
+  });
+
+  it('lets a session with no organization reach the routes that need none', async () => {
+    activeOrganizationId = null;
+    const res = await get('/session-only', { origin: 'https://globex.platform.test' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ orgId: null });
+    const scopedRoute = await get('/org-scoped', { origin: 'https://globex.platform.test' });
+    expect(scopedRoute.statusCode).toBe(401);
+    expect(scopedRoute.json().message).toBe('Choose an organization to continue');
+  });
+
+  it('does not apply to an API key, and looks nothing up for one', async () => {
+    const res = await get('/org-scoped', {
+      origin: 'https://globex.platform.test',
+      'x-api-key': 'hlms_good',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ orgId: 'org_1' });
+    expect(lookups).toEqual([]);
+  });
+
+  it('is not looked up on a route that needs no caller', async () => {
+    const res = await get('/open', { origin: 'https://globex.platform.test' });
+    expect(res.statusCode).toBe(200);
+    expect(lookups).toEqual([]);
+    await get('/org-scoped', { origin: 'https://globex.platform.test' });
+    expect(lookups).toEqual(['https://globex.platform.test']);
+  });
+
+  it('is a 401 on the sign-in routes that read the session, and only on those', async () => {
+    const elsewhere = { origin: 'https://globex.platform.test' };
+    for (const url of ['/api/auth/get-session', '/api/auth/organization/list']) {
+      const res = await get(url, elsewhere);
+      expect(res.statusCode).toBe(401);
+      expect(res.json().message).toBe('This session is for another organization');
+      expect((await get(url, { origin: 'https://learn.acme.test' })).statusCode).toBe(200);
+      expect((await get(url, { origin: 'https://admin.example.com' })).statusCode).toBe(200);
+      expect((await get(url, {})).statusCode).toBe(200);
+    }
+    expect((await get('/api/auth/magic-link/verify?token=t', elsewhere)).statusCode).toBe(200);
+    const signOut = await scoped.inject({
+      method: 'POST',
+      url: '/api/auth/sign-out',
+      headers: elsewhere,
+      payload: {},
+    });
+    expect(signOut.statusCode).toBe(200);
+    activeOrganizationId = null;
+    expect((await get('/api/auth/get-session', elsewhere)).statusCode).toBe(200);
+  });
+
+  it("refuses switching to another organization on an app's domain", async () => {
+    const switchTo = (organizationId: string, origin?: string) =>
+      scoped.inject({
+        method: 'POST',
+        url: '/api/auth/organization/set-active',
+        headers: origin ? { origin } : {},
+        payload: { organizationId },
+      });
+    const refused = await switchTo(GLOBEX.externalId, 'https://learn.acme.test');
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().message).toBe('On this domain a session is for Acme only');
+    expect((await switchTo(ORG.externalId, 'https://learn.acme.test')).statusCode).toBe(200);
+    expect((await switchTo(GLOBEX.externalId, 'https://admin.example.com')).statusCode).toBe(200);
+    expect((await switchTo(GLOBEX.externalId)).statusCode).toBe(200);
+  });
+
+  it('is told by the Referer when the Origin is `null`', async () => {
+    const res = await get('/org-scoped', {
+      origin: 'null',
+      referer: 'https://globex.platform.test/courses',
+    });
+    expect(res.statusCode).toBe(401);
   });
 });
 

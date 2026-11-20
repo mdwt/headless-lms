@@ -1,6 +1,6 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
 import type { User, UserProfile, UserProfileView } from './model.js';
-import type { MemberActor, UpdateProfileInput } from './ports.js';
+import type { MemberActor, RequestedOn, SessionAdmin, UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
@@ -12,6 +12,10 @@ import { identityEvents } from './events.js';
 
 export const UNNAMED_MEMBER = 'A member';
 
+function requestedArgs(requestedOn: RequestedOn | undefined): [] | [string, string] {
+  return requestedOn ? [requestedOn.orgId, requestedOn.appId] : [];
+}
+
 export class IdentityServiceImpl implements IdentityService {
   private readonly repo: IdentityRepository;
   private readonly logger: Logger;
@@ -19,6 +23,7 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly mailer: Pick<Mailer, 'send'>;
   private readonly images: MemberImageReader & Pick<AssetFiles, 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
+  private readonly sessions: () => Pick<SessionAdmin, 'confirmEmail'>;
 
   constructor(input: {
     repo: IdentityRepository;
@@ -27,6 +32,7 @@ export class IdentityServiceImpl implements IdentityService {
     uow: IdentityUnitOfWork;
     images: MemberImageReader & Pick<AssetFiles, 'syncPublicImages'>;
     fileUrls: FileUrls;
+    sessions: () => Pick<SessionAdmin, 'confirmEmail'>;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;
@@ -34,6 +40,7 @@ export class IdentityServiceImpl implements IdentityService {
     this.uow = input.uow;
     this.images = input.images;
     this.fileUrls = input.fileUrls;
+    this.sessions = input.sessions;
   }
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -97,16 +104,39 @@ export class IdentityServiceImpl implements IdentityService {
     return this.repo.findUserById(id);
   }
 
-  async sendPasswordReset(input: { email: string; url: string }): Promise<void> {
-    await this.mailer.send(input.email, 'passwordReset', { resetUrl: input.url });
+  async sendPasswordReset(input: {
+    email: string;
+    url: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void> {
+    await this.mailer.send(
+      input.email,
+      'passwordReset',
+      { resetUrl: input.url },
+      ...requestedArgs(input.requestedOn),
+    );
   }
 
-  async sendPasswordChanged(input: { email: string }): Promise<void> {
-    await this.mailer.send(input.email, 'passwordChanged', {});
+  async passwordReset(input: {
+    authUserId: string;
+    email: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void> {
+    await this.sessions().confirmEmail(input.authUserId);
+    await this.mailer.send(input.email, 'passwordChanged', {}, ...requestedArgs(input.requestedOn));
   }
 
-  async sendMagicLink(input: { email: string; url: string }): Promise<void> {
-    await this.mailer.send(input.email, 'magicLink', { url: input.url });
+  async sendMagicLink(input: {
+    email: string;
+    url: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void> {
+    await this.mailer.send(
+      input.email,
+      'magicLink',
+      { url: input.url },
+      ...requestedArgs(input.requestedOn),
+    );
   }
 
   async profileOf(actor: MemberActor): Promise<UserProfileView> {

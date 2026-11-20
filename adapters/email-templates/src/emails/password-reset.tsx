@@ -1,10 +1,10 @@
 import type { EmailTemplateParams, TemplateContext } from "@headless-lms/core/types";
-import { EmailButton, Layout, Paragraph, PREVIEW_CTX } from "./layout.js";
+import { EmailButton, Layout, Paragraph, PREVIEW_CTX, senderName } from "./layout.js";
 
 type Params = EmailTemplateParams["passwordReset"];
 
 export const subject = (ctx: TemplateContext, _params: Params) =>
-  `Reset your ${ctx.brandName} password`;
+  `Reset your ${senderName(ctx)} password`;
 
 export default function PasswordReset({ ctx, params }: { ctx: TemplateContext; params: Params }) {
   return (

@@ -1,30 +1,15 @@
 # Organizations — Domain Spec
 
-Organizations owns the tenant: the organization itself, everyone who belongs to it, the roles they hold, and every decision about what they may do. It is the tenant root that every other context scopes to.
+Organizations owns the tenant: the organization itself, everyone who belongs to it, and the role each of them holds. It is the tenant root that every other context scopes to. Better Auth's organization plugin is the source of truth for staff membership; core holds a mirror, and staff membership writes go through Better Auth.
 
-A permission names one thing a person may do, such as editing a course. A role is a named set of permissions. A role is given to a person on the whole organization or on one content item, such as a course or a community. Every decision about what a person may do is a permission check; nothing decides by a role's name.
-
-## Glossary
-
-| Term                  | Meaning                                                                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permission            | One `resource:action` from the permission list, such as `courses:write`. The only thing checked.                                                            |
-| Permission list       | The fixed list of permissions. Each has a label, a description and what it is about: one content type, or the org. Part of the product, not data.           |
-| Level                 | Where a role can be given: the org, or a content type. A permission's "about" is a level too.                                                               |
-| Content item          | One course, one download, one community, and so on. Content owns it.                                                                                        |
-| Role                  | A named set of permissions with the levels it can be given at. It has a stable key and a name the org can change.                                           |
-| Default set           | The roles every org starts with. The product's default set is Owner, Admin, Instructor, Moderator and Member. A deployment can replace it with its own.     |
-| System role           | Owner and Member. Every default set has them. They can be renamed, never changed or deleted.                                                                |
-| Assignment            | A person holding a role on the org or on one content item.                                                                                                  |
-| Org role              | The role a person holds on the org. Everyone has exactly one; it is Member unless they were given another.                                                  |
-| Effective permissions | Everything a person may do on an item: their org role's permissions plus those of the role given to them on that item.                                      |
-| Team                  | People shown as team on a content item: a badge with their role's name, the team section of a community's directory, and the direct-message rules for team. |
+An **org user** links a _person_ (from the identity domain) to an organization under one role. Staff and learners are the same kind of link, distinguished only by role — a learner is an org user whose role is `student`. This is what makes it possible to say "whoever did this" about any actor in an organization without first asking which population they came from.
 
 ## Scope
 
 - Owns the **organization (tenant)**, the **org user** (person ↔ org), the **invite**, the **roles** and the **assignments**.
 - Owns the **permission list** and **authorization**: every permission check in the system is answered from what organizations holds.
 - Owns **people management**: inviting, giving and removing roles, removing people, and transferring ownership.
+- Owns the org's **apps**: the frontends it runs and their domains.
 - Does **not** own the person record (identity), access to content (entitlements), content (content), or completion (progress).
 
 ## System of record
@@ -64,68 +49,11 @@ flowchart TD
 - **Role** — a key, a name, a description, its levels, its permissions, and whether its holders are shown as team. A role the org changed or added also records the default role it started from.
 - **Assignment** — an org user, a role, and the org or one content item.
 - **Invite** — a pending invite to join an org, carrying the org role the invitee will hold. Domain-owned.
-- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings. Also among them are its hosts: where its course app and its community app are reached. Links sent to a person, in an email, an invite or a calendar file, use them, so a change applies to the next link. Both are always set. A new org starts with one host for both, its slug under the platform's host, and changes them later. For example, on a platform at `example.com` Acme starts at `acme.example.com`, then connects `learn.acme.com` for courses and `club.acme.com` for its community; from then on an email about a post links to the last. People sign in from a page on any of an org's hosts, from the moment the host is set. A link that signs a person in or resets their password, and returns to an org's host, is sent only to a person who is active in that org.
-
-## Permissions
-
-The permission list is part of the product. A deployment or an org can't add a permission.
-
-- A key is `resource:action`. The resource is a plural domain noun: `courses`, `people`, `automations`. A record that belongs to a resource falls under it: modules, activities and lesson comments under `courses`; spaces, topics, posts, chats and space members under `communities`; an event's attached files and its attendees under `events`. A course's learners and their progress are `progress`, because it is personal data the course's content permissions shouldn't carry.
-- The actions are `read`, `write`, `delete` and `moderate`. `read` sees the resource. `write` creates and changes it; creating a content item needs `write` on the org. `delete` permanently removes the resource itself; removing a part of it, such as a module or a space, is `write`. `moderate` acts on what other people post in an item and on who takes part in it, and the holder's own posts there skip review.
-- Each `write` and `delete` implies the resource's `read`. `courses:moderate` implies `courses:read`, because a moderator of lesson comments holds no grant to the course. `people:read` implies `progress:read`, because a person's record shows their progress in every course. `communities:moderate` implies nothing: a moderator moderates as a member, through their grant.
-- The read permission of each content type is the one exception to grants. `courses:read` and `downloads:read` open the item and its files without a grant, unpublished included. `communities:read` makes the person a member of the community without a grant and opens every space in it. `events:read` opens the event, its location, files and recording without a grant, in any status.
-
-| Permission                      | Allows                                                                                                                     | About     |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `organizations:read`            | See the org's name, slug and general settings.                                                                             | org       |
-| `organizations:write`           | Change the org's name, slug and general settings.                                                                          | org       |
-| `api_keys:read`                 | List your own API keys.                                                                                                    | org       |
-| `api_keys:write`                | Create your own API keys.                                                                                                  | org       |
-| `api_keys:delete`               | Revoke your own API keys.                                                                                                  | org       |
-| `notification_categories:read`  | See the notification types, channels and the org's categories and defaults.                                                | org       |
-| `notification_categories:write` | Edit and reset the org's notification categories.                                                                          | org       |
-| `integrations:read`             | See connected integrations.                                                                                                | org       |
-| `integrations:write`            | Connect, configure and run actions on integrations.                                                                        | org       |
-| `integrations:delete`           | Disconnect integrations.                                                                                                   | org       |
-| `analytics:read`                | See the org's overview report.                                                                                             | org       |
-| `people:read`                   | List the org's people and pending invites, with each person's roles, and open any person's record.                         | org       |
-| `people:write`                  | Invite people, resend and cancel invites, set a person's org role, and give and remove roles on content items.             | org       |
-| `people:delete`                 | Remove a person from the org.                                                                                              | org       |
-| `roles:read`                    | See the org's roles and their permissions.                                                                                 | org       |
-| `roles:write`                   | Rename roles; change, reset and add roles.                                                                                 | org       |
-| `roles:delete`                  | Delete a role the org added.                                                                                               | org       |
-| `access:read`                   | See grants, including a community's roster of grant holders.                                                               | org       |
-| `access:write`                  | Grant, change and revoke access.                                                                                           | org       |
-| `bundles:read`                  | See bundles and their names.                                                                                               | org       |
-| `bundles:write`                 | Create and edit bundles.                                                                                                   | org       |
-| `bundles:delete`                | Delete bundles.                                                                                                            | org       |
-| `media:read`                    | See the whole media library and attach any of its files.                                                                   | org       |
-| `media:write`                   | Upload to the media library and edit its files.                                                                            | org       |
-| `media:delete`                  | Delete files from the media library.                                                                                       | org       |
-| `courses:read`                  | See the course; open it, its lessons, files and titles without a grant, unpublished included.                              | course    |
-| `courses:write`                 | Edit and publish the course; add, change and delete its modules and activities; upload media for it.                       | course    |
-| `courses:delete`                | Delete the course.                                                                                                         | course    |
-| `courses:moderate`              | See the course's lesson comments, held ones included; approve, remove, restore, reply to and resolve reports on them.      | course    |
-| `progress:read`                 | See the course's learners, their progress and the course's analytics.                                                      | course    |
-| `downloads:read`                | See the download; open it and its files without a grant, unpublished included.                                             | download  |
-| `downloads:write`               | Edit and publish the download; upload files for it.                                                                        | download  |
-| `downloads:delete`              | Delete the download.                                                                                                       | download  |
-| `communities:read`              | See the community, its spaces, notification categories and analytics; be a member of it without a grant; open every space. | community |
-| `communities:write`             | Configure the community, its spaces, topics, links, settings and notification categories; publish it; delete its spaces.   | community |
-| `communities:delete`            | Delete the community.                                                                                                      | community |
-| `communities:moderate`          | Review, approve, remove, restore, pin and lock posts, comments and messages; manage space members and join requests.       | community |
-| `events:read`                   | See the event, drafts and canceled included; open it without a grant; see its attendees and analytics.                     | event     |
-| `events:write`                  | Edit, publish and cancel the event; set its recording; add and remove attendees; upload, attach and arrange its files.     | event     |
-| `events:delete`                 | Delete the event.                                                                                                          | event     |
-| `automations:read`              | See workflows, webhooks and their runs.                                                                                    | org       |
-| `automations:write`             | Create and edit workflows and webhooks, and reveal a webhook's signing secret.                                             | org       |
-| `automations:delete`            | Delete workflows and webhooks.                                                                                             | org       |
-
-Two actions are not permissions, because no role can hold them: transferring ownership is the owner's alone, and creating an org needs only a signed-in person, who becomes its owner, or the platform key. Connected apps are a person's own consents: every active org user lists and disconnects their own.
+- **Org settings** — the organization's own settings. Among them are its notification categories: the ordered switches on a member's notification settings for what happens outside any community, such as comments on a course activity, access to content and their own account. Each covers kinds of notification for people with given reasons and offers channels with a default and an optional lock. An org without its own list uses the default list, and a holder of `notification_categories:write` can go back to it. Automations reads the list to file each notification; identity reads it to check a member's settings.
 
 ## Roles
 
-Roles are data. The product ships a default set; a deployment can replace it with its own, and an org can rename its roles or change them.
+Roles are defined in the data. There is a default set; but a deployment can replace it with its own, and an org can rename its roles or change them.
 
 | Key          | Name       | Levels         | Team | Holds                                                                                                                    |
 | ------------ | ---------- | -------------- | ---- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -142,16 +70,6 @@ Instructor on the org covers every course; on one course, that course. Moderator
 - **A deployment's set** must include Owner and Member unchanged, use each key once, name only permissions in the list and levels that exist, and give every role at least one level and only permissions that fit its levels. The server refuses to start otherwise.
 - **An org's changes.** Renaming a role changes only its name; holders keep it, because assignments refer to the key. Changing a role's permissions, levels or team flag stores the org's version of that role, which applies from then on. Resetting returns it to the default set's version. An org can add roles of its own, each starting from a default role, and delete them while nobody holds them. Names are unique within an org, ignoring case.
 - **A permission added in a later release** reaches every role the org hasn't changed with its default, and every changed role with the default of the role it started from, until the role is saved with an explicit choice.
-
-## Levels
-
-A role lists its levels: the org and/or content types. Levels are enforced in three places.
-
-- **When a role is saved.** A role may hold a permission about a content type when its levels include that type or the org, and a permission about the org only when its levels include the org. A role whose only level is `course` can't hold `people:write`.
-- **When a role is given.** A role is given only at a level it lists. Instructor can be given on the org or on a course, and giving it on a community is refused. Owner and Member are given on the org only.
-- **When permissions are resolved.** A role given on an item contributes only its permissions about that item's type, and only for that item.
-
-Removing a level from a role is refused while the role is given at that level. A new content type is a valid level as soon as content defines it, and brings its own permissions.
 
 ## Effective permissions
 
@@ -188,13 +106,37 @@ A person is team on a content item when the role given to them there, or their o
 6. **Removing a person** deletes their org user and their assignments, removes their Better Auth membership, and revokes their API keys, connected apps and tokens for the org. A refusal, such as for someone whose posts must be kept, changes nothing.
 7. **Deleting a content item** deletes the roles given on it.
 
+## Apps
+
+An org runs its frontends as apps, each on its own domain. An app serves courses, the community, or both.
+
+- Listing an org's apps needs `organizations:read`. Creating, changing and deleting one needs `organizations:write`.
+- An org has at most one app that serves courses and one that serves the community, and an app serves at least one of the two.
+- A domain belongs to one app across every org. The installation's own addresses, such as the admin app's, cannot be an app's domain.
+- A new org has no app.
+
+For example, Acme creates one app at `acme.example.com` for both. Later it changes that app to serve courses at `learn.acme.com` and creates a community app at `club.acme.com`.
+
+## Signing in on a domain
+
+A domain tells which org a person is signing in to, because it belongs to one of an org's apps.
+
+- A session started on an app's domain is for that app's org, when the person is active in it.
+- A person who holds an open invite to that org gets a session with no org. Accepting the invite sets it.
+- Anyone else is refused there.
+- A session started anywhere else, such as on the admin app, is for the person's org when they are in exactly one. The installation takes sign-ins only from its own addresses and from apps' domains.
+- On an app's domain, a session for another org is not accepted.
+- A link that signs a person in or resets their password, and returns to an app's domain, is sent only to a person who is active in that app's org. The email names the org it was asked for on, as does the email that confirms a changed password.
+
+For example, Sarah is in Acme and Globex, and James is only in Globex. Sarah signs in on `learn.acme.com` and gets an Acme session; on Globex's domain she gets a Globex one. James is refused on `learn.acme.com`. Emma was invited to Acme: she opens the link in her invitation on `learn.acme.com`, signs in there and accepts, and her session is for Acme.
+
 ## Membership
 
 Every org user who accepts an invite holds a Better Auth membership, whatever their role. A person has at most one membership per org, and changing their roles never touches it. Accepting an invite as an existing member, to change their role, keeps their one membership.
 
 ### Invites
 
-An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the app the invite was sent from, which must be one of the org's hosts.
+An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the domain the invite names, which must be one of the org's apps, or else the app that serves courses. With neither, an emailed invite is refused. On an app's domain, an invite to another org does not exist.
 
 Every invite creates the person and an `invited` org user at once, whatever the role. This is what makes someone findable, grantable and reportable while their invitation is outstanding. Accepting activates that same org user, creates their membership if they have none, and sets the invited org role, so anything granted while they were pending survives. Accepting is refused when the inviter no longer holds what the invite needs; resending makes the resender the inviter.
 
@@ -248,4 +190,4 @@ The organization is the tenant root. Every org-scoped record across the system b
 
 ## Build state
 
-The permission list, the default set, org roles, assignments on the org and on content items, effective permissions, the no-escalation rules, ownership transfer, invites and removal are built and **persisted**. Every method a person can reach checks a permission. API keys carry a role and app tokens carry scopes, and both are limited to their creator's current permissions. The platform key and the platform account are built. `organization.user.updated` is declared, and nothing emits it.
+The permission list, the default set, org roles, assignments on the org and on content items, effective permissions, the no-escalation rules, ownership transfer, invites, removal and signing in on a domain are built and **persisted**. Every method a person can reach checks a permission. API keys carry a role and app tokens carry scopes, and both are limited to their creator's current permissions. The platform key and the platform account are built. `organization.user.updated` is declared, and nothing emits it.

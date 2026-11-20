@@ -2,8 +2,7 @@
 export { OrganizationServiceImpl } from './service.js';
 export type { OrganizationServiceParams, InviteUrls } from './service.js';
 export { OrgNotificationCategories } from './notification-categories.js';
-export { OrgHostSettings } from './hosts.js';
-export type { OrgHostIndex, OrgHostSettingsParams } from './hosts.js';
+export { OrgApps, servesCommunity } from './apps.js';
 export { NotificationCatalog } from './notification-catalog.js';
 export type {
   NotificationCatalogParams,
@@ -43,6 +42,9 @@ export type {
   NewOrganizationRow,
   NewInviteRow,
   CreatedInvite,
+  AppAt,
+  AppLookup,
+  LinkDomain,
 } from './ports.js';
 export type { Organization, OrganizationMetadata, OrgUser, Invite } from './model.js';
 export { InviteError, OrganizationRuleError } from './members.js';

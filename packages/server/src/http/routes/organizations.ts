@@ -36,6 +36,7 @@ import {
 import type { CreatedInvite } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
+import { requestApp } from '../request-domain.js';
 
 function inviteView(invite: CreatedInvite) {
   return {
@@ -68,7 +69,7 @@ export async function organizationsRoutes(
       tags,
       summary: 'Create an organization and make it active',
       description:
-        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with one host for both member apps, its slug under the platform host, returned as `hosts`.',
+        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`. 400 when the slug is in use.',
       body: CreateOrganization,
       response: { 201: Organization, ...refusals(400) },
     },
@@ -79,7 +80,6 @@ export async function organizationsRoutes(
         slug: org.slug,
         id: org.id,
         createdAt: org.createdAt.toISOString(),
-        hosts: org.hosts,
       });
     },
   });
@@ -92,7 +92,7 @@ export async function organizationsRoutes(
       operationId: 'updateOrganization',
       tags,
       summary: 'Update the active organization',
-      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken. \`hosts\` replaces both hosts, and the next link uses the new value: links to courses and downloads use \`courses\`, links to communities and events use \`community\`. Changing the slug does not change the hosts.`,
+      description: `Requires \`organizations:write\`. Changes its name or slug; 409 when the slug is taken. Changing the slug does not change its apps.`,
       body: UpdateOrganization,
       response: { 200: Organization, ...refusals(403, 409) },
     },
@@ -104,7 +104,6 @@ export async function organizationsRoutes(
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt.toISOString(),
-        hosts: org.hosts,
       };
     },
   });
@@ -364,7 +363,7 @@ export async function organizationsRoutes(
       operationId: 'createInvite',
       tags: peopleTags,
       summary: 'Invite a person with an org role',
-      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409). \`host\` is the app the invite link opens and must be one of the organization's hosts (409).`,
+      description: `Requires \`people:write\`. The person is created by this call and returned as \`orgUserId\`, so access and item roles can be given before they accept. Needs every permission the role holds; never \`owner\` (409). \`domain\` is the domain the invite link opens and must be one of the organization's apps (409). An emailed invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).`,
       body: CreateInvite,
       response: { 201: Invite, ...refusals(403, 404, 409) },
     },
@@ -383,7 +382,7 @@ export async function organizationsRoutes(
       operationId: 'resendInvite',
       tags: peopleTags,
       summary: "Resend a person's pending invite",
-      description: `Requires \`people:write\`. Issues a new link; the resender becomes the inviter. \`host\` is the app the invite link opens and must be one of the organization's hosts (409).`,
+      description: `Requires \`people:write\`. Issues a new link; the resender becomes the inviter. \`domain\` is the domain the invite link opens and must be one of the organization's apps (409). An invite for a role with no permissions needs a domain to open: the one named, or else the app that serves courses (409 when there is neither).`,
       params: OrgUserIdParam,
       querystring: ResendInvite,
       response: { 204: z.void(), ...refusals(403, 404, 409) },
@@ -394,7 +393,7 @@ export async function organizationsRoutes(
         req.params.orgUserId,
         caller.actor,
         caller.userId,
-        req.query.host,
+        req.query.domain,
       );
       return reply.code(204).send();
     },
@@ -426,11 +425,12 @@ export async function organizationsRoutes(
       tags: peopleTags,
       summary: 'Read an invite by its token',
       description:
-        'Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.',
+        "Public: no session needed. The same 404 answers forged, expired and accepted tokens, and a token of another organization when the request comes from an app's domain, so a probe learns nothing.",
       params: InviteTokenParam,
       response: { 200: GetInviteResult, ...refusals(404) },
     },
-    handler: async (req) => organizations.describeInvite(req.params.token),
+    handler: async (req) =>
+      organizations.describeInvite(req.params.token, await requestApp(container, req)),
   });
 
   r.route({

@@ -62,7 +62,7 @@ function where(event: Event): string | null {
 
 export function eventCalendar(
   event: Event,
-  options: { pageUrl: string; withLocation: boolean; now: Date },
+  options: { pageUrl?: string; withLocation: boolean; now: Date },
 ): string {
   const lines = [
     'BEGIN:VCALENDAR',
@@ -76,9 +76,10 @@ export function eventCalendar(
     `DTSTART:${stamp(event.startsAt)}`,
     `DTEND:${stamp(event.endsAt)}`,
     `SUMMARY:${text(event.title)}`,
-    `DESCRIPTION:${text(options.pageUrl)}`,
-    `URL:${options.pageUrl}`,
   ];
+  if (options.pageUrl) {
+    lines.push(`DESCRIPTION:${text(options.pageUrl)}`, `URL:${options.pageUrl}`);
+  }
   if (event.status === 'canceled') {
     lines.push('STATUS:CANCELLED');
   }

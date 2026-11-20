@@ -6,10 +6,23 @@ import type {
 } from "@headless-lms/core/types";
 import { ReactEmailTemplateRenderer } from "./index.js";
 
+const app = (domain: string) => ({ id: "app_1", name: "Acme", slug: "acme", domain });
+
 const CTX: TemplateContext = {
   brandName: "Acme LMS",
   baseUrl: "http://localhost:8001",
-  hosts: { courses: "http://localhost:8002", community: "http://localhost:8002" },
+  organization: { id: "org_1", name: "Acme", slug: "acme", metadata: {} },
+  courseApp: app("http://localhost:8002"),
+  communityApp: app("http://localhost:8002"),
+  requestedApp: null,
+  recipient: { email: "sarah@example.com", id: "usr_1", firstName: "Sarah", lastName: "Lee" },
+};
+
+const OUTSIDE: TemplateContext = {
+  ...CTX,
+  organization: null,
+  courseApp: null,
+  communityApp: null,
 };
 
 const EVENT = {
@@ -316,21 +329,38 @@ describe("ReactEmailTemplateRenderer", () => {
   });
 
   it("fails for an email that links to an organization's apps when there is no organization", async () => {
-    await expect(renderer.render("eventGranted", { ...CTX, hosts: null }, EVENT)).rejects.toThrow(
-      /organization/,
-    );
-    const reset = await renderer.render(
-      "passwordReset",
-      { ...CTX, hosts: null },
-      { resetUrl: "https://admin.test/reset" },
-    );
+    await expect(renderer.render("eventGranted", OUTSIDE, EVENT)).rejects.toThrow(/community app/);
+    const reset = await renderer.render("passwordReset", OUTSIDE, {
+      resetUrl: "https://admin.test/reset",
+    });
     expect(reset.text).toContain("https://admin.test/reset");
   });
 
-  it("links community things to the community host and course things to the course host", async () => {
+  it("fails for an email about a community when the organization has no app that serves it", async () => {
+    const coursesOnly: TemplateContext = { ...CTX, communityApp: null };
+    await expect(renderer.render("eventGranted", coursesOnly, EVENT)).rejects.toThrow(
+      /community app/,
+    );
+    const course = await renderer.render("accessGranted", coursesOnly, {
+      contentTitle: "T",
+      contentId: "c1",
+      contentType: "course",
+    });
+    expect(course.text).toContain("http://localhost:8002/courses/c1");
+    await expect(
+      renderer.render(
+        "accessGranted",
+        { ...CTX, courseApp: null },
+        { contentTitle: "T", contentId: "c1", contentType: "course" },
+      ),
+    ).rejects.toThrow(/course app/);
+  });
+
+  it("links community things to the community app and course things to the course app", async () => {
     const ctx: TemplateContext = {
       ...CTX,
-      hosts: { courses: "https://learn.acme.test", community: "https://club.acme.test" },
+      courseApp: app("https://learn.acme.test"),
+      communityApp: app("https://club.acme.test"),
     };
     const granted = (contentType: "course" | "download" | "community" | "event") =>
       renderer.render("accessGranted", ctx, { contentTitle: "T", contentId: "c1", contentType });
@@ -402,6 +432,22 @@ describe("ReactEmailTemplateRenderer", () => {
       SAMPLE_PARAMS.courseActivityAdded,
     );
     expect(content.html).toContain("http://localhost:8002/courses/crs_1?activity=act_1");
+  });
+
+  it("names the organization in the sign-in and invite emails, and the brand outside one", async () => {
+    const reset = await renderer.render("passwordReset", CTX, SAMPLE_PARAMS.passwordReset);
+    expect(reset.subject).toBe("Reset your Acme password");
+    const link = await renderer.render("magicLink", CTX, SAMPLE_PARAMS.magicLink);
+    expect(link.subject).toBe("Sign in to Acme");
+    const changed = await renderer.render("passwordChanged", CTX, {});
+    expect(changed.subject).toBe("Your Acme password was changed");
+    const invite = await renderer.render("studentInvite", CTX, SAMPLE_PARAMS.studentInvite);
+    expect(invite.subject).toBe("You're invited to Acme");
+    const staff = await renderer.render("memberInvite", CTX, SAMPLE_PARAMS.memberInvite);
+    expect(staff.subject).toBe("You've been invited to join Acme");
+
+    const outside = await renderer.render("passwordReset", OUTSIDE, SAMPLE_PARAMS.passwordReset);
+    expect(outside.subject).toBe("Reset your Acme LMS password");
   });
 
   it("brands every email with the context brand name", async () => {

@@ -2,11 +2,10 @@
 
 ## Overview
 
-This document outlines the project architecture so that anyone interested, human or otherwise knows how everything
+This document outlines the project architecture so that anyone knows how everything
 fits together.
 
 The idea of Headless LMS is to provide the building blocks to compose an LMS using any prefered techbologies or stacks.
-It's intended to be "unopinionated", but it has a few strong opinions.
 
 ## Design, Architecture and Layout
 
@@ -22,48 +21,8 @@ Redis cache or in-memory.
 Ports -> Interfaces defining what each part of the system can do, and what it needs to be able to do that.
 Adapters -> The swappable implemenations of the interfaces.
 
-This means there are a lot of interfaces defined in the core service, which in this case is a very good thing.
-
 By default the repo ships with working adapters for everyting, so anyone can get going as-is or check the existing
 adapters as reference when creating new ones.
-
-### Access checks
-
-Whether a member can open content is decided by the entitlements context, from the person's grants. A grant to a
-bundle covers whatever the bundle holds at the time. Nothing else decides access.
-
-The one exception is the read permission of each content type. It opens every item of that type without a grant,
-unpublished ones included, and for communities it makes the person a member of every space.
-
-For example, Sarah buys a bundle that holds a course and a community. Entitlements records one grant to the bundle,
-and she opens both. A course added to the bundle later opens for her too. James holds the read permission for
-communities, so he sees every community and every space in it without a grant.
-
-### Permission checks
-
-What a person may do is decided by the context that owns the action, against the item acted on, before anything
-changes. The organizations context owns the permissions, the roles and who holds them
-([organizations](domain/organizations.md)). The HTTP API and the MCP tools only identify the caller and hand the
-request to the owning context; they decide nothing.
-
-A caller is a signed-in person or an API key. A key holds its role's permissions, limited to what the person who
-created it may still do. Work the system does on its own runs with every permission. Nothing is decided by a role's
-name.
-
-For example, Emma moderates one community. When she removes a post there, discussion, which owns posts, checks that
-she may moderate that post's community. The same request for a post in another community is refused.
-
-### Serving files
-
-The assets context stores the files. Who may see a file is decided by the context that owns what the file belongs
-to. An image that anyone who sees the thing may see, such as a profile photo or the cover of a published course, is
-public and served directly. Every other file is decided when the thing it belongs to is read: the read that returns
-the thing carries a signed storage link to each of its files, which expires. The file itself is fetched from
-storage, not through the API.
-
-For example, Sarah's course has a thumbnail and a lesson video. While the course is published, the thumbnail is
-public. When a learner opens the lesson, the read checks that a grant covers the course and returns the video with a
-signed link that works for some hours.
 
 ### Adapters, Plugins, Integrations
 
@@ -103,16 +62,6 @@ interfaces that adapters implement.
 The core is organized by context (or domain). A context uses another only through what that context makes public.
 There is no orchastration layer at this point - and that's a decision that ensures that each use case has a domain
 owner as we build out the system.
-
-### Ownership
-
-Every record has one owning context. The owner is decided by what the record is about, not by who it is for, which
-context delivers it, or which app shows it. A person's own records are identity's: profile, notification settings,
-devices. A person's state about something another context owns belongs to that context: a follow, bookmark,
-reaction, flag or mute on a post, space or chat is discussion's. Progress is state of that kind with a context of
-its own. A record of something the system did belongs to the context that did it: a notification the server sent,
-and its deliveries, are automations', which runs that process. A record keyed by another context's item, or read
-only by another context, is in the wrong place.
 
 ### Reporting
 

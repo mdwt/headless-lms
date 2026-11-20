@@ -21,11 +21,6 @@ const API_KEY = {
   key: 'hlms_secret',
 };
 
-const HOSTS = {
-  courses: 'https://sarahs-yoga.platform.test',
-  community: 'https://sarahs-yoga.platform.test',
-};
-
 const YOGA = {
   name: "Sarah's Yoga",
   slug: 'sarahs-yoga',
@@ -49,7 +44,6 @@ const container = {
           slug: 'sarahs-yoga',
           metadata: { plan: 'pro' },
           createdAt: NOW,
-          hosts: HOSTS,
         },
         apiKey: API_KEY,
       };
@@ -72,7 +66,6 @@ const container = {
         slug: 'sarahs-yoga',
         metadata: { plan: 'pro' },
         createdAt: NOW,
-        hosts: HOSTS,
       };
     },
   },
@@ -120,11 +113,21 @@ describe('platform routes', () => {
         slug: 'sarahs-yoga',
         metadata: { plan: 'pro' },
         createdAt: NOW.toISOString(),
-        hosts: HOSTS,
       },
       apiKey: { ...API_KEY, createdAt: NOW.toISOString() },
     });
     expect(calls).toEqual([['createPlatformOrganization', YOGA]]);
+  });
+
+  it('creates an organization without a slug', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/platform/organizations',
+      headers: auth,
+      payload: { name: "Sarah's Yoga" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(calls).toEqual([['createPlatformOrganization', { name: "Sarah's Yoga" }]]);
   });
 
   it('refuses metadata beyond its limits', async () => {
@@ -173,7 +176,6 @@ describe('platform routes', () => {
       slug: 'sarahs-yoga',
       metadata: { plan: 'pro' },
       createdAt: NOW.toISOString(),
-      hosts: HOSTS,
     });
     expect(calls).toEqual([['getPlatformOrganization', 'sarahs-yoga']]);
   });

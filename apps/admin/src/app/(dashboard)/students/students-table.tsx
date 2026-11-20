@@ -19,6 +19,7 @@ import { studentColumns } from "./_components/student-columns";
 import { AddStudentDialog } from "./_components/add-student-dialog";
 import { removePersonAction, resendInviteAction } from "../settings/team/actions";
 import { SetRoleDialog } from "../settings/team/_components/set-role-dialog";
+import { UNREACHABLE } from "@/lib/api/refusal";
 
 // Students table (client): rows come in as props.
 function StudentsTableInner({
@@ -73,10 +74,14 @@ function StudentsTableInner({
   const resend = useCallback((student: Student) => {
     startTransition(async () => {
       try {
-        await resendInviteAction(student.id);
+        const refusal = await resendInviteAction(student.id);
+        if (refusal) {
+          toast.error("Couldn't resend invite", { description: refusal.refused });
+          return;
+        }
         toast.success("Invitation resent", { description: student.email });
-      } catch (e) {
-        toast.error("Couldn't resend invite", { description: (e as Error).message });
+      } catch {
+        toast.error("Couldn't resend invite", { description: UNREACHABLE });
       }
     });
   }, []);

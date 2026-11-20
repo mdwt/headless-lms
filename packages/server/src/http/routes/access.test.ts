@@ -141,9 +141,12 @@ describe('access routes', () => {
   });
 
   it('passes the actor to the connected-app methods', async () => {
-    const listed = await app.inject({ method: 'GET', url: '/api/access/apps' });
+    const listed = await app.inject({ method: 'GET', url: '/api/access/connected-apps' });
     expect(listed.statusCode).toBe(200);
-    const revoked = await app.inject({ method: 'DELETE', url: '/api/access/apps/client_1' });
+    const revoked = await app.inject({
+      method: 'DELETE',
+      url: '/api/access/connected-apps/client_1',
+    });
     expect(revoked.statusCode).toBe(204);
     expect(calls).toEqual([
       ['listConnectedApps', actor],

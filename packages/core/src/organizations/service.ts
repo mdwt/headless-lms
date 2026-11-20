@@ -7,6 +7,8 @@ import type {
   CreateApiKeyInput,
   GrantReader,
   MembersRepository,
+  AppAt,
+  LinkDomain,
   OrgAdmin,
   CreatedInvite,
   OrganizationService,
@@ -19,12 +21,13 @@ import type {
   PlatformOrganizationInput,
   ResolvedCaller,
   RolesRepository,
+  SessionOrganization,
   StoredApiKey,
   TeamRow,
   TransferOwnershipInput,
 } from './ports.js';
 import type { Invite, Organization, OrgUser } from './model.js';
-import type { OrgHostSettings } from './hosts.js';
+import { servesCourses, type OrgApps } from './apps.js';
 import {
   InviteError,
   OrganizationRuleError,
@@ -43,7 +46,6 @@ import type {
   AddOrgUserInput,
   CreateInviteInput,
   CreateOrganizationInput,
-  NewOrganizationInput,
   UpdateOrganizationInput,
 } from './types.js';
 import { organizationEvents, type OrganizationEvent } from './events.js';
@@ -59,10 +61,10 @@ import { genId, prefixId } from '../shared/id.js';
 import { levelSchema } from '../types/schemas/organizations.js';
 import type {
   ApiKeySummary,
+  App,
   ConnectedApp,
   ContentType,
   CreatedApiKey,
-  Hosts,
   Level,
   Permission,
 } from '../types/index.js';
@@ -108,6 +110,7 @@ export interface InviteUrls {
 export type OrganizationServiceParams = {
   repo: OrganizationsRepository;
   roles: RolesRepository;
+  apps: Pick<OrgApps, 'find'>;
   membersRepo: MembersRepository;
   people: IdentityService;
   images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -122,7 +125,6 @@ export type OrganizationServiceParams = {
   logger?: Logger;
   mailer?: Pick<Mailer, 'send'>;
   inviteUrls?: InviteUrls;
-  hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace' | 'orgsAt'>;
 };
 
 function snapshot(role: OrgRole) {
@@ -144,14 +146,23 @@ function lockKeys(orgId: string, roleKeys: string[], orgUserIds: string[]): stri
   ];
 }
 
-function platformDetails(org: Organization, hosts: Hosts): PlatformOrganizationDetails {
+function generatedSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, 40)
+    .replace(/(^-|-$)/g, '');
+  const ending = genId('organization').slice(-6).toLowerCase();
+  return base ? `${base}-${ending}` : ending;
+}
+
+function platformDetails(org: Organization): PlatformOrganizationDetails {
   return {
     id: org.id,
     name: org.name,
     slug: org.slug,
     metadata: org.metadata,
     createdAt: org.createdAt,
-    hosts,
   };
 }
 
@@ -187,6 +198,7 @@ function limitScopes(
 export class OrganizationServiceImpl implements OrganizationService {
   private readonly repo: OrganizationsRepository;
   private readonly roles: RolesRepository;
+  private readonly apps: Pick<OrgApps, 'find'>;
   private readonly membersRepo: MembersRepository;
   private readonly people: IdentityService;
   private readonly images: Pick<AssetFiles, 'syncPublicImages'>;
@@ -201,11 +213,11 @@ export class OrganizationServiceImpl implements OrganizationService {
   private readonly logger: Logger;
   private readonly mailer?: Pick<Mailer, 'send'>;
   private readonly inviteUrls?: InviteUrls;
-  private readonly hosts?: Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace' | 'orgsAt'>;
 
   constructor(params: OrganizationServiceParams) {
     this.repo = params.repo;
     this.roles = params.roles;
+    this.apps = params.apps;
     this.membersRepo = params.membersRepo;
     this.people = params.people;
     this.images = params.images;
@@ -225,23 +237,19 @@ export class OrganizationServiceImpl implements OrganizationService {
     this.logger = params.logger ?? noopLogger;
     this.mailer = params.mailer;
     this.inviteUrls = params.inviteUrls;
-    this.hosts = params.hosts;
   }
 
-  async createOrganization(
-    input: NewOrganizationInput,
+  createOrganization(
+    input: { name: string; slug?: string | undefined },
     headers: AuthHeaders,
-  ): Promise<AuthOrganization & { hosts: Hosts }> {
-    const created = await this.orgAdmin().createOrganization(headers, input);
-    const org = await this.repo.findByExternalId(created.id);
-    if (!org) {
-      throw new NotFoundError('Organization', created.id);
-    }
-    return { ...created, hosts: await this.orgHosts().resolve(org.id) };
+  ): Promise<AuthOrganization> {
+    return this.orgAdmin().createOrganization(headers, {
+      name: input.name,
+      slug: input.slug ?? generatedSlug(input.name),
+    });
   }
 
   async provisionOrganization(input: CreateOrganizationInput): Promise<Organization> {
-    const hosts = this.orgHosts();
     const created = await this.uow.run(async ({ organizations, roles, outbox }) => {
       const id = genId('organization');
       const org = await organizations.create({
@@ -266,15 +274,11 @@ export class OrganizationServiceImpl implements OrganizationService {
       ]);
       return org;
     });
-    await hosts.assign(created.id, created.slug);
     this.logger.info('organization created', { orgId: created.id, slug: created.slug });
     return created;
   }
 
-  async updateOrganization(
-    input: UpdateOrganizationInput,
-    actor: Actor,
-  ): Promise<Organization & { hosts: Hosts }> {
+  async updateOrganization(input: UpdateOrganizationInput, actor: Actor): Promise<Organization> {
     actor.permissions.require('organizations:write');
     const orgId = actor.orgId;
     const org = await this.repo.findById(orgId);
@@ -306,11 +310,8 @@ export class OrganizationServiceImpl implements OrganizationService {
       ]);
       return next;
     });
-    const hosts = input.hosts
-      ? await this.orgHosts().replace(input.hosts, actor)
-      : await this.orgHosts().resolve(orgId);
     this.logger.info('organization updated', { orgId, actorId: actor.id });
-    return { ...updated, hosts };
+    return updated;
   }
 
   async deleteOrganization(id: string): Promise<Organization> {
@@ -385,31 +386,86 @@ export class OrganizationServiceImpl implements OrganizationService {
     return unique.length > 0 ? this.repo.findOrgUsersByIds(orgId, unique) : [];
   }
 
-  getOrgUsersForUser(userId: string): Promise<OrgUser[]> {
-    return this.repo.findOrgUsersByUser(userId);
-  }
-
   orgIds(): Promise<string[]> {
     return this.repo.listIds();
   }
 
-  async isOrgHost(origin: string): Promise<boolean> {
-    return (await this.orgHosts().orgsAt(origin)).length > 0;
+  async appOfPerson(email: string, domains: readonly string[]): Promise<App | null> {
+    const app = await this.firstApp(domains);
+    return app && (await this.isActiveIn(email, app.orgId)) ? app : null;
   }
 
-  async isHostOfPerson(email: string, origin: string): Promise<boolean> {
-    const orgIds = await this.orgHosts().orgsAt(origin);
-    if (orgIds.length === 0) {
-      return false;
+  acceptsSession(at: AppAt, authOrgId: string): boolean {
+    return (at.organization.externalId ?? at.organization.id) === authOrgId;
+  }
+
+  acceptsSwitch(at: AppAt, to: { id?: string | null; slug?: string }): boolean {
+    if (typeof to.id === 'string') {
+      return this.acceptsSession(at, to.id);
     }
+    return to.slug === undefined || to.slug === at.organization.slug;
+  }
+
+  async linkDomain(
+    email: string,
+    returnTo: string | null,
+    named: readonly string[],
+  ): Promise<LinkDomain> {
+    for (const domain of new Set(named)) {
+      const app = await this.apps.find(domain);
+      if (app && !(await this.isActiveIn(email, app.orgId))) {
+        this.logger.warn('link not sent: the person is not in the organization of its domain', {
+          orgId: app.orgId,
+          appId: app.id,
+        });
+        return { refused: true };
+      }
+    }
+    const home = returnTo ? await this.apps.find(returnTo) : null;
+    return { refused: false, domain: home?.domain ?? null };
+  }
+
+  private async firstApp(domains: readonly string[]): Promise<App | null> {
+    for (const domain of new Set(domains)) {
+      const app = await this.apps.find(domain);
+      if (app) {
+        return app;
+      }
+    }
+    return null;
+  }
+
+  private async isActiveIn(email: string, orgId: string): Promise<boolean> {
     const person = await this.people.getUserByEmail(email);
-    if (!person) {
-      return false;
-    }
+    const orgUser = person ? await this.repo.findOrgUser(orgId, person.id) : null;
+    return orgUser?.status === 'active';
+  }
+
+  async sessionOrganization(
+    person: { id: string; email: string },
+    domains: readonly string[],
+  ): Promise<SessionOrganization> {
+    const app = await this.firstApp(domains);
     const orgUsers = await this.repo.findOrgUsersByUser(person.id);
-    return orgUsers.some(
-      (orgUser) => orgUser.status === 'active' && orgIds.includes(orgUser.orgId),
-    );
+    if (!app) {
+      const [only] = orgUsers;
+      return { refused: false, orgId: orgUsers.length === 1 && only ? only.orgId : null };
+    }
+    const orgId = app.orgId;
+    const here = orgUsers.find((orgUser) => orgUser.orgId === orgId);
+    if (here?.status === 'active') {
+      return { refused: false, orgId };
+    }
+    const invite = here ? await this.repo.findPendingInvite(orgId, person.email) : null;
+    if (invite && (!invite.expiresAt || invite.expiresAt >= new Date())) {
+      return { refused: false, orgId: null };
+    }
+    this.logger.warn('sign-in refused: the person is not in the organization of this domain', {
+      orgId,
+      appId: app.id,
+      userId: person.id,
+    });
+    return { refused: true };
   }
 
   async actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null> {
@@ -1169,7 +1225,8 @@ export class OrganizationServiceImpl implements OrganizationService {
       throw new OrganizationRuleError(`${role.name} can't be given on the organization`);
     }
     this.assertHolds(actor, role.permissions);
-    const host = input.host === undefined ? undefined : await this.inviteHost(orgId, input.host);
+    const sendEmail = input.sendEmail ?? true;
+    const domain = await this.inviteDomain(orgId, input.domain, role, sendEmail);
     const known = await this.people.getUserByEmail(email);
     const existing = known ? await this.repo.findOrgUser(orgId, known.id) : null;
     if (existing?.id === actor.id) {
@@ -1195,7 +1252,6 @@ export class OrganizationServiceImpl implements OrganizationService {
         ...(input.firstName !== undefined && { firstName: input.firstName }),
         ...(input.lastName !== undefined && { lastName: input.lastName }),
       }));
-    const sendEmail = input.sendEmail ?? true;
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     const { invite, orgUserId } = await this.uow.run(async ({ organizations, outbox }) => {
@@ -1236,12 +1292,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     });
     if (sendEmail) {
       try {
-        await this.sendInviteEmail(
-          invite,
-          token,
-          role,
-          host ?? (await this.inviteHost(orgId, undefined)),
-        );
+        await this.sendInviteEmail(invite, token, role, domain);
       } catch (err) {
         this.logger.error('failed to send invite email', {
           orgId,
@@ -1266,13 +1317,13 @@ export class OrganizationServiceImpl implements OrganizationService {
     orgUserId: string,
     actor: Actor,
     inviterUserId: string,
-    host?: string,
+    domain?: string,
   ): Promise<void> {
     actor.permissions.require('people:write');
     const orgId = actor.orgId;
     const { invite, role } = await this.pendingInviteOf(orgId, orgUserId);
     this.assertHolds(actor, role.permissions);
-    const inviteHost = await this.inviteHost(orgId, host);
+    const inviteDomain = await this.inviteDomain(orgId, domain, role, true);
     const { token, tokenHash } = generateInviteToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
     const refreshed = await this.repo.setInviteToken(
@@ -1285,7 +1336,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!refreshed) {
       throw new NotFoundError('Invite', invite.id);
     }
-    await this.sendInviteEmail(refreshed, token, role, inviteHost);
+    await this.sendInviteEmail(refreshed, token, role, inviteDomain);
     this.logger.info('invite resent', {
       orgId,
       orgUserId,
@@ -1336,9 +1387,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     return invite;
   }
 
-  async describeInvite(token: string): Promise<InviteDetails> {
+  async describeInvite(token: string, at: AppAt | null): Promise<InviteDetails> {
     const invite = await this.peekInvite(token);
-    if (!invite) {
+    if (!invite || (at && invite.orgId !== at.organization.id)) {
       throw new NotFoundError('Invite', 'token');
     }
     const person = await this.people.getUserByEmail(invite.email);
@@ -1445,6 +1496,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       return activated;
     });
     await this.sessions().stampActiveOrganization(headers, orgId);
+    await this.sessions().confirmEmail(person.externalId);
     this.logger.info('invite accepted', { orgId, inviteId: invite.id, orgUserId: orgUser.id });
     return accepted;
   }
@@ -1565,12 +1617,12 @@ export class OrganizationServiceImpl implements OrganizationService {
 
   async listConnectedApps(actor: Actor): Promise<ConnectedApp[]> {
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
-    return this.apiKeys().listApps(orgExternalId, userExternalId);
+    return this.apiKeys().listConnectedApps(orgExternalId, userExternalId);
   }
 
   async revokeConnectedApp(clientId: string, actor: Actor): Promise<void> {
     const { orgExternalId, userExternalId } = await this.externalIdsOf(actor);
-    await this.apiKeys().revokeApp(orgExternalId, userExternalId, clientId);
+    await this.apiKeys().revokeConnectedApp(orgExternalId, userExternalId, clientId);
     this.logger.info('connected app revoked', {
       orgId: actor.orgId,
       actorId: actor.id,
@@ -1584,7 +1636,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     const ownerExternalId = await this.platformAccountId();
     const created = await this.orgAdmin().createOrganizationFor(ownerExternalId, {
       name: input.name,
-      slug: input.slug,
+      slug: input.slug ?? generatedSlug(input.name),
     });
     const found = await this.repo.findByExternalId(created.id);
     if (!found) {
@@ -1593,10 +1645,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     const org = await this.repo.setMetadata(found.id, input.metadata ?? {});
     const apiKey = await this.platformKey(org, ownerExternalId, 'Platform');
     this.logger.info('platform organization created', { orgId: org.id, slug: org.slug });
-    return {
-      organization: platformDetails(org, await this.orgHosts().resolve(org.id)),
-      apiKey,
-    };
+    return { organization: platformDetails(org), apiKey };
   }
 
   async createPlatformApiKey(orgId: string, name: string): Promise<CreatedApiKey> {
@@ -1617,7 +1666,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     if (!org || !person || org.ownerId !== person.id) {
       throw new NotFoundError('Organization', slug);
     }
-    return platformDetails(org, await this.orgHosts().resolve(org.id));
+    return platformDetails(org);
   }
 
   private async platformMember(
@@ -1808,36 +1857,48 @@ export class OrganizationServiceImpl implements OrganizationService {
     return deleted;
   }
 
-  private orgHosts(): Pick<OrgHostSettings, 'resolve' | 'assign' | 'replace' | 'orgsAt'> {
-    if (!this.hosts) {
-      throw new Error('organization hosts are not configured');
+  private async inviteDomain(
+    orgId: string,
+    domain: string | undefined,
+    role: OrgRole,
+    sendEmail: boolean,
+  ): Promise<string | null> {
+    const apps = await this.repo.listApps(orgId);
+    if (domain !== undefined && !apps.some((app) => app.domain === domain)) {
+      this.logger.warn('invite refused: domain is not one of the organization', { orgId, domain });
+      throw new OrganizationRuleError("That domain is not one of the organization's apps");
     }
-    return this.hosts;
-  }
-
-  private async inviteHost(orgId: string, host: string | undefined): Promise<string> {
-    const hosts = await this.orgHosts().resolve(orgId);
-    if (host === undefined) {
-      return hosts.courses;
+    if (!sendEmail || role.permissions.length > 0) {
+      return domain ?? null;
     }
-    if (host !== hosts.courses && host !== hosts.community) {
-      this.logger.warn('invite refused: host is not one of the organization', { orgId, host });
-      throw new OrganizationRuleError("That host is not one of the organization's hosts");
+    const link = domain ?? servesCourses(apps)?.domain;
+    if (!link) {
+      this.logger.warn('invite refused: no app serves courses and no domain was named', {
+        orgId,
+      });
+      throw new OrganizationRuleError(
+        apps.length === 0
+          ? 'The organization has no app for the invite link to open. Create an app first.'
+          : 'The organization has no app that serves courses. Name the domain the invite opens.',
+      );
     }
-    return host;
+    return link;
   }
 
   private async sendInviteEmail(
     invite: Invite,
     token: string,
     role: OrgRole,
-    host: string,
+    domain: string | null,
   ): Promise<void> {
     if (!this.mailer || !this.inviteUrls) {
       throw new Error('invite delivery is not configured (mailer / invite urls missing)');
     }
     const learner = role.permissions.length === 0;
-    const base = learner ? `${host}/welcome` : `${this.inviteUrls.adminAppUrl}/invite`;
+    if (learner && !domain) {
+      throw new Error('a learner invite needs the domain its link opens');
+    }
+    const base = learner ? `${domain}/welcome` : `${this.inviteUrls.adminAppUrl}/invite`;
     const query = learner
       ? new URLSearchParams({ token })
       : new URLSearchParams({ token, email: invite.email });

@@ -1,13 +1,19 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+
+import { requireCourseApp } from "@/lib/app";
 import { LoginView } from "./login-view";
 
-export const metadata: Metadata = { title: "Sign in — Headless LMS" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { organization } = await requireCourseApp();
+  return { title: `Sign in — ${organization.name}` };
+}
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const { organization } = await requireCourseApp();
   return (
     <Suspense>
-      <LoginView />
+      <LoginView orgName={organization.name} />
     </Suspense>
   );
 }

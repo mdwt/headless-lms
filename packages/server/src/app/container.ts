@@ -27,7 +27,6 @@ import {
   DrizzleOutboxStore,
   DrizzleProgressRepository,
   DrizzleSettingsRepository,
-  DrizzleOrgHostIndex,
   DrizzleSubscriptionsRepository,
   DrizzleUnitOfWork,
 } from '@headless-lms/adapter-db';
@@ -88,7 +87,7 @@ import {
   type OrgAdmin,
   NotificationCatalog,
   OrganizationServiceImpl,
-  OrgHostSettings,
+  OrgApps,
   OrgNotificationCategories,
   type RoleDefinition,
 } from '@headless-lms/core/organizations';
@@ -116,6 +115,8 @@ import { buildNotificationRegistries, configuredPushSender } from './notificatio
 import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { communityMail } from './community-mail.js';
+import { installationOrigins } from './installation-origins.js';
+import { createMailerSources } from './mailer-sources.js';
 import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
@@ -127,6 +128,7 @@ import type {
   BodyParser,
   ChannelRegistry,
   CredentialStore,
+  EmailBranding,
   EmailSender,
   EventBus,
   Logger,
@@ -137,7 +139,6 @@ import type {
   PubSub,
   PushSender,
   Scheduler,
-  TemplateContext,
   TemplateRenderer,
 } from '@headless-lms/core/shared/ports';
 import type { AutomationEngine, PushConfig, WebhookSender } from '@headless-lms/core/types';
@@ -180,9 +181,8 @@ export interface Config {
   authBaseURL: string;
   authSecret: string;
   trustedOrigins: string[];
-  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl.
-   *  (hosts are composed in per organization.) */
-  emailBranding?: Omit<TemplateContext, 'hosts'>;
+  /** Branding threaded into every email template. Default: brandName "Headless LMS", baseUrl = adminAppUrl. */
+  emailBranding?: EmailBranding;
   /** base64-encoded 32-byte key for the credential store (CREDENTIAL_STORE_KEY). */
   credentialStoreKey: string;
   /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. */
@@ -193,8 +193,6 @@ export interface Config {
   trustedProxies?: string[];
   /** Headers read for the client IP, in order. Absent → x-forwarded-for. */
   ipAddressHeaders?: string[];
-  /** Origin a new organization's first host is made under, as `<slug>.<platform host>`. */
-  platformHost: string;
   /** Admin app origin — invite links for staff. */
   adminAppUrl: string;
   /** Transactional-outbox relay tuning. All optional — see OUTBOX_DEFAULTS. */
@@ -259,6 +257,7 @@ export interface Container {
   // Domains
   identity: IdentityServiceImpl;
   organizations: OrganizationServiceImpl;
+  apps: OrgApps;
   content: ContentService;
   entitlements: EntitlementsServiceImpl;
   progress: ProgressServiceImpl;
@@ -360,17 +359,16 @@ export async function buildContainer(
   const settings = new SettingsService(
     new DrizzleSettingsRepository(db, logger.child({ name: 'settings' })),
   );
-  const hosts = new OrgHostSettings({
-    settings,
-    index: new DrizzleOrgHostIndex(db),
-    platformHost: config.platformHost,
-    logger: logger.child({ name: 'org' }),
+  const mailerSources = createMailerSources({
+    organization: (orgId) => organizations.getById(orgId),
+    apps: (orgId) => apps.of(orgId),
+    person: (address) => identity.getUserByEmail(address),
   });
   const mailer = new Mailer(
     templates,
     email,
     config.emailBranding ?? { brandName: 'Headless LMS', baseUrl: config.adminAppUrl },
-    (orgId) => hosts.resolve(orgId),
+    mailerSources,
   );
 
   const fileUrls = createFileUrls((key) => storage.publicUrl(key));
@@ -401,6 +399,12 @@ export async function buildContainer(
     mailer,
     images: assets,
     fileUrls,
+    sessions: () => {
+      if (!orgAdminRef.current) {
+        throw new Error('sessions not initialised');
+      }
+      return orgAdminRef.current;
+    },
   });
 
   /*
@@ -414,9 +418,15 @@ export async function buildContainer(
   }));
   const orgAdminRef: { current: BetterAuth | undefined } = { current: undefined };
   const platform = config.platform ? platformKeyCheck(config.platform) : null;
+  const apps = new OrgApps({
+    repo: organizationsRepo,
+    reservedDomains: installationOrigins(config),
+    logger: logger.child({ name: 'apps' }),
+  });
   const organizations: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo: organizationsRepo,
     roles: new DrizzleRolesRepository(db),
+    apps,
     ...(options?.roles && { defaultRoles: options.roles }),
     apiKeys: (): ApiKeys => {
       if (!orgAdminRef.current) {
@@ -455,7 +465,6 @@ export async function buildContainer(
     logger: logger.child({ name: 'org' }),
     mailer,
     inviteUrls: { adminAppUrl: config.adminAppUrl },
-    hosts,
     grants: (): GrantReader => entitlements,
   });
 
@@ -689,7 +698,7 @@ export async function buildContainer(
       notificationCategories,
       notificationSettings,
       channels: notificationRegistries.channels,
-      hosts: (orgId) => hosts.resolve(orgId),
+      apps,
     }),
   };
 
@@ -866,6 +875,10 @@ export async function buildContainer(
         throw err;
       }
     };
+  const requestedOn = async (address: string, domains: readonly string[]) => {
+    const app = await organizations.appOfPerson(address, domains);
+    return app ? { requestedOn: { orgId: app.orgId, appId: app.id } } : {};
+  };
   const mcp = mcpEndpoints(config);
   if (!mcp.oauthEnabled) {
     authLogger.warn(
@@ -885,23 +898,28 @@ export async function buildContainer(
     },
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
-    orgHosts: {
-      has: (origin) => organizations.isOrgHost(origin),
-      hasFor: (email, origin) => organizations.isHostOfPerson(email, origin),
+    appDomains: {
+      has: async (domain) => (await apps.find(domain)) !== null,
+      linkDomain: (email, returnTo, named) => organizations.linkDomain(email, returnTo, named),
     },
     hooks: {
-      sendResetPassword: async ({ user, url }) => {
-        await identity.sendPasswordReset({ email: user.email, url });
-      },
-      onPasswordReset: async ({ user }) => {
-        await identity.sendPasswordChanged({ email: user.email });
-      },
-      sendMagicLink: authHook('sendMagicLink', async ({ email, url }) => {
-        await identity.sendMagicLink({
-          email,
+      sendResetPassword: async ({ user, url }, { domains }) => {
+        await identity.sendPasswordReset({
+          email: user.email,
           url,
+          ...(await requestedOn(user.email, domains)),
         });
-      }),
+      },
+      onPasswordReset: async ({ user }, { domains }) => {
+        await identity.passwordReset({
+          authUserId: user.id,
+          email: user.email,
+          ...(await requestedOn(user.email, domains)),
+        });
+      },
+      sendMagicLink: async ({ email, url }, { domains }) => {
+        await identity.sendMagicLink({ email, url, ...(await requestedOn(email, domains)) });
+      },
       beforeUserCreate: authHook('beforeUserCreate', async (user) => {
         const { email, name } = user;
         const [firstName, lastName] = name.split(' ');
@@ -920,7 +938,7 @@ export async function buildContainer(
           },
         };
       }),
-      beforeCreateSession: authHook('beforeCreateSession', async (session) => {
+      beforeCreateSession: authHook('beforeCreateSession', async (session, { domains }) => {
         const person = await identity.getUserByExternalId(session.userId);
         if (!person) {
           return;
@@ -929,17 +947,14 @@ export async function buildContainer(
           authLogger.warn('sign-in refused for the platform account', { userId: person.id });
           return false;
         }
-        const orgs = await organizations.getOrgUsersForUser(person.id);
-        if (orgs.length !== 1) {
+        const decided = await organizations.sessionOrganization(person, domains);
+        if (decided.refused) {
+          return false;
+        }
+        if (!decided.orgId) {
           return;
         }
-        // TODO - fix, why default to the first?
-        const org = await organizations.getById(orgs[0]!.orgId);
-        if (!org) {
-          return;
-        }
-
-        return { data: { ...session, activeOrganizationId: org.id } };
+        return { data: { ...session, activeOrganizationId: decided.orgId } };
       }),
       /*
        * We're making sure the domain org creates and using the same ID for better-auth org ID.
@@ -982,6 +997,7 @@ export async function buildContainer(
     platform,
     identity,
     organizations,
+    apps,
     // Better Auth owns org writes; the same instance fulfils the OrgAdmin port.
     orgProvider: auth,
     content,

@@ -2,6 +2,7 @@ import { type GenericEndpointContext, type Session, type User } from "better-aut
 import { type OrganizationOptions } from "better-auth/plugins";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
+import type { LinkDomain } from "@headless-lms/core/organizations";
 import type { Logger } from "@headless-lms/core/types";
 
 // The engine's own user/session records, not the domain's — these hooks fire
@@ -19,7 +20,7 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   >;
   beforeCreateSession?: (
     session: Session & Record<string, unknown>,
-    context: GenericEndpointContext | null,
+    from: RequestDomains,
   ) => Promise<
     | boolean
     | void
@@ -30,10 +31,10 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
   /** Runs detached from the request; the adapter logs a failure. */
   sendResetPassword: (
     data: { user: User; url: string; token: string },
-    request?: Request,
+    from: RequestDomains,
   ) => Promise<void>;
   /** Runs detached from the request, after the new password is stored; the adapter logs a failure. */
-  onPasswordReset: (data: { user: User }, request?: Request) => Promise<void>;
+  onPasswordReset: (data: { user: User }, from: RequestDomains) => Promise<void>;
   sendMagicLink: (
     data: {
       email: string;
@@ -41,9 +42,13 @@ export type Hooks = NonNullable<OrganizationOptions["organizationHooks"]> & {
       token: string;
       metadata?: Record<string, unknown>;
     },
-    ctx?: GenericEndpointContext | undefined,
+    from: RequestDomains,
   ) => Promise<void>;
 };
+
+export interface RequestDomains {
+  domains: string[];
+}
 
 export interface McpAuthOptions {
   oauthEnabled: boolean;
@@ -53,26 +58,26 @@ export interface McpAuthOptions {
   orgPickerPage: string;
 }
 
-export interface OrgHosts {
-  /** Whether the origin is a host of any organization. */
-  has(origin: string): Promise<boolean>;
-  /** Whether the origin is a host of an organization the person with this email is active in. */
-  hasFor(email: string, origin: string): Promise<boolean>;
+export interface AppDomains {
+  has(domain: string): Promise<boolean>;
+  linkDomain(email: string, returnTo: string | null, named: readonly string[]): Promise<LinkDomain>;
 }
+
+export type SessionUse =
+  { kind: "read" } | { kind: "switch"; to: { id?: string | null; slug?: string } };
 
 export interface CreateAuthOptions {
   db: NodePgDatabase;
   baseUrl: string;
   secret: string;
   trustedOrigins: string[];
-  /** Organizations' hosts, trusted beside `trustedOrigins` and asked on every request. Absent → only `trustedOrigins`. */
-  orgHosts?: OrgHosts;
+  appDomains?: AppDomains;
   /** Logs failures that must not abort an auth flow (e.g. a failed invite email). */
   logger: Logger;
   /** Handlers for what the engine reports. The adapter owns no rules. */
   hooks: Hooks;
   mcp: McpAuthOptions;
-  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. */
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. A request from an app's domain outside it gets host-only cookies too. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;

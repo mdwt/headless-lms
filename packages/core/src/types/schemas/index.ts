@@ -11,4 +11,5 @@ export * from './automations.js';
 export * from './credentials.js';
 export * from './outbox.js';
 export * from './settings.js';
+export * from './apps.js';
 export * from './notifications.js';

@@ -10,7 +10,8 @@ import { NotFoundError } from '../../shared/errors.js';
 import { seesSpace, type EntitlementsService, type SpaceMember } from '../../entitlements/index.js';
 import type { ProgressService } from '../../progress/index.js';
 import type { FileUrls } from '../../assets/index.js';
-import type { OrganizationService } from '../../organizations/index.js';
+import { servesCommunity } from '../../organizations/index.js';
+import type { OrgApps, OrganizationService } from '../../organizations/index.js';
 import { PERMISSION_KEYS } from '../../types/schemas/organizations.js';
 import type {
   ItemTitles as DiscussionItemTitles,
@@ -33,7 +34,7 @@ import type {
   SubjectRef,
 } from '../../types/index.js';
 import type { Actor } from '../../shared/actor.js';
-import type { EventFile, Hosts, Page, Permission } from '../../types/index.js';
+import type { EventFile, Page, Permission } from '../../types/index.js';
 import type {
   ActivityView,
   CommunityHome,
@@ -148,7 +149,7 @@ export type MemberReportServiceParams = {
   };
   notificationSettings: Pick<NotificationSettingsService, 'get'>;
   channels: Pick<ChannelRegistry, 'list'>;
-  hosts: (orgId: string) => Promise<Hosts>;
+  apps: Pick<OrgApps, 'of'>;
   now?: () => Date;
 };
 
@@ -165,7 +166,7 @@ export class MemberReportServiceImpl implements MemberReportService {
   private readonly notificationCategories: MemberReportServiceParams['notificationCategories'];
   private readonly notificationSettings: Pick<NotificationSettingsService, 'get'>;
   private readonly channels: Pick<ChannelRegistry, 'list'>;
-  private readonly hosts: (orgId: string) => Promise<Hosts>;
+  private readonly apps: Pick<OrgApps, 'of'>;
   private readonly now: () => Date;
 
   constructor(params: MemberReportServiceParams) {
@@ -181,7 +182,7 @@ export class MemberReportServiceImpl implements MemberReportService {
     this.notificationCategories = params.notificationCategories;
     this.notificationSettings = params.notificationSettings;
     this.channels = params.channels;
-    this.hosts = params.hosts;
+    this.apps = params.apps;
     this.now = params.now ?? (() => new Date());
   }
 
@@ -614,9 +615,9 @@ export class MemberReportServiceImpl implements MemberReportService {
 
   async eventCalendar(eventId: string, actor: Actor): Promise<string> {
     const { event, sight } = await this.requireEvent(eventId, actor);
-    const hosts = await this.hosts(actor.orgId);
+    const domain = servesCommunity(await this.apps.of(actor.orgId))?.domain;
     return eventCalendar(event, {
-      pageUrl: `${hosts.community}/events/${encodeURIComponent(event.id)}`,
+      ...(domain && { pageUrl: `${domain}/events/${encodeURIComponent(event.id)}` }),
       withLocation: sight !== 'public',
       now: this.now(),
     });
