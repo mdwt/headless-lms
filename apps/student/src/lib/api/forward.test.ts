@@ -95,6 +95,22 @@ describe("forwardToApi", () => {
     expect(calls[2]!.headers.get("origin")).toBe("https://other.example");
   });
 
+  it("does not pass on Expect, which the API call cannot carry", async () => {
+    const { calls, send } = api(() => Response.json({ ok: true }));
+    const res = await forwardToApi(
+      new Request("https://learn.acme.com/api/member/media", {
+        method: "POST",
+        headers: { ...visitor, expect: "100-continue", "content-type": "application/json" },
+        body: JSON.stringify({ name: "notes.pdf" }),
+      }),
+      API,
+      send,
+    );
+    expect(res.status).toBe(200);
+    expect(calls[0]!.headers.has("expect")).toBe(false);
+    expect(calls[0]!.body).toBe(JSON.stringify({ name: "notes.pdf" }));
+  });
+
   it("returns a redirect as it is, with every cookie the API set", async () => {
     const { calls, send } = api(() => {
       const headers = new Headers({ location: "https://learn.acme.com/" });

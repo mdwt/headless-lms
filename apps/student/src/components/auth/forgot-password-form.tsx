@@ -18,11 +18,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/client";
+import { withNext } from "@/lib/next-path";
 
 const schema = z.object({ email: z.email("Enter your email address") });
 type Values = z.infer<typeof schema>;
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ next }: { next: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { email: "" } });
@@ -31,7 +32,7 @@ export function ForgotPasswordForm() {
     setError(null);
     const { error: authError } = await authClient.requestPasswordReset({
       email: values.email,
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}${withNext("/reset-password", next)}`,
     });
     if (authError) {
       setError(authError.message ?? "Couldn't send the email. Try again.");

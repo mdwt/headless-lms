@@ -71,13 +71,35 @@ describe("shortLived", () => {
     expect(await keep("https://learn.acme.com", flaky.load)).toBe("acme 3");
   });
 
-  it("starts over rather than hold more keys than its limit", async () => {
+  it("drops only the oldest key when it is full", async () => {
     const keep = shortLived<string>({ ttlMs: 60_000, max: 2, now: clock().now });
     const first = counted(() => "first");
+    const second = counted(() => "second");
     await keep("a", first.load);
-    await keep("b", async () => "b");
+    await keep("b", second.load);
     await keep("c", async () => "c");
+    await keep("b", second.load);
+    expect(second.calls()).toBe(1);
     await keep("a", first.load);
     expect(first.calls()).toBe(2);
+  });
+
+  it("counts a reloaded key as new again, and still returns its last answer on failure", async () => {
+    const time = clock();
+    const keep = shortLived<string>({ ttlMs: 60_000, max: 2, now: time.now });
+    const first = counted((call) => {
+      if (call === 3) throw new Error("down");
+      return `first ${call}`;
+    });
+    const second = counted(() => "second");
+    await keep("a", first.load);
+    await keep("b", second.load);
+    time.advance(60_000);
+    expect(await keep("a", first.load)).toBe("first 2");
+    await keep("c", async () => "c");
+    time.advance(60_000);
+    expect(await keep("a", first.load)).toBe("first 2");
+    await keep("b", second.load);
+    expect(second.calls()).toBe(2);
   });
 });

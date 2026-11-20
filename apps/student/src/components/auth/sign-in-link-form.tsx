@@ -18,11 +18,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/client";
+import { withNext } from "@/lib/next-path";
 
 const schema = z.object({ email: z.email("Enter your email address") });
 type Values = z.infer<typeof schema>;
 
-export function SignInLinkForm() {
+export function SignInLinkForm({ next }: { next: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { email: "" } });
@@ -31,8 +32,8 @@ export function SignInLinkForm() {
     setError(null);
     const { error: authError } = await authClient.signIn.magicLink({
       email: values.email,
-      callbackURL: `${window.location.origin}/`,
-      errorCallbackURL: `${window.location.origin}/login`,
+      callbackURL: `${window.location.origin}${next ?? "/"}`,
+      errorCallbackURL: `${window.location.origin}${withNext("/login", next)}`,
     });
     if (authError) {
       setError(authError.message ?? "Couldn't send the email. Try again.");

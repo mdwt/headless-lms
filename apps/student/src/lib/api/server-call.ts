@@ -17,8 +17,6 @@ import { API_URL } from "./api-url";
 import { ApiError, responseMessage, responseStatus } from "./shared";
 import { visitorHeaders } from "./visitor";
 
-export { API_URL };
-
 // The client throws on failure rather than returning a result envelope, so no
 // call site unwraps. `onError` turns the raw response body it would otherwise
 // throw into an `ApiError` carrying the status.
@@ -56,7 +54,6 @@ export async function authHeaders(): Promise<{ headers: Record<string, string> }
   };
 }
 
-/** Header bag for a call that needs no session: the visitor's domain and IP address only. */
 export async function visitorCallHeaders(): Promise<{ headers: Record<string, string> }> {
   return { headers: visitorHeaders(await headers()) };
 }

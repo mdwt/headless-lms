@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** Heading + supporting line above a form. */
 export function AuthHeading({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">

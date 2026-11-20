@@ -1,18 +1,9 @@
 import { visitorOrigin } from "./visitor";
 
-/**
- * Forwards a request under `/api` to the API, so the browser only ever talks to
- * the domain it is on: the session cookie belongs to that domain, and the API
- * reads the domain to know which organization the request is for.
- *
- * The visitor's `Origin` is passed on as sent, since the API's cross-site checks
- * read it. A read carries none, so it gets this app's own domain. The visitor's
- * IP address rides along in `X-Forwarded-For`.
- */
-
 const NOT_FORWARDED = new Set([
   "connection",
   "content-length",
+  "expect",
   "host",
   "keep-alive",
   "proxy-authenticate",

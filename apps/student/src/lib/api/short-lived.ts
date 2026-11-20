@@ -1,8 +1,3 @@
-/**
- * Keeps an answer per key for a short while, so many requests for the same key
- * share one load. A failed load is not kept; while a key's last answer is still
- * held, a failed reload returns that answer instead.
- */
 export function shortLived<T>(options: { ttlMs: number; max: number; now?: () => number }) {
   const now = options.now ?? Date.now;
   const answers = new Map<string, { value: T; freshUntil: number }>();
@@ -20,8 +15,12 @@ export function shortLived<T>(options: { ttlMs: number; max: number; now?: () =>
     const started = load()
       .then(
         (value) => {
-          if (!answers.has(key) && answers.size >= options.max) {
-            answers.clear();
+          answers.delete(key);
+          if (answers.size >= options.max) {
+            const oldest = answers.keys().next();
+            if (!oldest.done) {
+              answers.delete(oldest.value);
+            }
           }
           answers.set(key, { value, freshUntil: now() + options.ttlMs });
           return value;

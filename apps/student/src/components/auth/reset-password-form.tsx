@@ -19,11 +19,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/client";
+import { withNext } from "@/lib/next-path";
 
 const schema = z.object({ password: z.string().min(8, "Use at least 8 characters") });
 type Values = z.infer<typeof schema>;
 
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({ token, next }: { token: string; next: string | null }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { password: "" } });
@@ -42,7 +43,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
       );
       return;
     }
-    router.replace("/login?reset=1");
+    router.replace(withNext("/login?reset=1", next));
   }
 
   return (

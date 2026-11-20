@@ -1,7 +1,3 @@
-/**
- * Where a password reset link lands (`/reset-password?token=…`). The API has
- * already checked the link; a link it refused arrives with `error` and no token.
- */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
@@ -11,6 +7,7 @@ import { AuthHeading } from "@/components/auth/auth-heading";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { BackToSignIn } from "@/components/auth/back-to-sign-in";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { sameSitePath, withNext } from "@/lib/next-path";
 
 export const metadata: Metadata = { title: "Choose a new password" };
 
@@ -19,9 +16,10 @@ export const dynamic = "force-dynamic";
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; next?: string | string[] }>;
 }) {
-  const { token } = await searchParams;
+  const { token, next: requested } = await searchParams;
+  const next = sameSitePath(requested);
 
   return (
     <AuthShell>
@@ -30,7 +28,7 @@ export default async function ResetPasswordPage({
           <AuthHeading title="Choose a new password">
             You&apos;ll use it the next time you sign in.
           </AuthHeading>
-          <ResetPasswordForm token={token} />
+          <ResetPasswordForm token={token} next={next} />
         </>
       ) : (
         <>
@@ -39,7 +37,10 @@ export default async function ResetPasswordPage({
             <AlertTriangle />
             <AlertDescription>
               The link has expired or was already used.{" "}
-              <Link href="/forgot-password" className="font-medium underline underline-offset-4">
+              <Link
+                href={withNext("/forgot-password", next)}
+                className="font-medium underline underline-offset-4"
+              >
                 Ask for a new one
               </Link>
               .
@@ -47,7 +48,7 @@ export default async function ResetPasswordPage({
           </Alert>
         </>
       )}
-      <BackToSignIn />
+      <BackToSignIn next={next} />
     </AuthShell>
   );
 }

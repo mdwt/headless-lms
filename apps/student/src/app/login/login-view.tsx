@@ -6,10 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { signIn, useSession } from "@/lib/auth/client";
+import { sameSitePath, withNext } from "@/lib/next-path";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Better Auth's answer when the API refuses the session: the account is not in this organization. */
 const NOT_A_MEMBER = "FAILED_TO_CREATE_SESSION";
 
 export function LoginView({ orgName }: { orgName: string }) {
@@ -17,9 +18,8 @@ export function LoginView({ orgName }: { orgName: string }) {
   const params = useSearchParams();
   // Where the proxy wanted the user to land before it bounced them here.
   // Only accept in-app absolute paths to avoid an open-redirect.
-  const nextParam = params.get("next");
-  const next =
-    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/";
+  const requested = sameSitePath(params.get("next"));
+  const next = requested ?? "/";
   const linkFailed = params.has("error");
   const passwordReset = params.has("reset");
   const { data: session } = useSession();
@@ -49,27 +49,31 @@ export function LoginView({ orgName }: { orgName: string }) {
               </p>
             </div>
             {passwordReset && (
-              <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-line bg-surface-warm px-3 py-2.5 text-sm text-ink">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                <p>Your password was changed. Sign in with the new one.</p>
-              </div>
+              <Alert className="mt-6">
+                <CheckCircle2 />
+                <AlertDescription>
+                  Your password was changed. Sign in with the new one.
+                </AlertDescription>
+              </Alert>
             )}
             {linkFailed && (
-              <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-quiz-wrong-border bg-quiz-wrong-bg px-3 py-2.5 text-sm text-quiz-wrong-fg">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <p>That sign-in link didn&apos;t work. It may have expired or been used already.</p>
-              </div>
+              <Alert variant="destructive" className="mt-6">
+                <AlertTriangle />
+                <AlertDescription>
+                  That sign-in link didn&apos;t work. It may have expired or been used already.
+                </AlertDescription>
+              </Alert>
             )}
             <SignInForm orgName={orgName} onDone={() => router.replace(next)} />
             <p className="mt-6 flex flex-col gap-2 text-center text-sm text-ink-3">
               <Link
-                href="/forgot-password"
+                href={withNext("/forgot-password", requested)}
                 className="font-medium text-brand underline-offset-4 hover:underline"
               >
                 Forgot your password?
               </Link>
               <Link
-                href="/sign-in-link"
+                href={withNext("/sign-in-link", requested)}
                 className="font-medium text-brand underline-offset-4 hover:underline"
               >
                 Email me a sign-in link
