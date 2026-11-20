@@ -200,6 +200,7 @@ describe("a request from an app's domain", () => {
   };
   let activeOrganizationId: string | null = ORG.id;
   let lookups: string[] = [];
+  let removed = false;
   let scoped: FastifyInstance;
 
   beforeAll(async () => {
@@ -234,6 +235,10 @@ describe("a request from an app's domain", () => {
       },
       organizations: {
         ...container.organizations,
+        resolveCaller: async (authOrgId: string, authUserId: string) =>
+          removed
+            ? { orgId: ORG.id, userId: authUserId, orgUserId: null, actor: null }
+            : container.organizations.resolveCaller(authOrgId, authUserId),
         acceptsSession: (at: { organization: typeof ORG }, authOrgId: string) =>
           at.organization.externalId === authOrgId,
         acceptsSwitch: (at: { organization: typeof ORG }, to: { id?: string }) =>
@@ -255,6 +260,7 @@ describe("a request from an app's domain", () => {
   beforeEach(() => {
     activeOrganizationId = ORG.id;
     lookups = [];
+    removed = false;
   });
 
   const get = (url: string, headers: Record<string, string>) =>
@@ -266,6 +272,16 @@ describe("a request from an app's domain", () => {
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({ orgId: 'org_1' });
     }
+  });
+
+  it('is a 401 with a session of a person who is no longer in the organization', async () => {
+    removed = true;
+    const res = await get('/org-scoped', { origin: 'https://learn.acme.test' });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toEqual({
+      error: 'unauthorized',
+      message: 'You are not a member of this organization',
+    });
   });
 
   it('is a 401 with a session for another organization', async () => {

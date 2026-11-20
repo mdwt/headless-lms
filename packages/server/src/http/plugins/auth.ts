@@ -151,6 +151,9 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     if (!caller) {
       throw new UnauthorizedError('Your session points to an organization that no longer exists');
     }
+    if (!caller.orgUserId) {
+      throw new UnauthorizedError('You are not a member of this organization');
+    }
     request.authUser = session.user;
     request.authUserId = session.user.id;
     request.userId = session.user.id;

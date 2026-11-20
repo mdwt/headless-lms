@@ -30,6 +30,7 @@ An organization's two hosts become apps. An app is a frontend the organization r
 - Email templates receive the organization (`id`, `name`, `slug`, `metadata`), its `courseApp` and `communityApp`, the `requestedApp` of a sign-in email, and the `recipient` (`email`, and the `id`, `firstName` and `lastName` of the person who has that address).
 - The event calendar file leaves the event page link out when no app serves the community.
 - An emailed invite for a role with no permissions is a `409` when it names no domain and the organization has no app that serves courses.
+- A session of a person who is no longer in its organization answers `401` on every organization route, where it answered `403`. The bundled student app signs that session out and shows the sign-in page.
 - The bundled student app's password reset and sign-in link pages name the organization in the tab title.
 - The admin's Settings → Apps lists, creates, changes and deletes apps. A refused save shows why on the field, and resending an invite or adding a student shows the API's reason when it is refused.
 - The API does not start when `ADMIN_APP_URL` or `BETTER_AUTH_URL` is not an `http` or `https` address.

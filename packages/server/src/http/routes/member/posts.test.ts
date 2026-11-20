@@ -244,11 +244,11 @@ describe('member post and comment routes', () => {
     expect(last('setPostReaction')).toEqual(['pst_1', null, ACTOR]);
   });
 
-  it('answers 403 to a signed-in person who is not in the organization', async () => {
+  it('answers 401 to a signed-in person who is not in the organization', async () => {
     orgUser = null;
     try {
       const res = await app.inject({ method: 'GET', url: '/api/member/communities/cmy_1/feed' });
-      expect(res.statusCode).toBe(403);
+      expect(res.statusCode).toBe(401);
     } finally {
       orgUser = ORG_USER;
     }
