@@ -61,10 +61,10 @@ export class OrgApps {
 
   async create(input: CreateAppInput, actor: Actor): Promise<App> {
     actor.permissions.require('organizations:write');
-    const wanted = { ...input, orgId: actor.orgId, id: genId('app') };
-    this.assertNotReserved(wanted.domain, actor.orgId);
-    await this.assertNoClash(wanted);
-    const app = await this.saved(() => this.repo.create(wanted));
+    this.assertNotReserved(input.domain, actor.orgId);
+    const app = await this.saved(actor.orgId, () =>
+      this.repo.create({ ...input, orgId: actor.orgId, id: genId('app') }),
+    );
     this.logger.info('app created', {
       orgId: actor.orgId,
       appId: app.id,
@@ -77,23 +77,10 @@ export class OrgApps {
   async update(appId: string, input: UpdateAppInput, actor: Actor): Promise<App> {
     actor.permissions.require('organizations:write');
     const orgId = actor.orgId;
-    const current = await this.repo.find(orgId, appId);
-    if (!current) {
-      throw new NotFoundError('App', appId);
+    if (input.domain !== undefined) {
+      this.assertNotReserved(input.domain, orgId);
     }
-    const wanted: App = {
-      ...current,
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.slug !== undefined && { slug: input.slug }),
-      ...(input.domain !== undefined && { domain: input.domain }),
-      ...(input.courses !== undefined && { courses: input.courses }),
-      ...(input.community !== undefined && { community: input.community }),
-    };
-    if (wanted.domain !== current.domain) {
-      this.assertNotReserved(wanted.domain, orgId);
-    }
-    await this.assertNoClash(wanted);
-    const updated = await this.saved(() => this.repo.update(orgId, appId, input));
+    const updated = await this.saved(orgId, () => this.repo.update(orgId, appId, input));
     if (!updated) {
       throw new NotFoundError('App', appId);
     }
@@ -139,43 +126,12 @@ export class OrgApps {
       : null;
   }
 
-  private async assertNoClash(app: App): Promise<void> {
-    const kind = await this.clashOf(app);
-    if (kind) {
-      this.logger.warn('app refused', { orgId: app.orgId, domain: app.domain, reason: kind });
-      throw refusal(kind);
-    }
-  }
-
-  private async clashOf(app: App): Promise<AppClashKind | null> {
-    if (!app.courses && !app.community) {
-      return 'serves';
-    }
-    const [mine, atDomain] = await Promise.all([
-      this.repo.list(app.orgId),
-      this.repo.findByDomain(app.domain),
-    ]);
-    const others = mine.filter((other) => other.id !== app.id);
-    if (atDomain && atDomain.id !== app.id) {
-      return 'domain';
-    }
-    if (others.some((other) => other.slug === app.slug)) {
-      return 'slug';
-    }
-    if (app.courses && others.some((other) => other.courses)) {
-      return 'courses';
-    }
-    if (app.community && others.some((other) => other.community)) {
-      return 'community';
-    }
-    return null;
-  }
-
-  private async saved<T>(write: () => Promise<T>): Promise<T> {
+  private async saved<T>(orgId: string, write: () => Promise<T>): Promise<T> {
     try {
       return await write();
     } catch (err) {
       if (err instanceof AppClash) {
+        this.logger.warn('app refused', { orgId, reason: err.kind });
         throw refusal(err.kind);
       }
       throw err;

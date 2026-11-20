@@ -254,17 +254,7 @@ describe('managing apps', () => {
     expect(await w.repo.list(ACME)).toEqual([LEARN, CLUB]);
   });
 
-  it('names the rule a refused app breaks, before anything is written', async () => {
-    const writes: string[] = [];
-    const { create, update } = w.repo;
-    w.repo.create = async (app) => {
-      writes.push('create');
-      return create(app);
-    };
-    w.repo.update = async (orgId, id, patch) => {
-      writes.push('update');
-      return update(orgId, id, patch);
-    };
+  it('names the rule a refused app breaks', async () => {
     const third = { name: 'Third', slug: 'third', domain: 'https://third.test' };
     const refused = [
       w.service.create(
@@ -272,9 +262,9 @@ describe('managing apps', () => {
         admin,
       ),
       w.service.create({ ...third, slug: 'club', courses: false, community: false }, admin),
-      w.service.create({ ...third, slug: 'club', courses: true, community: false }, admin),
       w.service.create({ ...third, courses: true, community: false }, admin),
       w.service.create({ ...third, courses: false, community: true }, admin),
+      w.service.create({ ...third, courses: false, community: false }, admin),
       w.service.update(CLUB.id, { domain: LEARN.domain }, admin),
       w.service.update(CLUB.id, { slug: 'academy' }, admin),
       w.service.update(CLUB.id, { courses: true }, admin),
@@ -290,16 +280,16 @@ describe('managing apps', () => {
     );
     expect(codes).toEqual([
       'domain_taken',
-      'InvalidInputError',
       'slug_taken',
       'courses_taken',
       'community_taken',
+      'InvalidInputError',
       'domain_taken',
       'slug_taken',
       'courses_taken',
       'InvalidInputError',
     ]);
-    expect(writes).toEqual([]);
+    expect(await w.repo.list(ACME)).toEqual([LEARN, CLUB]);
   });
 
   it('keeps an app that is saved again as it is', async () => {
@@ -311,7 +301,7 @@ describe('managing apps', () => {
     expect(same).toEqual(CLUB);
   });
 
-  it('answers the same way when the store finds the clash, as two requests at once do', async () => {
+  it('turns each rule the store reports into its own answer', async () => {
     const kinds: [AppClashKind, string][] = [
       ['domain', 'domain_taken'],
       ['slug', 'slug_taken'],
