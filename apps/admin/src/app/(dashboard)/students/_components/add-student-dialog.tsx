@@ -11,7 +11,6 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { Field } from "@/components/forms/field";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { ApiError } from "@/lib/api/http";
 
 import { addStudentAction } from "../actions";
 
@@ -56,17 +55,17 @@ export function AddStudentDialog({
   const onSubmit = handleSubmit((values) => {
     startTransition(async () => {
       try {
-        await addStudentAction(values);
+        const refusal = await addStudentAction(values);
+        if (refusal) {
+          setError("email", { message: refusal.refused });
+          return;
+        }
         toast.success(values.sendEmail ? "Invite sent" : "Student added", {
           description: values.email,
         });
         onOpenChange(false);
         router.refresh();
       } catch (err) {
-        if (err instanceof ApiError && err.status === 409) {
-          setError("email", { message: "This person is already in your organization" });
-          return;
-        }
         toast.error("Couldn't add the student", { description: (err as Error).message });
       }
     });

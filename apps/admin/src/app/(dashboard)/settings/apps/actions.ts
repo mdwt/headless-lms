@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { Apps } from "@headless-lms/sdk";
 
+import type { ApiError } from "@/lib/api/http";
 import { authHeaders } from "@/lib/api/server-call";
-import type { OrgApp } from "@/lib/api/types";
 
 export interface AppInput {
   name: string;
@@ -14,16 +14,35 @@ export interface AppInput {
   community: boolean;
 }
 
-export async function createAppAction(input: AppInput): Promise<OrgApp> {
-  const app = await Apps.createApp(input, await authHeaders());
-  revalidatePath("/settings/apps");
-  return app;
+export type AppRefusal = { refused: string };
+
+function appRefusal(err: unknown): AppRefusal | null {
+  const status = (err as Partial<ApiError> | null)?.status;
+  return status === 409 && err instanceof Error ? { refused: err.message } : null;
 }
 
-export async function updateAppAction(appId: string, input: AppInput): Promise<OrgApp> {
-  const app = await Apps.updateApp({ appId, ...input }, await authHeaders());
+export async function createAppAction(input: AppInput): Promise<AppRefusal | null> {
+  try {
+    await Apps.createApp(input, await authHeaders());
+  } catch (err) {
+    const refusal = appRefusal(err);
+    if (refusal) return refusal;
+    throw err;
+  }
   revalidatePath("/settings/apps");
-  return app;
+  return null;
+}
+
+export async function updateAppAction(appId: string, input: AppInput): Promise<AppRefusal | null> {
+  try {
+    await Apps.updateApp({ appId, ...input }, await authHeaders());
+  } catch (err) {
+    const refusal = appRefusal(err);
+    if (refusal) return refusal;
+    throw err;
+  }
+  revalidatePath("/settings/apps");
+  return null;
 }
 
 export async function deleteAppAction(appId: string): Promise<void> {

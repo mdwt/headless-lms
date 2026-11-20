@@ -1,11 +1,32 @@
 import { serverApi } from "@/lib/api/server";
 import { requirePermission } from "@/lib/auth/server-permissions";
+import { parseListParams } from "@/lib/table/parse-list-params";
 
-import { AppsView } from "./apps-view";
+import { AppsTable } from "./apps-table";
+import { shapeAppsList } from "./list-utils";
 
-export default async function AppsPage() {
+export default async function AppsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { permissions } = await requirePermission("organizations:read");
-  const apps = await serverApi.listApps();
+  const sp = await searchParams;
+  const params = parseListParams(sp, {
+    pageSize: 10,
+    initialSort: [{ id: "name", desc: false }],
+  });
 
-  return <AppsView apps={apps} canEdit={permissions.has("organizations:write")} />;
+  const apps = await serverApi.listApps();
+  const { rows, total } = shapeAppsList(apps, params);
+
+  return (
+    <AppsTable
+      rows={rows}
+      total={total}
+      params={params}
+      apps={apps}
+      canEdit={permissions.has("organizations:write")}
+    />
+  );
 }
