@@ -22,7 +22,7 @@ const logger = {
 };
 
 function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: boolean } = {}) {
-  const hosts = new Map<string, string[]>([
+  const domains = new Map<string, string[]>([
     [ACME, ["sarah@example.com"]],
     [OTHER, ["james@example.com"]],
   ]);
@@ -40,11 +40,11 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: bo
     activeOrganizationId: null,
   };
   const appDomains: NonNullable<CreateAuthOptions["appDomains"]> = {
-    has: async (origin) => hosts.has(origin),
+    has: async (origin) => domains.has(origin),
     linkDomain: async (email, returnTo, named) =>
-      named.some((origin) => hosts.has(origin) && !hosts.get(origin)!.includes(email))
+      named.some((origin) => domains.has(origin) && !domains.get(origin)!.includes(email))
         ? { refused: true }
-        : { refused: false, domain: returnTo && hosts.has(returnTo) ? returnTo : null },
+        : { refused: false, domain: returnTo && domains.has(returnTo) ? returnTo : null },
   };
   const options = buildAuthOptions({
     db: {} as NodePgDatabase,
@@ -145,7 +145,7 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: bo
   return {
     auth,
     adapter,
-    hosts,
+    domains,
     resets,
     magicLinks,
     asked,
@@ -176,7 +176,7 @@ describe("sign-in from an app's domain", () => {
 
   it("never trusts a wildcard, even when one is stored as a domain", async () => {
     const w = world();
-    w.hosts.set("https://*", ["sarah@example.com"]);
+    w.domains.set("https://*", ["sarah@example.com"]);
     await w.signUp("sarah@example.com");
     expect((await w.signIn("sarah@example.com", "https://*")).status).toBe(403);
     expect((await w.signIn("sarah@example.com", STRANGER)).status).toBe(403);
@@ -190,8 +190,8 @@ describe("sign-in from an app's domain", () => {
   it("follows a change of domains on the next request", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
-    w.hosts.set("https://club.acme.test", ["sarah@example.com"]);
-    w.hosts.delete(ACME);
+    w.domains.set("https://club.acme.test", ["sarah@example.com"]);
+    w.domains.delete(ACME);
     expect((await w.signIn("sarah@example.com", "https://club.acme.test")).status).toBe(200);
     expect((await w.signIn("sarah@example.com", ACME)).status).toBe(403);
   });
@@ -282,7 +282,7 @@ describe("the session cookie", () => {
 
     it("is host-only for an app on a domain outside it, and shared for one inside it", async () => {
       const w = world({ cookieDomain: ".platform.test" });
-      w.hosts.set(INSIDE, ["sarah@example.com"]);
+      w.domains.set(INSIDE, ["sarah@example.com"]);
       await w.signUp("sarah@example.com");
 
       const outside = await signInThrough(w, ACME);
@@ -350,8 +350,8 @@ describe("the session cookie", () => {
 });
 
 describe("a password reset link to an app's domain", () => {
-  const reset = (w: ReturnType<typeof world>, email: string, origin: string, host: string) =>
-    w.post("/request-password-reset", origin, { email, redirectTo: `${host}/reset-password` });
+  const reset = (w: ReturnType<typeof world>, email: string, origin: string, domain: string) =>
+    w.post("/request-password-reset", origin, { email, redirectTo: `${domain}/reset-password` });
 
   it("is sent to a person of that organization, written at the app's domain, and lands there with the token", async () => {
     const w = world();
@@ -387,7 +387,7 @@ describe("a password reset link to an app's domain", () => {
     expect(w.asked.changed).toEqual([[ACME]]);
   });
 
-  it("is not sent when the host belongs to an organization the person is not in", async () => {
+  it("is not sent when the domain belongs to an organization the person is not in", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     expect((await reset(w, "sarah@example.com", OTHER, OTHER)).status).toBe(200);
@@ -396,7 +396,7 @@ describe("a password reset link to an app's domain", () => {
     expect(w.resets).toHaveLength(0);
   });
 
-  it("is refused for a host of no organization", async () => {
+  it("is refused for a domain of no organization", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     expect((await reset(w, "sarah@example.com", ACME, STRANGER)).status).toBe(403);
@@ -406,7 +406,7 @@ describe("a password reset link to an app's domain", () => {
 
   it("is not sent to a person outside the organization when an app's domain is also listed", async () => {
     const w = world();
-    w.hosts.set(ADMIN, ["sarah@example.com"]);
+    w.domains.set(ADMIN, ["sarah@example.com"]);
     await w.signUp("james@example.com");
     await reset(w, "james@example.com", ADMIN, ADMIN);
     await w.post("/sign-in/magic-link", ADMIN, {
@@ -429,8 +429,8 @@ describe("a password reset link to an app's domain", () => {
 });
 
 describe("a sign-in link to an app's domain", () => {
-  const link = (w: ReturnType<typeof world>, email: string, host: string) =>
-    w.post("/sign-in/magic-link", host, { email, callbackURL: `${host}/home` });
+  const link = (w: ReturnType<typeof world>, email: string, domain: string) =>
+    w.post("/sign-in/magic-link", domain, { email, callbackURL: `${domain}/home` });
 
   it("is sent only to a person of that organization", async () => {
     const w = world();
@@ -494,7 +494,7 @@ describe("a sign-in link to an app's domain", () => {
     expect(w.asked.session).toEqual([[ADMIN]]);
   });
 
-  it("answers the request before the email is sent, and logs a failed send", async () => {
+  it("answers the request even when the email cannot be sent", async () => {
     const w = world();
     await w.signUp("sarah@example.com");
     w.mail.fail = true;

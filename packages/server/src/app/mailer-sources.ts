@@ -1,7 +1,7 @@
 import type { MailerSources } from '@headless-lms/core/shared/mailer';
 import type { App } from '@headless-lms/core/types';
 
-export type MailerSourceReads = {
+type MailerSourceReads = {
   organization: (orgId: string) => Promise<{
     id: string;
     name: string;

@@ -15,10 +15,10 @@ An organization's two hosts become apps. An app is a frontend the organization r
 - `GET /api/app` tells a frontend which organization and app the domain of the request is, with no session and no key. It answers for the `Origin` header, or else the `Referer`, and is limited to 100 requests in 10 seconds per client IP address.
 - A session started on an app's domain is for that app's organization. A person with an open invite there gets a session with no organization, and anyone else is refused: a sign-in answers `401`. On an origin in `CLIENT_ORIGIN`, or with no origin, a person in exactly one organization gets a session for it, as before.
 - A request with a session from an app's domain is logged with the app's id, and is a `401` when the session is for another organization.
-- The session reads under `/api/auth` (`GET get-session`, `list-sessions` and `organization/*`) answer `401` too when the session is for another organization than the app's, and `POST organization/set-active` is a `401` there for any organization but the app's.
+- The session reads under `/api/auth` (`GET get-session`, `list-sessions` and `organization/*`) answer `401` too when the session is for another organization than the app's, and `POST organization/set-active` is a `403` there for any organization but the app's.
 - A sign-in link's session is decided by the address the link returns to; the page it was opened from counts only when it names none.
 - The sign-in link email is sent after the request is answered, like the password reset email.
-- Accepting an invite and resetting a password mark the person's email as verified, so a sign-in link opened later leaves their password in place. `SessionAdmin` gains `confirmEmail`.
+- Accepting an invite and resetting a password mark the person's email as verified, so a sign-in link opened later leaves their password in place. `SessionAdmin` gains `confirmEmail`, and identity's `sendPasswordChanged` becomes `passwordReset`, which takes the account's id.
 - The bundled sign-in and invite emails name the organization, and the brand only for an email sent outside one.
 - The student sign-in page tells a person with an invitation they have not accepted to open the link in their invitation email, instead of signing them in and out again.
 - With `AUTH_COOKIE_DOMAIN` set, a sign-in from a domain outside it gets a host-only cookie, so an organization's own domain works beside the shared one.
@@ -30,7 +30,8 @@ An organization's two hosts become apps. An app is a frontend the organization r
 - Email templates receive the organization (`id`, `name`, `slug`, `metadata`), its `courseApp` and `communityApp`, the `requestedApp` of a sign-in email, and the `recipient` (`email`, and the `id`, `firstName` and `lastName` of the person who has that address).
 - The event calendar file leaves the event page link out when no app serves the community.
 - An emailed invite for a role with no permissions is a `409` when it names no domain and the organization has no app that serves courses.
-- The admin's Settings → Apps lists, creates, changes and deletes apps. A refused save shows why on the field.
+- The admin's Settings → Apps lists, creates, changes and deletes apps. A refused save shows why on the field, and resending an invite or adding a student shows the API's reason when it is refused.
+- The API does not start when `ADMIN_APP_URL` or `BETTER_AUTH_URL` is not an `http` or `https` address.
 
 Breaking:
 
@@ -42,7 +43,7 @@ Breaking:
 - The connected app routes move from `/api/access/apps` to `/api/access/connected-apps`; the `ApiKeys` port's `listApps` and `revokeApp` become `listConnectedApps` and `revokeConnectedApp`.
 - `TemplateContext.hosts` is replaced by `organization`, `courseApp`, `communityApp`, `requestedApp` and `recipient`. `Mailer` takes `MailerSources` in place of a hosts function, and `Mailer.send` takes the app id as its fifth argument.
 - `OrgHostSettings`, `OrgHostSettingsParams`, `OrgHostIndex` and `DrizzleOrgHostIndex` are removed, with the `Hosts` type and the `hostSchema` and `hostsSchema` schemas; `domainSchema` validates an app's domain. `OrganizationServiceParams` loses `hosts`, and `MemberReportServiceParams.hosts` is replaced by `apps`.
-- `OrganizationService` loses `isOrgHost`, `isHostOfPerson` and `getOrgUsersForUser`, and gains `appOfPerson`, `sessionOrganization`, `acceptsSession` and `linkDomain`. `UpdateOrganizationInput` loses `hosts`.
+- `OrganizationService` loses `isOrgHost`, `isHostOfPerson` and `getOrgUsersForUser`, and gains `appOfPerson`, `sessionOrganization`, `acceptsSession`, `acceptsSwitch` and `linkDomain`. `OrganizationServiceParams` takes `apps`, the `OrgApps`, and `IdentityServiceImpl` takes `sessions`. `UpdateOrganizationInput` loses `hosts`.
 - The sign-in adapter's `orgHosts` option (`OrgHosts`) is renamed `appDomains` (`AppDomains`), and its `hasFor` is replaced by `linkDomain`, which says whether a sign-in or reset link is sent and at which domain it is written.
 - The sign-in adapter's `beforeCreateSession`, `sendResetPassword`, `onPasswordReset` and `sendMagicLink` hooks receive the domains the request names (`{ domains }`) as their second argument.
 - Migration `0023_apps` creates the `apps` table and drops the two host indexes on `settings`. An organization created before it has no app until one is created.

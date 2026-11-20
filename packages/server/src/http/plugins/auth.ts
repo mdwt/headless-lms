@@ -5,6 +5,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Container } from '../../app/container.js';
 import { isPermission } from '@headless-lms/core/organizations';
 import type { CallerLimit } from '@headless-lms/core/organizations';
+import { ForbiddenError } from '@headless-lms/core/shared/errors';
 import type { CredentialLimit } from '@headless-lms/core/types';
 import { requestApp } from '../request-domain.js';
 import { bridgeWebResponse, toWebRequest } from '../web-bridge.js';
@@ -21,17 +22,7 @@ function carriesKey(request: FastifyRequest): boolean {
   return request.headers['x-api-key'] !== undefined || request.headers.authorization !== undefined;
 }
 
-const SESSION_READS = [
-  '/api/auth/get-session',
-  '/api/auth/list-sessions',
-  '/api/auth/organization/',
-];
-
-const SET_ACTIVE = '/api/auth/organization/set-active';
-
-function readsSession(url: string): boolean {
-  return SESSION_READS.some((path) => url.startsWith(path));
-}
+const ANOTHER_ORGANIZATION = 'This session is for another organization';
 
 function callerLimit(limit: CredentialLimit): CallerLimit {
   return 'roleKey' in limit ? limit : { scopes: limit.scopes.filter(isPermission) };
@@ -54,35 +45,27 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     method: ['GET', 'POST'],
     url: '/api/auth/*',
     async handler(request, reply) {
-      if (request.method === 'GET' && readsSession(request.url)) {
-        await refuseSessionOfAnotherOrganization(request);
-      }
-      if (request.method === 'POST' && request.url.startsWith(SET_ACTIVE)) {
-        await refuseSwitchToAnotherOrganization(request);
-      }
+      await refuseSessionUse(request);
       await bridgeWebResponse(await auth.handler(toWebRequest(request, origin)), reply);
     },
   });
 
-  async function refuseSwitchToAnotherOrganization(request: FastifyRequest): Promise<void> {
-    const at = await requestApp(appServer, request);
-    const to = (request.body ?? {}) as {
-      organizationId?: string | null;
-      organizationSlug?: string;
-    };
-    if (at && !appServer.organizations.acceptsSwitch(at, to)) {
-      throw new UnauthorizedError('This session is for another organization');
-    }
-  }
-
-  async function refuseSessionOfAnotherOrganization(request: FastifyRequest): Promise<void> {
-    if (!(await requestApp(appServer, request))) {
+  async function refuseSessionUse(request: FastifyRequest): Promise<void> {
+    const use = auth.sessionUse(request.method, request.url, request.body);
+    const at = use ? await requestApp(appServer, request) : null;
+    if (!use || !at) {
       return;
     }
-    const session = await appServer.auth.verify(request.headers);
+    if (use.kind === 'switch') {
+      if (!appServer.organizations.acceptsSwitch(at, use.to)) {
+        throw new ForbiddenError(`On this domain a session is for ${at.organization.name} only`);
+      }
+      return;
+    }
+    const session = await auth.verify(request.headers);
     const authOrgId = session?.session.activeOrganizationId;
-    if (authOrgId) {
-      await refuseAnotherOrganization(request, authOrgId);
+    if (authOrgId && !appServer.organizations.acceptsSession(at, authOrgId)) {
+      throw new UnauthorizedError(ANOTHER_ORGANIZATION);
     }
   }
 
@@ -92,7 +75,7 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
   ): Promise<void> {
     const at = await requestApp(appServer, request);
     if (at && !appServer.organizations.acceptsSession(at, authOrgId)) {
-      throw new UnauthorizedError('This session is for another organization');
+      throw new UnauthorizedError(ANOTHER_ORGANIZATION);
     }
   }
 

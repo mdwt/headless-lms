@@ -35,7 +35,11 @@ export interface UserProvisioner {
     url: string;
     requestedOn?: RequestedOn;
   }): Promise<void>;
-  sendPasswordChanged(input: { email: string; requestedOn?: RequestedOn }): Promise<void>;
+  passwordReset(input: {
+    authUserId: string;
+    email: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void>;
   sendMagicLink(input: { email: string; url: string; requestedOn?: RequestedOn }): Promise<void>;
 }
 

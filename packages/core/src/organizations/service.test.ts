@@ -19,12 +19,7 @@ import type { IdentityService } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
 import type { App, ContentType, Permission, RoleAssignment } from '../types/index.js';
-import {
-  ConflictError,
-  ForbiddenError,
-  InvalidInputError,
-  NotFoundError,
-} from '../shared/errors.js';
+import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
 import { hashInviteToken } from '../shared/invite-token.js';
 import { createCapturingLogger } from '../shared/logger.js';
@@ -256,36 +251,7 @@ function store(
     },
   };
 
-  const refusedOf = (app: App): Error | null => {
-    const others = [...apps.values()].filter((other) => other.id !== app.id);
-    const mine = others.filter((other) => other.orgId === app.orgId);
-    if (others.some((other) => other.domain === app.domain)) {
-      return new ConflictError('That domain is already in use', 'domain_taken');
-    }
-    if (mine.some((other) => other.slug === app.slug)) {
-      return new ConflictError('That slug is already in use', 'slug_taken');
-    }
-    if (app.courses && mine.some((other) => other.courses)) {
-      return new ConflictError(
-        'The organization already has an app that serves courses',
-        'courses_taken',
-      );
-    }
-    if (app.community && mine.some((other) => other.community)) {
-      return new ConflictError(
-        'The organization already has an app that serves the community',
-        'community_taken',
-      );
-    }
-    return app.courses || app.community
-      ? null
-      : new InvalidInputError('An app serves courses, the community, or both');
-  };
   const save = (app: App): App => {
-    const refused = refusedOf(app);
-    if (refused) {
-      throw refused;
-    }
     apps.set(app.id, app);
     return app;
   };
@@ -549,12 +515,6 @@ function store(
   const uow: OrganizationsUnitOfWork = {
     run: async (fn) => {
       tx.open = true;
-      const before = {
-        orgs: new Map(orgs),
-        orgUsers: new Map(orgUsers),
-        assignments: [...assignments],
-        events: events.length,
-      };
       try {
         return await fn({
           organizations: repo,
@@ -565,19 +525,6 @@ function store(
             },
           },
         });
-      } catch (err) {
-        for (const [map, kept] of [
-          [orgs, before.orgs],
-          [orgUsers, before.orgUsers],
-        ] as [Map<string, unknown>, Map<string, unknown>][]) {
-          map.clear();
-          for (const [key, value] of kept) {
-            map.set(key, value);
-          }
-        }
-        assignments.splice(0, assignments.length, ...before.assignments);
-        events.length = before.events;
-        throw err;
       } finally {
         tx.open = false;
       }
@@ -2119,11 +2066,11 @@ describe('people on a domain', () => {
         app: CLUB,
         organization: { id: ORG, externalId: 'ba_1', name: 'Acme', slug: 'acme' },
       };
-      expect(w.service.acceptsSwitch(at, { organizationId: 'ba_1' })).toBe(true);
-      expect(w.service.acceptsSwitch(at, { organizationId: GLOBEX })).toBe(false);
-      expect(w.service.acceptsSwitch(at, { organizationSlug: 'acme' })).toBe(true);
-      expect(w.service.acceptsSwitch(at, { organizationSlug: 'globex' })).toBe(false);
-      expect(w.service.acceptsSwitch(at, { organizationId: null })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { id: 'ba_1' })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { id: GLOBEX })).toBe(false);
+      expect(w.service.acceptsSwitch(at, { slug: 'acme' })).toBe(true);
+      expect(w.service.acceptsSwitch(at, { slug: 'globex' })).toBe(false);
+      expect(w.service.acceptsSwitch(at, { id: null })).toBe(true);
       expect(w.service.acceptsSwitch(at, {})).toBe(true);
     });
 

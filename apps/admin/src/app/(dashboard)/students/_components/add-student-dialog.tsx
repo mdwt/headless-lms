@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 
 import { addStudentAction } from "../actions";
+import { UNREACHABLE } from "@/lib/api/refusal";
 
 const FORM_ID = "add-student-form";
 
@@ -64,8 +65,8 @@ export function AddStudentDialog({
         });
         onOpenChange(false);
         router.refresh();
-      } catch (err) {
-        toast.error("Couldn't add the student", { description: (err as Error).message });
+      } catch {
+        toast.error("Couldn't add the student", { description: UNREACHABLE });
       }
     });
   });

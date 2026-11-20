@@ -70,36 +70,7 @@ const member = actor(ACME, []);
 
 function store(opts: Partial<OrgAppsParams> = {}) {
   const apps = new Map<string, App>();
-  const refusedOf = (app: App): Error | null => {
-    const others = [...apps.values()].filter((other) => other.id !== app.id);
-    const mine = others.filter((other) => other.orgId === app.orgId);
-    if (others.some((other) => other.domain === app.domain)) {
-      return new ConflictError('That domain is already in use', 'domain_taken');
-    }
-    if (mine.some((other) => other.slug === app.slug)) {
-      return new ConflictError('That slug is already in use', 'slug_taken');
-    }
-    if (app.courses && mine.some((other) => other.courses)) {
-      return new ConflictError(
-        'The organization already has an app that serves courses',
-        'courses_taken',
-      );
-    }
-    if (app.community && mine.some((other) => other.community)) {
-      return new ConflictError(
-        'The organization already has an app that serves the community',
-        'community_taken',
-      );
-    }
-    return app.courses || app.community
-      ? null
-      : new InvalidInputError('An app serves courses, the community, or both');
-  };
   const save = (app: App): App => {
-    const refused = refusedOf(app);
-    if (refused) {
-      throw refused;
-    }
     apps.set(app.id, app);
     return app;
   };
@@ -174,21 +145,6 @@ describe('managing apps', () => {
     expect(await w.repo.listApps(ACME)).toEqual([LEARN]);
   });
 
-  it('refuses a domain another app has, in this organization or another', async () => {
-    await w.service.delete(CLUB.id, admin);
-    const input = { name: 'Circle', slug: 'circle', courses: false, community: true };
-    await expect(
-      w.service.create({ ...input, domain: GLOBEX_APP.domain }, admin),
-    ).rejects.toBeInstanceOf(ConflictError);
-    await expect(
-      w.service.create({ ...input, domain: LEARN.domain }, admin),
-    ).rejects.toBeInstanceOf(ConflictError);
-    await expect(
-      w.service.update(LEARN.id, { domain: GLOBEX_APP.domain }, admin),
-    ).rejects.toBeInstanceOf(ConflictError);
-    expect(await w.repo.listApps(ACME)).toEqual([LEARN]);
-  });
-
   it("refuses the installation's own addresses as a domain", async () => {
     await w.service.delete(CLUB.id, admin);
     const input = { name: 'Circle', slug: 'circle', courses: false, community: true };
@@ -223,21 +179,8 @@ describe('managing apps', () => {
     expect(created.domain).toBe('https://admin.platform.test:8443');
   });
 
-  it('refuses a second app that serves courses or the community', async () => {
-    const input = { name: 'Third', slug: 'third', domain: 'https://third.test' };
-    await expect(
-      w.service.create({ ...input, courses: true, community: false }, admin),
-    ).rejects.toBeInstanceOf(ConflictError);
-    await expect(
-      w.service.create({ ...input, courses: false, community: true }, admin),
-    ).rejects.toBeInstanceOf(ConflictError);
-    await expect(w.service.update(LEARN.id, { community: true }, admin)).rejects.toBeInstanceOf(
-      ConflictError,
-    );
-    expect(await w.repo.listApps(ACME)).toEqual([LEARN, CLUB]);
-  });
-
-  it('refuses an app that serves neither courses nor the community', async () => {
+  it('refuses a new app that serves neither courses nor the community, before writing', async () => {
+    await w.service.delete(CLUB.id, admin);
     await expect(
       w.service.create(
         {
@@ -250,63 +193,15 @@ describe('managing apps', () => {
         admin,
       ),
     ).rejects.toBeInstanceOf(InvalidInputError);
-    await expect(w.service.update(LEARN.id, { courses: false }, admin)).rejects.toBeInstanceOf(
-      InvalidInputError,
-    );
-    expect(await w.repo.listApps(ACME)).toEqual([LEARN, CLUB]);
+    expect(await w.repo.listApps(ACME)).toEqual([LEARN]);
   });
 
-  it('names the rule a refused app breaks', async () => {
-    const third = { name: 'Third', slug: 'third', domain: 'https://third.test' };
-    const refused = [
-      w.service.create(
-        { ...third, domain: GLOBEX_APP.domain, courses: true, community: false },
-        admin,
-      ),
-      w.service.create({ ...third, slug: 'club', courses: false, community: false }, admin),
-      w.service.create({ ...third, courses: true, community: false }, admin),
-      w.service.create({ ...third, courses: false, community: true }, admin),
-      w.service.create({ ...third, courses: false, community: false }, admin),
-      w.service.update(CLUB.id, { domain: LEARN.domain }, admin),
-      w.service.update(CLUB.id, { slug: 'academy' }, admin),
-      w.service.update(CLUB.id, { courses: true }, admin),
-      w.service.update(CLUB.id, { community: false }, admin),
-    ];
-    const codes = await Promise.all(
-      refused.map((attempt) =>
-        attempt.then(
-          () => 'accepted',
-          (err: { code?: string; name: string }) => err.code ?? err.name,
-        ),
-      ),
-    );
-    expect(codes).toEqual([
-      'domain_taken',
-      'slug_taken',
-      'courses_taken',
-      'community_taken',
-      'InvalidInputError',
-      'domain_taken',
-      'slug_taken',
-      'courses_taken',
-      'InvalidInputError',
-    ]);
-    expect(await w.repo.listApps(ACME)).toEqual([LEARN, CLUB]);
-  });
-
-  it('keeps an app that is saved again as it is', async () => {
-    const same = await w.service.update(
-      CLUB.id,
-      { name: CLUB.name, slug: CLUB.slug, domain: CLUB.domain, courses: false, community: true },
-      admin,
-    );
-    expect(same).toEqual(CLUB);
-  });
-
-  it('lets one app take over both once the other is gone', async () => {
-    await w.service.delete(CLUB.id, admin);
-    const both = await w.service.update(LEARN.id, { community: true }, admin);
-    expect(both).toEqual({ ...LEARN, community: true });
+  it('passes on what the repository answers for a write it refuses', async () => {
+    const taken = new ConflictError('That domain is already in use', 'domain_taken');
+    w.repo.updateApp = async () => {
+      throw taken;
+    };
+    await expect(w.service.update(CLUB.id, { domain: LEARN.domain }, admin)).rejects.toBe(taken);
   });
 
   it("answers 404 for another organization's app", async () => {
@@ -344,6 +239,14 @@ describe('looking a domain up', () => {
     expect(reads).toEqual([]);
   });
 
+  it('answers the public lookup with names and what the app serves, and nothing else', async () => {
+    expect(w.service.lookup(await w.service.at(CLUB.domain))).toEqual({
+      organization: { name: 'Acme' },
+      app: { name: 'Acme Club', courses: false, community: true },
+    });
+    expect(() => w.service.lookup(null)).toThrow(NotFoundError);
+  });
+
   it('follows a change of domain from the next read', async () => {
     await w.service.update(CLUB.id, { domain: 'https://circle.test' }, admin);
     expect(await w.service.at('https://club.acme.test')).toBeNull();
@@ -359,11 +262,8 @@ describe('what an app serves', () => {
     expect(servesCourses([])).toBeNull();
   });
 
-  it("gives an organization's apps and whether a domain is an app's", async () => {
+  it("gives an organization's apps", async () => {
     expect(await w.service.of(ACME)).toEqual([LEARN, CLUB]);
-    expect(await w.service.has(CLUB.domain)).toBe(true);
-    expect(await w.service.has('https://elsewhere.test')).toBe(false);
-    expect(await w.service.has('https://admin.platform.test')).toBe(false);
-    expect(await w.service.has('https://*')).toBe(false);
+    expect(await w.service.of('org_none')).toEqual([]);
   });
 });

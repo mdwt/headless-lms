@@ -9,7 +9,7 @@ export function visitorOrigin(headers: Headers): string {
   return `${proto}://${host}`;
 }
 
-export function visitorHeaders(headers: Headers): Record<string, string> {
+export function visitorHeaders(headers: Headers): { origin: string; "x-forwarded-for"?: string } {
   const forwardedFor = headers.get("x-forwarded-for");
   return {
     origin: visitorOrigin(headers),

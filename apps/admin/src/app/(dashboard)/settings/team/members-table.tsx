@@ -17,6 +17,7 @@ import { givableOrgRoles, teamRoleKeys } from "@/lib/org-roles";
 
 import { memberColumns } from "./members-columns";
 import { InviteDialog } from "./_components/invite-dialog";
+import { UNREACHABLE } from "@/lib/api/refusal";
 import {
   cancelInviteAction,
   removePersonAction,
@@ -93,10 +94,14 @@ function MembersTableInner({
   const onResend = useCallback((member: Member) => {
     startTransition(async () => {
       try {
-        await resendInviteAction(member.id);
+        const refusal = await resendInviteAction(member.id);
+        if (refusal) {
+          toast.error("Couldn't resend invite", { description: refusal.refused });
+          return;
+        }
         toast.success("Invitation resent", { description: member.email });
-      } catch (e) {
-        toast.error("Couldn't resend invite", { description: (e as Error).message });
+      } catch {
+        toast.error("Couldn't resend invite", { description: UNREACHABLE });
       }
     });
   }, []);

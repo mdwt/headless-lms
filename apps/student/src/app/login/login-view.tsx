@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const NOT_A_MEMBER = "FAILED_TO_CREATE_SESSION";
+const UNREACHABLE = "We couldn't reach the server. Try again in a moment.";
 
 function inOrganization(session: unknown): boolean {
   const held = (session as { session?: { activeOrganizationId?: string | null } } | null)?.session;
@@ -114,28 +115,36 @@ function SignInForm({ orgName, onDone }: { orgName: string; onDone: () => void }
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error } = await signIn.email({ email, password });
-    if (error) {
-      setError(
-        error.code === NOT_A_MEMBER
-          ? `This account is not a member of ${orgName}.`
-          : (error.message ?? "Invalid email or password"),
-      );
+    const failure = await signedIn().catch(() => UNREACHABLE);
+    if (failure) {
+      setError(failure);
       setSubmitting(false);
       return;
+    }
+    onDone();
+  }
+
+  async function signedIn(): Promise<string | null> {
+    const { error } = await signIn.email({ email, password });
+    if (error) {
+      if (error.code === NOT_A_MEMBER) {
+        return `This account is not a member of ${orgName}. If you were invited, ask ${orgName} to send the invitation again.`;
+      }
+      if (!error.status || error.status >= 500) {
+        return UNREACHABLE;
+      }
+      return error.status === 401
+        ? "Invalid email or password."
+        : (error.message ?? "Invalid email or password.");
     }
     const { data: session } = await authClient.getSession({
       query: { disableCookieCache: true },
     });
     if (!inOrganization(session)) {
       await signOut();
-      setError(
-        `You have an invitation to ${orgName} that you haven't accepted yet. Open the link in your invitation email to accept it.`,
-      );
-      setSubmitting(false);
-      return;
+      return `You have an invitation to ${orgName} that you haven't accepted yet. Open the link in your invitation email to accept it. Can't find it? Ask ${orgName} to send it again.`;
     }
-    onDone();
+    return null;
   }
 
   return (

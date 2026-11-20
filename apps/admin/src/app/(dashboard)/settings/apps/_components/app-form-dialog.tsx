@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,6 +10,7 @@ import { Field } from "@/components/forms/field";
 import { FormDialog } from "@/components/forms/form-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { UNREACHABLE } from "@/lib/api/refusal";
 import type { OrgApp } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -47,12 +47,13 @@ const schema = z
       .string()
       .min(1, "A slug is required")
       .max(50, "Keep it under 50 characters")
-      .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and hyphens only"),
+      .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers and hyphens only"),
     domain: z
       .string()
       .trim()
+      .min(1, "Domain is required")
       .transform(withScheme)
-      .refine(isOrigin, "Enter a domain like learn.example.com, with nothing after it"),
+      .refine(isOrigin, "Enter just the domain, like learn.example.com"),
     courses: z.boolean(),
     community: z.boolean(),
   })
@@ -64,15 +65,16 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 type FieldName = keyof FormValues;
 
-const SLUG_TAKEN = "Another app has this slug";
-
 const REFUSED: Record<string, { field: FieldName; message: string }> = {
-  domain_taken: { field: "domain", message: "Another app already uses this domain" },
+  domain_taken: {
+    field: "domain",
+    message: "This domain is already in use. Each domain belongs to one app.",
+  },
   domain_reserved: {
     field: "domain",
-    message: "This address is one of the system's own. Choose another.",
+    message: "This domain is the admin's or the API's. Enter the domain of your members' site.",
   },
-  slug_taken: { field: "slug", message: SLUG_TAKEN },
+  slug_taken: { field: "slug", message: "Another app already has this slug" },
   courses_taken: { field: "courses", message: "Another app already has courses and downloads" },
   community_taken: {
     field: "community",
@@ -97,7 +99,6 @@ export function AppFormDialog({
   app?: OrgApp;
   apps: OrgApp[];
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const others = apps.filter((other) => other.id !== app?.id);
@@ -118,27 +119,24 @@ export function AppFormDialog({
   });
 
   useEffect(() => {
-    if (open) {
-      reset(
-        app
-          ? {
-              name: app.name,
-              slug: app.slug,
-              domain: shown(app.domain),
-              courses: app.courses,
-              community: app.community,
-            }
-          : { name: "", slug: "", domain: "", courses: coursesFree, community: communityFree },
-      );
-    }
-  }, [open, app, reset, coursesFree, communityFree]);
+    if (!open) return;
+    reset(
+      app
+        ? {
+            name: app.name,
+            slug: app.slug,
+            domain: shown(app.domain),
+            courses: app.courses,
+            community: app.community,
+          }
+        : { name: "", slug: "", domain: "", courses: coursesFree, community: communityFree },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, app?.id]);
 
   const onSubmit = handleSubmit((values) => {
-    if (others.some((other) => other.slug === values.slug)) {
-      setError("slug", { message: SLUG_TAKEN }, { shouldFocus: true });
-      return;
-    }
     startTransition(async () => {
+      const failed = app ? "Couldn't save" : "Couldn't create app";
       try {
         const refusal = app ? await updateAppAction(app.id, values) : await createAppAction(values);
         if (refusal) {
@@ -146,20 +144,14 @@ export function AppFormDialog({
           if (known) {
             setError(known.field, { message: known.message }, { shouldFocus: true });
           } else {
-            toast.error(app ? "Couldn't save" : "Couldn't create app", {
-              description: refusal.refused,
-            });
+            toast.error(failed, { description: refusal.refused });
           }
-          router.refresh();
           return;
         }
         toast.success(app ? "Changes saved" : "App created", { description: values.name });
         onOpenChange(false);
-        router.refresh();
-      } catch (err) {
-        toast.error(app ? "Couldn't save" : "Couldn't create app", {
-          description: (err as Error).message,
-        });
+      } catch {
+        toast.error(failed, { description: UNREACHABLE });
       }
     });
   });
@@ -171,8 +163,8 @@ export function AppFormDialog({
       title={app ? "Edit app" : "Create app"}
       description={
         app
-          ? "If you change the domain, members sign in at the new one straight away. Links already sent to the old one stop working."
-          : "Members sign in on the app's domain, and links in emails and invites open there."
+          ? "If you change the domain, members sign in at the new one. The switch can take a minute, and links already sent to the old one stop working."
+          : "Members sign in at this app's domain, and links in emails and invites open there."
       }
       formId={FORM_ID}
       submitLabel={app ? "Save" : "Create app"}
@@ -191,7 +183,13 @@ export function AppFormDialog({
           error={errors.slug?.message}
           hint="A short name for this app, like academy. Lowercase letters, numbers and hyphens."
         >
-          <Input id="app-slug" aria-invalid={!!errors.slug} {...register("slug")} />
+          <Input
+            id="app-slug"
+            autoCapitalize="none"
+            spellCheck={false}
+            aria-invalid={!!errors.slug}
+            {...register("slug")}
+          />
         </Field>
 
         <Field
@@ -199,7 +197,7 @@ export function AppFormDialog({
           label="Domain"
           required
           error={errors.domain?.message}
-          hint="The address members open, like learn.example.com. A domain belongs to one app."
+          hint="The domain members open, like learn.example.com. Each domain belongs to one app."
         >
           <Input
             id="app-domain"

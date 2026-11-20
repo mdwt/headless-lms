@@ -1,15 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { AppAt } from '@headless-lms/core/organizations';
+import { webOrigin } from '@headless-lms/core/shared/network';
 import type { Container } from '../app/container.js';
-
-function webOrigin(value: unknown): string | null {
-  if (typeof value !== 'string' || !URL.canParse(value)) {
-    return null;
-  }
-  const url = new URL(value);
-  const web = url.protocol === 'https:' || url.protocol === 'http:';
-  return web && !url.hostname.includes('*') ? url.origin : null;
-}
 
 export function requestDomain(request: FastifyRequest): string | null {
   return webOrigin(request.headers.origin) ?? webOrigin(request.headers.referer);

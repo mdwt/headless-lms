@@ -79,6 +79,11 @@ export interface AppAt {
   organization: Pick<Organization, 'id' | 'externalId' | 'name' | 'slug'>;
 }
 
+export interface AppLookup {
+  organization: Pick<Organization, 'name'>;
+  app: Pick<App, 'name' | 'courses' | 'community'>;
+}
+
 export type LinkDomain = { refused: true } | { refused: false; domain: string | null };
 
 export interface PlatformOrganization {
@@ -116,10 +121,7 @@ export interface OrganizationService {
     domains: readonly string[],
   ): Promise<SessionOrganization>;
   acceptsSession(at: AppAt, authOrgId: string): boolean;
-  acceptsSwitch(
-    at: AppAt,
-    to: { organizationId?: string | null; organizationSlug?: string },
-  ): boolean;
+  acceptsSwitch(at: AppAt, to: { id?: string | null; slug?: string }): boolean;
   linkDomain(email: string, returnTo: string | null, named: readonly string[]): Promise<LinkDomain>;
 
   actorFor(orgId: string, orgUserId: string, limit?: CallerLimit): Promise<Actor | null>;

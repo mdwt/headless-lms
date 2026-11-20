@@ -23,7 +23,11 @@ const container = {
     adminAppUrl: 'https://admin.example.com',
   }),
   requestContext: { set: (fields: Record<string, unknown>) => logContext.push(fields) },
-  auth: { verify: async () => SESSION, handler: async () => new Response(null) },
+  auth: {
+    verify: async () => SESSION,
+    handler: async () => new Response(null),
+    sessionUse: () => null,
+  },
   organizations: {
     resolveCaller: async (authOrgId: string, authUserId: string) => {
       resolved.push({ authOrgId, authUserId });
@@ -207,6 +211,14 @@ describe("a request from an app's domain", () => {
         ...container.auth,
         verify: async () => ({ ...SESSION, session: { activeOrganizationId } }),
         verifyApiKey: async () => GRANT,
+        sessionUse: (method: string, url: string, body: { organizationId?: string }) => {
+          if (method === 'GET' && /get-session|organization\/list/.test(url)) {
+            return { kind: 'read' };
+          }
+          return method === 'POST' && url.includes('set-active')
+            ? { kind: 'switch', to: { id: body.organizationId } }
+            : null;
+        },
         handler: async () =>
           new Response(JSON.stringify({ answered: true }), {
             status: 200,
@@ -224,8 +236,8 @@ describe("a request from an app's domain", () => {
         ...container.organizations,
         acceptsSession: (at: { organization: typeof ORG }, authOrgId: string) =>
           at.organization.externalId === authOrgId,
-        acceptsSwitch: (at: { organization: typeof ORG }, to: { organizationId?: string }) =>
-          to.organizationId === undefined || to.organizationId === at.organization.externalId,
+        acceptsSwitch: (at: { organization: typeof ORG }, to: { id?: string }) =>
+          to.id === undefined || to.id === at.organization.externalId,
       },
     } as unknown as Container;
     registerAuth(scoped, world);
@@ -335,7 +347,8 @@ describe("a request from an app's domain", () => {
         payload: { organizationId },
       });
     const refused = await switchTo(GLOBEX.externalId, 'https://learn.acme.test');
-    expect(refused.statusCode).toBe(401);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().message).toBe('On this domain a session is for Acme only');
     expect((await switchTo(ORG.externalId, 'https://learn.acme.test')).statusCode).toBe(200);
     expect((await switchTo(GLOBEX.externalId, 'https://admin.example.com')).statusCode).toBe(200);
     expect((await switchTo(GLOBEX.externalId)).statusCode).toBe(200);

@@ -5,16 +5,15 @@ import { genId } from "@headless-lms/core/shared/id";
 import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/errors";
 import type { App } from "@headless-lms/core/types";
 import { runMigrations } from "../migrate.js";
-import { DrizzleUnitOfWork } from "../unit-of-work.js";
 import { DrizzleOrganizationsRepository } from "./organizations.js";
 
 const url = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!url)("apps on Postgres", () => {
   let pool: pg.Pool;
-  let apps: DrizzleOrganizationsRepository;
+  let repo: DrizzleOrganizationsRepository;
   const find = async (orgId: string, id: string) =>
-    (await apps.listApps(orgId)).find((app) => app.id === id) ?? null;
+    (await repo.listApps(orgId)).find((app) => app.id === id) ?? null;
   const owner = genId("user");
   const acme = genId("organization");
   const globex = genId("organization");
@@ -38,7 +37,7 @@ describe.skipIf(!url)("apps on Postgres", () => {
   beforeAll(async () => {
     await runMigrations(url!);
     pool = new pg.Pool({ connectionString: url });
-    apps = new DrizzleOrganizationsRepository(drizzle(pool));
+    repo = new DrizzleOrganizationsRepository(drizzle(pool));
     await pool.query("insert into users (id, external_id, email) values ($1, $1, $2)", [
       owner,
       `${owner}@test`,
@@ -49,101 +48,87 @@ describe.skipIf(!url)("apps on Postgres", () => {
         [org, owner],
       );
     }
-    await apps.createApp(learn);
-    await apps.createApp(club);
+    await repo.createApp(learn);
+    await repo.createApp(club);
   });
 
   afterAll(async () => {
     await pool?.end();
   });
 
-  it("lists an organization's apps and reads one by id or by domain", async () => {
-    expect(await apps.listApps(acme)).toEqual([learn, club]);
-    expect(await apps.listApps(globex)).toEqual([]);
+  it("lists an organization's apps and finds one by its domain", async () => {
+    expect(await repo.listApps(acme)).toEqual([learn, club]);
+    expect(await repo.listApps(globex)).toEqual([]);
     expect(await find(acme, club.id)).toEqual(club);
     expect(await find(globex, club.id)).toBeNull();
-    expect(await apps.findAppByDomain(domain("club"))).toEqual(club);
-    expect(await apps.findAppByDomain(`${domain("club")}/`)).toBeNull();
-    expect(await apps.findAppByDomain(`https://club.${tag}`)).toBeNull();
+    expect(await repo.findAppByDomain(domain("club"))).toEqual(club);
+    expect(await repo.findAppByDomain(`${domain("club")}/`)).toBeNull();
+    expect(await repo.findAppByDomain(`https://club.${tag}`)).toBeNull();
   });
 
   it("holds a domain to one app across every organization", async () => {
-    const taken = apps.createApp(app(globex, "school", { domain: domain("learn") }));
+    const taken = repo.createApp(app(globex, "school", { domain: domain("learn") }));
     await expect(taken).rejects.toBeInstanceOf(ConflictError);
     await expect(taken).rejects.toMatchObject({
       message: "That domain is already in use",
       code: "domain_taken",
     });
-    expect(await apps.listApps(globex)).toEqual([]);
+    expect(await repo.listApps(globex)).toEqual([]);
   });
 
   it("holds an organization to one app that serves courses and one that serves the community", async () => {
-    const courses = apps.createApp(app(acme, "third", { community: false }));
+    const courses = repo.createApp(app(acme, "third", { community: false }));
     await expect(courses).rejects.toMatchObject({ code: "courses_taken" });
-    const community = apps.createApp(app(acme, "third", { courses: false }));
+    const community = repo.createApp(app(acme, "third", { courses: false }));
     await expect(community).rejects.toMatchObject({ code: "community_taken" });
-    await expect(apps.updateApp(acme, learn.id, { community: true })).rejects.toMatchObject({
+    await expect(repo.updateApp(acme, learn.id, { community: true })).rejects.toMatchObject({
       code: "community_taken",
     });
-    expect(await apps.listApps(acme)).toEqual([learn, club]);
+    expect(await repo.listApps(acme)).toEqual([learn, club]);
   });
 
   it("holds a slug to one app in an organization, and lets another organization use it", async () => {
-    await expect(apps.updateApp(acme, club.id, { slug: "learn" })).rejects.toMatchObject({
+    await expect(repo.updateApp(acme, club.id, { slug: "learn" })).rejects.toMatchObject({
       code: "slug_taken",
     });
-    const school = await apps.createApp(app(globex, "learn", { domain: domain("globex") }));
-    expect(await apps.listApps(globex)).toEqual([school]);
+    const school = await repo.createApp(app(globex, "learn", { domain: domain("globex") }));
+    expect(await repo.listApps(globex)).toEqual([school]);
   });
 
   it("refuses an app that serves neither courses nor the community", async () => {
     await expect(
-      apps.createApp(app(gone, "nothing", { courses: false, community: false })),
+      repo.createApp(app(gone, "nothing", { courses: false, community: false })),
     ).rejects.toBeInstanceOf(InvalidInputError);
-    await expect(apps.updateApp(acme, learn.id, { courses: false })).rejects.toBeInstanceOf(
+    await expect(repo.updateApp(acme, learn.id, { courses: false })).rejects.toBeInstanceOf(
       InvalidInputError,
     );
     expect(await find(acme, learn.id)).toEqual(learn);
   });
 
   it("changes only what a patch names, and follows a change of domain", async () => {
-    expect(await apps.updateApp(acme, club.id, {})).toEqual(club);
-    const renamed = await apps.updateApp(acme, club.id, { name: "Acme Club" });
+    expect(await repo.updateApp(acme, club.id, {})).toEqual(club);
+    const renamed = await repo.updateApp(acme, club.id, { name: "Acme Club" });
     expect(renamed).toEqual({ ...club, name: "Acme Club" });
-    const moved = await apps.updateApp(acme, club.id, { domain: domain("circle") });
+    const moved = await repo.updateApp(acme, club.id, { domain: domain("circle") });
     expect(moved?.domain).toBe(domain("circle"));
-    expect(await apps.findAppByDomain(domain("club"))).toBeNull();
-    expect((await apps.findAppByDomain(domain("circle")))?.id).toBe(club.id);
-    expect(await apps.updateApp(globex, club.id, { name: "Stolen" })).toBeNull();
+    expect(await repo.findAppByDomain(domain("club"))).toBeNull();
+    expect((await repo.findAppByDomain(domain("circle")))?.id).toBe(club.id);
+    expect(await repo.updateApp(globex, club.id, { name: "Stolen" })).toBeNull();
   });
 
   it("deletes an app of its own organization only, and frees its domain", async () => {
-    const extra = await apps.createApp(app(gone, "extra"));
-    expect(await apps.deleteApp(acme, extra.id)).toBeNull();
-    expect(await apps.deleteApp(gone, extra.id)).toEqual(extra);
-    expect(await apps.findAppByDomain(extra.domain)).toBeNull();
-    expect(await apps.createApp({ ...extra, id: genId("app") })).toMatchObject({
+    const extra = await repo.createApp(app(gone, "extra"));
+    expect(await repo.deleteApp(acme, extra.id)).toBeNull();
+    expect(await repo.deleteApp(gone, extra.id)).toEqual(extra);
+    expect(await repo.findAppByDomain(extra.domain)).toBeNull();
+    expect(await repo.createApp({ ...extra, id: genId("app") })).toMatchObject({
       domain: extra.domain,
     });
   });
 
   it("deletes an organization's apps with the organization", async () => {
-    expect(await apps.listApps(gone)).toHaveLength(1);
+    expect(await repo.listApps(gone)).toHaveLength(1);
     await pool.query("delete from organizations where id = $1", [gone]);
-    expect(await apps.listApps(gone)).toEqual([]);
-  });
-
-  it("rolls an app back with the unit of work it was created in", async () => {
-    const uow = new DrizzleUnitOfWork(drizzle(pool), (tx) => ({
-      apps: new DrizzleOrganizationsRepository(tx),
-    }));
-    const rolled = app(globex, "rolled", { courses: false, community: true });
-    await expect(
-      uow.run(async (scope) => {
-        await scope.apps.createApp(rolled);
-        await scope.apps.createApp(app(globex, "clash", { domain: domain("learn") }));
-      }),
-    ).rejects.toBeInstanceOf(ConflictError);
-    expect(await find(globex, rolled.id)).toBeNull();
+    expect(await repo.listApps(gone)).toEqual([]);
   });
 });

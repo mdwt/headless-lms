@@ -2,6 +2,7 @@ import { type GenericEndpointContext, type Session, type User } from "better-aut
 import { type OrganizationOptions } from "better-auth/plugins";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
+import type { LinkDomain } from "@headless-lms/core/organizations";
 import type { Logger } from "@headless-lms/core/types";
 
 // The engine's own user/session records, not the domain's — these hooks fire
@@ -58,13 +59,12 @@ export interface McpAuthOptions {
 }
 
 export interface AppDomains {
-  has(origin: string): Promise<boolean>;
-  linkDomain(
-    email: string,
-    returnTo: string | null,
-    named: readonly string[],
-  ): Promise<{ refused: true } | { refused: false; domain: string | null }>;
+  has(domain: string): Promise<boolean>;
+  linkDomain(email: string, returnTo: string | null, named: readonly string[]): Promise<LinkDomain>;
 }
+
+export type SessionUse =
+  { kind: "read" } | { kind: "switch"; to: { id?: string | null; slug?: string } };
 
 export interface CreateAuthOptions {
   db: NodePgDatabase;

@@ -19,7 +19,8 @@ import {
   type GenericEndpointContext,
 } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
-import type { AppDomains, CreateAuthOptions } from "./types.js";
+import { webOrigin } from "@headless-lms/core/shared/network";
+import type { AppDomains, CreateAuthOptions, SessionUse } from "./types.js";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as authSchema from "@headless-lms/adapter-db/schema/better-auth";
 import { prefixId } from "@headless-lms/core/shared/id";
@@ -97,14 +98,12 @@ const OAUTH_CLIENT_WRITES = new Set([
 
 const CALLBACK_PARAMS = ["callbackURL", "errorCallbackURL", "newUserCallbackURL"];
 
-function webOrigin(value: string | null): string | null {
-  if (!value || !URL.canParse(value)) {
-    return null;
-  }
-  const url = new URL(value);
-  const web = url.protocol === "https:" || url.protocol === "http:";
-  return web && !url.hostname.includes("*") ? url.origin : null;
-}
+const SESSION_READS = [
+  "/api/auth/get-session",
+  "/api/auth/list-sessions",
+  "/api/auth/organization/",
+];
+const SET_ACTIVE = "/api/auth/organization/set-active";
 
 function callbackOrigins(url: string): string[] {
   if (!URL.canParse(url)) {
@@ -120,13 +119,9 @@ function pageOrigin(headers: Headers): string | null {
   return webOrigin(headers.get("origin")) ?? webOrigin(headers.get("referer"));
 }
 
-function returnOrigin(link: string): string | null {
-  return URL.canParse(link) ? webOrigin(new URL(link).searchParams.get("callbackURL")) : null;
-}
-
-function requestDomains(headers: Headers, url?: string): string[] {
+function requestDomains(headers: Headers, url: string): string[] {
   const page = pageOrigin(headers);
-  return [...new Set([...(url ? callbackOrigins(url) : []), ...(page ? [page] : [])])];
+  return [...new Set([...callbackOrigins(url), ...(page ? [page] : [])])];
 }
 
 function decidingDomains(headers: Headers, url?: string): string[] {
@@ -150,13 +145,9 @@ function within(origin: string, cookieDomain: string): boolean {
 }
 
 function hostOnlyCookies(response: Response): Response {
-  const cookies = response.headers.getSetCookie();
-  if (cookies.length === 0) {
-    return response;
-  }
   const headers = new Headers(response.headers);
   headers.delete("set-cookie");
-  for (const cookie of cookies) {
+  for (const cookie of response.headers.getSetCookie()) {
     headers.append("set-cookie", cookie.replace(/;\s*domain=[^;]*/i, ""));
   }
   return new Response(response.body, {
@@ -246,7 +237,7 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     email: string,
     link: string,
   ): Promise<{ url: string; domains: string[] } | null> => {
-    const returnTo = returnOrigin(link);
+    const returnTo = webOrigin(new URL(link).searchParams.get("callbackURL"));
     const domains = returnTo ? [returnTo] : [];
     if (!appDomains) {
       return { url: link, domains };
@@ -517,6 +508,21 @@ export class BetterAuth
       this.logger.error("could not tell whether the request is from an app's domain", { err });
     }
     return false;
+  }
+
+  sessionUse(method: string, url: string, body: unknown): SessionUse | null {
+    const { pathname } = new URL(url, this.issuer);
+    if (method === "GET" && SESSION_READS.some((path) => pathname.startsWith(path))) {
+      return { kind: "read" };
+    }
+    if (method === "POST" && pathname === SET_ACTIVE) {
+      const sent = (typeof body === "object" && body !== null ? body : {}) as {
+        organizationId?: string | null;
+        organizationSlug?: string;
+      };
+      return { kind: "switch", to: { id: sent.organizationId, slug: sent.organizationSlug } };
+    }
+    return null;
   }
 
   clientIp(headers: IncomingHttpHeaders): string | null {

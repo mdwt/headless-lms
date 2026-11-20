@@ -399,6 +399,12 @@ export async function buildContainer(
     mailer,
     images: assets,
     fileUrls,
+    sessions: () => {
+      if (!orgAdminRef.current) {
+        throw new Error('sessions not initialised');
+      }
+      return orgAdminRef.current;
+    },
   });
 
   /*
@@ -893,7 +899,7 @@ export async function buildContainer(
     secret: config.authSecret,
     trustedOrigins: config.trustedOrigins,
     appDomains: {
-      has: (origin) => apps.has(origin),
+      has: async (domain) => (await apps.find(domain)) !== null,
       linkDomain: (email, returnTo, named) => organizations.linkDomain(email, returnTo, named),
     },
     hooks: {
@@ -905,8 +911,8 @@ export async function buildContainer(
         });
       },
       onPasswordReset: async ({ user }, { domains }) => {
-        await orgAdminRef.current?.confirmEmail(user.id);
-        await identity.sendPasswordChanged({
+        await identity.passwordReset({
+          authUserId: user.id,
           email: user.email,
           ...(await requestedOn(user.email, domains)),
         });

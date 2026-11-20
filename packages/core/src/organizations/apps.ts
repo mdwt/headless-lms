@@ -1,22 +1,24 @@
 import type { App, CreateAppInput, UpdateAppInput } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
-import { ConflictError, NotFoundError } from '../shared/errors.js';
+import { ConflictError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import { genId } from '../shared/id.js';
 import { noopLogger } from '../shared/logger.js';
+import { webOrigin } from '../shared/network.js';
 import type { Logger } from '../shared/ports.js';
-import type { AppAt, OrganizationsRepository } from './ports.js';
+import type { AppAt, AppLookup, OrganizationsRepository } from './ports.js';
 
 export type OrgAppsParams = {
   repo: Pick<
     OrganizationsRepository,
     'findById' | 'createApp' | 'listApps' | 'findAppByDomain' | 'updateApp' | 'deleteApp'
   >;
-  reservedDomains?: readonly string[];
+  reservedDomains: readonly string[];
   logger?: Logger;
 };
 
 function hostOf(domain: string): string | null {
-  return URL.canParse(domain) ? new URL(domain).host : null;
+  const origin = webOrigin(domain);
+  return origin ? new URL(origin).host : null;
 }
 
 export function servesCourses(apps: readonly App[]): App | null {
@@ -35,7 +37,7 @@ export class OrgApps {
   constructor(params: OrgAppsParams) {
     this.repo = params.repo;
     this.reservedHosts = new Set(
-      (params.reservedDomains ?? []).map(hostOf).filter((host) => host !== null),
+      params.reservedDomains.map(hostOf).filter((host) => host !== null),
     );
     this.logger = params.logger ?? noopLogger;
   }
@@ -47,6 +49,9 @@ export class OrgApps {
 
   async create(input: CreateAppInput, actor: Actor): Promise<App> {
     actor.permissions.require('organizations:write');
+    if (!input.courses && !input.community) {
+      throw new InvalidInputError('An app serves courses, the community, or both');
+    }
     this.assertNotReserved(input.domain, actor.orgId);
     const app = await this.repo.createApp({ ...input, orgId: actor.orgId, id: genId('app') });
     this.logger.info('app created', {
@@ -99,24 +104,20 @@ export class OrgApps {
     return this.reserved(domain) ? null : this.repo.findAppByDomain(domain);
   }
 
-  async has(domain: string): Promise<boolean> {
-    return (await this.find(domain)) !== null;
-  }
-
   async at(domain: string): Promise<AppAt | null> {
     const app = await this.find(domain);
     const organization = app ? await this.repo.findById(app.orgId) : null;
-    return app && organization
-      ? {
-          app,
-          organization: {
-            id: organization.id,
-            externalId: organization.externalId ?? null,
-            name: organization.name,
-            slug: organization.slug,
-          },
-        }
-      : null;
+    return app && organization ? { app, organization } : null;
+  }
+
+  lookup(at: AppAt | null): AppLookup {
+    if (!at) {
+      throw new NotFoundError('App', 'domain');
+    }
+    return {
+      organization: { name: at.organization.name },
+      app: { name: at.app.name, courses: at.app.courses, community: at.app.community },
+    };
   }
 
   private reserved(domain: string): boolean {

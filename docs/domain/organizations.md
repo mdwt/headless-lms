@@ -126,7 +126,7 @@ A domain tells which org a person is signing in to, because it belongs to one of
 - Anyone else is refused there.
 - A session started anywhere else, such as on the admin app, is for the person's org when they are in exactly one. The installation takes sign-ins only from its own addresses and from apps' domains.
 - On an app's domain, a session for another org is not accepted.
-- A link that signs a person in or resets their password, and returns to an app's domain, is sent only to a person who is active in that app's org. The email says which org and which app it was asked for on, as does the email that confirms a changed password.
+- A link that signs a person in or resets their password, and returns to an app's domain, is sent only to a person who is active in that app's org. The email names the org it was asked for on, as does the email that confirms a changed password.
 
 For example, Sarah is in Acme and Globex, and James is only in Globex. Sarah signs in on `learn.acme.com` and gets an Acme session; on Globex's domain she gets a Globex one. James is refused on `learn.acme.com`. Emma was invited to Acme: she opens the link in her invitation on `learn.acme.com`, signs in there and accepts, and her session is for Acme.
 

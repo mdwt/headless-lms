@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
 import { usePermissions } from "@/lib/auth/permissions-context";
+import { UNREACHABLE } from "@/lib/api/refusal";
 import type { ListParams, OrgApp } from "@/lib/api/types";
 
 import { deleteAppAction } from "./actions";
@@ -23,8 +24,8 @@ function noRoomReason(apps: OrgApp[]): string | null {
   const community = apps.find((app) => app.community);
   if (!courses || !community) return null;
   return courses.id === community.id
-    ? `${courses.name} has both courses and communities. To create a second app, edit it and untick one.`
-    : "Courses and communities each have an app. An organization has no more than these two.";
+    ? `${courses.name} has both courses and communities. To create a second app, edit ${courses.name} and untick one of them.`
+    : "You already have an app for courses and an app for communities. An organization can't have more.";
 }
 
 function AppsTableInner({
@@ -60,13 +61,13 @@ function AppsTableInner({
         const refusal = await deleteAppAction(target.id);
         if (refusal) {
           toast.error("Couldn't delete app", { description: refusal.refused });
+          router.refresh();
         } else {
           toast.success("App deleted", { description: target.name });
         }
         setDeleteTarget(null);
-        router.refresh();
-      } catch (err) {
-        toast.error("Couldn't delete app", { description: (err as Error).message });
+      } catch {
+        toast.error("Couldn't delete app", { description: UNREACHABLE });
       }
     });
   }, [deleteTarget, router]);
@@ -101,7 +102,9 @@ function AppsTableInner({
                   </Button>
                 </span>
               </TooltipTrigger>
-              <TooltipContent className="max-w-64 text-pretty">{noRoom}</TooltipContent>
+              <TooltipContent className="max-w-64 text-pretty [overflow-wrap:anywhere]">
+                {noRoom}
+              </TooltipContent>
             </Tooltip>
           ) : (
             <Button variant="primary" size="sm" onClick={onCreate}>
@@ -141,9 +144,14 @@ function AppsTableInner({
         onOpenChange={(o) => !o && setDeleteTarget(null)}
         title="Delete app?"
         description={
-          deleteTarget
-            ? `Members will no longer be able to sign in to ${deleteTarget.name} at ${hostOf(deleteTarget.domain)}, and links to it will stop working.`
-            : ""
+          deleteTarget ? (
+            <span className="[overflow-wrap:anywhere]">
+              Members will no longer be able to sign in to {deleteTarget.name} at{" "}
+              {hostOf(deleteTarget.domain)}, and links to it will stop working.
+            </span>
+          ) : (
+            ""
+          )
         }
         confirmLabel="Delete app"
         destructive

@@ -71,8 +71,16 @@ function build(repo = fakeRepo(), reader: MemberImageReader = { ownsImage: async
       }),
   };
   const mailer = { send: vi.fn() } as unknown as Mailer;
-  const service = new IdentityServiceImpl({ repo, uow, mailer, images, fileUrls });
-  return { service, repo, appended, mailer, images };
+  const sessions = { confirmEmail: vi.fn(async () => {}) };
+  const service = new IdentityServiceImpl({
+    repo,
+    uow,
+    mailer,
+    images,
+    fileUrls,
+    sessions: () => sessions,
+  });
+  return { service, repo, appended, mailer, images, sessions };
 }
 
 describe('password reset emails', () => {
@@ -89,11 +97,12 @@ describe('password reset emails', () => {
     });
   });
 
-  it('confirms a completed reset with the passwordChanged email', async () => {
-    const { service, mailer } = build();
+  it('marks the email verified after a reset, and confirms it with the passwordChanged email', async () => {
+    const { service, mailer, sessions } = build();
 
-    await service.sendPasswordChanged({ email: 'ada@example.com' });
+    await service.passwordReset({ authUserId: 'usr_ada', email: 'ada@example.com' });
 
+    expect(sessions.confirmEmail).toHaveBeenCalledWith('usr_ada');
     expect(mailer.send).toHaveBeenCalledWith('ada@example.com', 'passwordChanged', {});
   });
 
@@ -103,7 +112,7 @@ describe('password reset emails', () => {
     const url = 'https://club.acme.test/api/auth/magic-link/verify?token=t';
 
     await service.sendPasswordReset({ email: 'ada@example.com', url, requestedOn });
-    await service.sendPasswordChanged({ email: 'ada@example.com', requestedOn });
+    await service.passwordReset({ authUserId: 'usr_ada', email: 'ada@example.com', requestedOn });
     await service.sendMagicLink({ email: 'ada@example.com', url, requestedOn });
 
     expect(vi.mocked(mailer.send).mock.calls).toEqual([

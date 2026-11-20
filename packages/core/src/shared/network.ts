@@ -131,3 +131,12 @@ export function isPublicHostname(hostname: string): boolean {
   }
   return isIpLiteral(host) ? isPublicIp(host) : true;
 }
+
+export function webOrigin(value: unknown): string | null {
+  if (typeof value !== 'string' || !URL.canParse(value)) {
+    return null;
+  }
+  const url = new URL(value);
+  const web = url.protocol === 'https:' || url.protocol === 'http:';
+  return web && !url.hostname.includes('*') ? url.origin : null;
+}

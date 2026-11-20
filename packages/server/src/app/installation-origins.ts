@@ -1,7 +1,4 @@
-function webOrigin(value: string): string | null {
-  const url = URL.canParse(value) ? new URL(value) : null;
-  return url && (url.protocol === 'https:' || url.protocol === 'http:') ? url.origin : null;
-}
+import { webOrigin } from '@headless-lms/core/shared/network';
 
 function required(name: string, value: string): string {
   const origin = webOrigin(value);

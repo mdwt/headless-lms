@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import { OrgApps } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { errorHandler } from '../plugins/error-handler.js';
 import { appsRoutes } from './apps.js';
@@ -24,15 +25,19 @@ const container = {
   auth: {
     clientIp: (headers: Record<string, string | undefined>) => headers['x-forwarded-for'] ?? null,
   },
-  apps: {
-    at: async (domain: string) => {
-      if (failing) {
-        throw new Error('connection refused');
-      }
-      lookups.push(domain);
-      return domain === LEARN.domain ? { app: LEARN, organization: ACME } : null;
-    },
-  },
+  apps: new OrgApps({
+    repo: {
+      findAppByDomain: async (domain: string) => {
+        if (failing) {
+          throw new Error('connection refused');
+        }
+        lookups.push(domain);
+        return domain === LEARN.domain ? LEARN : null;
+      },
+      findById: async () => ACME,
+    } as unknown as ConstructorParameters<typeof OrgApps>[0]['repo'],
+    reservedDomains: [],
+  }),
   requestContext: { set: (fields: Record<string, unknown>) => logContext.push(fields) },
 } as unknown as Container;
 

@@ -336,13 +336,7 @@ export class NotificationProcessor {
       categories.map((category) => category.key),
     );
     const configured = this.channels.list();
-    const withDevice = await this.peopleWithDevice(
-      orgId,
-      people,
-      categories,
-      settings,
-      configured,
-    );
+    const withDevice = await this.peopleWithDevice(orgId, people, categories, settings, configured);
     const filed: Filed[] = [];
     for (const person of people) {
       const entry = this.fileOne(

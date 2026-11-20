@@ -1,6 +1,6 @@
 import type { IdentityRepository, IdentityService, IdentityUnitOfWork } from './ports.js';
 import type { User, UserProfile, UserProfileView } from './model.js';
-import type { MemberActor, RequestedOn, UpdateProfileInput } from './ports.js';
+import type { MemberActor, RequestedOn, SessionAdmin, UpdateProfileInput } from './ports.js';
 import type { CreateUserInput, UpdateUserInput } from './types.js';
 import type { Logger } from '../shared/ports.js';
 import { noopLogger } from '../shared/logger.js';
@@ -23,6 +23,7 @@ export class IdentityServiceImpl implements IdentityService {
   private readonly mailer: Pick<Mailer, 'send'>;
   private readonly images: MemberImageReader & Pick<AssetFiles, 'syncPublicImages'>;
   private readonly fileUrls: FileUrls;
+  private readonly sessions: () => Pick<SessionAdmin, 'confirmEmail'>;
 
   constructor(input: {
     repo: IdentityRepository;
@@ -31,6 +32,7 @@ export class IdentityServiceImpl implements IdentityService {
     uow: IdentityUnitOfWork;
     images: MemberImageReader & Pick<AssetFiles, 'syncPublicImages'>;
     fileUrls: FileUrls;
+    sessions: () => Pick<SessionAdmin, 'confirmEmail'>;
   }) {
     this.repo = input.repo;
     this.mailer = input.mailer;
@@ -38,6 +40,7 @@ export class IdentityServiceImpl implements IdentityService {
     this.uow = input.uow;
     this.images = input.images;
     this.fileUrls = input.fileUrls;
+    this.sessions = input.sessions;
   }
 
   async createUser(input: CreateUserInput): Promise<User> {
@@ -114,7 +117,12 @@ export class IdentityServiceImpl implements IdentityService {
     );
   }
 
-  async sendPasswordChanged(input: { email: string; requestedOn?: RequestedOn }): Promise<void> {
+  async passwordReset(input: {
+    authUserId: string;
+    email: string;
+    requestedOn?: RequestedOn;
+  }): Promise<void> {
+    await this.sessions().confirmEmail(input.authUserId);
     await this.mailer.send(input.email, 'passwordChanged', {}, ...requestedArgs(input.requestedOn));
   }
 

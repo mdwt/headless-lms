@@ -399,14 +399,11 @@ export class OrganizationServiceImpl implements OrganizationService {
     return (at.organization.externalId ?? at.organization.id) === authOrgId;
   }
 
-  acceptsSwitch(
-    at: AppAt,
-    to: { organizationId?: string | null; organizationSlug?: string },
-  ): boolean {
-    if (typeof to.organizationId === 'string') {
-      return this.acceptsSession(at, to.organizationId);
+  acceptsSwitch(at: AppAt, to: { id?: string | null; slug?: string }): boolean {
+    if (typeof to.id === 'string') {
+      return this.acceptsSession(at, to.id);
     }
-    return to.organizationSlug === undefined || to.organizationSlug === at.organization.slug;
+    return to.slug === undefined || to.slug === at.organization.slug;
   }
 
   async linkDomain(
@@ -452,8 +449,7 @@ export class OrganizationServiceImpl implements OrganizationService {
     const orgUsers = await this.repo.findOrgUsersByUser(person.id);
     if (!app) {
       const [only] = orgUsers;
-      const org = orgUsers.length === 1 && only ? await this.repo.findById(only.orgId) : null;
-      return { refused: false, orgId: org?.id ?? null };
+      return { refused: false, orgId: orgUsers.length === 1 && only ? only.orgId : null };
     }
     const orgId = app.orgId;
     const here = orgUsers.find((orgUser) => orgUser.orgId === orgId);

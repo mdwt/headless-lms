@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Container } from '../app/container.js';
 
 export class TooManyRequestsError extends Error {
-  constructor(readonly retryAfterSeconds: number) {
+  constructor() {
     super('Too many requests. Try again shortly.');
     this.name = 'TooManyRequestsError';
   }
@@ -10,7 +10,7 @@ export class TooManyRequestsError extends Error {
 
 const SWEEP_ABOVE = 10_000;
 
-export type RateLimit = (key: string) => number | null;
+type RateLimit = (key: string) => number | null;
 
 export function fixedWindowLimit(options: {
   windowSeconds: number;
@@ -46,7 +46,7 @@ export function limitByClientIp(container: Pick<Container, 'auth'>, limit: RateL
     const wait = limit(container.auth.clientIp(request.headers) ?? request.ip);
     if (wait !== null) {
       reply.header('retry-after', wait);
-      throw new TooManyRequestsError(wait);
+      throw new TooManyRequestsError();
     }
   };
 }

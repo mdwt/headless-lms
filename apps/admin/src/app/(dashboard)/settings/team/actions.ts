@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { Organizations, People } from "@headless-lms/sdk";
 
+import { refusable, type Refusal } from "@/lib/api/refusal";
 import { authHeaders } from "@/lib/api/server-call";
 
 function revalidatePeople() {
@@ -36,10 +37,12 @@ export async function unassignRoleAction(orgUserId: string, contentId: string): 
   revalidatePeople();
 }
 
-export async function resendInviteAction(orgUserId: string): Promise<void> {
-  await People.resendInvite({ orgUserId }, await authHeaders());
-  revalidatePeople();
-  revalidatePath(`/students/${orgUserId}`);
+export async function resendInviteAction(orgUserId: string): Promise<Refusal | null> {
+  return refusable(async () => {
+    await People.resendInvite({ orgUserId }, await authHeaders());
+    revalidatePeople();
+    revalidatePath(`/students/${orgUserId}`);
+  });
 }
 
 export async function cancelInviteAction(orgUserId: string): Promise<void> {
