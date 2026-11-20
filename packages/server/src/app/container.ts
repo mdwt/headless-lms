@@ -904,14 +904,15 @@ export async function buildContainer(
         });
       },
       onPasswordReset: async ({ user }, { domains }) => {
+        await orgAdminRef.current?.confirmEmail(user.id);
         await identity.sendPasswordChanged({
           email: user.email,
           ...(await requestedOn(user.email, domains)),
         });
       },
-      sendMagicLink: authHook('sendMagicLink', async ({ email, url }, { domains }) => {
+      sendMagicLink: async ({ email, url }, { domains }) => {
         await identity.sendMagicLink({ email, url, ...(await requestedOn(email, domains)) });
-      }),
+      },
       beforeUserCreate: authHook('beforeUserCreate', async (user) => {
         const { email, name } = user;
         const [firstName, lastName] = name.split(' ');

@@ -598,7 +598,10 @@ function store(
   });
   const send = vi.fn(async () => {});
   const images = { syncPublicImages: vi.fn(async () => {}) };
-  const sessions = { stampActiveOrganization: vi.fn(async () => true) };
+  const sessions = {
+    stampActiveOrganization: vi.fn(async () => true),
+    confirmEmail: vi.fn(async () => {}),
+  };
   const service: OrganizationServiceImpl = new OrganizationServiceImpl({
     repo,
     roles,
@@ -1255,6 +1258,7 @@ describe('invites', () => {
     );
     expect(w.orgUsers.get(ivy.orgUser.id)!.status).toBe('active');
     expect(w.sessions.stampActiveOrganization).toHaveBeenCalledWith(HEADERS, ORG);
+    expect(w.sessions.confirmEmail).toHaveBeenCalledTimes(1);
     expect(
       w.assignments.filter((a) => a.orgUserId === ivy.orgUser.id).map((a) => a.roleKey),
     ).toEqual(['instructor']);

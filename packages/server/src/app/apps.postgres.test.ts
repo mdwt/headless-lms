@@ -572,6 +572,41 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
     expect([admin.headers['set-cookie']].flat().join(';')).toMatch(/domain=\.?platform\.test/i);
   });
 
+  it('keeps the password of a person who accepted an invite, when they later open a sign-in link', async () => {
+    const olivia = new Person('Olivia');
+    const inviteUrl = await invite(acmeAdmin, olivia);
+    expect((await signUp(olivia, LEARN)).statusCode).toBe(200);
+    expect((await accept(olivia, inviteUrl)).statusCode).toBe(200);
+
+    const asked = await call('POST', '/api/auth/sign-in/magic-link', {
+      origin: LEARN,
+      body: { email: olivia.email, callbackURL: `${LEARN}/` },
+    });
+    expect(asked.statusCode).toBe(200);
+    await settled();
+    const link = new URL((lastTo(olivia, 'magicLink')!.params as { url: string }).url);
+    olivia.cookies.clear();
+    expect((await call('GET', `${link.pathname}${link.search}`, { as: olivia })).statusCode).toBe(
+      302,
+    );
+    expect(await sessionOrg(olivia)).toBe(acmeId);
+
+    expect((await signIn(olivia, LEARN)).statusCode).toBe(200);
+    expect(await sessionOrg(olivia)).toBe(acmeId);
+  });
+
+  it("answers 401 when a session for another organization is read on an app's domain", async () => {
+    expect((await signIn(emma, LEARN, 'a brand new password')).statusCode).toBe(200);
+    const own = await call('GET', '/api/auth/get-session', { as: emma, origin: CLUB });
+    expect(own.statusCode).toBe(200);
+    const elsewhere = await call('GET', '/api/auth/get-session', { as: emma, origin: GLOBEX });
+    expect(elsewhere.statusCode).toBe(401);
+    expect(elsewhere.json()).toMatchObject({ message: 'This session is for another organization' });
+    expect(
+      (await call('GET', '/api/auth/get-session', { as: emma, origin: ADMIN })).statusCode,
+    ).toBe(200);
+  });
+
   it('sends no sign-in link that returns to the domain of an organization the person is not in', async () => {
     const before = sent.length;
     const asked = await call('POST', '/api/auth/sign-in/magic-link', {

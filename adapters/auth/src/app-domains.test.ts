@@ -34,6 +34,7 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: bo
     magicLink: [],
     session: [],
   };
+  const mail = { fail: false };
   const sessions: { refuse: boolean; activeOrganizationId: string | null } = {
     refuse: false,
     activeOrganizationId: null,
@@ -62,6 +63,9 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: bo
         asked.changed.push(from.domains);
       },
       sendMagicLink: async ({ url }: { url: string }, from: RequestDomains) => {
+        if (mail.fail) {
+          throw new Error("mailer down");
+        }
         magicLinks.push(url);
         asked.magicLink.push(from.domains);
       },
@@ -147,6 +151,7 @@ function world(opts: Pick<CreateAuthOptions, "cookieDomain"> & { appDomains?: bo
     asked,
     sessions,
     post,
+    mail,
     signUp,
     signIn,
     settled,
@@ -476,7 +481,27 @@ describe("a sign-in link to an app's domain", () => {
     await link(w, "sarah@example.com", ACME);
     w.asked.session.length = 0;
     await w.auth.handler(w.atApi(w.magicLinks[0]!, { referer: `${OTHER}/courses` }));
-    expect(w.asked.session).toEqual([[ACME, OTHER]]);
+    expect(w.asked.session).toEqual([[ACME]]);
+  });
+
+  it("is not given an app's organization when it returns to the admin app and was opened from an app's page", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    await link(w, "sarah@example.com", ADMIN);
+    await w.settled();
+    w.asked.session.length = 0;
+    await w.auth.handler(w.atApi(w.magicLinks[0]!, { referer: `${ACME}/courses` }));
+    expect(w.asked.session).toEqual([[ADMIN]]);
+  });
+
+  it("answers the request before the email is sent, and logs a failed send", async () => {
+    const w = world();
+    await w.signUp("sarah@example.com");
+    w.mail.fail = true;
+    const res = await link(w, "sarah@example.com", ACME);
+    expect(res.status).toBe(200);
+    await w.settled();
+    expect(w.magicLinks).toEqual([]);
   });
 
   it("signs nobody in when the session is refused", async () => {

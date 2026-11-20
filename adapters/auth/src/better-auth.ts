@@ -129,9 +129,18 @@ function requestDomains(headers: Headers, url?: string): string[] {
   return [...new Set([...(url ? callbackOrigins(url) : []), ...(page ? [page] : [])])];
 }
 
+function decidingDomains(headers: Headers, url?: string): string[] {
+  const returned = url ? callbackOrigins(url) : [];
+  if (returned.length > 0) {
+    return [...new Set(returned)];
+  }
+  const page = pageOrigin(headers);
+  return page ? [page] : [];
+}
+
 function sessionDomains(ctx: GenericEndpointContext | null): string[] {
   const headers = ctx?.request?.headers ?? ctx?.headers;
-  return headers ? requestDomains(headers, ctx?.request?.url) : [];
+  return headers ? decidingDomains(headers, ctx?.request?.url) : [];
 }
 
 function within(origin: string, cookieDomain: string): boolean {
@@ -324,12 +333,12 @@ export function buildAuthOptions(opts: CreateAuthOptions) {
     plugins: [
       magicLink({
         disableSignUp: true,
-        sendMagicLink: async (data) => {
+        sendMagicLink: detached("sendMagicLink", async (data) => {
           const link = await written(data.email, data.url);
           if (link) {
             await sendMagicLink({ ...data, url: link.url }, { domains: link.domains });
           }
-        },
+        }),
       }),
       organization({
         ac,
@@ -496,7 +505,7 @@ export class BetterAuth
       return false;
     }
     try {
-      for (const domain of requestDomains(request.headers, request.url)) {
+      for (const domain of decidingDomains(request.headers, request.url)) {
         if (within(domain, this.cookieDomain)) {
           return false;
         }
@@ -777,6 +786,11 @@ export class BetterAuth
     const ctx = await this.auth.$context;
     await ctx.internalAdapter.updateSession(token, { activeOrganizationId: orgId });
     return true;
+  }
+
+  async confirmEmail(authUserId: string): Promise<void> {
+    const ctx = await this.auth.$context;
+    await ctx.internalAdapter.updateUser(authUserId, { emailVerified: true });
   }
 
   async createOrganization(

@@ -67,6 +67,7 @@ export type AuthHeaders = Record<string, string | string[] | undefined>;
 export interface SessionAdmin {
   /** Points the caller's current session at `orgId`.  */
   stampActiveOrganization(headers: AuthHeaders, orgId: string): Promise<boolean>;
+  confirmEmail(authUserId: string): Promise<void>;
 }
 
 // Inbound port (use cases the service exposes).

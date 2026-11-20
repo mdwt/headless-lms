@@ -21,6 +21,16 @@ function carriesKey(request: FastifyRequest): boolean {
   return request.headers['x-api-key'] !== undefined || request.headers.authorization !== undefined;
 }
 
+const SESSION_READS = [
+  '/api/auth/get-session',
+  '/api/auth/list-sessions',
+  '/api/auth/organization/',
+];
+
+function readsSession(url: string): boolean {
+  return SESSION_READS.some((path) => url.startsWith(path));
+}
+
 function callerLimit(limit: CredentialLimit): CallerLimit {
   return 'roleKey' in limit ? limit : { scopes: limit.scopes.filter(isPermission) };
 }
@@ -42,9 +52,23 @@ export function registerAuth(app: FastifyInstance, appServer: Container): void {
     method: ['GET', 'POST'],
     url: '/api/auth/*',
     async handler(request, reply) {
+      if (request.method === 'GET' && readsSession(request.url)) {
+        await refuseSessionOfAnotherOrganization(request);
+      }
       await bridgeWebResponse(await auth.handler(toWebRequest(request, origin)), reply);
     },
   });
+
+  async function refuseSessionOfAnotherOrganization(request: FastifyRequest): Promise<void> {
+    if (!(await requestApp(appServer, request))) {
+      return;
+    }
+    const session = await appServer.auth.verify(request.headers);
+    const authOrgId = session?.session.activeOrganizationId;
+    if (authOrgId) {
+      await refuseAnotherOrganization(request, authOrgId);
+    }
+  }
 
   async function refuseAnotherOrganization(
     request: FastifyRequest,

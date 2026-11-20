@@ -25,7 +25,7 @@ A permission names one thing a person may do, such as editing a course. A role i
 - Owns the **organization (tenant)**, the **org user** (person ↔ org), the **invite**, the **roles** and the **assignments**.
 - Owns the **permission list** and **authorization**: every permission check in the system is answered from what organizations holds.
 - Owns **people management**: inviting, giving and removing roles, removing people, and transferring ownership.
-- Owns the org's **apps**: the frontends it runs and their domains ([Apps and domains](../architecture.md#apps-and-domains)).
+- Owns the org's **apps**: the frontends it runs and their domains.
 - Does **not** own the person record (identity), access to content (entitlements), content (content), or completion (progress).
 
 ## System of record
@@ -202,7 +202,7 @@ For example, Acme creates one app at `acme.example.com` for both. Later it chang
 
 ## Signing in on a domain
 
-A domain tells which org a person is signing in to, because it belongs to one of an org's apps ([Apps and domains](../architecture.md#apps-and-domains)).
+A domain tells which org a person is signing in to, because it belongs to one of an org's apps.
 
 - A session started on an app's domain is for that app's org, when the person is active in it.
 - A person who holds an open invite to that org gets a session with no org. Accepting the invite sets it.

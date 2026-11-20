@@ -207,6 +207,11 @@ describe("a request from an app's domain", () => {
         ...container.auth,
         verify: async () => ({ ...SESSION, session: { activeOrganizationId } }),
         verifyApiKey: async () => GRANT,
+        handler: async () =>
+          new Response(JSON.stringify({ answered: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
       },
       apps: {
         at: async (domain: string) => {
@@ -295,6 +300,28 @@ describe("a request from an app's domain", () => {
     expect(lookups).toEqual([]);
     await get('/org-scoped', { origin: 'https://globex.platform.test' });
     expect(lookups).toEqual(['https://globex.platform.test']);
+  });
+
+  it('is a 401 on the sign-in routes that read the session, and only on those', async () => {
+    const elsewhere = { origin: 'https://globex.platform.test' };
+    for (const url of ['/api/auth/get-session', '/api/auth/organization/list']) {
+      const res = await get(url, elsewhere);
+      expect(res.statusCode).toBe(401);
+      expect(res.json().message).toBe('This session is for another organization');
+      expect((await get(url, { origin: 'https://learn.acme.test' })).statusCode).toBe(200);
+      expect((await get(url, { origin: 'https://admin.example.com' })).statusCode).toBe(200);
+      expect((await get(url, {})).statusCode).toBe(200);
+    }
+    expect((await get('/api/auth/magic-link/verify?token=t', elsewhere)).statusCode).toBe(200);
+    const signOut = await scoped.inject({
+      method: 'POST',
+      url: '/api/auth/sign-out',
+      headers: elsewhere,
+      payload: {},
+    });
+    expect(signOut.statusCode).toBe(200);
+    activeOrganizationId = null;
+    expect((await get('/api/auth/get-session', elsewhere)).statusCode).toBe(200);
   });
 
   it('is told by the Referer when the Origin is `null`', async () => {

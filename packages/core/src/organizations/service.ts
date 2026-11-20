@@ -1487,6 +1487,7 @@ export class OrganizationServiceImpl implements OrganizationService {
       return activated;
     });
     await this.sessions().stampActiveOrganization(headers, orgId);
+    await this.sessions().confirmEmail(person.externalId);
     this.logger.info('invite accepted', { orgId, inviteId: invite.id, orgUserId: orgUser.id });
     return accepted;
   }

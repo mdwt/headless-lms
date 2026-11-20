@@ -5,13 +5,18 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 
-import { signIn, useSession } from "@/lib/auth/client";
+import { authClient, signIn, signOut, useSession } from "@/lib/auth/client";
 import { sameSitePath, withNext } from "@/lib/next-path";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const NOT_A_MEMBER = "FAILED_TO_CREATE_SESSION";
+
+function inOrganization(session: unknown): boolean {
+  const held = (session as { session?: { activeOrganizationId?: string | null } } | null)?.session;
+  return Boolean(held?.activeOrganizationId);
+}
 
 export function LoginView({ orgName }: { orgName: string }) {
   const router = useRouter();
@@ -28,7 +33,7 @@ export function LoginView({ orgName }: { orgName: string }) {
   // rejected was revoked at `/session/reset` before the browser got here, so
   // there is no stale-but-truthy case to second-guess.
   useEffect(() => {
-    if (session) router.replace(next);
+    if (inOrganization(session)) router.replace(next);
   }, [session, router, next]);
 
   return (
@@ -115,6 +120,17 @@ function SignInForm({ orgName, onDone }: { orgName: string; onDone: () => void }
         error.code === NOT_A_MEMBER
           ? `This account is not a member of ${orgName}.`
           : (error.message ?? "Invalid email or password"),
+      );
+      setSubmitting(false);
+      return;
+    }
+    const { data: session } = await authClient.getSession({
+      query: { disableCookieCache: true },
+    });
+    if (!inOrganization(session)) {
+      await signOut();
+      setError(
+        `You have an invitation to ${orgName} that you haven't accepted yet. Open the link in your invitation email to accept it.`,
       );
       setSubmitting(false);
       return;
