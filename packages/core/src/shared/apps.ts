@@ -1,5 +1,14 @@
 import type { App, UpdateAppInput } from '../types/index.js';
 
+export type AppClashKind = 'domain' | 'slug' | 'courses' | 'community' | 'serves';
+
+export class AppClash extends Error {
+  constructor(readonly kind: AppClashKind) {
+    super(`an app clashes on ${kind}`);
+    this.name = 'AppClash';
+  }
+}
+
 export interface AppsRepository {
   create(app: App): Promise<App>;
   list(orgId: string): Promise<App[]>;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { OrgApps, type OrgAppsParams } from './apps.js';
-import type { AppsRepository } from '../shared/apps.js';
+import { AppClash, type AppClashKind, type AppsRepository } from '../shared/apps.js';
 import type { Actor } from '../shared/actor.js';
 import {
   ConflictError,
@@ -71,27 +71,27 @@ const member = actor(ACME, []);
 
 function store(opts: Partial<OrgAppsParams> = {}) {
   const apps = new Map<string, App>();
-  const clashOf = (app: App): string | null => {
+  const clashOf = (app: App): AppClashKind | null => {
     const others = [...apps.values()].filter((other) => other.id !== app.id);
     const mine = others.filter((other) => other.orgId === app.orgId);
     if (others.some((other) => other.domain === app.domain)) {
-      return 'That domain is already in use';
+      return 'domain';
     }
     if (mine.some((other) => other.slug === app.slug)) {
-      return 'That slug is already in use';
+      return 'slug';
     }
     if (app.courses && mine.some((other) => other.courses)) {
-      return 'The organization already has an app that serves courses';
+      return 'courses';
     }
     if (app.community && mine.some((other) => other.community)) {
-      return 'The organization already has an app that serves the community';
+      return 'community';
     }
-    return null;
+    return app.courses || app.community ? null : 'serves';
   };
   const save = (app: App): App => {
     const clash = clashOf(app);
     if (clash) {
-      throw new ConflictError(clash);
+      throw new AppClash(clash);
     }
     apps.set(app.id, app);
     return app;
@@ -252,6 +252,95 @@ describe('managing apps', () => {
       InvalidInputError,
     );
     expect(await w.repo.list(ACME)).toEqual([LEARN, CLUB]);
+  });
+
+  it('names the rule a refused app breaks, before anything is written', async () => {
+    const writes: string[] = [];
+    const { create, update } = w.repo;
+    w.repo.create = async (app) => {
+      writes.push('create');
+      return create(app);
+    };
+    w.repo.update = async (orgId, id, patch) => {
+      writes.push('update');
+      return update(orgId, id, patch);
+    };
+    const third = { name: 'Third', slug: 'third', domain: 'https://third.test' };
+    const refused = [
+      w.service.create(
+        { ...third, domain: GLOBEX_APP.domain, courses: true, community: false },
+        admin,
+      ),
+      w.service.create({ ...third, slug: 'club', courses: false, community: false }, admin),
+      w.service.create({ ...third, slug: 'club', courses: true, community: false }, admin),
+      w.service.create({ ...third, courses: true, community: false }, admin),
+      w.service.create({ ...third, courses: false, community: true }, admin),
+      w.service.update(CLUB.id, { domain: LEARN.domain }, admin),
+      w.service.update(CLUB.id, { slug: 'academy' }, admin),
+      w.service.update(CLUB.id, { courses: true }, admin),
+      w.service.update(CLUB.id, { community: false }, admin),
+    ];
+    const codes = await Promise.all(
+      refused.map((attempt) =>
+        attempt.then(
+          () => 'accepted',
+          (err: { code?: string; name: string }) => err.code ?? err.name,
+        ),
+      ),
+    );
+    expect(codes).toEqual([
+      'domain_taken',
+      'InvalidInputError',
+      'slug_taken',
+      'courses_taken',
+      'community_taken',
+      'domain_taken',
+      'slug_taken',
+      'courses_taken',
+      'InvalidInputError',
+    ]);
+    expect(writes).toEqual([]);
+  });
+
+  it('keeps an app that is saved again as it is', async () => {
+    const same = await w.service.update(
+      CLUB.id,
+      { name: CLUB.name, slug: CLUB.slug, domain: CLUB.domain, courses: false, community: true },
+      admin,
+    );
+    expect(same).toEqual(CLUB);
+  });
+
+  it('answers the same way when the store finds the clash, as two requests at once do', async () => {
+    const kinds: [AppClashKind, string][] = [
+      ['domain', 'domain_taken'],
+      ['slug', 'slug_taken'],
+      ['courses', 'courses_taken'],
+      ['community', 'community_taken'],
+    ];
+    await w.service.delete(CLUB.id, admin);
+    const input = {
+      name: 'Circle',
+      slug: 'circle',
+      domain: 'https://circle.test',
+      courses: false,
+      community: true,
+    };
+    for (const [kind, code] of kinds) {
+      w.repo.create = async () => {
+        throw new AppClash(kind);
+      };
+      await expect(w.service.create(input, admin)).rejects.toMatchObject({
+        name: 'ConflictError',
+        code,
+      });
+    }
+    w.repo.update = async () => {
+      throw new AppClash('serves');
+    };
+    await expect(w.service.update(LEARN.id, { name: 'Again' }, admin)).rejects.toBeInstanceOf(
+      InvalidInputError,
+    );
   });
 
   it('lets one app take over both once the other is gone', async () => {

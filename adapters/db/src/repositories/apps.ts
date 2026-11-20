@@ -1,33 +1,23 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { AppsRepository } from "@headless-lms/core/shared/apps";
+import { AppClash, type AppClashKind, type AppsRepository } from "@headless-lms/core/shared/apps";
 import type { App, UpdateAppInput } from "@headless-lms/core/types";
-import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/errors";
 import { apps } from "../schema/apps.js";
 import { pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
-const TAKEN: Record<string, { code: string; message: string }> = {
-  apps_domain_uq: { code: "domain_taken", message: "That domain is already in use" },
-  apps_org_slug_uq: { code: "slug_taken", message: "That slug is already in use" },
-  apps_courses_uq: {
-    code: "courses_taken",
-    message: "The organization already has an app that serves courses",
-  },
-  apps_community_uq: {
-    code: "community_taken",
-    message: "The organization already has an app that serves the community",
-  },
+const CONSTRAINTS: Record<string, AppClashKind> = {
+  apps_domain_uq: "domain",
+  apps_org_slug_uq: "slug",
+  apps_courses_uq: "courses",
+  apps_community_uq: "community",
+  apps_serves_ck: "serves",
 };
 
-function refused(err: unknown): unknown {
+function clash(err: unknown): unknown {
   const pg = pgErrorFields(err);
-  if (pg?.code === "23514" && pg.constraint === "apps_serves_ck") {
-    return Object.assign(new InvalidInputError("An app serves courses, the community, or both"), {
-      cause: err,
-    });
-  }
-  const taken = pg?.code === "23505" && pg.constraint ? TAKEN[pg.constraint] : undefined;
-  return taken ? Object.assign(new ConflictError(taken.message, taken.code), { cause: err }) : err;
+  const violated = pg?.code === "23505" || pg?.code === "23514";
+  const kind = violated && pg.constraint ? CONSTRAINTS[pg.constraint] : undefined;
+  return kind ? new AppClash(kind) : err;
 }
 
 export class DrizzleAppsRepository implements AppsRepository {
@@ -41,7 +31,7 @@ export class DrizzleAppsRepository implements AppsRepository {
       }
       return row;
     } catch (err) {
-      throw refused(err);
+      throw clash(err);
     }
   }
 
@@ -86,7 +76,7 @@ export class DrizzleAppsRepository implements AppsRepository {
         .returning();
       return row ?? null;
     } catch (err) {
-      throw refused(err);
+      throw clash(err);
     }
   }
 

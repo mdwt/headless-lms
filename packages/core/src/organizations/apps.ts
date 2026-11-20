@@ -1,6 +1,6 @@
 import type { App, CreateAppInput, UpdateAppInput } from '../types/index.js';
 import type { Actor } from '../shared/actor.js';
-import type { AppsRepository } from '../shared/apps.js';
+import { AppClash, type AppClashKind, type AppsRepository } from '../shared/apps.js';
 import { ConflictError, InvalidInputError, NotFoundError } from '../shared/errors.js';
 import { genId } from '../shared/id.js';
 import { noopLogger } from '../shared/logger.js';
@@ -16,6 +16,27 @@ export type OrgAppsParams = {
 
 function hostOf(domain: string): string | null {
   return URL.canParse(domain) ? new URL(domain).host : null;
+}
+
+function refusal(kind: AppClashKind): Error {
+  switch (kind) {
+    case 'domain':
+      return new ConflictError('That domain is already in use', 'domain_taken');
+    case 'slug':
+      return new ConflictError('That slug is already in use', 'slug_taken');
+    case 'courses':
+      return new ConflictError(
+        'The organization already has an app that serves courses',
+        'courses_taken',
+      );
+    case 'community':
+      return new ConflictError(
+        'The organization already has an app that serves the community',
+        'community_taken',
+      );
+    case 'serves':
+      return new InvalidInputError('An app serves courses, the community, or both');
+  }
 }
 
 export class OrgApps {
@@ -40,11 +61,10 @@ export class OrgApps {
 
   async create(input: CreateAppInput, actor: Actor): Promise<App> {
     actor.permissions.require('organizations:write');
-    if (!input.courses && !input.community) {
-      throw new InvalidInputError('An app serves courses, the community, or both');
-    }
-    this.assertNotReserved(input.domain, actor.orgId);
-    const app = await this.repo.create({ ...input, orgId: actor.orgId, id: genId('app') });
+    const wanted = { ...input, orgId: actor.orgId, id: genId('app') };
+    this.assertNotReserved(wanted.domain, actor.orgId);
+    await this.assertNoClash(wanted);
+    const app = await this.saved(() => this.repo.create(wanted));
     this.logger.info('app created', {
       orgId: actor.orgId,
       appId: app.id,
@@ -61,13 +81,19 @@ export class OrgApps {
     if (!current) {
       throw new NotFoundError('App', appId);
     }
-    if (!(input.courses ?? current.courses) && !(input.community ?? current.community)) {
-      throw new InvalidInputError('An app serves courses, the community, or both');
+    const wanted: App = {
+      ...current,
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.slug !== undefined && { slug: input.slug }),
+      ...(input.domain !== undefined && { domain: input.domain }),
+      ...(input.courses !== undefined && { courses: input.courses }),
+      ...(input.community !== undefined && { community: input.community }),
+    };
+    if (wanted.domain !== current.domain) {
+      this.assertNotReserved(wanted.domain, orgId);
     }
-    if (input.domain !== undefined) {
-      this.assertNotReserved(input.domain, orgId);
-    }
-    const updated = await this.repo.update(orgId, appId, input);
+    await this.assertNoClash(wanted);
+    const updated = await this.saved(() => this.repo.update(orgId, appId, input));
     if (!updated) {
       throw new NotFoundError('App', appId);
     }
@@ -111,6 +137,49 @@ export class OrgApps {
           },
         }
       : null;
+  }
+
+  private async assertNoClash(app: App): Promise<void> {
+    const kind = await this.clashOf(app);
+    if (kind) {
+      this.logger.warn('app refused', { orgId: app.orgId, domain: app.domain, reason: kind });
+      throw refusal(kind);
+    }
+  }
+
+  private async clashOf(app: App): Promise<AppClashKind | null> {
+    if (!app.courses && !app.community) {
+      return 'serves';
+    }
+    const [mine, atDomain] = await Promise.all([
+      this.repo.list(app.orgId),
+      this.repo.findByDomain(app.domain),
+    ]);
+    const others = mine.filter((other) => other.id !== app.id);
+    if (atDomain && atDomain.id !== app.id) {
+      return 'domain';
+    }
+    if (others.some((other) => other.slug === app.slug)) {
+      return 'slug';
+    }
+    if (app.courses && others.some((other) => other.courses)) {
+      return 'courses';
+    }
+    if (app.community && others.some((other) => other.community)) {
+      return 'community';
+    }
+    return null;
+  }
+
+  private async saved<T>(write: () => Promise<T>): Promise<T> {
+    try {
+      return await write();
+    } catch (err) {
+      if (err instanceof AppClash) {
+        throw refusal(err.kind);
+      }
+      throw err;
+    }
   }
 
   private reserved(domain: string): boolean {

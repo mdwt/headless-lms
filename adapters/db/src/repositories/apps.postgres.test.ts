@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { genId } from "@headless-lms/core/shared/id";
-import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/errors";
+import { AppClash } from "@headless-lms/core/shared/apps";
 import type { App } from "@headless-lms/core/types";
 import { runMigrations } from "../migrate.js";
 import { DrizzleUnitOfWork } from "../unit-of-work.js";
@@ -67,29 +67,26 @@ describe.skipIf(!url)("apps on Postgres", () => {
 
   it("holds a domain to one app across every organization", async () => {
     const taken = apps.create(app(globex, "school", { domain: domain("learn") }));
-    await expect(taken).rejects.toBeInstanceOf(ConflictError);
-    await expect(taken).rejects.toMatchObject({
-      message: "That domain is already in use",
-      code: "domain_taken",
-    });
+    await expect(taken).rejects.toBeInstanceOf(AppClash);
+    await expect(taken).rejects.toMatchObject({ kind: "domain" });
     expect(await apps.list(globex)).toEqual([]);
   });
 
   it("holds an organization to one app that serves courses and one that serves the community", async () => {
     const courses = apps.create(app(acme, "third", { community: false }));
-    await expect(courses).rejects.toThrow("already has an app that serves courses");
+    await expect(courses).rejects.toMatchObject({ kind: "courses" });
     const community = apps.create(app(acme, "third", { courses: false }));
-    await expect(community).rejects.toThrow("already has an app that serves the community");
-    await expect(apps.update(acme, learn.id, { community: true })).rejects.toBeInstanceOf(
-      ConflictError,
-    );
+    await expect(community).rejects.toMatchObject({ kind: "community" });
+    await expect(apps.update(acme, learn.id, { community: true })).rejects.toMatchObject({
+      kind: "community",
+    });
     expect(await apps.list(acme)).toEqual([learn, club]);
   });
 
   it("holds a slug to one app in an organization, and lets another organization use it", async () => {
-    await expect(apps.update(acme, club.id, { slug: "learn" })).rejects.toThrow(
-      "That slug is already in use",
-    );
+    await expect(apps.update(acme, club.id, { slug: "learn" })).rejects.toMatchObject({
+      kind: "slug",
+    });
     const school = await apps.create(app(globex, "learn", { domain: domain("globex") }));
     expect(await apps.list(globex)).toEqual([school]);
   });
@@ -97,10 +94,10 @@ describe.skipIf(!url)("apps on Postgres", () => {
   it("refuses an app that serves neither courses nor the community", async () => {
     await expect(
       apps.create(app(gone, "nothing", { courses: false, community: false })),
-    ).rejects.toBeInstanceOf(InvalidInputError);
-    await expect(apps.update(acme, learn.id, { courses: false })).rejects.toBeInstanceOf(
-      InvalidInputError,
-    );
+    ).rejects.toMatchObject({ kind: "serves" });
+    await expect(apps.update(acme, learn.id, { courses: false })).rejects.toMatchObject({
+      kind: "serves",
+    });
     expect(await apps.find(acme, learn.id)).toEqual(learn);
   });
 
@@ -141,7 +138,7 @@ describe.skipIf(!url)("apps on Postgres", () => {
         await scope.apps.create(rolled);
         await scope.apps.create(app(globex, "clash", { domain: domain("learn") }));
       }),
-    ).rejects.toBeInstanceOf(ConflictError);
+    ).rejects.toBeInstanceOf(AppClash);
     expect(await apps.find(globex, rolled.id)).toBeNull();
   });
 });

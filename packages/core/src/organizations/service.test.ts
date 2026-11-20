@@ -17,7 +17,7 @@ import type { AssignmentRow } from './effective-permissions.js';
 import type { IdentityService } from '../identity/index.js';
 import type { NewDomainEvent } from '../shared/ports.js';
 import type { Actor } from '../shared/actor.js';
-import { AppsService, type AppsRepository } from '../shared/apps.js';
+import { AppClash, type AppClashKind, AppsService, type AppsRepository } from '../shared/apps.js';
 import type { App, ContentType, Permission, RoleAssignment } from '../types/index.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../shared/errors.js';
 import { InviteError, OrganizationRuleError } from './members.js';
@@ -229,27 +229,27 @@ function store(
     },
   };
 
-  const clashOf = (app: App): string | null => {
+  const clashOf = (app: App): AppClashKind | null => {
     const others = [...apps.values()].filter((other) => other.id !== app.id);
     const mine = others.filter((other) => other.orgId === app.orgId);
     if (others.some((other) => other.domain === app.domain)) {
-      return 'That domain is already in use';
+      return 'domain';
     }
     if (mine.some((other) => other.slug === app.slug)) {
-      return 'That slug is already in use';
+      return 'slug';
     }
     if (app.courses && mine.some((other) => other.courses)) {
-      return 'The organization already has an app that serves courses';
+      return 'courses';
     }
     if (app.community && mine.some((other) => other.community)) {
-      return 'The organization already has an app that serves the community';
+      return 'community';
     }
-    return null;
+    return app.courses || app.community ? null : 'serves';
   };
   const save = (app: App): App => {
     const clash = clashOf(app);
     if (clash) {
-      throw new ConflictError(clash);
+      throw new AppClash(clash);
     }
     apps.set(app.id, app);
     return app;
