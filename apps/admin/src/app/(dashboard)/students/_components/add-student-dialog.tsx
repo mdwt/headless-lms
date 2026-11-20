@@ -43,7 +43,6 @@ export function AddStudentDialog({
     register,
     handleSubmit,
     reset,
-    setError,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULTS });
 
@@ -57,7 +56,7 @@ export function AddStudentDialog({
       try {
         const refusal = await addStudentAction(values);
         if (refusal) {
-          setError("email", { message: refusal.refused });
+          toast.error("Couldn't add the student", { description: refusal.refused });
           return;
         }
         toast.success(values.sendEmail ? "Invite sent" : "Student added", {

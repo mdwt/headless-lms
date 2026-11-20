@@ -102,7 +102,8 @@ function webOrigin(value: string | null): string | null {
     return null;
   }
   const url = new URL(value);
-  return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null;
+  const web = url.protocol === "https:" || url.protocol === "http:";
+  return web && !url.hostname.includes("*") ? url.origin : null;
 }
 
 function callbackOrigins(url: string): string[] {
@@ -493,6 +494,9 @@ export class BetterAuth
 
   async handler(request: Request): Promise<Response> {
     const response = await this.auth.handler(request);
+    if (response.headers.getSetCookie().length === 0) {
+      return response;
+    }
     return (await this.outsideCookieDomain(request)) ? hostOnlyCookies(response) : response;
   }
 
@@ -500,13 +504,17 @@ export class BetterAuth
     if (!this.cookieDomain || !this.appDomains) {
       return false;
     }
-    for (const domain of requestDomains(request.headers, request.url)) {
-      if (within(domain, this.cookieDomain)) {
-        return false;
+    try {
+      for (const domain of requestDomains(request.headers, request.url)) {
+        if (within(domain, this.cookieDomain)) {
+          return false;
+        }
+        if (await this.appDomains.has(domain)) {
+          return true;
+        }
       }
-      if (await this.appDomains.has(domain)) {
-        return true;
-      }
+    } catch (err) {
+      this.logger.error("could not tell whether the request is from an app's domain", { err });
     }
     return false;
   }

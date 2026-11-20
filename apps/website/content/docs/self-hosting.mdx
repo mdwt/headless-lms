@@ -46,7 +46,7 @@ These commands run across all workspaces:
 
 An app is a frontend an organization runs on a domain. It serves courses, the community, or both. An organization has at most one app that serves courses and one that serves the community, and a domain belongs to one app across the whole installation. Links the API writes, in emails, member invites and event calendar files, use the domain of the app that serves what the link is about: courses and downloads open the course app, communities and events the community app.
 
-A domain is some app's domain or it is not. Nothing is derived from a domain and nothing falls back: on a domain that is no app's, [`GET /api/app`](/docs/api/apps/getApp) and the student app answer `404`, and a sign-in answers `403`.
+A domain is some app's domain or it is not. Nothing is derived from a domain and nothing falls back: on a domain that is no app's, [`GET /api/app`](/docs/api/apps/getApp) and the student app answer `404`, and a sign-in answers `403` unless the origin is listed in `CLIENT_ORIGIN`.
 
 A new organization starts with no app. It creates one in **Settings → Apps**, or with [`POST /api/apps`](/docs/api/apps/createApp), at the address its frontend is served at, such as `https://learn.school.com`, or `http://localhost:8002` locally.
 
@@ -75,7 +75,7 @@ The student app does this itself. One deployment serves every organization's cou
 
 Locally, an app with the domain `http://localhost:8002` puts its organization there. A second organization can use `http://acme.localhost:8002`, which browsers resolve to the same machine.
 
-Behind a reverse proxy, the student app reads its visitor's domain from the request: the proxy must pass the `Host` header on unchanged and set `X-Forwarded-Proto` to the scheme the visitor used. Without them every domain looks unknown and the app answers `404`.
+Behind a reverse proxy, the student app reads its visitor's domain from the request: the proxy must pass the `Host` header on unchanged, or set `X-Forwarded-Host` to it, and set `X-Forwarded-Proto` to the scheme the visitor used. Without them every domain looks unknown and the app answers `404`.
 
 #### Signing in on a domain
 

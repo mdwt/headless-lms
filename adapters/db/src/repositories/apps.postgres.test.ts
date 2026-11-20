@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { genId } from "@headless-lms/core/shared/id";
-import { ConflictError } from "@headless-lms/core/shared/errors";
+import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/errors";
 import type { App } from "@headless-lms/core/types";
 import { runMigrations } from "../migrate.js";
 import { DrizzleUnitOfWork } from "../unit-of-work.js";
@@ -68,7 +68,10 @@ describe.skipIf(!url)("apps on Postgres", () => {
   it("holds a domain to one app across every organization", async () => {
     const taken = apps.create(app(globex, "school", { domain: domain("learn") }));
     await expect(taken).rejects.toBeInstanceOf(ConflictError);
-    await expect(taken).rejects.toThrow("That domain is already in use");
+    await expect(taken).rejects.toMatchObject({
+      message: "That domain is already in use",
+      code: "domain_taken",
+    });
     expect(await apps.list(globex)).toEqual([]);
   });
 
@@ -94,8 +97,10 @@ describe.skipIf(!url)("apps on Postgres", () => {
   it("refuses an app that serves neither courses nor the community", async () => {
     await expect(
       apps.create(app(gone, "nothing", { courses: false, community: false })),
-    ).rejects.toThrow();
-    await expect(apps.update(acme, learn.id, { courses: false })).rejects.toThrow();
+    ).rejects.toBeInstanceOf(InvalidInputError);
+    await expect(apps.update(acme, learn.id, { courses: false })).rejects.toBeInstanceOf(
+      InvalidInputError,
+    );
     expect(await apps.find(acme, learn.id)).toEqual(learn);
   });
 

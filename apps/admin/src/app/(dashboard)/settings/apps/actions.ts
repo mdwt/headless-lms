@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Apps } from "@headless-lms/sdk";
 
-import type { ApiError } from "@/lib/api/http";
+import { refusalOf, type Refusal } from "@/lib/api/refusal";
 import { authHeaders } from "@/lib/api/server-call";
 
 export interface AppInput {
@@ -14,18 +14,11 @@ export interface AppInput {
   community: boolean;
 }
 
-export type AppRefusal = { refused: string };
-
-function appRefusal(err: unknown): AppRefusal | null {
-  const status = (err as Partial<ApiError> | null)?.status;
-  return status === 409 && err instanceof Error ? { refused: err.message } : null;
-}
-
-export async function createAppAction(input: AppInput): Promise<AppRefusal | null> {
+export async function createAppAction(input: AppInput): Promise<Refusal | null> {
   try {
     await Apps.createApp(input, await authHeaders());
   } catch (err) {
-    const refusal = appRefusal(err);
+    const refusal = refusalOf(err);
     if (refusal) return refusal;
     throw err;
   }
@@ -33,11 +26,11 @@ export async function createAppAction(input: AppInput): Promise<AppRefusal | nul
   return null;
 }
 
-export async function updateAppAction(appId: string, input: AppInput): Promise<AppRefusal | null> {
+export async function updateAppAction(appId: string, input: AppInput): Promise<Refusal | null> {
   try {
     await Apps.updateApp({ appId, ...input }, await authHeaders());
   } catch (err) {
-    const refusal = appRefusal(err);
+    const refusal = refusalOf(err);
     if (refusal) return refusal;
     throw err;
   }
@@ -45,7 +38,14 @@ export async function updateAppAction(appId: string, input: AppInput): Promise<A
   return null;
 }
 
-export async function deleteAppAction(appId: string): Promise<void> {
-  await Apps.deleteApp({ appId }, await authHeaders());
+export async function deleteAppAction(appId: string): Promise<Refusal | null> {
+  try {
+    await Apps.deleteApp({ appId }, await authHeaders());
+  } catch (err) {
+    const refusal = refusalOf(err);
+    if (refusal) return refusal;
+    throw err;
+  }
   revalidatePath("/settings/apps");
+  return null;
 }

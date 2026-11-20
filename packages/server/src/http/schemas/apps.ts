@@ -5,7 +5,7 @@ import type { App as StoredApp } from '@headless-lms/core/types';
 const APP_NAME = "The app's name; `GET /api/app` returns it to the frontend on its domain";
 const APP_SLUG = "A short identifier, unique among the organization's apps";
 const APP_DOMAIN =
-  'The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path';
+  'The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped';
 const APP_COURSES = 'Whether the app serves courses and downloads';
 const APP_COMMUNITY = 'Whether the app serves communities and events';
 
@@ -55,9 +55,9 @@ export const AppIdParam = z.object({ appId: z.string().describe("The app's id") 
 export type AppIdParam = z.infer<typeof AppIdParam>;
 
 export const AppLookup = z.object({
-  organization: z.object({ name: z.string() }),
+  organization: z.object({ name: z.string().describe("The organization's name") }),
   app: z.object({
-    name: z.string(),
+    name: z.string().describe("The app's name"),
     courses: z.boolean().describe(APP_COURSES),
     community: z.boolean().describe(APP_COMMUNITY),
   }),

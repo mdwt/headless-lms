@@ -187,9 +187,10 @@ describe('managing apps', () => {
       'https://api.platform.test',
       'http://admin.platform.test',
     ]) {
-      await expect(w.service.create({ ...input, domain }, admin)).rejects.toBeInstanceOf(
-        ConflictError,
-      );
+      await expect(w.service.create({ ...input, domain }, admin)).rejects.toMatchObject({
+        name: 'ConflictError',
+        code: 'domain_reserved',
+      });
       await expect(w.service.update(LEARN.id, { domain }, admin)).rejects.toBeInstanceOf(
         ConflictError,
       );

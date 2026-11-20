@@ -7,7 +7,8 @@ function webOrigin(value: unknown): string | null {
     return null;
   }
   const url = new URL(value);
-  return url.protocol === 'https:' || url.protocol === 'http:' ? url.origin : null;
+  const web = url.protocol === 'https:' || url.protocol === 'http:';
+  return web && !url.hostname.includes('*') ? url.origin : null;
 }
 
 export function requestDomain(request: FastifyRequest): string | null {

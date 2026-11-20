@@ -21,7 +21,7 @@ export const appTools: Tool[] = [
     name: 'create_app',
     title: 'Create app',
     description:
-      'Create an app on a domain no other app has. An organization has at most one app that serves courses and one that serves the community.',
+      "Create an app on a domain no other app has. The installation's own addresses are refused. An organization has at most one app that serves courses and one that serves the community.",
     kind: 'write',
     idempotent: false,
     openWorld: false,

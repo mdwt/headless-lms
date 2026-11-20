@@ -220,6 +220,7 @@ describe("a request from an app's domain", () => {
     const seen = (req: { orgId?: string }) => ({ orgId: req.orgId ?? null });
     scoped.get('/org-scoped', { preHandler: scoped.requireOrgSession }, async (req) => seen(req));
     scoped.get('/session-only', { preHandler: scoped.requireSession }, async (req) => seen(req));
+    scoped.get('/open', async () => ({ ok: true }));
     await scoped.ready();
   });
 
@@ -281,6 +282,14 @@ describe("a request from an app's domain", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ orgId: 'org_1' });
     expect(lookups).toEqual([]);
+  });
+
+  it('is not looked up on a route that needs no caller', async () => {
+    const res = await get('/open', { origin: 'https://globex.platform.test' });
+    expect(res.statusCode).toBe(200);
+    expect(lookups).toEqual([]);
+    await get('/org-scoped', { origin: 'https://globex.platform.test' });
+    expect(lookups).toEqual(['https://globex.platform.test']);
   });
 
   it('is told by the Referer when the Origin is `null`', async () => {

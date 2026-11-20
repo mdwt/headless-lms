@@ -119,6 +119,17 @@ describe('platform routes', () => {
     expect(calls).toEqual([['createPlatformOrganization', YOGA]]);
   });
 
+  it('creates an organization without a slug', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/platform/organizations',
+      headers: auth,
+      payload: { name: "Sarah's Yoga" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(calls).toEqual([['createPlatformOrganization', { name: "Sarah's Yoga" }]]);
+  });
+
   it('refuses metadata beyond its limits', async () => {
     for (const payload of [
       { ...YOGA, metadata: { plan: 1 } },

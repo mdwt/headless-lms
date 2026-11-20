@@ -682,7 +682,7 @@ export class Organizations {
   /**
    * Create an organization and make it active
    *
-   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`.
+   * For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`. 400 when the slug is in use.
    */
   public static createOrganization<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2320,7 +2320,7 @@ export class Apps {
   /**
    * Create an app
    *
-   * Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the domain is the admin app's, the API's or another listed origin of the installation, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).
+   * Requires `organizations:write`. 409, with the reason as `error`: `domain_taken` when another app has the domain, in this organization or any other; `domain_reserved` when the domain is the admin app's, the API's or another listed origin of the installation; `slug_taken`; `courses_taken` or `community_taken` when the organization already has an app that serves it. 400 when the app would serve neither, or the domain is not a bare origin: a path, a query, a username or password, a wildcard or a trailing dot is refused.
    */
   public static createApp<ThrowOnError extends boolean = false>(
     parameters: {
@@ -2392,7 +2392,7 @@ export class Apps {
   /**
    * Change an app
    *
-   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as creating an app.
+   * Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 and 400 for the same reasons as creating an app, 400 also when the change would leave the app serving neither.
    */
   public static updateApp<ThrowOnError extends boolean = false>(
     parameters: {

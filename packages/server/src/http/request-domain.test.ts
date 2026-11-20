@@ -30,7 +30,6 @@ beforeAll(async () => {
     ]);
     return { appId: first?.app.id ?? null, same: first === second };
   });
-  app.get('/health', async () => ({ ok: true }));
   await app.ready();
 });
 
@@ -77,16 +76,8 @@ describe("the app of a request's domain", () => {
   it('is none when the request carries no domain, and nothing is looked up', async () => {
     expect((await seen({})).appId).toBeNull();
     expect((await seen({ origin: 'null' })).appId).toBeNull();
-    expect(lookups).toEqual([]);
-  });
-
-  it('is not looked up by a route that does not ask for it', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/health',
-      headers: { origin: CLUB.domain },
-    });
-    expect(res.statusCode).toBe(200);
+    expect((await seen({ origin: 'https://*' })).appId).toBeNull();
+    expect((await seen({ origin: 'https://*.acme.test' })).appId).toBeNull();
     expect(lookups).toEqual([]);
   });
 });

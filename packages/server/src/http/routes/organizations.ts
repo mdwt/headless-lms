@@ -68,7 +68,7 @@ export async function organizationsRoutes(
       tags,
       summary: 'Create an organization and make it active',
       description:
-        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`.',
+        'For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`. 400 when the slug is in use.',
       body: CreateOrganization,
       response: { 201: Organization, ...refusals(400) },
     },

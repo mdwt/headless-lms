@@ -7,8 +7,10 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
+import { usePermissions } from "@/lib/auth/permissions-context";
 import type { ListParams, OrgApp } from "@/lib/api/types";
 
 import { deleteAppAction } from "./actions";
@@ -16,20 +18,28 @@ import { appColumns } from "./apps-columns";
 import { hostOf } from "./list-utils";
 import { AppFormDialog } from "./_components/app-form-dialog";
 
+function noRoomReason(apps: OrgApp[]): string | null {
+  const courses = apps.find((app) => app.courses);
+  const community = apps.find((app) => app.community);
+  if (!courses || !community) return null;
+  return courses.id === community.id
+    ? `${courses.name} has both courses and communities. To create a second app, edit it and untick one.`
+    : "Courses and communities each have an app. An organization has no more than these two.";
+}
+
 function AppsTableInner({
   rows,
   total,
   params,
   apps,
-  canEdit,
 }: {
   rows: OrgApp[];
   total: number;
   params: ListParams;
   apps: OrgApp[];
-  canEdit: boolean;
 }) {
   const router = useRouter();
+  const canEdit = usePermissions().has("organizations:write");
   const table = useDataTable({ pageSize: params.pageSize, initialSort: params.sort });
   const isStale = JSON.stringify(table.params) !== JSON.stringify(params);
 
@@ -37,7 +47,7 @@ function AppsTableInner({
   const [dialog, setDialog] = useState<{ open: boolean; app?: OrgApp }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<OrgApp | null>(null);
 
-  const allTaken = apps.some((a) => a.courses) && apps.some((a) => a.community);
+  const noRoom = noRoomReason(apps);
 
   const onCreate = useCallback(() => setDialog({ open: true }), []);
   const onEdit = useCallback((app: OrgApp) => setDialog({ open: true, app }), []);
@@ -47,14 +57,19 @@ function AppsTableInner({
     const target = deleteTarget;
     startTransition(async () => {
       try {
-        await deleteAppAction(target.id);
-        toast.success("App deleted", { description: target.name });
+        const refusal = await deleteAppAction(target.id);
+        if (refusal) {
+          toast.error("Couldn't delete app", { description: refusal.refused });
+        } else {
+          toast.success("App deleted", { description: target.name });
+        }
         setDeleteTarget(null);
+        router.refresh();
       } catch (err) {
         toast.error("Couldn't delete app", { description: (err as Error).message });
       }
     });
-  }, [deleteTarget]);
+  }, [deleteTarget, router]);
 
   const columns = useMemo(() => appColumns(onEdit, setDeleteTarget, canEdit), [onEdit, canEdit]);
 
@@ -73,26 +88,35 @@ function AppsTableInner({
         onRowClick={canEdit ? onEdit : undefined}
         searchable={false}
         toolbarActions={
-          canEdit ? (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={onCreate}
-              disabled={allTaken}
-              title={
-                allTaken
-                  ? "Courses and communities each have an app. Edit an app to free one up."
-                  : undefined
-              }
-            >
+          !canEdit ? undefined : noRoom ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  className="inline-flex rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                  <Button variant="primary" size="sm" disabled>
+                    <Plus />
+                    Create app
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64 text-pretty">{noRoom}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button variant="primary" size="sm" onClick={onCreate}>
               <Plus />
               Create app
             </Button>
-          ) : undefined
+          )
         }
         emptyIcon={<Globe />}
         emptyTitle="No apps yet"
-        emptyDescription="An app is the site your members sign in to. Links in emails and invites open it."
+        emptyDescription={
+          canEdit
+            ? "An app is the site your members sign in to. Links in emails and invites open it."
+            : "An app is the site your members sign in to. There are none yet."
+        }
         emptyAction={
           canEdit ? (
             <Button variant="primary" onClick={onCreate}>
@@ -118,7 +142,7 @@ function AppsTableInner({
         title="Delete app?"
         description={
           deleteTarget
-            ? `Members can no longer sign in to ${deleteTarget.name} at ${hostOf(deleteTarget.domain)}, and links to it stop working.`
+            ? `Members will no longer be able to sign in to ${deleteTarget.name} at ${hostOf(deleteTarget.domain)}, and links to it will stop working.`
             : ""
         }
         confirmLabel="Delete app"
@@ -135,7 +159,6 @@ export function AppsTable(props: {
   total: number;
   params: ListParams;
   apps: OrgApp[];
-  canEdit: boolean;
 }) {
   return (
     <Suspense fallback={null}>

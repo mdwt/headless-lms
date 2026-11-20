@@ -195,7 +195,7 @@ A domain tells which org a person is signing in to, because it belongs to one of
 - A session started on an app's domain is for that app's org, when the person is active in it.
 - A person who holds an open invite to that org gets a session with no org. Accepting the invite sets it.
 - Anyone else is refused there.
-- A session started anywhere else, such as on the admin app, is for the person's org when they are in exactly one.
+- A session started on an address the installation lists as its own, such as the admin app, is for the person's org when they are in exactly one. A sign-in from any other address is refused.
 - On an app's domain, a session for another org is not accepted.
 - A link that signs a person in or resets their password, and returns to an app's domain, is sent only to a person who is active in that app's org. The email says which org and which app it was asked for on, as does the email that confirms a changed password.
 

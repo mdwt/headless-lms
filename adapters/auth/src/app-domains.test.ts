@@ -166,6 +166,19 @@ describe("sign-in from an app's domain", () => {
     expect((await w.signIn("sarah@example.com", `${ACME}.stranger.test`)).status).toBe(403);
   });
 
+  it("never trusts a wildcard, even when one is stored as a domain", async () => {
+    const w = world();
+    w.hosts.set("https://*", ["sarah@example.com"]);
+    await w.signUp("sarah@example.com");
+    expect((await w.signIn("sarah@example.com", "https://*")).status).toBe(403);
+    expect((await w.signIn("sarah@example.com", STRANGER)).status).toBe(403);
+    await w.post("/request-password-reset", "https://*", {
+      email: "sarah@example.com",
+      redirectTo: `${STRANGER}/reset-password`,
+    });
+    expect(w.resets).toEqual([]);
+  });
+
   it("follows a change of domains on the next request", async () => {
     const w = world();
     await w.signUp("sarah@example.com");

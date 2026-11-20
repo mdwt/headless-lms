@@ -12,44 +12,73 @@ import { FormDialog } from "@/components/forms/form-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import type { OrgApp } from "@/lib/api/types";
+import { cn } from "@/lib/utils";
 
 import { createAppAction, updateAppAction } from "../actions";
 import { COMMUNITY_LABEL, COURSES_LABEL } from "../apps-columns";
 
 const FORM_ID = "app-form";
 
+const HOST_NAME = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/;
+const HOST_IPV6 = /^\[[0-9a-f:.]+\]$/;
+
 function isOrigin(value: string): boolean {
   if (!URL.canParse(value)) return false;
   const url = new URL(value);
   const web = url.protocol === "https:" || url.protocol === "http:";
   const bare = url.pathname === "/" && url.search === "" && url.hash === "";
-  const plain = url.username === "" && url.password === "" && !url.hostname.endsWith(".");
-  return web && bare && plain;
+  const plain = url.username === "" && url.password === "";
+  const named = HOST_NAME.test(url.hostname) || HOST_IPV6.test(url.hostname);
+  return web && bare && plain && named;
 }
 
 const schema = z
   .object({
-    name: z.string().trim().min(1, "Name is required").max(100),
+    name: z.string().trim().min(1, "Name is required").max(100, "Keep it under 100 characters"),
     slug: z
       .string()
       .min(1, "A slug is required")
-      .max(50)
+      .max(50, "Keep it under 50 characters")
       .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and hyphens only"),
     domain: z
       .string()
       .trim()
-      .refine(isOrigin, "Enter the full address, starting with https:// and ending at the domain"),
+      .refine(
+        isOrigin,
+        "Enter the address with https:// and nothing after the domain, like https://learn.example.com",
+      ),
     courses: z.boolean(),
     community: z.boolean(),
   })
   .refine((values) => values.courses || values.community, {
     path: ["courses"],
-    message: "Select at least one",
+    message: "Choose at least one",
   });
 
 type FormValues = z.infer<typeof schema>;
+type FieldName = keyof FormValues;
 
-const DEFAULTS: FormValues = { name: "", slug: "", domain: "", courses: false, community: false };
+const SLUG_TAKEN = "Another app has this slug";
+
+const REFUSED: Record<string, { field: FieldName; message: string }> = {
+  domain_taken: { field: "domain", message: "Another app already uses this domain" },
+  domain_reserved: {
+    field: "domain",
+    message: "This address is one of the system's own. Choose another.",
+  },
+  slug_taken: { field: "slug", message: SLUG_TAKEN },
+  courses_taken: { field: "courses", message: "Another app already has courses and downloads" },
+  community_taken: {
+    field: "courses",
+    message: "Another app already has communities and events",
+  },
+};
+
+function takenNote(other: OrgApp): string {
+  return other.courses && other.community
+    ? `On ${other.name}. Untick it there to move it.`
+    : `On ${other.name}.`;
+}
 
 export function AppFormDialog({
   open,
@@ -65,13 +94,22 @@ export function AppFormDialog({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  const others = apps.filter((other) => other.id !== app?.id);
+  const coursesApp = others.find((other) => other.courses);
+  const communityApp = others.find((other) => other.community);
+  const coursesFree = !coursesApp;
+  const communityFree = !communityApp;
+
   const {
     register,
     handleSubmit,
     reset,
     setError,
     formState: { errors, isDirty },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAULTS });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", slug: "", domain: "", courses: false, community: false },
+  });
 
   useEffect(() => {
     if (open) {
@@ -84,25 +122,29 @@ export function AppFormDialog({
               courses: app.courses,
               community: app.community,
             }
-          : DEFAULTS,
+          : { name: "", slug: "", domain: "", courses: coursesFree, community: communityFree },
       );
     }
-  }, [open, app, reset]);
-
-  const others = apps.filter((other) => other.id !== app?.id);
-  const coursesApp = others.find((other) => other.courses);
-  const communityApp = others.find((other) => other.community);
+  }, [open, app, reset, coursesFree, communityFree]);
 
   const onSubmit = handleSubmit((values) => {
     if (others.some((other) => other.slug === values.slug)) {
-      setError("slug", { message: "Another app has this slug" });
+      setError("slug", { message: SLUG_TAKEN }, { shouldFocus: true });
       return;
     }
     startTransition(async () => {
       try {
         const refusal = app ? await updateAppAction(app.id, values) : await createAppAction(values);
         if (refusal) {
-          setError("domain", { message: refusal.refused });
+          const known = refusal.code ? REFUSED[refusal.code] : undefined;
+          if (known) {
+            setError(known.field, { message: known.message }, { shouldFocus: true });
+          } else {
+            toast.error(app ? "Couldn't save" : "Couldn't create app", {
+              description: refusal.refused,
+            });
+          }
+          router.refresh();
           return;
         }
         toast.success(app ? "Changes saved" : "App created", { description: values.name });
@@ -123,7 +165,7 @@ export function AppFormDialog({
       title={app ? "Edit app" : "Create app"}
       description={
         app
-          ? "A new domain takes over sign-in and links straight away."
+          ? "If you change the domain, members sign in at the new one straight away. Links already sent to the old one stop working."
           : "Members sign in on the app's domain, and links in emails and invites open there."
       }
       formId={FORM_ID}
@@ -132,27 +174,26 @@ export function AppFormDialog({
       submitDisabled={!!app && !isDirty}
     >
       <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field id="app-name" label="Name" required error={errors.name?.message}>
-            <Input id="app-name" aria-invalid={!!errors.name} {...register("name")} />
-          </Field>
-          <Field
-            id="app-slug"
-            label="Slug"
-            required
-            error={errors.slug?.message}
-            hint="A short identifier, unique in your organization."
-          >
-            <Input id="app-slug" aria-invalid={!!errors.slug} {...register("slug")} />
-          </Field>
-        </div>
+        <Field id="app-name" label="Name" required error={errors.name?.message}>
+          <Input id="app-name" aria-invalid={!!errors.name} {...register("name")} />
+        </Field>
+
+        <Field
+          id="app-slug"
+          label="Slug"
+          required
+          error={errors.slug?.message}
+          hint="A short name for this app, like academy. Lowercase letters, numbers and hyphens."
+        >
+          <Input id="app-slug" aria-invalid={!!errors.slug} {...register("slug")} />
+        </Field>
 
         <Field
           id="app-domain"
           label="Domain"
           required
           error={errors.domain?.message}
-          hint="The address members open. A domain belongs to one app."
+          hint="The full address members open. A domain belongs to one app."
         >
           <Input
             id="app-domain"
@@ -165,19 +206,35 @@ export function AppFormDialog({
           />
         </Field>
 
-        <Field id="app-content" label="Content" required error={errors.courses?.message}>
+        <Field
+          id="app-content"
+          label="Content"
+          required
+          error={errors.courses?.message}
+          hint="What members find in this app."
+        >
           <div id="app-content" role="group" aria-label="Content" className="flex flex-col gap-2.5">
-            <label htmlFor="app-courses" className="flex items-center gap-2.5 text-sm text-ink-2">
-              <Checkbox id="app-courses" disabled={!!coursesApp} {...register("courses")} />
+            <label
+              htmlFor="app-courses"
+              className={cn(
+                "flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm",
+                coursesFree ? "text-ink-2" : "text-ink-4",
+              )}
+            >
+              <Checkbox id="app-courses" disabled={!coursesFree} {...register("courses")} />
               {COURSES_LABEL}
-              {coursesApp ? <span className="text-ink-4">Already on {coursesApp.name}</span> : null}
+              {coursesApp ? <span>{takenNote(coursesApp)}</span> : null}
             </label>
-            <label htmlFor="app-community" className="flex items-center gap-2.5 text-sm text-ink-2">
-              <Checkbox id="app-community" disabled={!!communityApp} {...register("community")} />
+            <label
+              htmlFor="app-community"
+              className={cn(
+                "flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm",
+                communityFree ? "text-ink-2" : "text-ink-4",
+              )}
+            >
+              <Checkbox id="app-community" disabled={!communityFree} {...register("community")} />
               {COMMUNITY_LABEL}
-              {communityApp ? (
-                <span className="text-ink-4">Already on {communityApp.name}</span>
-              ) : null}
+              {communityApp ? <span>{takenNote(communityApp)}</span> : null}
             </label>
           </div>
         </Field>

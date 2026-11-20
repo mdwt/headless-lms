@@ -6,11 +6,17 @@ import { ConflictError, InvalidInputError } from "@headless-lms/core/shared/erro
 import { apps } from "../schema/apps.js";
 import { pgErrorFields, translateDbErrors } from "./pg-errors.js";
 
-const TAKEN: Record<string, string> = {
-  apps_domain_uq: "That domain is already in use",
-  apps_org_slug_uq: "That slug is already in use",
-  apps_courses_uq: "The organization already has an app that serves courses",
-  apps_community_uq: "The organization already has an app that serves the community",
+const TAKEN: Record<string, { code: string; message: string }> = {
+  apps_domain_uq: { code: "domain_taken", message: "That domain is already in use" },
+  apps_org_slug_uq: { code: "slug_taken", message: "That slug is already in use" },
+  apps_courses_uq: {
+    code: "courses_taken",
+    message: "The organization already has an app that serves courses",
+  },
+  apps_community_uq: {
+    code: "community_taken",
+    message: "The organization already has an app that serves the community",
+  },
 };
 
 function refused(err: unknown): unknown {
@@ -20,8 +26,8 @@ function refused(err: unknown): unknown {
       cause: err,
     });
   }
-  const message = pg?.code === "23505" && pg.constraint ? TAKEN[pg.constraint] : undefined;
-  return message ? Object.assign(new ConflictError(message), { cause: err }) : err;
+  const taken = pg?.code === "23505" && pg.constraint ? TAKEN[pg.constraint] : undefined;
+  return taken ? Object.assign(new ConflictError(taken.message, taken.code), { cause: err }) : err;
 }
 
 export class DrizzleAppsRepository implements AppsRepository {

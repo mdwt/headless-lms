@@ -261,7 +261,10 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
       body: { domain: GLOBEX },
     });
     expect(taken.statusCode).toBe(409);
-    expect(taken.json()).toMatchObject({ message: 'That domain is already in use' });
+    expect(taken.json()).toMatchObject({
+      error: 'domain_taken',
+      message: 'That domain is already in use',
+    });
   });
 
   it("refuses the installation's own addresses as a domain, whatever the scheme", async () => {
@@ -273,7 +276,7 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
         body: { domain },
       });
       expect(changed.statusCode).toBe(409);
-      expect(changed.json()).toMatchObject({ message: 'That domain belongs to this installation' });
+      expect(changed.json()).toMatchObject({ error: 'domain_reserved' });
     }
     await call('DELETE', `/api/apps/${clubAppId}`, { as: sarah, origin: ADMIN });
     for (const domain of own) {
@@ -300,6 +303,8 @@ describe.skipIf(!url)('apps and domains, end to end on Postgres', () => {
       `https://club.acme-${tag}.test.`,
       `https://circle-${tag}.test/path`,
       `circle-${tag}.test`,
+      'https://*',
+      `https://*.circle-${tag}.test`,
     ]) {
       const changed = await call('PATCH', `/api/apps/${clubAppId}`, {
         as: sarah,

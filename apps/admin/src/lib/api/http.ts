@@ -10,6 +10,7 @@ export class ApiError extends Error {
     /** API-side correlation id (x-request-id) — quote it to find the server log line. */
     public requestId?: string,
     public issues: { path: string; message: string }[] = [],
+    public code?: string,
   ) {
     super(message);
     this.name = "ApiError";

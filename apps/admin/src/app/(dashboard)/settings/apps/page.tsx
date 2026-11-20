@@ -10,7 +10,7 @@ export default async function AppsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { permissions } = await requirePermission("organizations:read");
+  await requirePermission("organizations:read");
   const sp = await searchParams;
   const params = parseListParams(sp, {
     pageSize: 10,
@@ -20,13 +20,5 @@ export default async function AppsPage({
   const apps = await serverApi.listApps();
   const { rows, total } = shapeAppsList(apps, params);
 
-  return (
-    <AppsTable
-      rows={rows}
-      total={total}
-      params={params}
-      apps={apps}
-      canEdit={permissions.has("organizations:write")}
-    />
-  );
+  return <AppsTable rows={rows} total={total} params={params} apps={apps} />;
 }

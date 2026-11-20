@@ -74,7 +74,7 @@ export interface CreateAuthOptions {
   /** Handlers for what the engine reports. The adapter owns no rules. */
   hooks: Hooks;
   mcp: McpAuthOptions;
-  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. A request from a domain outside it gets host-only cookies too. */
+  /** Parent domain for cross-subdomain session cookies (e.g. ".example.com"); undefined → host-only cookie, set for whichever host served the request. A request from an app's domain outside it gets host-only cookies too. */
   cookieDomain?: string;
   /** Mark session cookies Secure (set behind HTTPS / in production). */
   secureCookies?: boolean;

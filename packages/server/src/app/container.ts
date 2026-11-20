@@ -115,6 +115,7 @@ import { buildNotificationRegistries, configuredPushSender } from './notificatio
 import { loadIntegrations } from './integrations.js';
 import { mcpEndpoints, type McpEndpoints } from './mcp-endpoints.js';
 import { communityMail } from './community-mail.js';
+import { installationOrigins } from './installation-origins.js';
 import { notificationReads } from './notification-reads.js';
 import { AdminReportServiceImpl } from '@headless-lms/core/reporting/admin';
 import { MemberReportServiceImpl } from '@headless-lms/core/reporting/member';
@@ -226,24 +227,6 @@ export const OUTBOX_DEFAULTS: PollingOutboxRelayConfig = {
   batchSize: 100,
   concurrency: 16,
 };
-
-function webOrigin(name: string, value: string): string {
-  const url = URL.canParse(value) ? new URL(value) : null;
-  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) {
-    throw new Error(`${name} must be an address such as https://example.com, got "${value}"`);
-  }
-  return url.origin;
-}
-
-export function installationOrigins(
-  config: Pick<Config, 'adminAppUrl' | 'authBaseURL' | 'trustedOrigins'>,
-): string[] {
-  return [
-    webOrigin('adminAppUrl', config.adminAppUrl),
-    webOrigin('authBaseURL', config.authBaseURL),
-    ...config.trustedOrigins.map((origin) => webOrigin('trustedOrigins', origin)),
-  ];
-}
 
 export function resolveOutboxConfig(config: OutboxConfig = {}): PollingOutboxRelayConfig {
   const overrides = Object.fromEntries(

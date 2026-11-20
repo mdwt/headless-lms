@@ -64,7 +64,13 @@ configureSdk({
     const status = response?.status ?? 500;
     const message =
       body?.message ?? body?.error ?? response?.statusText ?? `Request failed (${status})`;
-    return new ApiError(status, message, requestId ?? body?.requestId, body?.issues ?? []);
+    return new ApiError(
+      status,
+      message,
+      requestId ?? body?.requestId,
+      body?.issues ?? [],
+      body?.error,
+    );
   },
 });
 

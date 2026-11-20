@@ -24,33 +24,30 @@ export function appColumns(
       header: ({ column }) => <ColumnHeader column={column} title="Name" />,
       enableHiding: false,
       cell: ({ row }) => (
-        <div className="max-w-[18rem] truncate font-medium text-ink">{row.original.name}</div>
+        <div className="min-w-0 max-w-[18rem]">
+          <div className="truncate font-medium text-ink">{row.original.name}</div>
+          <div className="truncate text-xs text-ink-4">{row.original.slug}</div>
+        </div>
       ),
     },
     {
       accessorKey: "domain",
       header: ({ column }) => <ColumnHeader column={column} title="Domain" />,
       cell: ({ row }) => (
-        <div className="max-w-[22rem] truncate text-ink-2" title={row.original.domain}>
-          {hostOf(row.original.domain)}
-        </div>
+        <div className="max-w-[22rem] truncate text-ink-2">{hostOf(row.original.domain)}</div>
       ),
     },
     {
       id: "content",
       header: ({ column }) => <ColumnHeader column={column} title="Content" />,
       enableSorting: false,
+      enableHiding: false,
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1.5">
-          {row.original.courses ? <Badge variant="neutral">{COURSES_LABEL}</Badge> : null}
-          {row.original.community ? <Badge variant="neutral">{COMMUNITY_LABEL}</Badge> : null}
+          {row.original.courses ? <Badge variant="outline">{COURSES_LABEL}</Badge> : null}
+          {row.original.community ? <Badge variant="outline">{COMMUNITY_LABEL}</Badge> : null}
         </div>
       ),
-    },
-    {
-      accessorKey: "slug",
-      header: ({ column }) => <ColumnHeader column={column} title="Slug" />,
-      cell: ({ row }) => <span className="font-mono text-ink-3">{row.original.slug}</span>,
     },
     {
       id: "actions",

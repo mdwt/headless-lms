@@ -10,8 +10,6 @@ function compareBy(id: string, a: OrgApp, b: OrgApp): number {
       return a.name.localeCompare(b.name);
     case "domain":
       return hostOf(a.domain).localeCompare(hostOf(b.domain));
-    case "slug":
-      return a.slug.localeCompare(b.slug);
     default:
       return 0;
   }

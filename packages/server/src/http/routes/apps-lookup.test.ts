@@ -17,6 +17,7 @@ const LEARN = {
 };
 
 let lookups: string[] = [];
+let failing = false;
 let logContext: Record<string, unknown>[] = [];
 
 const container = {
@@ -25,6 +26,9 @@ const container = {
   },
   apps: {
     at: async (domain: string) => {
+      if (failing) {
+        throw new Error('connection refused');
+      }
       lookups.push(domain);
       return domain === LEARN.domain ? { app: LEARN, organization: ACME } : null;
     },
@@ -37,6 +41,7 @@ let app: FastifyInstance;
 beforeEach(async () => {
   lookups = [];
   logContext = [];
+  failing = false;
   app = Fastify();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -80,6 +85,13 @@ describe('GET /api/app', () => {
     expect((await lookup({ origin: 'null' })).statusCode).toBe(404);
     expect((await lookup({ origin: 'not a url' })).statusCode).toBe(404);
     expect(lookups).toEqual([]);
+  });
+
+  it('answers 500 with nothing of the failure when the lookup fails', async () => {
+    failing = true;
+    const res = await lookup({ origin: LEARN.domain });
+    expect(res.statusCode).toBe(500);
+    expect(JSON.stringify(res.json())).not.toMatch(/connection refused/);
   });
 
   it('takes no domain as a parameter', async () => {

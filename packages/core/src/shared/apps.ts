@@ -14,7 +14,7 @@ export interface AppsRepository {
   delete(orgId: string, id: string): Promise<App | null>;
 }
 
-export interface AppOrganization {
+interface AppOrganization {
   id: string;
   externalId: string | null;
   name: string;
@@ -55,7 +55,7 @@ export class AppsService {
     this.repo = params.repo;
     this.organization = params.organization;
     this.reservedHosts = new Set(
-      (params.reservedDomains ?? []).map((domain) => new URL(domain).host),
+      (params.reservedDomains ?? []).map(hostOf).filter((host) => host !== null),
     );
     this.logger = params.logger ?? noopLogger;
   }
@@ -152,7 +152,10 @@ export class AppsService {
   private assertNotReserved(domain: string, orgId: string): void {
     if (this.reserved(domain)) {
       this.logger.warn('app refused: the domain is one of the installation', { orgId, domain });
-      throw new ConflictError('That domain belongs to this installation');
+      throw new ConflictError(
+        "That domain is one of the installation's own addresses",
+        'domain_reserved',
+      );
     }
   }
 }

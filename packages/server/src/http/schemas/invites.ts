@@ -22,7 +22,7 @@ export const CreateInvite = z.object({
   domain: domainSchema
     .optional()
     .describe(
-      "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.",
+      "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.",
     ),
 });
 export type CreateInvite = z.infer<typeof CreateInvite>;
@@ -31,7 +31,7 @@ export const ResendInvite = z.object({
   domain: domainSchema
     .optional()
     .describe(
-      "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.",
+      "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.",
     ),
 });
 export type ResendInvite = z.infer<typeof ResendInvite>;

@@ -17,6 +17,13 @@ describe("sameSitePath", () => {
     expect(sameSitePath("javascript:alert(1)")).toBeNull();
   });
 
+  it("refuses a path that normalises to another site", () => {
+    expect(sameSitePath("/.//evil.example.com")).toBeNull();
+    expect(sameSitePath("/%2e//evil.example.com")).toBeNull();
+    expect(sameSitePath("/..//evil.example.com")).toBeNull();
+    expect(sameSitePath("/./\\evil.example.com")).toBeNull();
+  });
+
   it("refuses a missing, empty, relative or repeated value", () => {
     expect(sameSitePath(null)).toBeNull();
     expect(sameSitePath(undefined)).toBeNull();

@@ -1947,7 +1947,7 @@
           "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
+          "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app."
         }
       ]
     },
@@ -2576,7 +2576,7 @@
           "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
+          "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app."
         }
       ]
     },
@@ -2599,7 +2599,7 @@
           "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
+          "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app."
         }
       ]
     },
@@ -2650,7 +2650,7 @@
     {
       "name": "create_app",
       "title": "Create app",
-      "description": "Create an app on a domain no other app has. An organization has at most one app that serves courses and one that serves the community.",
+      "description": "Create an app on a domain no other app has. The installation's own addresses are refused. An organization has at most one app that serves courses and one that serves the community.",
       "group": "Apps and domains",
       "kind": "write",
       "idempotent": false,
@@ -2672,7 +2672,7 @@
           "name": "domain",
           "type": "string",
           "required": true,
-          "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
+          "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
         },
         {
           "name": "courses",
@@ -2719,7 +2719,7 @@
           "name": "domain",
           "type": "string",
           "required": false,
-          "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
+          "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
         },
         {
           "name": "courses",

@@ -73,7 +73,7 @@
         "tags": [
           "Organizations"
         ],
-        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`.",
+        "description": "For any signed-in person, including one with no organization yet. The caller becomes its owner. The organization starts with no app; create one with `POST /api/apps`. 400 when the slug is in use.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4129,7 +4129,7 @@
                     "type": "boolean"
                   },
                   "domain": {
-                    "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.",
+                    "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.",
                     "type": "string"
                   }
                 },
@@ -4377,7 +4377,7 @@
             "in": "query",
             "name": "domain",
             "required": false,
-            "description": "The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses."
+            "description": "The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app."
           },
           {
             "schema": {
@@ -6336,7 +6336,8 @@
                       "type": "object",
                       "properties": {
                         "name": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "The organization's name"
                         }
                       },
                       "required": [
@@ -6348,7 +6349,8 @@
                       "type": "object",
                       "properties": {
                         "name": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "The app's name"
                         },
                         "courses": {
                           "type": "boolean",
@@ -6485,7 +6487,7 @@
                       },
                       "domain": {
                         "type": "string",
-                        "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
+                        "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
                       },
                       "courses": {
                         "type": "boolean",
@@ -6593,7 +6595,7 @@
         "tags": [
           "Apps"
         ],
-        "description": "Requires `organizations:write`. 409 when another app has the domain, in this organization or any other, when the domain is the admin app's, the API's or another listed origin of the installation, when the slug is taken, or when the organization already has an app that serves courses or the community. An app serves at least one of the two (400).",
+        "description": "Requires `organizations:write`. 409, with the reason as `error`: `domain_taken` when another app has the domain, in this organization or any other; `domain_reserved` when the domain is the admin app's, the API's or another listed origin of the installation; `slug_taken`; `courses_taken` or `community_taken` when the organization already has an app that serves it. 400 when the app would serve neither, or the domain is not a bare origin: a path, a query, a username or password, a wildcard or a trailing dot is refused.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6615,7 +6617,7 @@
                     "description": "A short identifier, unique among the organization's apps"
                   },
                   "domain": {
-                    "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path",
+                    "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped",
                     "type": "string"
                   },
                   "courses": {
@@ -6659,7 +6661,7 @@
                     },
                     "domain": {
                       "type": "string",
-                      "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
+                      "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
                     },
                     "courses": {
                       "type": "boolean",
@@ -6838,7 +6840,7 @@
         "tags": [
           "Apps"
         ],
-        "description": "Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 on the same clashes as creating an app.",
+        "description": "Requires `organizations:write`. Changes what is sent; the next link uses the new domain, and people sign in on it from the next request. 409 and 400 for the same reasons as creating an app, 400 also when the change would leave the app serving neither.",
         "requestBody": {
           "required": true,
           "content": {
@@ -6860,7 +6862,7 @@
                     "pattern": "^[a-z0-9-]+$"
                   },
                   "domain": {
-                    "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path",
+                    "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped",
                     "type": "string"
                   },
                   "courses": {
@@ -6908,7 +6910,7 @@
                     },
                     "domain": {
                       "type": "string",
-                      "description": "The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path"
+                      "description": "The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped"
                     },
                     "courses": {
                       "type": "boolean",

@@ -5,7 +5,9 @@ export function sameSitePath(value: string | string[] | null | undefined): strin
     return null;
   }
   const url = new URL(value, BASE);
-  return url.origin === BASE ? `${url.pathname}${url.search}${url.hash}` : null;
+  return url.origin === BASE && !url.pathname.startsWith("//")
+    ? `${url.pathname}${url.search}${url.hash}`
+    : null;
 }
 
 export function withNext(path: string, next: string | null): string {

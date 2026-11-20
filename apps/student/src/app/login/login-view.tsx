@@ -125,10 +125,10 @@ function SignInForm({ orgName, onDone }: { orgName: string; onDone: () => void }
   return (
     <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4" noValidate>
       {error && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-quiz-wrong-border bg-quiz-wrong-bg px-3 py-2.5 text-sm text-quiz-wrong-fg">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <p>{error}</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium text-ink">

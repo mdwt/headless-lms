@@ -1536,7 +1536,7 @@ export type CreateInviteData = {
     lastName?: string;
     sendEmail?: boolean;
     /**
-     * The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.
+     * The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.
      */
     domain?: string;
   };
@@ -1632,7 +1632,7 @@ export type ResendInviteData = {
   };
   query?: {
     /**
-     * The domain the invite link opens: one of the organization's apps. Absent → the app that serves courses.
+     * The domain the invite link opens, for a role with no permissions: one of the organization's apps (409 otherwise). Absent → the app that serves courses. An invite for a role with permissions opens the admin app.
      */
     domain?: string;
   };
@@ -2448,9 +2448,15 @@ export type GetAppResponses = {
    */
   200: {
     organization: {
+      /**
+       * The organization's name
+       */
       name: string;
     };
     app: {
+      /**
+       * The app's name
+       */
       name: string;
       /**
        * Whether the app serves courses and downloads
@@ -2517,7 +2523,7 @@ export type ListAppsResponses = {
      */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
      */
     domain: string;
     /**
@@ -2544,7 +2550,7 @@ export type CreateAppData = {
      */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
      */
     domain: string;
     /**
@@ -2628,7 +2634,7 @@ export type CreateAppResponses = {
      */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
      */
     domain: string;
     /**
@@ -2726,7 +2732,7 @@ export type UpdateAppData = {
      */
     slug?: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
      */
     domain?: string;
     /**
@@ -2823,7 +2829,7 @@ export type UpdateAppResponses = {
      */
     slug: string;
     /**
-     * The origin the app is reached at, such as https://learn.example.com: scheme, domain and optional port, with no path
+     * The origin the app is reached at, such as https://learn.example.com: an http or https scheme, a domain and an optional port, with nothing else. It is stored as that origin, so a trailing slash or a default port is dropped
      */
     domain: string;
     /**

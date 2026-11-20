@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { idSchema } from './shared.js';
 
+const HOST_NAME = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/;
+const HOST_IPV6 = /^\[[0-9a-f:.]+\]$/;
+
 function originOf(value: string): string | null {
   if (!URL.canParse(value)) {
     return null;
@@ -8,8 +11,9 @@ function originOf(value: string): string | null {
   const url = new URL(value);
   const web = url.protocol === 'https:' || url.protocol === 'http:';
   const bare = url.pathname === '/' && url.search === '' && url.hash === '';
-  const plain = url.username === '' && url.password === '' && !url.hostname.endsWith('.');
-  return web && bare && plain ? url.origin : null;
+  const plain = url.username === '' && url.password === '';
+  const named = HOST_NAME.test(url.hostname) || HOST_IPV6.test(url.hostname);
+  return web && bare && plain && named ? url.origin : null;
 }
 
 export const domainSchema = z

@@ -45,9 +45,9 @@ curl https://<your-api-host>/api/platform/organizations \
   -d '{"name":"Sarah'\''s Yoga","slug":"sarahs-yoga","keyName":"Storefront"}'
 ```
 
-The response carries the organization and the key. Store the organization and the key against your customer; every later call for that customer uses the key. A slug in use gets `409`. Leave `slug` out and one is generated from the name.
+The response carries the organization and the key. Store the organization and the key against your customer; every later call for that customer uses the key. A slug in use gets `409`. Leave `slug` out and one is generated from the name, with a random ending; the response carries it. Send a slug of your own when you want to find the organization again after a lost response.
 
-The organization starts with no [app](/docs/self-hosting#apps-and-domains). Create one with [`POST /api/apps`](/docs/api/apps/createApp) and the customer's key, at the address their frontend is served at, such as `https://sarahs-yoga.example.com`. When a customer connects their own domain, send it to [`PATCH /api/apps/:appId`](/docs/api/apps/updateApp) with their key. A domain another app already has gets `409`.
+The organization starts with no [app](/docs/self-hosting#apps-and-domains). Create one with [`POST /api/apps`](/docs/api/apps/createApp) and the customer's key, at the address their frontend is served at, such as `https://sarahs-yoga.example.com`. When a customer connects their own domain, send it to [`PATCH /api/apps/:appId`](/docs/api/apps/updateApp) with their key. A domain another app already has gets `409`, and so does one of the installation's own addresses.
 
 Every email about that organization reaches your [email templates](/docs/adapters/email/react-email#what-a-template-receives) with the organization and the metadata you stored with it, the password reset, password changed and sign-in link emails included when they are asked for on one of its domains.
 
@@ -59,7 +59,7 @@ Every email about that organization reaches your [email templates](/docs/adapter
 
 A store builder runs Headless LMS for the sellers on its platform. Its servers hold the platform key, and its own dashboard is where sellers build their courses.
 
-1. Sarah, a seller, turns on courses. The platform's backend creates her organization and stores the organization id and key against her account.
+1. Sarah, a seller, turns on courses. The platform's backend creates her organization and stores the organization id and key against her account. With that key it creates her app at `https://sarah.example.com`, where the platform serves the student app.
 2. Sarah builds a course in the platform's dashboard. Its backend calls `POST /api/courses` with Sarah's key, and the course is created in her organization.
 3. James buys the course. The platform's backend grants it to him with Sarah's key.
-4. James signs in to the student app with his own account and opens the course. His session decides what he sees.
+4. James signs in at `https://sarah.example.com` with his own account and opens the course. His session decides what he sees.

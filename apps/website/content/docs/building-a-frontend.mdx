@@ -39,6 +39,7 @@ curl https://<your-api-host>/api/app \
 - A member signs in with email and password, or with a sign-in link, through Better Auth (`/api/auth/*`). The session is a cookie on your domain.
 - The organization comes from the session. The API sets it when the session is created, from the domain the person signed in on. A frontend never sends an organization id.
 - A person who is not in the organization of your domain is refused: sign-in answers `401` with the code `FAILED_TO_CREATE_SESSION`.
+- A sign-in from a domain that is no app's answers `403` with the code `INVALID_ORIGIN`.
 - A person with an open invite to the organization gets a session with no organization. [`POST /api/organizations/invites/accept`](/docs/api/people/acceptInvite) sets it; read the session again afterwards.
 - Every `/api/member` route answers `401` without a session, and with a session for another organization. Sign the person out and ask them to sign in again.
 
