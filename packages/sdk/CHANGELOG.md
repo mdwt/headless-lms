@@ -1,5 +1,51 @@
 # @headless-lms/sdk
 
+## 0.9.0
+
+### Minor Changes
+
+- [#45](https://github.com/mdwt/headless-lms/pull/45) [`ad97bb3`](https://github.com/mdwt/headless-lms/commit/ad97bb337be2f7c09c49f0888ca44fdaaeb62834) Thanks [@mdwt](https://github.com/mdwt)! - An organization's two hosts become apps. An app is a frontend the organization runs on a domain, with a name and a slug, serving courses, the community, or both. A domain belongs to one app across the installation, and an organization has at most one app that serves courses and one that serves the community. A new organization starts with no app; it creates one in the admin's Settings → Apps or with `POST /api/apps`.
+
+  - `GET`, `POST /api/apps` and `PATCH`, `DELETE /api/apps/:appId` manage them, with the MCP tools `list_apps`, `create_app`, `update_app` and `delete_app`. Listing needs `organizations:read`, the rest `organizations:write`. The SDK has them as `Apps`.
+  - Organizations owns apps: `OrgApps` in `@headless-lms/core/organizations` lists, creates, changes and deletes them, gives an organization's apps and the app and organization of a domain, and the container has it as `apps`. `OrganizationsRepository` gains `createApp`, `listApps`, `findAppByDomain`, `updateApp` and `deleteApp`.
+  - `GET /api/app` tells a frontend which organization and app the domain of the request is, with no session and no key. It answers for the `Origin` header, or else the `Referer`, and is limited to 100 requests in 10 seconds per client IP address.
+  - A session started on an app's domain is for that app's organization. A person with an open invite there gets a session with no organization, and anyone else is refused: a sign-in answers `401`. On an origin in `CLIENT_ORIGIN`, or with no origin, a person in exactly one organization gets a session for it, as before.
+  - A request with a session from an app's domain is logged with the app's id, and is a `401` when the session is for another organization.
+  - The session reads under `/api/auth` (`GET get-session`, `list-sessions` and `organization/*`) answer `401` too when the session is for another organization than the app's, and `POST organization/set-active` is a `403` there for any organization but the app's. `GET /api/organizations/invites/:token` is a `404` there for an invite to another organization, and `describeInvite` takes the app the request came from.
+  - A sign-in link's session is decided by the address the link returns to; the page it was opened from counts only when it names none.
+  - The sign-in link email is sent after the request is answered, like the password reset email.
+  - Accepting an invite and resetting a password mark the person's email as verified, so a sign-in link opened later leaves their password in place. `SessionAdmin` gains `confirmEmail`, and identity's `sendPasswordChanged` becomes `passwordReset`, which takes the account's id.
+  - The bundled sign-in and invite emails name the organization, and the brand only for an email sent outside one.
+  - The student sign-in page tells a person with an invitation they have not accepted to open the link in their invitation email, instead of signing them in and out again.
+  - With `AUTH_COOKIE_DOMAIN` set, a sign-in from a domain outside it gets a host-only cookie, so an organization's own domain works beside the shared one.
+  - The admin app's address, the API's and every origin in `CLIENT_ORIGIN` are refused as an app's domain, under either scheme. A domain is a bare `http` or `https` origin: a path, a query, a username or password, a wildcard or a trailing dot is refused.
+  - A refused app answers `409` with the reason as `error`: `domain_taken`, `domain_reserved`, `slug_taken`, `courses_taken` or `community_taken`.
+  - `POST /api/organizations` and `POST /api/platform/organizations` generate the slug from the name when none is sent.
+  - A password reset link and a sign-in link that return to an app's domain open at that domain under `/api`, so a sign-in link's cookie belongs to the domain the person lands on.
+  - The password reset, password changed and sign-in link emails are sent with the organization and the app they were asked for on.
+  - Email templates receive the organization (`id`, `name`, `slug`, `metadata`), its `courseApp` and `communityApp`, the `requestedApp` of a sign-in email, and the `recipient` (`email`, and the `id`, `firstName` and `lastName` of the person who has that address).
+  - The event calendar file leaves the event page link out when no app serves the community.
+  - An emailed invite for a role with no permissions is a `409` when it names no domain and the organization has no app that serves courses.
+  - A session of a person who is no longer in its organization answers `401` on every organization route, where it answered `403`. The bundled student app signs that session out and shows the sign-in page.
+  - The bundled student app's password reset and sign-in link pages name the organization in the tab title.
+  - The admin's Settings → Apps lists, creates, changes and deletes apps. A refused save shows why on the field, and resending an invite or adding a student shows the API's reason when it is refused.
+  - The API does not start when `ADMIN_APP_URL` or `BETTER_AUTH_URL` is not an `http` or `https` address.
+
+  Breaking:
+
+  - `PLATFORM_HOST` (`Config.platformHost`) is removed, and creating an organization no longer creates its first host. Create the organization's app with `POST /api/apps`.
+  - `CLIENT_ORIGIN` no longer lists the student app's origin by default (`http://localhost:8001` only). Remove a frontend's origin from it before making that origin an app's domain.
+  - `hosts` leaves the organization, platform and MCP organization payloads, and `PATCH /api/organizations` no longer takes it. Manage apps under `/api/apps`.
+  - `createInvite` and `resendInvite` take `domain` in place of `host`, as do the MCP tools `invite_person` and `resend_invite`; `update_organization` loses `hosts`. A request that still sends `hosts` or `host` is answered as before, with the field ignored.
+  - `OrganizationService.createOrganization` and `updateOrganization` no longer return `hosts`, `createOrganization` takes `{ name, slug? }`, and `PlatformOrganizationDetails` loses `hosts`.
+  - The connected app routes move from `/api/access/apps` to `/api/access/connected-apps`; the `ApiKeys` port's `listApps` and `revokeApp` become `listConnectedApps` and `revokeConnectedApp`.
+  - `TemplateContext.hosts` is replaced by `organization`, `courseApp`, `communityApp`, `requestedApp` and `recipient`. `Mailer` takes `MailerSources` in place of a hosts function, and `Mailer.send` takes the app id as its fifth argument.
+  - `OrgHostSettings`, `OrgHostSettingsParams`, `OrgHostIndex` and `DrizzleOrgHostIndex` are removed, with the `Hosts` type and the `hostSchema` and `hostsSchema` schemas; `domainSchema` validates an app's domain. `OrganizationServiceParams` loses `hosts`, and `MemberReportServiceParams.hosts` is replaced by `apps`.
+  - `OrganizationService` loses `isOrgHost`, `isHostOfPerson` and `getOrgUsersForUser`, and gains `appOfPerson`, `sessionOrganization`, `acceptsSession`, `acceptsSwitch` and `linkDomain`. `OrganizationServiceParams` takes `apps`, the `OrgApps`, and `IdentityServiceImpl` takes `sessions`. `UpdateOrganizationInput` loses `hosts`.
+  - The sign-in adapter's `orgHosts` option (`OrgHosts`) is renamed `appDomains` (`AppDomains`), and its `hasFor` is replaced by `linkDomain`, which says whether a sign-in or reset link is sent and at which domain it is written.
+  - The sign-in adapter's `beforeCreateSession`, `sendResetPassword`, `onPasswordReset` and `sendMagicLink` hooks receive the domains the request names (`{ domains }`) as their second argument.
+  - Migration `0023_apps` creates the `apps` table and drops the two host indexes on `settings`. An organization created before it has no app until one is created.
+
 ## 0.8.0
 
 ### Minor Changes
