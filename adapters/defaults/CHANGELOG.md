@@ -1,5 +1,13 @@
 # @headless-lms/adapter-defaults
 
+## 0.5.7
+
+### Patch Changes
+
+- Updated dependencies [[`ad97bb3`](https://github.com/mdwt/headless-lms/commit/ad97bb337be2f7c09c49f0888ca44fdaaeb62834)]:
+  - @headless-lms/core@0.12.0
+  - @headless-lms/adapter-db@0.8.0
+
 ## 0.5.6
 
 ### Patch Changes
