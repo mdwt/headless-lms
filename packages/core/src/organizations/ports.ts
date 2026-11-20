@@ -174,7 +174,7 @@ export interface OrganizationService {
   ): Promise<void>;
   cancelInvite(orgUserId: string, actor: Actor): Promise<void>;
   peekInvite(token: string): Promise<Invite | null>;
-  describeInvite(token: string): Promise<InviteDetails>;
+  describeInvite(token: string, at: AppAt | null): Promise<InviteDetails>;
   acceptInvite(input: AcceptInviteInput, headers: AuthHeaders): Promise<OrgUser>;
 
   listApiKeys(actor: Actor): Promise<ApiKeySummary[]>;

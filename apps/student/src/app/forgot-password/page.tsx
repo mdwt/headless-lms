@@ -4,9 +4,13 @@ import { AuthHeading } from "@/components/auth/auth-heading";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { BackToSignIn } from "@/components/auth/back-to-sign-in";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
+import { requireCourseApp } from "@/lib/app";
 import { sameSitePath } from "@/lib/next-path";
 
-export const metadata: Metadata = { title: "Reset your password" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { organization } = await requireCourseApp();
+  return { title: `Reset your password — ${organization.name}` };
+}
 
 export const dynamic = "force-dynamic";
 

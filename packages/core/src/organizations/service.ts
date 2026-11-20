@@ -1387,9 +1387,9 @@ export class OrganizationServiceImpl implements OrganizationService {
     return invite;
   }
 
-  async describeInvite(token: string): Promise<InviteDetails> {
+  async describeInvite(token: string, at: AppAt | null): Promise<InviteDetails> {
     const invite = await this.peekInvite(token);
-    if (!invite) {
+    if (!invite || (at && invite.orgId !== at.organization.id)) {
       throw new NotFoundError('Invite', 'token');
     }
     const person = await this.people.getUserByEmail(invite.email);

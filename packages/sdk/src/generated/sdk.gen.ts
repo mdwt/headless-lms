@@ -1346,7 +1346,7 @@ export class People {
   /**
    * Read an invite by its token
    *
-   * Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.
+   * Public: no session needed. The same 404 answers forged, expired and accepted tokens, and a token of another organization when the request comes from an app's domain, so a probe learns nothing.
    */
   public static getInvite<ThrowOnError extends boolean = false>(
     parameters: {

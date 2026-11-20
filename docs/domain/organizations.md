@@ -136,7 +136,7 @@ Every org user who accepts an invite holds a Better Auth membership, whatever th
 
 ### Invites
 
-An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the domain the invite names, which must be one of the org's apps, or else the app that serves courses. With neither, an emailed invite is refused.
+An invite carries an org role, Member by default, and needs rule 2 for it. An invite for the owner, or with Owner, is refused. A member's invite link opens the domain the invite names, which must be one of the org's apps, or else the app that serves courses. With neither, an emailed invite is refused. On an app's domain, an invite to another org does not exist.
 
 Every invite creates the person and an `invited` org user at once, whatever the role. This is what makes someone findable, grantable and reportable while their invitation is outstanding. Accepting activates that same org user, creates their membership if they have none, and sets the invited org role, so anything granted while they were pending survives. Accepting is refused when the inviter no longer holds what the invite needs; resending makes the resender the inviter.
 

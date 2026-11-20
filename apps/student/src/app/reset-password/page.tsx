@@ -7,9 +7,13 @@ import { AuthHeading } from "@/components/auth/auth-heading";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { BackToSignIn } from "@/components/auth/back-to-sign-in";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { requireCourseApp } from "@/lib/app";
 import { sameSitePath, withNext } from "@/lib/next-path";
 
-export const metadata: Metadata = { title: "Choose a new password" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { organization } = await requireCourseApp();
+  return { title: `Choose a new password — ${organization.name}` };
+}
 
 export const dynamic = "force-dynamic";
 

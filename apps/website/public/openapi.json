@@ -4752,7 +4752,7 @@
         "tags": [
           "People"
         ],
-        "description": "Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.",
+        "description": "Public: no session needed. The same 404 answers forged, expired and accepted tokens, and a token of another organization when the request comes from an app's domain, so a probe learns nothing.",
         "parameters": [
           {
             "schema": {

@@ -36,6 +36,7 @@ import {
 import type { CreatedInvite } from '@headless-lms/core/organizations';
 import type { Container } from '../../app/container.js';
 import { resolveActor, resolveCaller } from '../scope.js';
+import { requestApp } from '../request-domain.js';
 
 function inviteView(invite: CreatedInvite) {
   return {
@@ -424,11 +425,12 @@ export async function organizationsRoutes(
       tags: peopleTags,
       summary: 'Read an invite by its token',
       description:
-        'Public: no session needed. The same 404 answers forged, expired and accepted tokens, so a probe learns nothing.',
+        "Public: no session needed. The same 404 answers forged, expired and accepted tokens, and a token of another organization when the request comes from an app's domain, so a probe learns nothing.",
       params: InviteTokenParam,
       response: { 200: GetInviteResult, ...refusals(404) },
     },
-    handler: async (req) => organizations.describeInvite(req.params.token),
+    handler: async (req) =>
+      organizations.describeInvite(req.params.token, await requestApp(container, req)),
   });
 
   r.route({

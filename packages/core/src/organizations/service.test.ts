@@ -2061,6 +2061,29 @@ describe('people on a domain', () => {
       expect(w.service.acceptsSession(at({ id: ORG, externalId: null }), GLOBEX)).toBe(false);
     });
 
+    it("describes on an app's domain only an invite to that app's organization", async () => {
+      await w.repo.upsertPendingInvite(ORG, {
+        email: 'ivy@example.com',
+        roleKey: 'member',
+        invitedBy: s.liam.person.id,
+        tokenHash: hashInviteToken('tok'),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const at = (id: string) => ({
+        app: CLUB,
+        organization: { id, externalId: null, name: 'Acme', slug: 'acme' },
+      });
+      expect(await w.service.describeInvite('tok', at(ORG))).toMatchObject({
+        email: 'ivy@example.com',
+      });
+      expect(await w.service.describeInvite('tok', null)).toMatchObject({
+        email: 'ivy@example.com',
+      });
+      await expect(w.service.describeInvite('tok', at(GLOBEX))).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+    });
+
     it("lets a session on an app's domain switch only to that app's organization", () => {
       const at = {
         app: CLUB,
